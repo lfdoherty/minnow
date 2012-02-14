@@ -1,0 +1,375 @@
+
+var _ = require('underscorem');
+
+function getParamByName(params, name, viewSchema){
+	var res;
+	_.each(viewSchema.params, function(p, index){
+		if(p.name === name){
+			res = params[index];
+		}
+	});	
+	_.assertDefined(res);
+	return res;
+}
+
+function makeCountMacroFilterGetter(rel, viewSchema, schema, broadcaster, objectState){
+	var macro = rel.params[0];
+	var filter = macro.expr;
+	var objSchema = schema[macro.context.name];
+	if(filter.params[1].type === 'view' && filter.params[1].view === 'is'){//IS
+
+		var is = filter.params[1];
+	
+		if(is.params[0].type === 'property' && 
+			is.params[0].context.type === 'param' && is.params[0].context.name === '&' &&
+			is.params[1].type === 'value'){							
+		
+			var value = is.params[1].value;
+			var propertyCode = objSchema.properties[is.params[0].name].code;
+			
+			function filterIsFunction(obj){
+			
+				for(var i=0;i<obj.length;++i){
+					var entry = obj[i];
+					if(entry[0] === propertyCode){
+						_.assertDefined(entry[1]);
+						return entry[1] === value;
+					}
+				}
+				return false;
+			}
+			
+			/*var many;
+			objectState.getAllObjectIdsPassing(typeCode, filterIsFunction, false, function(ids){
+				for(var i=0;i<ids.length;++i){
+					var id = ids[i];
+					var key = id[0] + ':' + id[1];
+					didPass[key] = true;
+				}
+				many = ids.length;
+			});*/
+			
+			function updateMatches(state, typeCode, id, paramsStr, listenerCb, holdCb, releaseCb, editId){
+				holdCb(editId);
+				objectState.getObjectState(typeCode, id, function(obj){
+					var key = obj[0][2] + ':' + obj[0][1];
+					var changed = false;
+					if(filterIsFunction(obj)){
+						if(!state.didPass[key]){
+							++state.many;
+							state.didPass[key] = true;
+							changed = true;
+						}
+					}else{
+						if(state.didPass[key]){
+							--state.many;
+							state.didPass[key] = false;
+							changed = true;
+						}
+					}
+					listenerCb(viewSchema.code, paramsStr,[rel.code],{op: 'set', value: state.many});
+					releaseCb(editId);
+				});
+			}
+			
+			return function(params, includeObjectCb, doneCb, listenerCb){
+				var paramsStr = JSON.stringify(params);
+
+				if(listenerCb){
+					objectState.getAllObjectIdsPassing(objSchema.code, filterIsFunction, false, function(ids){
+						var many = ids.length;
+						var state = {many: many, didPass: {}};
+						for(var i=0;i<ids.length;++i){
+							var id = ids[i];
+							var key = id[0] + ':' + id[1];
+							state.didPass[key] = true;
+						}
+						broadcaster.listenByType(objSchema.code, function(typeCode, id, path, edit, syncId, editId){
+							updateMatches(state, typeCode, id, paramsStr, listenerCb, holdCb, releaseCb, editId);
+						});
+						broadcaster.listenForNew(objSchema.code, function(typeCode, id, editId){
+							updateMatches(state, typeCode, id, paramsStr, listenerCb, holdCb, releaseCb, editId);
+						});
+						doneCb(many);
+					});
+				}else{
+					objectState.getAllObjectIdsPassing(objSchema.code, filterIsFunction, false, function(many){
+						doneCb(many);
+					});
+				}
+			}
+		}
+	}else if(filter.params[1].type === 'view' && filter.params[1].view === 'in'){//IN
+
+		var inPart = filter.params[1];
+	
+		if(inPart.params[0].type === 'property' && 
+			inPart.params[0].context.type === 'param' && inPart.params[0].context.type === '&' &&
+			inPart.params[1].type === 'param'){
+		
+			var setParamName = inPart.params[1].name;
+			var paramSet = getParamByName(params, setParamName, viewSchema);
+			_.assertArray(paramSet);
+			_.assertDefined(paramSet);
+			if(paramSet === undefined) _.errout('ERROR');
+		
+			var propertyCode = objSchema.properties[inPart.params[0].name].code;
+			
+			return function(params, includeObjectCb, doneCb){
+		
+				function filterInFunction(obj){
+			
+					for(var i=0;i<obj.length;++i){
+						var entry = obj[i];
+						if(entry[0] === propertyCode){
+							_.assertDefined(entry[1]);
+							return paramSet.indexOf(entry[1]) !== -1;
+						}
+					}
+					return false;
+				}
+
+				objectState.getManyObjectsPassing(objSchema.code, filterInFunction, false, function(many){
+					doneCb(many);
+				});
+			}
+		}
+	}
+}
+
+function makeCountGetter(rel, viewSchema, schema, broadcaster, objectState){
+	if(rel.params[0].type === 'type'){
+		return function(params, includeObjectCb, doneCb){
+			var typeName = rel.params[0].name;
+			objectState.getManyOfType(schema[typeName].code, function(many){
+				doneCb(many);
+			});
+		}
+
+	}else if(rel.params[0].type === 'macro'){
+		var macro = rel.params[0];
+		if(macro.expr.type === 'view' && macro.expr.view === 'filter'){
+			var filter = macro.expr;
+			if(filter.params[0].type === 'ampersand' && macro.context.type === 'type'){
+				//console.log("FILTER");
+			
+				return makeCountMacroFilterGetter(rel, viewSchema, schema, broadcaster, objectState);
+			}
+		}		
+	}
+	console.log('rel: ' + JSON.stringify(rel));
+	_.errout('TODO');
+}
+
+function makeInPropertyFilterGetter(rel, viewSchema, schema, broadcaster, objectState){
+	
+	var objSchema = schema[rel.context.name];
+	var inPart = rel.expr.params[1];
+	var setParamName = inPart.params[1].name;
+	var propertyCode = objSchema.properties[inPart.params[0].name].code;
+	
+	return function(params, includeObjectCb, doneCb){
+		var paramSet = getParamByName(params, setParamName, viewSchema);
+		_.assertArray(paramSet);
+		_.assertDefined(paramSet);
+		if(paramSet === undefined) _.errout('ERROR');
+	
+		function filterInFunction(obj){
+		
+			for(var i=0;i<obj.length;++i){
+				var entry = obj[i];
+				if(entry[0] === propertyCode){
+					_.assertDefined(entry[1]);
+					return paramSet.indexOf(entry[1]) !== -1;
+				}
+			}
+			return false;
+		}
+
+		objectState.getAllObjectsPassing(objSchema.code, filterInFunction, false, 
+			makeObjectsPassingHandler(includeObjectCb, objSchema, doneCb));
+		return;
+	}
+}
+
+function makeIsPropertyEqualToParamFilterGetter(rel, viewSchema, schema, broadcaster, objectState){
+	
+	var objSchema = schema[rel.context.name];
+	var is = rel.expr.params[1];
+	var paramName = is.params[1].name;
+	var propertyCode = objSchema.properties[is.params[0].name].code;
+	
+	return function(params, includeObjectCb, doneCb){
+		var paramValue = getParamByName(params, paramName, viewSchema);
+		_.assertDefined(paramValue);
+	
+		function filterIsFunction(obj){
+		
+			for(var i=0;i<obj.length;++i){
+				var entry = obj[i];
+				if(entry[0] === propertyCode){
+					_.assertDefined(entry[1]);
+					return entry[1] === paramValue;
+				}
+			}
+			return false;
+		}
+
+		objectState.getAllObjectsPassing(objSchema.code, filterIsFunction, false, 
+			makeObjectsPassingHandler(includeObjectCb, objSchema, doneCb));
+
+		return;
+	}
+}
+
+function makeObjectsPassingHandler(includeObjectCb, objSchema, doneCb){
+	return function(objs){
+
+		var ids = [];
+		_.each(objs, function(obj){
+			ids.push(obj[0][2]);
+			//console.log('pushing object: ' + JSON.stringify(obj[0]))
+			includeObjectCb(objSchema.code, obj[0][2], obj);
+		});
+		
+		var obj = {};
+		obj[objSchema.code] = ids;
+		doneCb(obj);
+	}
+}
+function makeIsPropertyEqualToValueFilterGetter(rel, viewSchema, schema, broadcaster, objectState){
+	
+	var objSchema = schema[rel.context.name];
+	var is = rel.expr.params[1];
+
+	var propertyCode = objSchema.properties[is.params[0].name].code;
+	var value = is.params[1].value;
+
+	function filterIsFunction(obj){
+	
+		for(var i=0;i<obj.length;++i){
+			var entry = obj[i];
+			if(entry[0] === propertyCode){
+				_.assertDefined(entry[1]);
+				return entry[1] === value;
+			}
+		}
+		return false;
+	}
+	
+	return function(params, includeObjectCb, doneCb){
+	
+
+		objectState.getAllObjectsPassing(objSchema.code, filterIsFunction, false, 
+			makeObjectsPassingHandler(includeObjectCb, objSchema, doneCb));
+		return;
+	}
+}
+
+
+function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView){
+	if(rel.type === 'view' && rel.view === 'count'){
+		return makeCountGetter(rel, viewSchema, schema, broadcaster, objectState);
+	}else if(rel.type === 'macro'){
+		if(rel.expr.type === 'view' && rel.expr.view === 'filter' && rel.expr.params[0].type === 'ampersand' &&
+			rel.context.type === 'type'){
+		
+			var filter = rel.expr;
+			var objSchema = schema[rel.context.name];
+	
+			if( filter.params[1].type === 'view' && filter.params[1].view === 'in'){
+		
+				var inPart = filter.params[1];
+				if(inPart.params[0].type === 'property' && 
+					inPart.params[0].context.type === 'param' &&
+					inPart.params[0].context.name === '&' &&
+					inPart.params[1].type === 'param'){
+				
+					return makeInPropertyFilterGetter(rel, viewSchema, schema, broadcaster, objectState);
+				}
+			}else if(filter.params[1].type === 'view' && filter.params[1].view === 'is'){
+
+				var is = filter.params[1];
+			//	console.log('IS');
+				
+				if(is.params[0].type === 'property' && 
+				is.params[0].context.type === 'param' && is.params[0].context.name === '&'){							
+					//console.log('SINGLE PARAM');
+					
+					if(is.params[1].type === 'value'){
+
+						return makeIsPropertyEqualToValueFilterGetter(rel, viewSchema, schema, broadcaster, objectState);
+
+					}else if(is.params[1].type === 'param'){
+						
+						return makeIsPropertyEqualToParamFilterGetter(rel, viewSchema, schema, broadcaster, objectState);
+					}
+				}
+			}
+		}
+	}else if(rel.type === 'param'){
+		var paramName = rel.name;
+		
+		var paramDef = viewSchema.paramsByName[paramName];
+		_.assertDefined(paramDef);
+		//console.log('paramDef: ' + JSON.stringify(paramDef));
+		
+		if(paramDef.type.type === 'object'){
+			if(schema[paramDef.type.object] === undefined) _.errout('unknown object type: ' + paramDef.type.object);
+			var objectTypeCode = schema[paramDef.type.object].code;
+
+			return function(params, includeObjectCb, doneCb){
+				var paramValue = getParamByName(params, paramName, viewSchema);
+				_.assertInt(paramValue);
+				objectState.getObjectState(objectTypeCode, paramValue, function(obj){
+					includeObjectCb(objectTypeCode, paramValue, obj);
+					doneCb([objectTypeCode, paramValue]);
+				});
+			}
+		}else if(paramDef.type.type === 'primitive'){
+
+			return function(params, includeObjectCb, doneCb){
+				var paramValue = getParamByName(params, paramName, viewSchema);
+				doneCb(paramValue);
+			}
+		}else if(paramDef.type.type === 'set'){
+			if(paramDef.type.members.type === 'primitive'){
+				return function(params, includeObjectCb, doneCb){
+					var paramSet = getParamByName(params, paramName, viewSchema);
+					doneCb(paramSet);
+				}
+			}
+		}
+	}else if(rel.type === 'view'){
+
+		var subView = schema[rel.view];
+		
+		var viewParamFunctions = [];
+
+		_.each(rel.params, function(vp){
+			var vpf = getRvGetter(vp, viewSchema, schema, broadcaster, objectState, getView);
+			_.assertFunction(vpf);
+			viewParamFunctions.push(vpf);
+		});
+		
+		return function(params, includeObjectCb, doneCb){
+			
+			var subParams = [];
+			var cdl = _.latch(viewParamFunctions.length, function(){
+				getView(subView.code, subParams, includeObjectCb, doneCb);
+			});
+			
+			_.each(viewParamFunctions, function(vpf, i){
+				vpf(params, includeObjectCb, function(paramValue){
+					subParams[i] = paramValue;
+					cdl();
+				});
+			});
+		}		
+	}
+	console.log('rel: ' + JSON.stringify(rel));
+	_.errout('TODO');
+}
+
+exports.getRvGetter = getRvGetter;
+

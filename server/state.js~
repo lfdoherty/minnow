@@ -1,0 +1,83 @@
+
+function defineView(views){
+	function View(typeCode, params, key){
+		this.code = typeCode;
+		this.params = params;
+		this.key = key;
+		this.refCount = 1;
+	}
+	View.prototype.getSnapshots = function(cb){
+	}
+	View.prototype.getSnapshotState = function(snapshotId, cb){
+	}
+
+	View.prototype.addSyncHandle = function(syncHandle){
+	}
+	View.prototype.removeSyncHandle = function(syncHandle){
+	}
+
+	View.prototype.discard = function(){
+		delete views[this.code][this.key];
+	}
+	
+	return View;
+}
+
+function defineObjectView(simpleViews){
+	
+	function ObjectView(typeCode, id){
+		this.code = typeCode;
+		this.id = id;
+		this.refCount = 1;
+	}
+	ObjectView.prototype.getSnapshots = function(cb){
+	}
+	ObjectView.prototype.getSnapshotState = function(snapshotId, cb){
+	}
+	ObjectView.prototype.addEdit = function(edit, path){
+	}
+
+	ObjectView.prototype.addSyncHandle = function(syncHandle){
+	}
+	ObjectView.prototype.removeSyncHandle = function(syncHandle){
+	}
+	
+	ObjectView.prototype.discard = function(){
+		delete simpleViews[this.code][this.id];
+	}
+	
+	return ObjectView;
+}
+
+exports.make = function(schema, ap){
+
+	var views = {};
+	var simpleViews = {};
+	
+	_.each(schema._byCode, function(s, code){
+		if(s.isView){
+			views[code] = {};
+		}else{
+			simpleViews[code] = {};
+		}
+	});
+
+	var View = defineView(views);
+	var ObjectView = defineObjectView(simpleViews);
+	
+	return {
+		getView: function(typeCode, params){
+
+			if(typeof(params) === 'number'){
+				v = simpleViews[typeCode][params];
+				if(v === undefined) v = simpleViews[typeCode][params] = new View(typeCode, params);//TODO lookup				
+			}else{
+				var key = JSON.stringify(params);
+				v = views[typeCode][key];
+				if(v === undefined) v = views[typeCode][key] = new View(typeCode, params, key);//TODO lookup
+			}
+			
+			return v;
+		}
+	};
+}

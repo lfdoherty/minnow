@@ -1,0 +1,19 @@
+{
+	"name": "minnow",
+	"version": "2.0.0",
+	"description": "An auto-denormalizing, in-memory-canonical relational database",
+	"main": "./client/client",
+	"author": "Liam Doherty",
+	"dependencies" : { 
+		"underscorem": ">0.1",
+		"seedrandom": ">=0.1",
+		"keratin": ">=0.2.0",
+		"morlock": "*",
+		"mini-lzo-wrapper": "*",
+		"socket.io": "*",
+		"structures": "*"
+	},
+	"engines": {
+		 "node" : "0.4"
+	}
+}

@@ -1,0 +1,45 @@
+/*
+groupevents(subjectGroup string) 40
+	group subjectGroup 1
+	events *event[.group is subjectGroup] 2
+	
+researcherdata(u user) 41
+	user u 1
+	
+	administeredGroups u.administeredGroups{groupevents(&)} 2 //TODO implement this - creates a one-to-? relationship with objects of 'groupevents' type
+	
+	//what if we want to have administeredGroups be of string:groupevents type, instead of set:groupevents?
+	//administeredGroups u.administeredGroups{groupevents(&)} 1
+	*/
+	
+	
+/*
+
+Note that we can use view composition syntax for 'built-in' views like count, sum, average, etc.
+
+summarystats(u user) 42
+	manyAdministeredGroups count(u.administeredGroups) 1
+	averageManyGroupEvents average(u.administeredGroups{count(*event[.group is &])}) 2
+
+Basically we're defining a {...} operator which takes the left-hand set and computes the result of its contents for each l.h.s. value.
+This produces a set or list (depending on whether the lh expression produces a set or a list.)  If we prefix with %, then the lhs value is the
+key to a map.
+
+If you need to nest {...} operators (i.e. have multiple parameters) you should create a new view.
+
+---------------------------
+Later Addendum:
+
+Filters are effectively using the {...} operator, e.g.:
+
+*event[&.group in nice_groups]
+
+is the same as 
+
+*event{ filter(&, in(&.group, nice_groups)) }
+
+where 'in' produces a boolean in a similar (i.e. is a built-in view like count)
+and 'filter' returns the first parameter if the second is true, and nothing otherwise
+
+Infix operators are similarly just a different way of writing a two-parameter function.
+*/

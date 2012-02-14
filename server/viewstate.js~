@@ -1,0 +1,355 @@
+
+var _ = require('underscorem');
+
+var versions = require('./versions');
+
+function makePartialVs(objectState, scf){
+	_.assertObject(objectState);
+	_.assertFunction(scf);
+	
+	var delayed = {};
+	var forwardingWaiting = {};
+	
+	var pvs = {
+		//this indicates that an async operation may need to send the given edit
+		//later (and that sending it earlier would produce a logical inconsistency)
+		//hence if the edit is forwarded from another source, it should be delayed
+		mightSendChildEdit: function(senderKey, editId){
+			_.assertLength(arguments, 2);
+			_.assertInt(editId);
+			//console.log('delayed edit ' + editId + ' by ' + senderKey);
+			if(delayed[editId] === undefined) delayed[editId] = [];
+			delayed[editId].push(senderKey);
+		},
+		//releases a constraint produced via the previous method
+		notSendingChildEdit: function(senderKey, editId){
+			//console.log('released delay on edit ' + editId + ' by ' + senderKey);
+			var d = delayed[editId];
+			d.splice(d.indexOf(senderKey), 1);
+			if(d.length === 0){
+				var fw = forwardingWaiting[editId];
+				if(fw){
+					scf.apply(undefined, fw);
+					delete forwardingWaiting[editId];
+				}
+				delete delayed[editId];
+			}
+		},
+		//requests that an edit to an object be sent as part of maintaining the view
+		forwardChildEditCb: function(typeCode, id, path, edit, syncId, editId, senderKey){
+			_.assertLength(arguments, 7);
+			_.assertInt(editId);
+			_.assertInt(senderKey);
+			
+			//TODO if any edits are delayed, delay *all* edits to preserve edit sequentiality
+			
+			var d = delayed[editId];
+			if(d !== undefined || d.length === 1 && d[0] === senderKey){
+				scf(typeCode, id, path, edit, editId, syncId);
+			}else{
+				//console.log('waiting to forward');
+				forwardingWaiting[editId] = [typeCode, id, path, edit, editId, syncId];
+			}
+		}
+	};
+	return pvs;
+}
+
+function makeVs(objectState, scf, rel, relName, pvs){
+	
+	console.log('setting up rel ' + relName);
+	
+	var vs = {
+		assureHasObject: function(tc, id, cb){
+		
+			//TODO also assure all FKed objects included
+			
+			//TODO only send if necessary
+			
+			objectState.getObjectState(tc, id, function(state){
+				scf(typeCode, paramsStr, [], {op: 'object-snap', type: tc, id: id, value: state}, -1, -1);
+				//console.log('sent object-snap ' + tc + ' ' + id + ' ' + paramsStr);
+				cb(state);
+			});
+		},
+		sendChangeEditCb: function(edit){
+			scf(typeCode, paramsStr, [rel.code], edit, -1, -1);
+		},
+	};
+	_.extend(vs, pvs);
+	return vs;
+}
+
+exports.make = function(schema, broadcaster, objectState){
+
+	var allRelSets = {};//keyed by typeCode and params key
+
+	var sets = require('./viewsets').make();
+
+	var syncListeners = {};
+	_.each(schema._byCode, function(v, code){
+		syncListeners[code] = {};
+	});
+	
+	function getSendChangeEdit(typeCode, key){
+		var s = syncListeners[typeCode][key];
+		if(s === undefined) s = syncListeners[typeCode][key] = [];
+		
+		function sendChangeEdit(typeCode, id, path, edit, editId, syncId){
+			//console.log('getSendChangeEdit');
+			_.assertInt(syncId);
+			
+			_.each(s, function(listener){
+				listener(typeCode, id, path, edit, editId, syncId);
+			});
+		}
+		return sendChangeEdit;
+	}
+
+	function getRelSets(typeCode, params, paramsStr){
+		_.assertArray(params);
+
+		var rs = allRelSets[typeCode];
+		if(rs === undefined) rs = allRelSets[typeCode] = {};
+
+		
+		var k = rs[paramsStr];
+		if(k === undefined){
+			console.log('making new relsets');
+		
+			var scf = getSendChangeEdit(typeCode, paramsStr);
+
+			//var pvs = makePartialVs(objectState, scf);
+			var parsedParams = sets.processParams(schema._byCode[typeCode], params, schema, objectState, broadcaster);
+		
+			k = rs[paramsStr] = {};
+			
+			var viewSchema = schema._byCode[typeCode];
+			
+			_.each(viewSchema.rels, function(rel, relName){
+			
+				//var vs = makeVs(objectState, scf, rel, relName, pvs);
+				var relSet = sets.makeSet(rel, viewSchema, schema, objectState, parsedParams, broadcaster, getView);
+				_.assertObject(relSet);
+				k[rel.code] = relSet;
+			});
+		}
+		
+		//console.log(k);
+		
+		return k;
+	}
+	
+	function getObjectVersions(snapshot){
+		var result = [];
+		_.each(snapshot.objects, function(objs, typeCode){
+			_.each(objs, function(obj){
+				result.push(obj[0][1]);
+			});
+		});
+		result.sort();
+		return result;
+	}
+	
+	function getNewestVersion(snapshot, latestId){
+		if(latestId === -1){
+		
+			return _.reduce(snapshot.objects, function(memo, objs){
+				//console.log('here: ' + memo + ' ' + _.size(objs));
+				_.assertInt(memo);
+				return _.reduce(objs, function(memo, obj){
+					//console.log('there: ' + memo);
+					_.assertInt(memo);
+					return Math.max(obj[0][1], memo);
+				}, memo);
+			}, -1);
+		}else{
+			return latestId;
+		}
+	}
+	
+	function getView(typeCode, params, paramsStr){
+
+		var relSets = getRelSets(typeCode, params, paramsStr);
+		
+		var handle = {
+			getSnapshot: function(latestId, previousId, cb){
+				var obj = [[-1,-1, paramsStr]];
+				
+				var snapshot = {
+					objects: {},
+					version: -1
+				};
+
+				snapshot.objects[typeCode] = {};
+				snapshot.objects[typeCode][paramsStr] = obj;
+				
+				var cdl = _.latch(_.size(relSets), function(){
+				
+					obj[0][1] = snapshot.version = getNewestVersion(snapshot, latestId);
+					//console.log('snapshot version: ' + snapshot.version);
+					console.log('len: ' + obj.length);
+					cb(snapshot);
+				});
+				
+				_.each(relSets, function(relSet, relCode){
+		
+					relSet.getIdsOrValues(function(vs){
+						_.assertDefined(vs);
+						//console.log('vs: ' + JSON.stringify(vs));
+						if(!_.isArray(vs) || vs.length > 0){
+							//console.log('pushing rel ' + relCode + ' ' + JSON.stringify(vs));
+							
+							//console.log('viewCode: ' + typeCode);
+							//console.log(JSON.stringify(_.keys(schema._byCode)));
+							
+							var viewSchema = schema._byCode[typeCode];
+							//console.log('viewSchema: ' + JSON.stringify(viewSchema));
+							var ps = viewSchema.schema.propertiesByCode[relCode];
+							
+							console.log('ps: ' + JSON.stringify(ps));
+							if(ps.type.type === 'view'){
+								//singleton property, use list-style
+								vs = [ps.type.viewCode, vs[ps.type.viewCode][0]];
+								console.log('translated view singleton-style: ' + JSON.stringify(vs));
+							}else if(ps.type.type === 'object'){
+								var tc = parseInt(_.keys(vs)[0]);
+								vs = [tc, vs[tc][0]];
+								console.log('translated object singleton-style: ' + JSON.stringify(vs));
+							}
+							obj.push([parseInt(relCode), vs]);
+							//TODO optimize to use latest,previous version ids to avoid excessive retrieval
+							relSet.populateObjectsIfAny(snapshot.objects, previousId+1, latestId, cdl);
+						}else{
+							console.log('skipping rel: ' + relCode);
+							cdl();
+						}
+					});
+				});
+			}
+		};
+		
+		return handle;
+	}
+
+	var viewCache = {};
+	
+	function getSnapshotState(typeCode, params, latestId, previousId, cb){
+		_.assertLength(arguments, 5);
+		_.assertInt(latestId);
+		_.assertInt(previousId);
+
+		var paramsStr = JSON.stringify(params);
+
+		var key = typeCode + ':' + paramsStr;
+		var view = viewCache[key];
+		if(view === undefined){
+			view = viewCache[key] = getView(typeCode, params, paramsStr)
+			//console.log('made new view');
+		}else{
+			//console.log('got view from cache');
+		}
+		view.getSnapshot(latestId, previousId, cb);
+	}
+
+	function varianceMag(v){
+		var mag = Math.log(v/6)/Math.log(10);
+		var m = Math.pow(10,Math.floor(mag));
+		return m;
+	}
+
+	var handle = {
+		getSnapshots: function(typeCode, params, cb){
+			//TODO do this more efficiently (without actually retrieving the entire snapshot.)
+			handle.getSnapshotState(typeCode, params, -1, -1, function(snap){
+				var allVersions = getObjectVersions(snap);
+				
+				//var v = versions.computeSnapshots(snap.version).concat([-1]);
+				var v = versions.computeSnapshots(allVersions.length);
+				
+				//console.log('edit versions: ' + JSON.stringify(v));
+				
+				var realVersions = [];
+				for(var i=0;i<v.length;++i){
+					var kv = v[i];
+					var iv = allVersions[kv];
+					realVersions[i] = iv - (iv % varianceMag(snap.version));
+				}
+
+				
+				realVersions.push(-1);
+				
+				//console.log('v: ' + JSON.stringify(realVersions));
+				cb(realVersions);
+			});
+		},
+		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, cb){
+			_.assertLength(arguments, 5);
+			_.assertFunction(cb);
+		
+			_.assert(params.length === schema._byCode[typeCode].params.length);
+			
+
+			
+			_.assert(params.length === schema._byCode[typeCode].params.length);
+
+			getSnapshotState(typeCode, params, snapshotId, previousSnapshotId, cb);
+		},
+		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb){
+			_.assertArray(params);
+			if(snapshotIds.length !== 1 || snapshotIds[0] !== -1) _.errout('TODO implement: ' + JSON.stringify(snapshotIds));
+			
+			handle.getSnapshotState(typeCode, params, snapshotIds[0], -1, function(snap){
+				cb([snap]);
+			});
+		},
+		
+		beginSync: function(typeCode, params, latestSnapshotVersionId, listenerCb, readyCb){
+			_.assertFunction(listenerCb);
+			_.assertFunction(readyCb);
+			
+			var key = JSON.stringify(params);
+			var s = syncListeners[typeCode];
+			if(s[key] === undefined) s[key] = [];
+			_.assertFunction(listenerCb);
+			
+			//console.log('sync version: ' + latestSnapshotVersionId);
+			
+			//thanks to the contract of objectState, this snapshot will be synchronously up-to-date when
+			//it calls-back
+			handle.getSnapshotState(typeCode, params, -1, latestSnapshotVersionId, function(snap){
+				
+				if(snap.version > latestSnapshotVersionId){
+					_.each(snap.objects, function(k, tc){
+						_.each(k, function(obj, id){
+							_.assertArray(obj);
+							console.log('ID: ' + id);
+							var version = obj[0][1];
+							_.assertDefined(obj[0][2]);
+							if(version > latestSnapshotVersionId){
+								listenerCb(typeCode, key, [], {op: 'object-snap', 
+									type: parseInt(tc), id: obj[0][2], value: obj}, -1, -1);
+								//console.log('sent object-snap');
+							}
+						});
+					});
+				}else{
+					console.log('no changes since syncing snapshot');
+				}
+				
+				s[key].push(listenerCb);
+				readyCb();
+			});			
+			//console.log('sync listener added for: ' + typeCode + ' ' + JSON.stringify(params));
+		},
+		endSync: function(typeCode, params, listenerCb){
+			var key = JSON.stringify(params);
+			var list = syncListeners[typeCode][key];
+			list.splice(list.indexOf(listenerCb), 1);
+			
+			//console.log('ending Sync');
+		}
+	};
+	
+	return handle;
+}

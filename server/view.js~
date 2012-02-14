@@ -1,0 +1,138 @@
+
+function defineView(views, simpleViews, objectState, viewState){
+	function View(typeCode, params, key){
+		this.code = typeCode;
+		this.params = params;
+		this.key = key;
+		this.refCount = 1;
+		this.shs = [];
+		
+		//passing 'this' ensures that it will have objectChanged called on it when objects belonging to the view change
+		//in this case 'objects' include views that have been changed
+		this.view = viewState.getView(typeCode, params, key, this);
+	}
+	View.prototype.getSnapshots = function(cb){
+	}
+	View.prototype.getSnapshotState = function(snapshotId, cb){
+	}
+
+	//note that this cb will be relative to the most local normalized object
+	ObjectView.prototype.objectChanged = function(typeCode, id, path, edit/*, sourceSyncHandle*/){
+		for(var i=0;i<this.shs.length;++i){
+			var sh = this.shs[i];
+			sh.broadcastEdit(typeCode, id, path, edit);
+		}
+	}
+	
+	View.prototype.addSyncHandle = function(syncHandle){
+		this.shs.push(syncHandle);
+		
+		//TODO update the sync handle with whatever has happened since its latest snapshot
+	}
+	View.prototype.removeSyncHandle = function(syncHandle){
+		var si = this.shs.indexOf(syncHandle);
+		if(si === -1) _.errout('sync handle not found');
+		this.shs.splice(si, 1);
+	}
+	
+	View.prototype.discard = function(){
+		--this.refCount;
+		if(this.refCount < 0) _.errout('ref counting error: ' + this.refCount);
+		if(this.refCount === 0){
+			delete views[this.code][this.key];
+		}
+	}
+	
+	return View;
+}
+
+function defineObjectView(simpleViews, objectState, broadcaster){
+	
+	function ObjectView(typeCode, id){
+		this.code = typeCode;
+		this.id = id;
+		this.refCount = 1;
+		this.shs = [];
+	}
+	ObjectView.prototype.startListening = function(){
+		var shs = this.shs;
+		this.listener = function(typeCode, id, path, edit){
+			for(var i=0;i<shs.length;++i){
+				var sh = shs[i];
+				sh.broadcastEdit(typeCode, id, path, edit);
+			}
+		}
+		broadcaster.output.listenByObject(this.code, this.id, this.listener);
+	}
+	ObjectView.prototype.getSnapshots = function(cb){
+		objectState.getSnapshots(this.code, this.id, cb);
+	}
+	ObjectView.prototype.getSnapshotState = function(snapshotId, cb){
+		objectState.getSnapshotState(this.code, this.id, snapshotId, cb);
+	}
+	ObjectView.prototype.getAllSnapshotStates = function(snapshotIds, cb){
+		objectState.getAllSnapshotStates(this.code, this.id, snapshotIds, cb);
+	}
+	ObjectView.prototype.addEdit = function(typeCode, id, path, edit){
+		objectState.addEdit(typeCode, id, path, edit);
+	}
+
+	ObjectView.prototype.addSyncHandle = function(syncHandle){
+		this.shs.push(syncHandle);
+		
+		if(this.listener === undefined) this.startListening();
+
+		//TODO update the sync handle with whatever has happened since its latest snapshot
+	}
+	ObjectView.prototype.removeSyncHandle = function(syncHandle){
+		var si = this.shs.indexOf(syncHandle);
+		if(si === -1) _.errout('sync handle not found');
+		this.shs.splice(si, 1);
+	}
+	
+	ObjectView.prototype.discard = function(){
+		--this.refCount;
+		if(this.refCount < 0) _.errout('ref counting error: ' + this.refCount);
+		if(this.refCount === 0){
+			delete simpleViews[this.code][this.id];
+			if(this.listening){
+				broadcaster.stopListeningByObject(this.code, this.id, this.listener);
+			}
+		}
+	}
+	
+	return ObjectView;
+}
+
+exports.make = function(schema, objectState, viewState){
+
+	var views = {};
+	var simpleViews = {};
+	
+	_.each(schema._byCode, function(s, code){
+		if(s.isView){
+			views[code] = {};
+		}else{
+			simpleViews[code] = {};
+		}
+	});
+
+	var View = defineView(views, simpleViews, objectState, viewState);
+	var ObjectView = defineObjectView(simpleViews, objectState);
+	
+	return {
+		getView: function(typeCode, params){
+
+			if(typeof(params) === 'number'){
+				v = simpleViews[typeCode][params];
+				if(v === undefined) v = simpleViews[typeCode][params] = new View(typeCode, params);
+			}else{
+				var key = JSON.stringify(params);
+				v = views[typeCode][key];
+				if(v === undefined) v = views[typeCode][key] = new View(typeCode, params, key);
+			}
+			
+			return v;
+		}
+	};
+}

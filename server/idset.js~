@@ -1,0 +1,342 @@
+"use strict";
+
+var _ = require('underscorem');
+
+var cc = {removeArray: 0, addArray: 0}
+
+//TODO ensure the caches don't leak indefinitely
+
+function sum(list){
+	var s = 0;
+	for(var i=0;i<list.length;++i){
+		s += list[i];
+	}
+	return s;
+}
+function avg(list){
+	if(list.length === 0) return '*';
+	return sum(list)/list.length;
+}
+setInterval(function(){
+	console.log(JSON.stringify(cc));
+	
+	console.log('rr m/h: ' + rrm + '/' + rrh);
+	console.log('aa m/h: ' + aam + '/' + aah);
+	console.log('i m/h: ' + im + '/' + ih);
+	console.log('u m/h: ' + um + '/' + uh);
+}, 2000);
+
+IdSet.empty = new IdSet();
+
+var uidCounter = 0;
+
+function addAllSets(s, sets){
+	
+	for(var i=0;i<sets.length;++i){
+		addSet(s, sets[i]);
+	}
+}
+function addSet(s, set){
+	_.assert(set instanceof IdSet);
+
+	for(var i=0;i<set.list.length;++i){
+		var id = set.list[i];
+
+		if(s.map[id]) return;
+		s.map[id] = true;
+		s.list.push(id);
+	}
+}
+function removeSet(s, set){
+	_.assert(set instanceof IdSet);
+	if(s.size() === 0) return;
+
+	for(var i=0;i<set.list.length;++i){
+		var id = set.list[i];
+		//this.remove(id);
+		
+		if(s.map[id] === undefined) continue;
+
+		var index = s.list.indexOf(id);
+		if(index !== -1){
+			delete s.map[index];
+			s.list.splice(index,1);
+		}
+
+	}
+}
+
+function copy(s){
+	_.assert(s instanceof IdSet);
+	return new IdSet(s.list);
+}
+
+function IdSet(arr){
+	this.map = {};
+	this.uid = ++uidCounter;
+	if(arr !== undefined){
+		_.assertArray(arr);
+		for(var i=0;i<arr.length;++i){
+			var id = arr[i];
+			this.map[id] = true;
+		}
+		this.list = [].concat(arr);
+	}else{
+		this.list = [];
+	}
+}
+
+IdSet.prototype.get = function(){
+	return [].concat(this.list);
+}
+
+IdSet.prototype.getAddedArray = function(list){
+	_.assertArray(list);
+	
+	if(list.length === 0) return this;
+
+	var c = copy(this);
+	
+	++cc.addArray;
+	
+	for(var i=0;i<list.length;++i){
+		var id = list[i];
+		if(c.map[id]) return;
+		c.map[id] = true;
+		c.list.push(id);
+	}
+	return c;
+}
+IdSet.prototype.getAdded = function(id){
+	if(this.map[id]) return this;
+	
+	if(this.list.length > 10){
+		var c = new DiffIdSet(this);
+		return c.getAdded(id);
+	}else{
+		var c = copy(this);
+		c.map[id] = true;
+		c.list.push(id);
+	
+		return c;
+	}
+}
+
+var aah=0;
+var aam=0;
+
+IdSet.prototype.getAddedAllSets = function(sets){
+
+	if(this.addedAllSetsCache === undefined) this.addedAllSetsCache = {};
+	
+	var key = '';
+	for(var i=0;i<sets.length;++i){
+		key += sets[i].uid + ':';
+	}
+	
+	if(this.addedAllSetsCache[key]){
+		++aah;
+		return this.addedAllSetsCache[key];
+	}
+	
+	++aam;
+
+	var c = copy(this);
+	addAllSets(c, sets);
+	this.addedAllSetsCache[key] = c;
+	return c;
+}
+
+var rrh = 0;
+var rrm = 0;
+
+IdSet.prototype.getRemovedSet = function(set){
+	if(this.size() === 0) return this;
+	//_.assert(set instanceof IdSet);
+	
+	if(this.removedSetCache === undefined) this.removedSetCache = {};
+	
+	if(this.removedSetCache[set.uid]){
+		++rrh;
+		return this.removedSetCache[set.uid];
+	}
+	
+	++rrm;
+
+	var c = copy(this);
+	removeSet(c, set);
+	this.removedSetCache[set.uid] = c;
+	return c;
+}
+
+IdSet.prototype.getRemovedArray = function(list){
+	_.assertArray(list);
+	if(this.size() === 0) return this;
+	
+	++cc.removeArray;
+	
+	var s = copy(this);
+
+	for(var i=0;i<list.length;++i){
+		var id = list[i];
+		
+		if(s.map[id] === undefined) continue;
+
+		var index = s.list.indexOf(id);
+		if(index !== -1){
+			delete s.map[index];
+			s.list.splice(index,1);
+		}
+
+	}
+	
+	if(s.list.length === this.list.length) return this;
+	
+	return s;
+}
+
+function copy(s){
+	return new IdSet(s.list);
+}
+
+IdSet.prototype.size = function(){
+	return this.list.length;
+}
+var uh=0,um=0;
+var ih = 0, im = 0;
+
+IdSet.prototype.getUnion = function(set){
+
+	if(this.unionCache === undefined) this.unionCache = {};
+	
+	if(this.unionCache[set.uid]){
+		++uh;
+		return this.unionCache[set.uid];
+	}
+	
+	++um;
+
+	var result = copy(this);
+	addSet(result, set);
+	
+	this.unionCache[set.uid] = result;
+	
+	return result;
+}
+IdSet.prototype.has = function(id){
+	return !!this.map[id];
+}
+
+
+IdSet.prototype.getIntersection = function(set){
+
+	if(this.intersectionCache === undefined) this.intersectionCache = {};
+	
+	if(this.intersectionCache[set.uid]){
+		++ih;
+		return this.intersectionCache[set.uid];
+	}
+	
+	++im;
+
+	var result = new IdSet();
+	for(var i=0;i<set.list.length;++i){
+		var v = set.list[i];
+		if(this.map[v]){
+			result.list.push(v);
+			result.map[v] = true;
+		}
+	}
+	
+	this.intersectionCache[set.uid] = result;
+	
+	return result;
+}
+
+function DiffIdSet(set){
+	_.assert(set instanceof IdSet || set instanceof DiffIdSet);
+	this.parent = set;
+	this.added = IdSet.empty;
+	this.removed = IdSet.empty;
+}
+
+
+DiffIdSet.prototype.get = function(){
+	//return [].concat(this.list);
+	var a = [].concat(this.added.list);
+	var list = this.parent.list;
+	for(var i=0;i<list.length;++i){
+		var id = list[i];
+		if(!this.removed.has(id)){
+			a.push(id);
+		}
+	}
+	return a;
+}
+DiffIdSet.prototype.has = function(id){
+	return this.added.has(id) || (!this.removed.has(id) && this.parent.has(id));
+}
+DiffIdSet.prototype.getAddedArray = function(list){
+	_.assertArray(list);
+	if(list.length === 0) return this;
+
+	//var c = copy(this);
+	var reallyAddedArray = [];
+	var reallyUnremovedArray = [];
+	for(var i=0;i<list.length;++i){
+		var id = list[i];
+		if(this.parent.has(id) || this.added.has(id)){
+		}else if(this.removed.map[id]){
+			reallyUnremovedArray.push(id);
+		}else{
+			reallyAddedArray.push(id);
+		}
+	}
+	if(reallyAddedArray.length === 0 && reallyUnremovedArray.length === 0) return this;
+	
+	var c = new DiffIdSet(this.parent);
+	c.added = reallyAddedArray.length > 0 ? new IdSet(this.added.list.concat(reallyAddedArray)) : this.added;
+	c.removed = reallyUnremovedArray.length > 0 ? this.removed.getRemovedArray(reallyUnremovedArray) : this.removed;
+	return c;
+}
+DiffIdSet.prototype.getAdded = function(id){
+
+	if(this.parent.has(id) || this.added.has(id)) return this;
+	
+	if(this.removed.map[id]){
+		var c = new DiffIdSet(this.parent);
+		c.removed = new IdSet(this.removed.get());//this.removed.getRemoved(id);
+		delete c.removed.map[id];
+		c.removed.list.splice(c.removed.list.indexOf(id), 1);
+		
+		c.added = this.added;
+		return c;
+	}else{
+		var c = new DiffIdSet(this.parent);
+		c.removed = this.removed;
+		c.added = new IdSet(this.added.get());
+		c.added.map[id] = true;
+		c.added.list.push(id);
+		return c;
+	}
+}
+
+
+DiffIdSet.prototype.size = function(){
+	return this.parent.list.length + this.added.list.length - this.removed.list.length;
+}
+
+DiffIdSet.prototype.getUnion = function(set){
+
+	var result = new IdSet(this.get());
+	return result.getUnion(set);
+}
+
+
+IdSet.prototype.getIntersection = function(set){
+
+	var result = new IdSet(this.get());
+	return result.getIntersection(set);
+}
+
+exports.IdSet = IdSet

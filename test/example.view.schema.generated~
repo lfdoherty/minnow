@@ -1,0 +1,8 @@
+groupevents 1 invariant recursively_invariant
+	group string 1
+	events set:event 2
+
+researcherdata 2 invariant recursively_invariant
+	user user 1
+	administeredGroups set:groupevents 2
+

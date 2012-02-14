@@ -1,0 +1,337 @@
+"use strict";
+
+var _ = require('underscorem');
+
+var IdSet = require('./idset').IdSet;
+
+var objutil = require('./objutil');
+
+function build(schema, m, rafName, ap){
+	_.assertLength(arguments, 4);
+	_.assertString(rafName);
+	//scan through all objects in the ap, determine what indexes we can build, provide a handle
+	//to accessing them
+	
+	var indexStream = m.stream(rafName + '.special_indexes');
+	var indexMetaStream = m.stream(rafName + '.special_indexes.meta');
+	
+	var indexes = [];
+	
+	var start = Date.now();
+	
+	_.each(schema._byCode, function(objSchema){
+
+		var objs = ap.external.getAllObjects(objSchema.code);
+
+		var manyObjects = _.size(objs);
+		var maxKeyRatio = 0.1;
+		var maxMassRatio = 0.05;
+		var maxKeys = manyObjects*maxKeyRatio;
+		if(manyObjects < 100) maxKeys = manyObjects;
+
+		//1. build single-primitive-property indexes
+
+
+		var processingMap = {};
+		var doneMap = {};
+		var indexableProperties = [];
+		_.each(objSchema.properties, function(p){
+			if(p.type.type === 'primitive'){
+				indexableProperties.push(p.code);
+				
+				var keyMass = 0;
+				var objectMass = 0;
+				var byValue = {map: {}, keys: []};
+				processingMap[p.code] = function(obj){
+					//var v = objutil.findPropertyValue(p.code, obj);
+					var v = obj[p.code];
+					
+					if(v === undefined) v = null;//easier for the purposes of JSON!
+					
+					keyMass += JSON.stringify(v).length;
+					objectMass += JSON.stringify(obj).length;
+					
+					if(byValue.map[v] === undefined){
+						byValue.map[v] = [];
+						byValue.keys.push(v);
+					}
+					byValue.map[v].push(obj[0][2]);
+				}
+				doneMap[p.code] = function(){
+					if(byValue.keys.length <= maxKeys || (manyObjects === 0 || keyMass/objectMass < maxMassRatio)){
+
+						var index = {type: 'primitive', code: objSchema.code, property: p.code};
+						indexes.push(index);
+						indexMetaStream.append(new Buffer(JSON.stringify(index)));
+						indexStream.append(new Buffer(JSON.stringify(byValue)));
+						console.log('built primitive key index(' + objSchema.name + '.' + p.name + ') (' + byValue.keys.length + ')');
+					}else{
+						console.log('rejecting primitive key(' + objSchema.name + '.' + p.name + '), too many different values: ' + byValue.keys.length + ' > ' + maxKeys + ' (out of ' + manyObjects + ')')
+					}
+				}
+				
+			}else if(p.type.type === 'map' && p.type.value.type === 'primitive' && p.type.key.type === 'primitive'){
+				indexableProperties.push(p.code);
+				
+				var byKey = {byValue: {}, keys: []};
+				var manyObjectsWithKey = {};
+
+				processingMap[p.code] = function(obj){
+					
+					var map = objutil.findPropertyValue(p.code, obj);
+					if(map !== undefined){
+						for(var i=0;i<map.length;++i){
+							var e = map[i];
+							var key = e[0];
+							var v = e[1];
+							
+							manyObjectsWithKey[key] = 1 + (manyObjectsWithKey[key] || 0);
+							
+							var byValue = byKey.byValue[key];
+							if(byValue === undefined){
+								byValue = byKey.byValue[key] = {map: {}, keys: []}
+								byKey.keys.push(key);
+							}
+							
+							var idList = byValue.map[v];
+							if(idList === undefined){
+								idList = byValue.map[v] = [];
+								byValue.keys.push(v);
+							}
+							idList.push(obj[0][2]);
+						}
+					}
+				}
+				doneMap[p.code] = function(){
+					var toRemove = [];
+					for(var i=0;i<byKey.keys.length;++i){
+						var key = byKey.keys[i];
+						var byValue = byKey.byValue[key];
+						//building indexes for keys that do not occur in most/all objects is almost always a good idea,
+						//even if the the objects that *do* have the key have unique values
+						//TODO optimize this by making a "hasKey" index that takes care of this case more efficiently
+						if(byValue.keys.length > manyObjects){
+							toRemove.push(key);
+						}
+					}
+					for(var i=0;i<toRemove.length;++i){
+						var key = toRemove[i];
+						byKey.keys.splice(byKey.keys.indexOf(key), 1);
+						delete byKey.byValue[key];
+						console.log('rejecting primitive-map subindex(' + objSchema.name + '.' + p.name + '.' + key + '), too many different values: ' + byValue.keys.length + ' > ' + maxKeys + ' (out of ' + manyObjects + ')')
+					}
+				
+					if(byKey.keys.length > 0){
+					
+						var index = {type: 'primitive-map', code: objSchema.code, property: p.code};
+						indexes.push(index);
+						indexStream.append(new Buffer(JSON.stringify(byKey)));
+						indexMetaStream.append(new Buffer(JSON.stringify(index)));
+				
+					}else{
+						console.log('rejecting primitive key(' + objSchema.name + '.' + p.name + '), all indexes failed checks')
+					}
+				}
+			}
+		});
+		
+		_.each(objs, function(obj){
+			for(var i=0;i<indexableProperties.length;++i){
+				var pc = indexableProperties[i];
+				processingMap[pc](obj);
+			}			
+		})
+		
+		for(var i=0;i<indexableProperties.length;++i){
+			var pc = indexableProperties[i];
+			doneMap[pc]();
+		}
+	})
+	return loadIndexes(indexStream, schema, indexes);
+}
+
+function loadIndexes(indexStream, schema, indexes){
+
+	var primitiveIndexCodes = {};
+	var indexPosition = {};
+	var primitiveIndexes = {};
+	var loading = {};
+
+	_.each(schema._byCode, function(objSchema){
+		primitiveIndexCodes[objSchema.code] = {};
+		indexPosition[objSchema.code] = {};
+		primitiveIndexes[objSchema.code] = {};
+		loading[objSchema.code] = {};
+	})
+	
+	function loadPrimitive(index, data){
+		var loadedMap = {};
+			_.each(data.map, function(idArray, value){
+			//console.log('idArray(' + idArray.length + ') ' + value);
+			loadedMap[value] = new IdSet(idArray);
+		});
+		primitiveIndexes[index.code][index.property] = {keys: data.keys, map: loadedMap};
+	}
+	function load(index, loader, cb){
+	
+		var pos = indexPosition[index.code][index.property];
+		if(loading[index.code][index.property] !== undefined){
+			loading[index.code][index.property].push(cb);
+		}else{
+			loading[index.code][index.property] = [cb];
+		
+			indexStream.readSingle(pos, function(buf, off, len){
+				var str = buf.toString('utf8', off, off+len);
+				var data = JSON.parse(str);
+			
+				loader(index, data);
+				
+				console.log('loaded index for ' + index.code + ' ' + index.property + ' into memory.');
+				var listeners = loading[index.code][index.property];
+				for(var i=0;i<listeners.length;++i){
+					listeners[i]();
+				}
+				delete loading[index.code][index.property];
+			});
+		}
+	}
+	function loadPrimitiveMap(index, data){
+		//go through each idList and turn it into an IdSet
+		var keys = data.keys;
+		var loadedIndex = {byValue: {}, keys: keys}
+		for(var j=0;j<keys.length;++j){
+			var key = keys[i];
+			var map = index.data.byValue[key].map;
+			var loadedMap = {};
+			_.each(map, function(idArray, valueStr){
+				loadedMap[valueStr] = new IdSet(idArray);
+			});
+			loadedIndex.byValue[key] = {map: loadedMap, keys: data.byValue[key].keys};
+		}
+		primitiveIndexes[index.code][index.property] = loadedIndex;
+	}
+	
+	function doSelect(typeCode, descentPath, filterFunction, candidateIds){
+		if(descentPath.length === 1){
+			var matching = candidateIds;
+			var index = primitiveIndexes[typeCode][descentPath[0]];
+			var setsToAdd = [];
+			for(var i=0;i<index.keys.length;++i){
+				var value = index.keys[i];
+				var ids = index.map[value];
+		
+				if(filterFunction(value)){
+					setsToAdd.push(ids);
+				}else{
+					matching = matching.getRemovedSet(ids);
+				}
+			}
+			matching = matching.getAddedAllSets(setsToAdd);
+			return matching;
+		}else if(descentPath.length === 2){
+			//for now at least, must be a primitive-map index
+			console.log('using map special index');
+			var matching = candidateIds.copy();
+			var key = descentPath[1];
+			var index = primitiveIndexes[typeCode][descentPath[0]];
+			var setsToAdd = [];
+
+			index = index.byValue[key];
+			if(index !== undefined){
+				for(var i=0;i<index.keys.length;++i){
+					var value = index.keys[i];
+					var ids = index.map[value];
+		
+					if(filterFunction(value)){
+						setsToAdd.push(ids);
+					}else{
+						matching.removeSet(ids);
+					}
+				}
+				matching.addAllSets(setsToAdd);
+			}
+			console.log('...done using map special index: ' + matching.size());
+			return matching;
+		}
+	}
+	var handle = {
+		selectByPropertyConstraint: function(typeCode, descentPath, filterFunction, candidateIds, cb){
+			_.assertArray(descentPath);
+			_.assertFunction(cb);
+			var pic = primitiveIndexCodes[typeCode][descentPath[0]];
+			if(pic){
+				if(primitiveIndexes[typeCode][descentPath[0]] === undefined){
+					var loader;
+					if(descentPath.length === 1){
+						loader = loadPrimitive;
+					}else{
+						loader = loadPrimitiveMap;
+					}
+					load(pic, loader, function(){
+						console.log('got load callback');
+						cb(doSelect(typeCode, descentPath, filterFunction, candidateIds));
+						
+					});
+					return;
+				}else{
+					cb(doSelect(typeCode, descentPath, filterFunction, candidateIds));
+					return;
+				}
+				
+			}
+			console.log('rejecting!!!: ' + typeCode + ' ' + JSON.stringify(descentPath) + ' ' + descentPath.length);
+			cb();
+			return;
+		}
+	};
+
+	for(var i=0;i<indexes.length;++i){
+		
+		var index = indexes[i];
+		
+		if(index.type === 'primitive'){
+		
+			//console.log('loading primitive-property index: ' + index.code + ' ' + index.property);
+			
+			primitiveIndexCodes[index.code][index.property] = index;
+			
+		}else if(index.type === 'primitive-map'){
+
+			//console.log('loading primitive-map index: ' + index.code + ' ' + index.property);
+
+			primitiveIndexCodes[index.code][index.property] = index;
+			
+			
+		}else _.errout('unknown index type: ' + index.type);
+
+		indexPosition[index.code][index.property] = i;
+	}
+
+	console.log('primitiveIndexCodes: ' + JSON.stringify(primitiveIndexCodes));
+	
+	return handle;
+}
+
+function load(schema, m, rafName, cb){
+
+	var indexStream = m.stream(rafName + '.special_indexes');
+	var indexMetaStream = m.stream(rafName + '.special_indexes.meta');
+	
+	var r = indexMetaStream.read(0);
+	
+	var indexes = [];
+	
+	r.onBlock = function(buf, off, len){
+		var b = buf.slice(off,off+len);
+		var index = JSON.parse(b.toString('utf8'))
+		indexes.push(index);
+	}
+	r.onEnd = function(){
+		cb(loadIndexes(indexStream, schema, indexes));
+	}
+
+}
+
+exports.build = build;
+exports.load = load;
+

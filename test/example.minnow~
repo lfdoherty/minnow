@@ -1,0 +1,35 @@
+
+session 21
+	user user 22
+	token string 23
+
+user 15
+	email string 17
+	passwordHash binary 18
+	administeredGroups set:string 19
+	
+document 1
+	creator user 2 required
+		time timestamp 6
+	sharedWith set:user 4
+		sharedBy user 5
+		time timestamp 6
+	root row 7
+	columns list:column 11 //while the title info is significant, equally important is the column identity
+	viewed user 19
+		time timestamp 20
+
+column 12 
+	title string 13
+
+row 8
+	left string 9 //the default value of a string is the empty string ''
+	rest column:string 10		//we can use entities as keys (but really we're using their ID)
+	children list:row 14
+	
+event 1
+	time timestamp 2
+	user user 3
+	group string 9
+	attrs string:string 5
+

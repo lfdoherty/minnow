@@ -1,0 +1,716 @@
+
+//var filters = require('./viewfilters');
+
+var senderKeyCount = 0;
+
+
+
+//BEGIN edit propagation code
+
+function listenForEdits(listener){
+	_.assertObject(listener);
+	_.assertFunction(listener.assureHasObject);
+	_.assertFunction(listener.mightSend);
+	_.assertFunction(listener.notSending);
+	_.assertFunction(listener.sendChange);
+	_.assertFunction(listener.forward);
+	
+	if(this.listeners === undefined) this.listeners = [];
+	this.listeners.push(listener);
+}
+function removeListenForEdits(listener){
+	var li = this.listeners.indexOf(listener);
+	_.assert(li !== -1);
+	listeners.splice(li, 1);
+}
+
+//note that when this message is received, the resulting transmission of an object (if any) must come before any
+//subsequent edits
+function assureHasObject(typeCode, id){
+	if(this.listeners === undefined) return;
+	for(var i=0;i<this.listeners.length;++i){
+		this.listeners[i].assureHasObject(typeCode, id);
+	}
+}
+function mightSend(senderKey, editId){
+	if(this.listeners === undefined) return;
+	for(var i=0;i<this.listeners.length;++i){
+		this.listeners[i].mightSend(senderKey, editId);
+	}
+}
+function notSending(senderKey, editId){
+	if(this.listeners === undefined) return;
+	for(var i=0;i<this.listeners.length;++i){
+		this.listeners[i].notSending(senderKey, editId);
+	}
+}
+function sendChange(edit){
+	if(this.listeners === undefined) return;
+	for(var i=0;i<this.listeners.length;++i){
+		this.listeners[i].sendChange(edit);
+	}
+}
+function forward(typeCode, id, path, edit, syncId, editId, senderKey){
+	if(this.listeners === undefined) return;
+	for(var i=0;i<this.listeners.length;++i){
+		this.listeners[i].forward(typeCode, id, path, edit, syncId, editId, senderKey);
+	}
+}
+
+function addEditPropagationMethodsToPrototype(proto){
+	if(proto.assureHasObject === undefined) proto.assureHasObject = assureHasObject;
+	if(proto.mightSend === undefined) proto.mightSend = mightSend;
+	if(proto.notSending === undefined) proto.notSending = notSending;
+	if(proto.sendChange === undefined) proto.sendChange = sendChange;
+	if(proto.forward === undefined) proto.forward = forward;
+	
+	if(proto.listenForEdits === undefined) proto.listenForEdits = listenForEdits;
+	if(proto.removeListenForEdits === undefined) proto.removeListenForEdits = removeListenForEdits;
+}
+
+//END
+
+
+function ValueSet(v){
+	this.v = v;
+}
+ValueSet.prototype.getIdsOrValues = function(cb){
+	cb([this.v]);
+}
+
+function PropertySet(rel, contextSet, objectState){
+	_.assertLength(arguments, 3);
+	
+	this.propertyCode = contextSet.getSchema().properties[rel.name].code;
+	
+	this.set = contextSet;
+	this.objectState = objectState;
+}
+
+PropertySet.prototype.getIdsOrValues = function(cb){
+	_.assertFunction(cb);
+	
+	_.assertObject(this.set);
+	
+	var s = this;
+
+	this.set.getIdsOrValues(function(res){
+		var keys = _.keys(res);
+		_.assertLength(keys, 1);
+		var typeCodeStr = keys[0];
+		var arr = res[typeCodeStr];
+		_.assertLength(arr, 1);
+		
+		var id = arr[0];
+		_.assertInt(id);
+		
+
+		s.objectState.getObjectState(parseInt(typeCodeStr), id, function(obj){
+
+			for(var i=0;i<obj.length;++i){
+				var entry = obj[i];
+				if(entry[0] === s.propertyCode){
+					_.assertDefined(entry[1]);
+					cb([JSON.parse(JSON.stringify(entry[1]))]);
+					return;
+				}
+			}
+			cb([]);
+		
+		});
+	});	
+}
+
+
+function PropertySetCalculator(propertyCode){
+	_.assertInt(propertyCode);
+	this.propertyCode = propertyCode;
+}
+PropertySetCalculator.prototype.setContext = function(obj){
+	this.obj = obj;
+}
+PropertySetCalculator.prototype.getIdsOrValues = function(cb){
+	_.assertFunction(cb);
+	
+	if(this.obj){
+		for(var i=0;i<this.obj.length;++i){
+			var entry = this.obj[i];
+			if(entry[0] === this.propertyCode){
+				_.assertDefined(entry[1]);
+				cb([JSON.parse(JSON.stringify(entry[1]))]);
+				return;
+			}
+		}
+		cb([]);
+	}else{
+		_.errout('TODO');
+	}
+}
+
+function ObjectsOfTypeSet(typeCode, fullSchema, objectState, broadcaster){
+
+	_.assertLength(arguments, 4);
+	//_.assertDefined(rel);
+	//_.assertObject(handle);
+	
+	//this.rel = rel;
+	//console.log('**rel:' + JSON.stringify(rel));
+	//console.log(schema);
+	//if(schema[rel.name] === undefined){
+	//	_.errout('TODO: validate type names in schema, invalid type name: ' + rel.name);
+	//}
+	
+	this.typeCode = typeCode;//schema[rel.name].code;
+	this.objectState = objectState;
+	this.broadcaster = broadcaster;
+	//this.vs = vs;
+	//this.schema = schema;
+	
+	this.valueWrapper = function(id){
+		var sos = new SingleObjectSet(typeCode, id, objectState, broadcaster, fullSchema);
+		return sos;
+	}
+
+	//if(rel.filter){
+	//	this.filter = filters.make(rel.filter, viewSchema, schema, objectState, broadcaster, schema[rel.name], params, handle);
+	//}
+}
+//ObjectsOfTypeSet.prototype.getSchema = function(){
+//	return this.schema._byCode[this.typeCode];
+//}
+ObjectsOfTypeSet.prototype.init = function(cb){
+
+	if(this.initialized){
+		cb();
+		return;
+	}
+
+	if(this.initListeners){
+		this.initListeners.push(cb);
+		return;
+	}
+	
+	this.initListeners = [];
+
+	var s = this;
+	var senderKey = ++senderKeyCount;
+	
+	this.newListener = function(typeCode, id){
+		if(s.selectedIndexes.indexOf('id') === -1){
+			updateObjectPasses(s.typeCode, id, function(p){
+				if(p){
+					s.assureHasObject(typeCode, id);
+					s.sendChange({op: 'addExisting', id: id, type: typeCode});
+				}
+			});
+		}
+	}
+	
+	//TODO monitor object deletion
+	
+	var waitingForObjectPasses = {};
+	
+	function updateObjectPasses(typeCode, id, cb){
+	
+		if(s.filter === undefined){
+			cb(true);
+			return;
+		}
+
+		if(waitingForObjectPasses[typeCode] === undefined) waitingForObjectPasses[typeCode] = {};
+		
+		var a;
+		if(waitingForObjectPasses[typeCode][id] === undefined){
+			a = waitingForObjectPasses[typeCode][id] = [];
+		}else{
+			a = waitingForObjectPasses[typeCode][id];
+		}
+		
+		var passedBefore = s.selectedIndexes.indexOf(id) !== -1;
+
+		//console.log('pushed to listener ' + typeCode + ' ' + id);
+		a.push(cb);
+		
+		//if(a.length === 1){
+			//console.log('waiting for getObjectPasses');
+			s.objectState.getObjectPasses(typeCode, id, s.filter, function(p, state){
+				//console.log('got object passes ' + typeCode + ' ' + id);
+				//console.log(p + ' ' + passedBefore);
+				if(p && !passedBefore){
+					//console.log('pushing new id: ' + id);
+					s.selectedIndexes.push(id);
+					s.objs[id] = state;
+				}else if(!p && passedBefore){
+					s.selectedIndexes.splice(s.selectedIndexes.indexOf(id), 1);
+					delete s.objs[id];
+				}
+				for(var i=0;i<a.length;++i){
+					a[i](p);
+				}
+				a.length = 0;
+			});
+		//}
+	}
+	
+	this.changeListener = function(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
+		_.assertLength(arguments, 8);
+		_.assertInt(editId);
+		
+		//console.log('set view got change(' + editId + '): ' + JSON.stringify(edit));
+		
+		_.assertEqual(subjTypeCode, s.typeCode);
+		
+		s.mightSend(senderKey, editId);
+		
+		if(s.selectedIndexes.indexOf(subjId) === -1){
+			updateObjectPasses(s.typeCode, subjId, function(p){
+				if(p){
+					s.assureHasObject(s.typeCode, subjId, function(obj){
+						
+						s.objs[subjId] = obj;
+						
+						s.sendChange({op: 'addExisting', id: subjId, type: subjTypeCode});
+						s.forward(typeCode, id, path, edit, syncId, senderKey);
+					});
+				}else{
+					s.notSending(senderKey, editId);
+				}
+			});
+		}else{
+			//console.log('here');
+			updateObjectPasses(subjTypeCode, subjId, function(p){
+				//console.log('uop callback');
+				if(!p){
+					s.sendChange({op: 'remove-from-set', id: id});
+					s.notSending(senderKey, editId);
+				}else{
+					s.forward(typeCode, id, path, edit, syncId, editId, senderKey);
+				}
+			});
+		}
+	}
+	
+	//TODO skip initing at all, use an optimized method to select ids (passed-up filter?)
+	function processResults(objs){
+		s.objs = {};
+		
+		var list = [];
+		for(var i=0;i<objs.length;++i){
+			var id = objs[i][0][2];
+			//console.log(JSON.stringify(s.objs));
+			_.assertInt(id);
+			list.push(id);
+			s.objs[id] = objs[i];
+		}
+		s.selectedIndexes = list;
+
+		s.broadcaster.output.listenForNew(s.typeCode, s.newListener);
+		
+		s.broadcaster.output.listenByType(s.typeCode, s.changeListener);
+
+		s.initialized = true;
+		cb();
+		for(var i=0;i<s.initListeners.length;++i){
+			s.initListeners[i]();
+		}
+	}
+	//if(this.filter){
+	//	this.objectState.getAllObjectsPassing(this.typeCode, s.filter, processResults);
+	//}else{
+		this.objectState.getAllObjects(this.typeCode, processResults);
+	//}
+}
+
+ObjectsOfTypeSet.prototype.getIdsOrValues = function(cb){
+
+	var s = this;
+	s.init(function(){
+		var obj = {};
+		obj[s.typeCode] = s.selectedIndexes;
+		cb(obj);
+	});
+}
+ObjectsOfTypeSet.prototype.populateObjectsIfAny = function(objMap, minVersion, maxVersion, cb){
+	_.assertLength(arguments, 4);
+
+	var s = this;
+	function finish(){
+		if(objMap[s.typeCode] === undefined) objMap[s.typeCode] = {};
+		var selectedObjs = objMap[s.typeCode];
+
+		for(var i=0;i<s.selectedIndexes.length;++i){
+			var si = s.selectedIndexes[i];
+			_.assertInt(si);
+			//console.log('si: ' + si);
+			var obj = s.objs[si];
+			//if(obj === undefined) console.log('si: ' + si + ' ');
+			_.assertArray(obj);
+			var version = obj[0][1];
+			if(version >= minVersion && (maxVersion === -1 || version <= maxVersion)){
+				selectedObjs[si] = obj;
+			}
+		}
+
+		cb();
+	}
+
+	this.init(finish);
+}
+ObjectsOfTypeSet.prototype.wrapOwnValueOrId = function(id){
+	return this.valueWrapper(id);
+}
+
+function MacroSet(inputSet, expr, variableMap, schema, fullSchema, objectState, broadcaster, handle, getView){
+	_.assertLength(arguments, 9);
+	
+	this.input = inputSet;
+
+	var newVariableMap = {};
+	_.extend(newVariableMap, variableMap);
+	
+	this.exprMaker = function(r){
+		newVariableMap['&'] = inputSet.wrapOwnValueOrId(r);//TODO wrap id or primitive value in set
+		return handle.makeSet(expr, schema, fullSchema, objectState, newVariableMap, broadcaster, getView);
+	}
+}
+
+MacroSet.prototype.getIdsOrValues = function(cb){
+	
+	var s = this;
+
+	var endResult = {};
+	
+	this.input.getIdsOrValues(function(result){
+		_.assertObject(result);
+		
+		var remainingCount = 0;
+		
+		_.each(result, function(arr, typeCodeStr){
+			remainingCount += arr.length;
+		});
+		
+		//if(remainingCount === 0){
+			cb([]);
+			return;
+		//}
+		
+		_.each(result, function(arr, typeCodeStr){
+			for(var i=0;i<arr.length;++i){
+				var r = arr[i];
+
+				var exprSet = s.exprMaker(r);
+				
+				exprSet.getIdsOrValues(function(macroResults){
+					var typeCount = 0;
+					if(!_.isArray(macroResults) && !_.isObject(macroResults)){
+						console.log('macroResults: ' + JSON.stringify(macroResults));
+						_.errout('wrong type for macroResults');
+					}
+					_.assert(_.isArray(macroResults) || _.isObject(macroResults));
+					
+					if(_.isArray(macroResults)){
+						_.assertLength(macroResults, 1);
+						
+						if(_.isObject(endResult)){
+							_.assertEqual(_.size(endResult), 0);
+							endResult = [];
+						}
+
+						//if(endResult[typeCodeStr] === undefined) endResult[typeCodeStr] = [];
+						//endResult[typeCodeStr].push(macroResults[0]);
+						//console.log('pushing macro result: ' + JSON.stringify(macroResults[0]));
+						endResult.push(macroResults[0]);
+					}else{
+						//console.log('macroResults: ' + JSON.stringify(macroResults));
+						_.assertObject(endResult);
+						
+						_.each(macroResults, function(macroResultArr, typeCodeStr){
+							_.assertLength(macroResultArr, 1);
+							if(endResult[typeCodeStr] === undefined) endResult[typeCodeStr] = [];
+						
+							endResult[typeCodeStr].push(macroResultArr[0]);
+							//console.log('pushing macro result: ' + JSON.stringify(arr[0]));
+							++typeCount;
+						});
+					}
+					
+					_.assert(typeCount <= 1);
+					
+					--remainingCount;
+
+					_.assert(remainingCount >= 0);
+					
+					if(remainingCount === 0){
+						//console.log('el len: ' + endResult.length);
+						//console.log('arr len: ' + arr.length);
+						cb(endResult);
+					}
+				});
+			}
+		});
+	});
+}
+
+function PrimitiveSet(value){
+	_.assertDefined(value);
+	_.assertNot(value instanceof PrimitiveSet);
+	this.value = value;
+}
+PrimitiveSet.prototype.getIdsOrValues = function(cb){
+	cb([this.value]);
+}
+PrimitiveSet.prototype.getSchema = function(){_.errout('primitives have no schema');}
+PrimitiveSet.prototype.populateObjectsIfAny = function(objMap, minVersion, maxVersion, cb){cb()}
+
+function StaticSet(value){
+	_.assertDefined(value);
+	this.value = value;
+}
+PrimitiveSet.prototype.getSchema = function(){_.errout('TODO');}
+StaticSet.prototype.getIdsOrValues = function(cb){
+	cb(this.value);
+}
+StaticSet.prototype.populateObjectsIfAny = function(objMap, minVersion, maxVersion, cb){cb()}
+
+function CountSet(memberSet){
+	this.members = memberSet;
+}
+CountSet.prototype.getIdsOrValues = function(cb){
+	this.members.getIdsOrValues(function(ids){
+		var c = 0;
+		if(_.isArray(ids)){
+			c += ids.length;
+		}else{
+			_.each(ids, function(arr, typeCodeStr){
+				c += arr.length;
+			});
+		}
+		if(c === 1){
+			console.log('ids: ' + JSON.stringify(ids));
+			throw 'error';
+		}
+		//console.log('count cbing: ' + c);
+		cb(c);
+	});
+}
+CountSet.prototype.populateObjectsIfAny = function(objMap, minVersion, maxVersion, cb){cb()}
+
+function SingleObjectSet(typeCode, id, objectState, broadcaster, schema){
+
+	_.assertLength(arguments, 5);
+	
+	this.typeCode = typeCode;
+	this.id = id;
+	this.objectState = objectState;
+	this.broadcaster = broadcaster;
+	this.objSchema = schema._byCode[this.typeCode];
+}
+
+
+SingleObjectSet.prototype.getSchema = function(){
+	return this.objSchema;
+}
+
+SingleObjectSet.prototype.init = function(cb){
+
+	if(this.initialized){
+		cb();
+		return;
+	}
+
+	if(this.initListeners){
+		this.initListeners.push(cb);
+		return;
+	}
+	
+	this.initListeners = [];
+
+	var s = this;
+	var senderKey = ++senderKeyCount;
+	
+	//TODO monitor object deletion
+	
+	this.changeListener = function(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
+		_.assertLength(arguments, 8);
+		_.assertInt(editId);
+		
+		//console.log('single object view got change(' + editId + '): ' + JSON.stringify(edit));
+		
+		_.assertEqual(subjTypeCode, s.typeCode);
+		
+		s.forward(typeCode, id, path, edit, syncId, senderKey);
+	}
+	
+	this.objectState.getObjectState(s.typeCode, s.id, function(state){
+		s.obj = state;
+
+		s.broadcaster.output.listenByObject(s.typeCode, s.id, s.changeListener);
+
+		s.initialized = true;
+		cb();
+		
+		for(var i=0;i<s.initListeners.length;++i){
+			s.initListeners[i]();
+		}
+	});	
+}
+
+SingleObjectSet.prototype.getIdsOrValues = function(cb){
+
+	_.assertInt(this.id);
+	
+	var obj = {};
+	obj[this.typeCode] = [this.id];
+	cb(obj);
+}
+
+SingleObjectSet.prototype.populateObjectsIfAny = function(objMap, minVersion, maxVersion, cb){
+	_.assertLength(arguments, 4);
+
+	var s = this;
+	function finish(){
+		if(objMap[s.typeCode] === undefined) objMap[s.typeCode] = {};
+		var selectedObjs = objMap[s.typeCode];
+
+		_.assertInt(s.id);
+		_.assertArray(s.obj);
+		
+		var version = s.obj[0][1];
+		if(version >= minVersion && (maxVersion === -1 || version <= maxVersion)){
+			selectedObjs[s.id] = s.obj;
+		}
+
+		cb();
+	}
+
+	this.init(finish);
+}
+
+function IsSet(aSet, bSet){
+	this.a = aSet;
+	this.b = bSet;
+}
+IsSet.prototype.getIdsOrValues = function(cb){
+
+	var av, bv;
+	
+	var cdl = _.latch(2, function(){
+		//console.log([av, bv]);
+		cb([av === bv]);
+	});
+
+	this.a.getIdsOrValues(function(ar){
+		av = getSingleValue(ar);
+		cdl();
+	});
+
+	this.b.getIdsOrValues(function(br){
+		bv = getSingleValue(br);
+		cdl();
+	});
+	
+}
+
+function InSet(valueSet, setSet){
+}
+function FilterSet(inputSet, filterSet){
+	this.input = inputSet;
+	this.filter = filterSet;
+}
+
+function getSingleValue(res){
+	if(_.isArray(res)){
+		_.assertLength(res, 1);
+		var value = res[0];
+		_.assertDefined(value);
+		return value;
+	}else{
+		_.assertObject(res);
+		//console.log(JSON.stringify(res));
+		var keys = _.keys(res);
+		_.assertLength(keys, 1);
+		var arr = res[keys[0]];
+		_.assertLength(arr, 1);
+		var value = arr[0];
+		_.assertDefined(value);
+		return value;
+	}
+}
+
+FilterSet.prototype.getIdsOrValues = function(cb){
+	
+	var s = this;
+	_.assertDefined(s);
+	function getValue(){
+		s.input.getIdsOrValues(function(inputResult){
+			cb([getSingleValue(inputResult)]);
+		});
+	}
+	
+	this.filter.getIdsOrValues(function(filterResult){
+		var v = getSingleValue(filterResult);
+		_.assertBoolean(v);
+		if(v){
+			getValue();
+		}else{
+			cb({});
+		}
+	});
+	
+	
+}
+
+function ViewWrapperSet(paramsStr, typeCode, v){
+	this.id = paramsStr;
+	this.typeCode = typeCode;
+	this.v = v;
+}
+
+ViewWrapperSet.prototype.getIdsOrValues = function(cb){
+	var obj = {};
+	obj[this.typeCode] = [this.id];
+	cb(obj);
+}
+
+ViewWrapperSet.prototype.populateObjectsIfAny = function(objMap, minVersion, maxVersion, cb){
+	var s = this;
+	this.v.getSnapshot(maxVersion, minVersion-1, function(view){
+	
+		_.each(view.objects, function(otherObjMap, typeCodeStr){
+			_.assertObject(otherObjMap);
+
+			if(objMap[typeCodeStr] === undefined) objMap[typeCodeStr] = {};
+			var selectedObjs = objMap[typeCodeStr];
+				
+			_.each(otherObjMap, function(obj, objId){		
+
+				_.assertArray(obj);
+		
+				var version = obj[0][1];
+				if(version >= minVersion && (maxVersion === -1 || version <= maxVersion)){
+					selectedObjs[objId] = obj;
+				}
+			});		
+		});
+
+		cb();
+	});
+}
+
+exports.ViewWrapperSet = ViewWrapperSet;
+exports.SingleObjectSet = SingleObjectSet;
+exports.ObjectsOfTypeSet = ObjectsOfTypeSet;
+exports.PrimitiveSet = PrimitiveSet;
+exports.CountSet = CountSet;
+exports.PropertySet = PropertySet;
+exports.ValueSet = ValueSet;
+exports.StaticSet = StaticSet;
+exports.MacroSet = MacroSet;
+
+exports.InSet = InSet;
+exports.IsSet = IsSet;
+exports.FilterSet = FilterSet;
+
+addEditPropagationMethodsToPrototype(SingleObjectSet.prototype);
+addEditPropagationMethodsToPrototype(ObjectsOfTypeSet.prototype);
+

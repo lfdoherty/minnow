@@ -1,0 +1,40 @@
+
+var minnow = require('./../client/client');
+
+/*
+
+Run test.js first to add events.
+
+*/
+
+minnow.db('example', function(ex){
+	console.log('got ex handle');
+	var mod = ex.modify;
+	var out = ex.output;
+	
+	mod.get('groupevents', ['test group'], function(h){
+		console.log('got groupevents view: ' + h.property('group').value());
+		
+		h.property('events').each(function(ev){
+			console.log('event: ' + JSON.stringify(ev.toJson()));
+			console.log('event time: ' + ev.property('time').value());
+		});
+		
+		ex.close();
+		/*
+		h.delayRefresh();
+		
+		function refreshListener(){
+			console.log('refresh received');
+		}
+		h.property('time').listenForRefresh(refreshListener);
+		
+		h.property('time').setNow();
+		console.log('time: ' + h.property('time').value());
+		readEvent(out, 0, function(){
+			h.resumeRefresh();
+			ex.close();
+		});*/
+	});
+
+});
