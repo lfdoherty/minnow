@@ -5,20 +5,19 @@
 	"main": "./client/client",
 	"author": "Liam Doherty",
 	"dependencies" : { 
-		"baleen": ">=0.1.0",
-		"indexfilestream": ">=0.1.0",
-		"keratin": ">=0.2.0",
-		"matterhorn": ">=0.1.0",
-		"matterhorn-standard": ">=0.1.0",
-		"mini-lzo-wrapper": "*",
-		"myrtle-parser": "*",
-		"parsicle": ">=0.1.0",
+		"baleen": "git://github.com/lfdoherty/baleen.git",
+		"indexfilestream": "git://github.com/lfdoherty/indexfilestream.git",
+		"keratin": "git://github.com/lfdoherty/keratin.git",
+		"matterhorn": "git://github.com/lfdoherty/matterhorn.git",
+		"matterhorn-standard": "git://github.com/lfdoherty/matterhorn-standard.git",
+		"myrtle-parser": "git://github.com/lfdoherty/myrtle-parser.git",
+		"parsicle": "git://github.com/lfdoherty/parsicle.git",
 		"rimraf": "*",
-		"seedrandom": ">=0.1",
-		"segmentedfile": ">=0.1",
+		"seedrandom": ">=0.1.1",
+		"segmentedfile": "git://github.com/lfdoherty/segmentedfile.git",
 		"socket.io": "*",
-		"structures": "*",
-		"underscorem": ">0.1"
+		"structures": "git://github.com/lfdoherty/structures.git",
+		"underscorem": "git://github.com/lfdoherty/underscorem.git"
 	},
 	"engines": {
 		 "node" : "0.6"
