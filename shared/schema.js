@@ -43,7 +43,7 @@ function readAllSchemaFiles(schemaDir, cb){
 		})
 		var cdl = _.latch(minnowFiles.length, function(){
 			if(strs.length === 0) _.errout('no schema files found in dir: ' + schemaDir)
-			cb(strs)
+			cb(strs, minnowFiles)
 		})
 		console.log('readdir-minnow: ' + JSON.stringify(minnowFiles))
 		minnowFiles.forEach(function(f){
@@ -66,7 +66,7 @@ exports.load = function(schemaDir, cb){
 	
 	//fs.readFile(schemaPath, 'utf8', function(err, str){
 	//	if(err) throw err;
-	readAllSchemaFiles(schemaDir, function(strs){
+	readAllSchemaFiles(schemaDir, function(strs, allFiles){
 		var str = strs.join('\n')
 		
 		//console.log('str: ' + str)
@@ -83,6 +83,7 @@ exports.load = function(schemaDir, cb){
 			var takenObjectTypeCodes = {}
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
+					console.log('ERROR while processing files: ' + JSON.stringify(allFiles))
 					throw new Error('type code of ' + name + ' already taken: ' + st.code);
 				}
 				takenObjectTypeCodes[st.code] = true
