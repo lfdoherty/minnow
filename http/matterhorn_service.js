@@ -15,6 +15,7 @@ var _ = require('underscorem');
 
 exports.name = 'minnow-service';
 exports.dir = __dirname;
+exports.module = module
 exports.requirements = ['matterhorn-standard'];
 
 require('matterhorn-standard');
@@ -29,7 +30,8 @@ function sendData(res, data){
 	res.end(data);
 }
 
-exports.make = function(local, minnowClient){
+exports.make = function(local, port, minnowClient){
+	_.assertInt(port);
 	
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
@@ -37,14 +39,16 @@ exports.make = function(local, minnowClient){
 	
 	var snapPath = '/mnw/snaps/' + minnowClient.schemaName + '/';
 	
-	app.js(exports, 'all', 'browserclient');
+	console.log('minnow socket listening on: ' + port);
 	
-	app.serveJavascriptFile(exports, __dirname + './../client/sync_api.js', 'sync_api');
+	//app.js(exports, 'all', 'browserclient');
+	
+	//app.serveJavascriptFile(exports, __dirname + './../client/sync_api.js', 'sync_api');
 
 	app.serveJavascriptFile(
 		exports, 
-		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js'
-		, 'socket.io');
+		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js')
+		//, 'socket.io');
 	
 	var schemaUrl;
 	app.serveJavascript(exports, minnowClient.schemaName, function(ccc){
@@ -111,8 +115,21 @@ exports.make = function(local, minnowClient){
 		
 		var syncId;
 		
-		function syncListener(typeCode, id, path, edit, syncId, editId){
-			_.assertLength(arguments, 6);
+		var clientHasDisconnected = false;
+		
+		function syncListener(e){
+			_.assertLength(arguments, 1);
+			
+			console.log('got e: ' + JSON.stringify(e));
+			
+			var id = e.id;
+			var path = JSON.parse(e.path)
+			var op = e.edit.type;
+			var edit = e.edit.object;
+			var syncId = e.syncId;
+			var editId = e.editId;
+			
+			_.assertString(op)
 			console.log('sending socket.io message for sync ' + editId);
 			if(!(_.isInt(syncId))){
 				_.errout('invalid syncId: ' + syncId);
@@ -122,7 +139,7 @@ exports.make = function(local, minnowClient){
 				_.assertDefined(path[i]);
 			}
 			//if(syncId > 100) _.errout('false sync id');
-			var msgStr = JSON.stringify([typeCode, id, path, edit, syncId]);
+			var msgStr = JSON.stringify([id, path, op, edit, syncId]);
 			client.send(msgStr);
 			if(msgStr.length < 1000) console.log('msg: ' + msgStr);
 			else{
@@ -134,8 +151,9 @@ exports.make = function(local, minnowClient){
 					
 		client.on('disconnect', function(){
 			console.log('disconnected');
+			clientHasDisconnected = true;
 			if(!waitingForSyncId){
-				service.endSync(viewCode, params, syncListener);
+				service.endSync(syncId);
 			}
 		});
 
@@ -144,9 +162,10 @@ exports.make = function(local, minnowClient){
 		}
 		
 		client.on('message', function(msg){
+			//TODO handle case where clientHasDisconnected already
 			if(waitingForSyncId){
 				msg = JSON.parse(msg);
-				var syncId = msg[0];
+				syncId = msg[0];
 				var snapshotId = msg[1];
 				
 				console.log('got client sync id: ' + syncId);
@@ -168,18 +187,19 @@ exports.make = function(local, minnowClient){
 				}
 			}else{
 				msg = JSON.parse(msg);
-				_.assertLength(msg, 5);
-				service.processEdit(msg[0], msg[1], msg[2], msg[3], msg[4]);
+				console.log('msg: ' + JSON.stringify(msg))
+				_.assertLength(msg, 4);
+				service.processEdit(msg[0], msg[1], msg[2], msg[3], syncId);
 			}
 			console.log('got client msg: ' + JSON.stringify(msg));
 		});
 		
 	});
 	
-	socketServer.listen(8934, "127.0.0.1");
+	socketServer.listen(port);
 	
 	app.serveJavascriptFile(exports, 
-		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js', 'socket.io');
+		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js'/*,'socket.io'*/);
 	
 	console.log('minnow matterhorn service set up');
 	
@@ -197,8 +217,10 @@ exports.make = function(local, minnowClient){
 					vars.snapshotIds = snapshotIds;
 					vars.lastId = lastSeenVersionId;
 					vars.baseTypeCode = minnowClient.schema[viewName].code;
-					vars.baseId = JSON.stringify(params);
+					vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
 					vars.syncId = syncId;
+					
+					vars.minnowSocketPort = port
 
 					clientInfoBySyncId[syncId] = [vars.baseTypeCode, params, snapshotIds];
 				

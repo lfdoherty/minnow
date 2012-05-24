@@ -20,13 +20,20 @@ function wrapForHoldAndRelease(viewTypeCode, relListenerMakerList){
 
 		var alreadyHadCache = {};
 		function includeObject(typeCode, id, obj){
+			_.assertLength(arguments, 3);
+			//_.assertInt(typeCode);
 			_.assertObject(alreadyHadCache);
-			if(alreadyHadCache[typeCode] === undefined){
-				alreadyHadCache[typeCode] = {};
-			}
-			var aht = alreadyHadCache[typeCode];
+			//if(alreadyHadCache[typeCode] === undefined){
+			//	alreadyHadCache[typeCode] = {};
+			//}
+			/*var aht = alreadyHadCache[typeCode];
 			if(!aht[id]){
 				aht[id] = true;
+				includeObjectCb(typeCode, id, obj);
+			}*/
+			//console.log('including ' + typeCode + ' ' + id)
+			if(!alreadyHadCache[id]){
+				alreadyHadCache[id] = true;
 				includeObjectCb(typeCode, id, obj);
 			}
 		}		
@@ -59,21 +66,33 @@ function wrapForHoldAndRelease(viewTypeCode, relListenerMakerList){
 					delete heldCount[editId];
 					if(index === 0){
 						//the released edit is the oldest one currently being held
+						//console.log('releasing edits: ' + waitingEdits.length);
 						while(waitingEdits.length > 0 && waitingEdits[0][0] <= editId){
 							var e = waitingEdits.shift();
-							forwardCb.apply(undefined, e[1]);
+							forwardCbOn.apply(undefined, e[1]);
 						}
 					}
 				}
 			}
-			function forwardCb(typeCode, id, path, edit, syncId, editId){
+			function forwardCbOn(typeCode, id, path, op, edit, syncId, editId){
+				_.assertLength(arguments, 7);
+				_.assertInt(syncId);
+				_.assertString(op)
+				_.assert(_.isString(id) || _.isInt(id))
+				lcb(typeCode, id, path, op, edit, syncId, editId);
+			}
+			function forwardCb(typeCode, id, path, op, edit, syncId, editId){
+				_.assertLength(arguments, 7);
+				_.assert(_.isString(id) || _.isInt(id))
+				//console.log('*forwarding edit(' + editId + ' sid: ' + syncId + '): ' + JSON.stringify(edit));
 				if(alreadySent === undefined || alreadySent < editId || 
 						(alreadySent === editId && syncId === -1)//edits sourced from views may reuse the same editId
 					){
 					if(held.length === 0 || held[0] > editId){
 						_.assertInt(syncId);
-						lcb(typeCode, id, path, edit, syncId, editId);
+						lcb(typeCode, id, path, op, edit, syncId, editId);
 					}else{
+						//console.log('holding edit');
 						waitingEdits.push([editId, Array.prototype.slice.call(arguments, 0)]);
 					}
 				}else{
@@ -93,14 +112,18 @@ function wrapForHoldAndRelease(viewTypeCode, relListenerMakerList){
 
 				_.assertInt(m.code);
 				_.assertInt(viewTypeCode);
-				function listenerCb(edit, editId, more){
+				function listenerCb(op, edit, editId, more){
 				
 					//_.assertLength(arguments, 1);
-					_.assert(arguments.length >= 2);
-					_.assert(arguments.length <= 3);
-					//lcb(m.code, edit);
-					//lcb(viewTypeCode, paramsStr, [m.code], edit);
-					forwardCb(viewTypeCode, paramsStr, [m.code], edit, -1, editId);
+					_.assert(arguments.length >= 3);
+					_.assert(arguments.length <= 4);
+
+					_.assertString(op)
+					if(edit.op === 'objectSnap'){
+						forwardCb(viewTypeCode, viewTypeCode+':'+paramsStr, [], op, edit, -1, editId);
+					}else{
+						forwardCb(viewTypeCode, viewTypeCode+':'+paramsStr, [m.code], op, edit, -1, editId);
+					}
 				}
 				listenerCb.isCbFunction = true;
 				
@@ -143,51 +166,58 @@ exports.make = function(schema, broadcaster, objectState){
 			failed = true;
 			doneCb();
 		}
-
+		
 		var paramsStr = JSON.stringify(params);
 
-		var obj = {0: [-1,-1, paramsStr, typeCode]};
+		var obj = {meta: {id: typeCode+':'+paramsStr, typeCode: typeCode, editId: -1}};
 		
 		var viewSchema = schema._byCode[typeCode].viewSchema;
 		
 		var alreadyDone = false;
 
-		//console.log('getting view state: ' + _.size(viewSchema.rels));
+		console.log('getting view state: ' + _.size(viewSchema.rels));
 		var manyRels = _.size(viewSchema.rels);
-		var cdl = _.latch(manyRels, 30000, function(){			
+		var em = manyRels
+		var cdl = _.latch(manyRels, 20000, function(){			
 			if(failed) return;
 			alreadyDone = true;
-			//console.log('done(' + _.size(viewSchema.rels) + ')');
-			//console.log(JSON.stringify(obj));
-			doneCb([typeCode, obj]);
+			console.log('done getting view state')
+			doneCb(obj);
 		}, function(c){
-			console.log('have completed ' + c + ' rels out of ' + manyRels);
-			_.errout('failed to complete construction of view state within 30 seconds');
+			console.log('view ' + typeCode + ' with params: ' + paramsStr);
+			console.log('have not yet completed ' + c + ' rels out of ' + manyRels);
+			console.log('completed: ' + JSON.stringify(Object.keys(obj)));
+			console.log('failed to complete construction of view state within 30 seconds');
+			console.log(new Error().stack);
 		});
+		var oldCdl = cdl
+		cdl = function(){
+			--em
+			console.log('completed part of view state: ' + em)
+			oldCdl()
+		}
 
 		_.assertInt(viewSchema.code);
 		var vrv = viewRvs[viewSchema.code];
 
 		var relCodes = vrv[0];
 
-		//var already = twomap.make();
-		
-		function includeObject(typeCode, id, objToInclude){
-			//console.log('including object: ' + typeCode + ' ' + id);
-			//top-level objects to include (i.e. includeObject(...))
+		function includeObject(objTypeCode, id, objToInclude){
+			_.assertDefined(objToInclude)
+			_.assertInt(objTypeCode);
 	
-			//if(!already.has(typeCode, id)){
 			_.assertDefined(id);
 			_.assertObject(objToInclude);
-			includeObjectCb(typeCode, id, objToInclude);
-				//already.set(typeCode, id, true);
-			//}
-			if(obj[0][1] < objToInclude[0][1]){
-				obj[0][1] = objToInclude[0][1];
+			includeObjectCb(objTypeCode, id, objToInclude);
+
+			_.assertInt(objToInclude.meta.editId)
+			if(obj.meta.editId === undefined || obj.meta.editId < objToInclude.meta.editId){
+				obj.meta.editId = objToInclude.meta.editId;
 			}
 		}
 		function doneRel(relIndex, values){
-			_.assertLength(arguments, 2);
+			//_.assertLength(arguments, 2);
+			//_.assertInt(values);
 			_.assertInt(relIndex);
 			//the ids/values
 			if(failed){
@@ -196,34 +226,30 @@ exports.make = function(schema, broadcaster, objectState){
 				return;
 			}
 			
-			if(values === undefined){
-				console.log('doneRel failed');
-				doFailure();
-				cdl();
-				_.errout('values is null');				
-			}else{
-				//console.log('doneRel called');
+			//console.log('rel done: ' + relIndex);
+
+			var relCode = relCodes[relIndex];
+			var viewSchema = schema._byCode[typeCode];
+			var ps = viewSchema.propertiesByCode[relCode];
 			
-				var relCode = relCodes[relIndex];
-				var viewSchema = schema._byCode[typeCode];
-				var ps = viewSchema.propertiesByCode[relCode];
-	
-				/*if(ps.type.type === 'view'){
-					//singleton property, use list-style
-					console.log(JSON.stringify(values[0][2]));
-					console.log(JSON.stringify(ps));
-					_.assertPrimitive(values[0][2]);
-					includeObject(ps.type.viewCode, values[0][2], values);
-					_.assertDefined(values);
-					values = [ps.type.viewCode, values[0][2]];
-				}else */if(ps.type.type === 'object'){
-					_.assertArray(values);
-					_.assertLength(values, 2);
-					_.assertInt(values[0]);
-					//_.assertInt(values[1]);
-					//_.assertInt(values[0][2]);
-					//values = [values[0][2], values];
+			if(values === undefined){
+				if(ps.type.type === 'set' || ps.type.type === 'list'){
+					//we should always be able to construct the empty set/list
+					console.log('doneRel failed');
+					doFailure();
+					cdl();
+					_.errout('values is null');			
+				}else{
+					cdl();
 				}
+			}else{
+				/*if(ps.type.type === 'object'){
+					//_.assertArray(values);
+					_//.assertLength(values, 2);
+					//_.assertInt(values[0]);
+				}else{
+					_.errout('TODO?');
+				}*/
 				//console.log('ps: ' + JSON.stringify(ps));
 				//console.log('set rel ' + relCode + ' to ' + JSON.stringify(values).substr(0, 100));
 
@@ -256,6 +282,7 @@ exports.make = function(schema, broadcaster, objectState){
 				vf.code = rel.code;
 				list.push(vf);
 			});
+			//console.log(JSON.stringify(vs));
 			_.assertInt(vs.code);
 			viewRvs[vs.code] = [relCodes, wrapForHoldAndRelease(vs.code, list)];
 		

@@ -2,9 +2,194 @@
 
 var _ = require('underscorem');
 
+var propertyvalueindex = require('./propertyvalueindex')
+
+var set = require('structures').set
+
+function supportedPropertyIndex(property){
+	var propertyType = property.type;
+	return propertyType.type === 'primitive' || 
+		(propertyType.type === 'map' && 
+		 propertyType.value.type === 'primitive' && 
+		 propertyType.key.type == 'primitive');
+}
+
+function load(dataDir, schema, ol, cb){
+	_.assertLength(arguments, 4);
+	_.assertString(dataDir)
+
+	/*var defStream, indexStream;
+	
+	if(structure !== undefined){
+		
+		var indexes = [];
+		
+		//console.log('index loading from structure ***********************');
+
+		defStream = m.stream(structure.defStreamName);
+		indexStream = m.stream(structure.dataStreamName);
+		
+		defStream.readAllImmediate(function(buf,off,len){
+			var indexDef = JSON.parse(buf.toString('utf8', off, off+len));
+			indexes.push(indexDef);
+		},finish);
+	}else{
+		finish();
+	}
+	
+	function finish(){
+		var handle = loadIndexes(defStream, indexStream, schema, indexes, apState, objectState, raf);
+
+
+		
+		cb(handle);
+	}*/
+	
+	var loadedPvis = {}
+	
+	function hasPvi(typeCode, propertyCode){
+		var key = typeCode + ':' + propertyCode;
+		return loadedPvis[key] !== undefined;
+	}
+	var pviLoader = _.doOnce(
+		function(typeCode, propertyCode){
+			return typeCode + ':' + propertyCode;
+		},
+		function(typeCode, propertyCode, cb){
+			_.assertFunction(cb)
+			propertyvalueindex.load(dataDir, schema, typeCode, propertyCode, ol, function(pvi){
+				var key = typeCode + ':' + propertyCode;
+				loadedPvis[key] = pvi;
+				cb(pvi)
+			})
+		})
+	
+	function getPvi(typeCode, propertyCode, cb){
+		var key = typeCode + ':' + propertyCode;
+		var pvi = loadedPvis[key];
+		if(pvi){
+			cb(pvi)
+			return;
+		}
+		pviLoader(typeCode, propertyCode, cb);
+	}
+		
+	var handle = {
+		selectByPropertyConstraint: function(typeCode, descentPath, filterFunction, cb){
+			_.assertLength(arguments, 4);
+			_.assertArray(descentPath);
+			_.assertFunction(cb);
+			
+			//console.log('selecting by index: ' + typeCode + ' ' + JSON.stringify(descentPath));
+			//check that it is something we know how to index
+			var propertyCode = descentPath[0]
+			var property = schema._byCode[typeCode].propertiesByCode[propertyCode];
+			if(property === undefined){
+				_.errout('cannot follow path: ' + JSON.stringify(descentPath))
+			}
+			_.assertLength(descentPath, 1) //TODO support more
+			
+			if(supportedPropertyIndex(property)){
+			
+				getPvi(typeCode, propertyCode, function(pvi){
+
+					var setsToAdd = [];
+					var values = pvi.getValues()
+					for(var i=0;i<values.length;++i){
+						var value = values[i]
+		
+						if(filterFunction(value)){
+							//console.log('matched: ' + value);
+							var ids = pvi.get(value)
+							setsToAdd.push(ids);
+						}else{
+							//console.log('rejected: ' + value);
+						}
+					}
+					if(setsToAdd.length === 0){
+						//console.log('none matched');
+						cb(set.empty)
+					}else if(setsToAdd.length === 1){
+						cb(setsToAdd[0].invariant())
+					}else{
+						var first = setsToAdd[0];
+						cb(first.getUnionAll(setsToAdd.slice(1)).invariant())
+					}
+				})
+			
+				/*if(primitiveIndexes[typeCode][descentPath[0]] === undefined){
+					var loader;
+					if(descentPath.length === 1){
+						loader = loadPrimitive;
+					}else{
+						loader = loadPrimitiveMap;
+					}
+					//console.log('loading index ' + typeCode + ' ' + descentPath[0]);
+					var pic = primitiveIndexCodes[typeCode][descentPath[0]];
+					if(pic){
+						load(pic, loader, function(){
+							//console.log('got load callback');
+					
+							var index = primitiveIndexes[typeCode][descentPath[0]];
+							initializeIndex(index, typeCode);
+					
+							cb(doSelect(typeCode, descentPath, filterFunction));
+						});
+					}else{
+						var index = primitiveIndexes[typeCode][descentPath[0]] = loader.makeNew(typeCode, descentPath[0]);
+						initializeIndexFromAll(index, typeCode, function(){
+							cb(doSelect(typeCode, descentPath, filterFunction));
+						});
+					}
+					return;
+				}else{
+					cb(doSelect(typeCode, descentPath, filterFunction));
+					return;
+				}*/
+			}else{
+
+				console.log('rejecting!!!: ' + typeCode + ' ' + JSON.stringify(descentPath) + ' ' + descentPath.length);
+				console.log(JSON.stringify(property))
+				cb();
+			}
+		},
+		/*
+			TODO: use passthrough to special indexes for updating?
+		*/
+		updateIndexingOnProperty: function(typeCode, obj, propertyCode, oldValue){
+			/*//if(typeCode === 3) console.log('updating indexing ' + typeCode + ' ' + propertyCode + ': ' + JSON.stringify(obj));
+			var index = primitiveIndexes[typeCode][propertyCode];
+			//console.log('updating index ' + typeCode + ' ' + propertyCode + ' ' + JSON.stringify(primitiveIndexes))
+			if(index !== undefined){
+				index.update(obj, oldValue)
+			}*/
+			if(hasPvi(typeCode, propertyCode)){
+				getPvi(typeCode, propertyCode, function(pvi){
+					//TODO
+					//_.errout('TODO')
+					var newValue = obj[propertyCode]
+					pvi.update(obj.meta.id, newValue, obj.meta.editId);
+				})
+			}
+			//_.errout('TODO')
+		}
+	};
+	
+	cb(handle)
+}
+
+exports.load = load;
+/*
+
 var set = require('structures').set;
 
-function loadIndexes(defStream, indexStream, schema, indexes, apState, objectState, raf){
+var indexingParser = parsicle.make(function(parser){
+
+	parser('json', 'string', function(p){})
+})
+
+
+function loadIndexes(defStream, indexStream, schema, indexes, apState, ol){
 	_.assertLength(arguments, 7);
 	
 	var primitiveIndexCodes = {};
@@ -22,14 +207,25 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 	function loadPrimitive(index, data){
 
 		var loadedIndex = loadPrimitive.makeNew(index.code, index.property);		
+		loadedIndex.keys = data.keys;
 		_.each(data.map, function(idArray, value){
 			//console.log('index has ' + idArray.length + ' of ' + index.code + ' ' + index.property);
 			loadedIndex.map[value] = set.fromArray(idArray);
 			if(!loadedIndex.keyExists[value]){
 				loadedIndex.keyExists[value] = true;
-				loadedIndex.keys.push(value);
+				//loadedIndex.keys.push(value);
+				//checkType(index.code,index.property,value)
 			}
 		});
+	}
+	function checkType(tc,pc,v,obj){
+		var objSchema = schema._byCode[tc];
+		var p = objSchema.propertiesByCode[pc];
+		if(p.type.type === 'primitive' && p.type.primitive === 'int'){
+			if(!_.isInteger(v)){
+				_.errout('should be int(' + tc + ' ' + pc + '): ' + v + ' ' + typeof(v) + ' ' + JSON.stringify(obj));
+			}
+		}
 	}
 	loadPrimitive.makeNew = function(typeCode, propertyCode){
 		_.assertLength(arguments, 2);
@@ -42,9 +238,10 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 		var keyExists = loadedIndex.keyExists;
 		var keys = loadedIndex.keys;
 		
-		function addRecord(id, v){
+		function addRecord(id, v,obj){
 			if(!keyExists[v]){
 				keyExists[v] = true;
+				checkType(typeCode,propertyCode,v,obj);
 				keys.push(v);
 				map[v] = set.fromSingle(id);
 			}else{
@@ -54,13 +251,15 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 		
 		loadedIndex.update = function(obj, oldValue){
 			var v = obj[propertyCode];
-			var id = obj[0][2];
+			var id = obj.meta.id
 			if(oldValue === undefined){//the object wasn't indexed before
-				addRecord(id, v)			
+				if(v !== undefined){
+					addRecord(id, v,obj)
+				}
 			}else{
 				map[oldValue].remove(id);// = map[oldValue].getRemoved(id)
 				if(v !== undefined){//the object is no longer indexed
-					addRecord(id, v)			
+					addRecord(id, v,obj)			
 				}
 			}
 		}
@@ -95,10 +294,12 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 				indexStream.readSingle(pos, function(buf, off, len){
 					var str = buf.toString('utf8', off, off+len);
 					var data = JSON.parse(str);
-			
+
+					//console.log('loading index for ' + index.code + ' ' + index.property + ' into memory.');
+					//console.log(str);
 					loader(index, data);
 				
-					console.log('loaded index for ' + index.code + ' ' + index.property + ' into memory.');
+					//console.log('...loaded index for ' + index.code + ' ' + index.property + ' into memory.');
 					var listeners = loading[index.code][index.property];
 					for(var i=0;i<listeners.length;++i){
 						listeners[i]();
@@ -138,6 +339,8 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 				if(filterFunction(value)){
 					//console.log('matched: ' + value);
 					setsToAdd.push(ids);
+				}else{
+					//console.log('rejected: ' + value);
 				}
 			}
 			if(setsToAdd.length === 0){
@@ -179,27 +382,18 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 			}
 			console.log('...done using map special index: ' + matching.size());
 			return set.empty;
+		}else{
+			_.errout('TODO');
 		}
 	}
 	
-	//index all in apState for a new or newly loaded index
-	function initializeIndex(index, typeCode){
-		var objs = apState.getAllObjects(typeCode);
-		var keys = Object.keys(objs);
-		for(var i=0;i<keys.length;++i){
-			var obj = objs[keys[i]];
-			index.update(obj)
-		}
-	}
+
 
 	function initializeIndexFromAll(index, typeCode, cb){
-		if(!defStream){//no raf has been created yet, so just do the ap-based initialization
-			initializeIndex(index, typeCode);
+
 		
-			cb();
-		}else{
-		
-			raf.getAllObjects(typeCode, function(objs){
+			//TODO optimize - get desired property only?
+			ol.getAllObjects(typeCode, function(objs){
 
 				var keys = Object.keys(objs);
 				for(var i=0;i<keys.length;++i){
@@ -214,7 +408,7 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 			
 				cb();
 			});
-		}
+		//}
 	}
 	
 	function supportedPropertyIndex(property){
@@ -231,8 +425,12 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 			_.assertArray(descentPath);
 			_.assertFunction(cb);
 			
+			//console.log('selecting by index: ' + typeCode + ' ' + JSON.stringify(descentPath));
 			//check that it is something we know how to index
 			var property = schema._byCode[typeCode].propertiesByCode[descentPath[0]];
+			if(property === undefined){
+				_.errout('cannot follow path: ' + JSON.stringify(descentPath))
+			}
 			if(supportedPropertyIndex(property)){
 			
 				if(primitiveIndexes[typeCode][descentPath[0]] === undefined){
@@ -242,10 +440,11 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 					}else{
 						loader = loadPrimitiveMap;
 					}
+					//console.log('loading index ' + typeCode + ' ' + descentPath[0]);
 					var pic = primitiveIndexCodes[typeCode][descentPath[0]];
 					if(pic){
 						load(pic, loader, function(){
-							console.log('got load callback');
+							//console.log('got load callback');
 					
 							var index = primitiveIndexes[typeCode][descentPath[0]];
 							initializeIndex(index, typeCode);
@@ -270,28 +469,12 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 			return;
 		},
 		updateIndexingOnProperty: function(typeCode, obj, propertyCode, oldValue){
-			//console.log('updating indexing ' + typeCode + ' ' + propertyCode);
+			//if(typeCode === 3) console.log('updating indexing ' + typeCode + ' ' + propertyCode + ': ' + JSON.stringify(obj));
 			var index = primitiveIndexes[typeCode][propertyCode];
+			//console.log('updating index ' + typeCode + ' ' + propertyCode + ' ' + JSON.stringify(primitiveIndexes))
 			if(index !== undefined){
 				index.update(obj, oldValue)
 			}
-		},
-		flushToDisk: function(newDefStream, newIndexStream, syncedCb){
-			_.assertFunction(syncedCb);
-			
-			_.each(primitiveIndexes, function(byProp, typeCodeStr){
-				_.each(byProp, function(index, propertyCodeStr){
-					newDefStream.append(new Buffer(JSON.stringify(index.makeDef())));
-					newIndexStream.append(new Buffer(JSON.stringify(index.makeData())));
-				});
-			});
-			
-			defStream = newDefStream;
-			indexStream = newIndexStream;
-			
-			var cdl = _.latch(2, syncedCb);
-			defStream.sync(cdl);
-			indexStream.sync(cdl);
 		}
 	};
 
@@ -319,7 +502,7 @@ function loadIndexes(defStream, indexStream, schema, indexes, apState, objectSta
 		}
 	}
 
-	console.log('primitiveIndexCodes: ' + JSON.stringify(primitiveIndexCodes));
+	//console.log('primitiveIndexCodes: ' + JSON.stringify(primitiveIndexCodes));
 	
 	return handle;
 }
@@ -333,7 +516,7 @@ function load(schema, m, apState, structure, objectState, raf, cb){
 		
 		var indexes = [];
 		
-		console.log('index loading from structure ***********************');
+		//console.log('index loading from structure ***********************');
 
 		defStream = m.stream(structure.defStreamName);
 		indexStream = m.stream(structure.dataStreamName);
@@ -349,28 +532,11 @@ function load(schema, m, apState, structure, objectState, raf, cb){
 	function finish(){
 		var handle = loadIndexes(defStream, indexStream, schema, indexes, apState, objectState, raf);
 
-		handle.snapshotToDisk = function(syncedCb){
-			
-			var c = structure !== undefined ? structure.offset + 1 : 0;
-			var s = {
-				offset: c,
-				defStreamName: 'index_' + c + '.defs',
-				dataStreamName: 'index_' + c + '.data'
-			}
-			
-			//note that we clear streams in case of previous failed snapshotting
-			var newDefStream = m.stream(s.defStreamName, true);
-			var newDataStream = m.stream(s.dataStreamName, true);
-			
-			handle.flushToDisk(newDefStream, newDataStream, syncedCb);
-			
-			structure = s;
-			return structure;
-		}
+
 		
 		cb(handle);
 	}
 }
 
 exports.load = load;
-
+*/

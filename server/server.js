@@ -1,104 +1,109 @@
 "use strict";
 
+Error.stackTraceLimit = 100
+
 var _ = require('underscorem');
 
-var compress = require('./../util/compress');
-
-var appendlog = require('./appendlog');
-
-//var viewstate = require('./viewstate');
 var viewstate = require('./vs');
 
-function copyJson(json){
-	return JSON.parse(JSON.stringify(json));
+var fs = require('fs')
+var path = require('path')
+
+var seedrandom = require('seedrandom')
+
+function openUid(dataDir, cb){
+	var fn = dataDir + '/minnow_data/server.uid'
+	path.exists(fn, function(exists){
+		if(exists){
+			fs.readFile(fn, 'utf8', function(err, uid){
+				if(err) throw err;
+				cb(uid)
+			})
+		}else{
+			var uid =  seedrandom.uid()
+			fs.writeFileSync(fn, uid, 'utf8');
+			cb(uid)
+		}
+	})
 }
 
-console.log('FS: ' + JSON.stringify(Object.keys(require('fs'))));
-/*
-var old = Buffer.prototype.slice
-Buffer.prototype.slice = function(){
-	//_.errout('slice');
-	console.log(new Error().stack);
-	return old.apply(this, Array.prototype.slice.call(arguments));
-}*/
-/*
-console.log = function(msg){
-	if(msg.indexOf('"uid"') !== -1) _.errout(msg);
-}*/
-
-//takes a morlock application handle, the db schema, and the callback function
-exports.make = function(m, schema, cb){
-
-	require('./structure').make(m, _.assureOnce(function(structure){
-		require('./raf').make(schema, m, structure, _.assureOnce(function(raf){
-			require('./ap').make(schema, m, structure, raf, function(ap, indexing, objectState, broadcaster){
+exports.make = function(schema, dataDir, cb){
+	_.assertLength(arguments, 3);
+	
+	//schema.name = appName;
+	
+	var serverUid;
+	
+	function makeDirIfNecessary(cb){
+		var p = dataDir + '/minnow_data'
+		path.exists(p, function(exists){
+			if(!exists){
+				fs.mkdir(p, function(err){
+					if(err) throw err;
+					cb()
+				})
+			}else{
+				cb()
+			}
+		})
+	}
+	
+	makeDirIfNecessary(function(){
+		require('./ol').make(dataDir, schema, _.assureOnce(function(ol){
+			console.log('got ol')
+			require('./ap').make(dataDir, schema, ol, function(ap, indexing, broadcaster, apClose){
+				console.log('got ap')
 				_.assertLength(arguments, 4);
-				//_.assertFunction(setIndexing);
-
-
-				//require('./indexing').load(schema, m, ap, structure.getIndexing(), objectState, raf, function(indexing){
-					//setIndexing(indexing);
-					//objectState.setIndexing(indexing);
-					load(raf, ap, indexing, objectState, broadcaster);
-				//});
+				openUid(dataDir, function(uid){
+					serverUid = uid
+					console.log('got uid')
+					var objectState = require('./objectstate').make(schema, ap, broadcaster, ol);
+					objectState.setIndexing(indexing)
+					load(ap, indexing, objectState, broadcaster, apClose, ol);
+				})
 			});
 		}));
-	}));
-	
-	function load(raf, ap, indexing, objectState, broadcaster){
-		console.log('loading');
-	
+	})
 
-		
+	function load(ap, indexing, objectState, broadcaster, apClose, ol){
+		console.log('loading...');
 	
 		var viewState = viewstate.make(schema, broadcaster, objectState);
 
-		//var syncHandles = {};
-		//var currentHandle;
-
 		//TODO the ap should initialize the sync handle counter to avoid using the same one multiple times
-		var syncHandleCounter = 1;
+		//var syncHandleCounter = 1;
 	
+		function stub(){}
+		
 		var handle = {
-			serverInstanceUid: function(){return m.uid();},
-			makeObject: function(typeCode, obj, cb){
-				if(arguments.length < 2 || arguments.length > 3) _.errout('wrong number of arguments (type, obj, cb): ' + arguments.length);
-				_.assertInt(typeCode);
-				_.assertObject(obj);
-				if(cb) _.assertFunction(cb);
-			
-				ap.inputObject(typeCode, obj, cb);
-			},
-			setEntireObject: function(typeCode, id, obj){
-				_.assertLength(arguments, 3);
-				objectState.getObjectState(typeCode, id, function(oldObj){
-					ap.setEntireObject(typeCode, id, obj, oldObj);
-				});
-			},
-			streamObject: function(typeCode, id, cb, endCb){
-				_.assertLength(arguments, 4);
-				_.assertInt(typeCode);
-				//var obj = objects[typeCode][id];
-				//cb(obj);
-				//_.errout('TODO');
-				//objectState.getDenormalizedState(typeCode, id, cb);
+			serverInstanceUid: function(){return serverUid;},
 
-				//TODO support streaming views as well
-				objectState.streamObjectState(typeCode, id, cb, endCb);
-			},
-			close: function(){
-				m.close();
+			close: function(cb){
+				//m.close();
+				var cdl = _.latch(2, function(){
+					console.log('closed server')
+					cb()
+				})
+				apClose(cdl)
+				ol.close(cdl)
 			},
 		
-			beginSync: function(typeCode, params, latestSnapshotVersionId, listenerCb, readyCb){
+			beginSync: function(e, listenerCb, readyCb){
 				_.assertFunction(listenerCb);
 				_.assertFunction(readyCb);
 				
-				if(schema._byCode[typeCode].isView){
-					viewState.beginSync(typeCode, params, latestSnapshotVersionId, listenerCb, readyCb);
+				//console.log('beginning sync')
+				
+				if(schema._byCode[e.typeCode].isView){
+					viewState.beginSync(e, listenerCb, function(updatePacket){
+						//var syncId = syncHandleCounter;
+						//++syncHandleCounter;
+						console.log('got UPDATE PACKET')
+						readyCb(updatePacket);
+					});
 				}else{
-					//TODO bring up to date based on latestSnapshotVersionId
-					broadcaster.output.listenByObject(typeCode, params, listenerCb);
+					_.errout('ERROR');
+					//broadcaster.output.listenByObject(typeCode, params, listenerCb);
 				}
 			},
 			endSync: function(typeCode, params, listenerCb){
@@ -106,75 +111,78 @@ exports.make = function(m, schema, cb){
 				if(schema._byCode[typeCode].isView){
 					viewState.endSync(typeCode, params, listenerCb);
 				}else{
-					broadcaster.output.stopListeningByObject(typeCode, params, listenerCb);
+					_.errout('ERROR');
+					//broadcaster.output.stopListeningByObject(typeCode, params, listenerCb);
 				}
 			},
-			persistEdit: function(typeCode, id, path, edit, syncId){
-				_.assertLength(arguments, 5);
+			persistEdit: function(id, path, op, edit, syncId, cb){
+				_.assertLength(arguments, 6);
 				_.assertInt(id);
 				_.assertInt(syncId);
+				_.assertString(op)
+				_.assertFunction(cb)
+				
+				console.log('adding edit: ' + JSON.stringify([id, path, op, edit, syncId]).slice(0, 300))
 
-				objectState.addEdit(typeCode, id, path, edit, syncId);
+				objectState.addEdit(id, path, op, edit, syncId, cb);
 			},
 		
-			getSyncId: function(){
-				var shId = syncHandleCounter;
+			makeNewSyncId: function(){//TODO really should be called getNewSyncId
+				/*var shId = syncHandleCounter;
 				++syncHandleCounter;
-			
-				return shId;
+			*/
+				return ap.makeNewSyncId();
 			},
 		
-			getSnapshots: function(typeCode, params, cb){
-				_.assertLength(arguments, 3);
+			getSnapshots: function(e, cb){
+				_.assertLength(arguments, 2);
+				var typeCode = e.typeCode;
+				var params = JSON.parse(e.params);
+				
 				_.assertInt(typeCode);
 
-				//console.log('getting snapshots');
-				//var viewId = viewState.getViewId(viewCode, params);
-				//cb(viewId, [-1]);//TODO make this smarter
 				if(schema._byCode[typeCode].isView){
 					viewState.getSnapshots(typeCode, params, cb);
 				}else{
-					objectState.getSnapshots(typeCode, params, cb);
+					_.errout('ERROR')
+					//objectState.getSnapshots(typeCode, params, cb);
 				}
 			},
-			getAllSnapshots: function(typeCode, params, snapshotIds, cb){
-				_.assertLength(arguments, 4);
-			
-				//if(snapshotIds.length !== 1 || snapshotIds[0] !== -1) _.errout('TODO: implement');
-			
+			getAllSnapshots: function(e, cb){
+				_.assertLength(arguments, 2);
+				var typeCode = e.typeCode;
+				var params = JSON.parse(e.params);
+				var snapshotIds = e.snapshotVersionIds;
+				_.assertArray(snapshotIds);
 
-				//console.log('getting all snapshot');
-				
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
 					viewState.getAllSnapshotStates(typeCode, params, snapshotIds, cb);
 				}else{
-					objectState.getAllSnapshotStates(typeCode, params, snapshotIds, cb);
+					_.errout('ERROR')
+					//objectState.getAllSnapshotStates(typeCode, params, snapshotIds, cb);
 				}			
 			},
-			getSnapshot: function(typeCode, params, snapshotId, previousId, cb){
-				_.assertLength(arguments, 5);
+			getSnapshot: function(e, cb){
+				_.assertLength(arguments, 2);
+				
+				var typeCode = e.typeCode;
+				var params = JSON.parse(e.params)
+				var snapshotId = e.latestVersionId;
+				var previousId = e.previousVersionId;
 				
 				_.assert(params.length === schema._byCode[typeCode].viewSchema.params.length);
-			
-				//if(snapshotId !== -1) _.errout('TODO: implement');
-				//console.log('getting snapshot');
 			
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
 					viewState.getSnapshotState(typeCode, params, snapshotId, previousId, cb);
 				}else{
-					objectState.getSnapshotState(typeCode, params, snapshotId, previousId, cb);
+					_.errout('ERROR')
+					//objectState.getSnapshotState(typeCode, params, snapshotId, previousId, cb);
 				}			
-			},
-			objectExists: function(typeCode, id, cb){
-				objectState.objectExists(typeCode, id, cb);
 			}
 		};
-	
-		//ap.load(handle, function(){
-		//	cb(handle);
-		//});
+		console.log('cbing')
 		cb(handle);
 	}
 }

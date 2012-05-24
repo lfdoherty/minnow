@@ -1,0 +1,46 @@
+
+setup 9
+	serverInstanceUid string 1
+	
+newSyncId 8
+	requestId int 1 required
+	syncId int 2 required
+
+//indicates that a sync handle has been created, and instructs the handle to wait for updates
+//note that 'ready' (and 'open') responses refer to the sync handle, not the client<->server connection in a global sense
+open 1
+	requestId int 1 required
+	
+update 2
+	requestId int 7 required
+	id primitive 1 required
+	path string 2 required
+	edit ^ 4 required
+	syncId int 5 required
+	editId int 6 required
+
+//comes after open (and possibly some updates), indicates that the sync handle is ready for use
+ready 3
+	requestId int 1 required
+	updatePacket string 2 required
+gotSnapshots 4
+	requestId int 1 required
+	snapshotVersionIds list:int 2 required
+	lastVersionId int 3 required
+	
+gotAllSnapshots 5
+	requestId int 1 required
+	snapshots list:snap 2 required inline
+
+gotSnapshot 6
+	requestId int 1 required
+	snap snap 2 required inline
+	
+snap 7
+	latestVersionId int 1 required
+	objects set:^^ 2 required // ^ means "objects from the wrapped schema", ^^ means objects from the wrapped schema of the wrapped schema...
+	
+//this is the response to a persistEdit request with op==='make'
+objectMade 10
+	requestId int 1 required
+	id int 2 required

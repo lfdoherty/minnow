@@ -1,0 +1,9 @@
+
+obj 1
+	data list:entity 1
+	
+entity 2
+	value string 1
+	
+general() 100
+	s one(*obj) 1

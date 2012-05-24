@@ -1,0 +1,6 @@
+
+stringList 1
+	data list:string 1
+	
+general() 100
+	primitiveList one(*stringList) 1

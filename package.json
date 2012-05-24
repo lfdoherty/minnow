@@ -1,19 +1,26 @@
 {
 	"name": "minnow",
-	"version": "2.0.0",
-	"description": "An auto-denormalizing, in-memory-canonical relational database",
+	"version": "0.2.1",
+	"description": "An auto-syncing, in-memory-canonical relational database",
 	"main": "./client/client",
 	"author": "Liam Doherty",
 	"dependencies" : { 
-		"underscorem": ">0.1",
-		"seedrandom": ">=0.1",
+		"baleen": ">=0.1.0",
+		"indexfilestream": ">=0.1.0",
 		"keratin": ">=0.2.0",
-		"morlock": "*",
+		"matterhorn": ">=0.1.0",
+		"matterhorn-standard": ">=0.1.0",
 		"mini-lzo-wrapper": "*",
+		"myrtle-parser": "*",
+		"parsicle": ">=0.1.0",
+		"rimraf": "*",
+		"seedrandom": ">=0.1",
+		"segmentedfile": ">=0.1",
 		"socket.io": "*",
-		"structures": "*"
+		"structures": "*",
+		"underscorem": ">0.1"
 	},
 	"engines": {
-		 "node" : "0.4"
+		 "node" : "0.6"
 	}
 }

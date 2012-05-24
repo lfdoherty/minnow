@@ -27,7 +27,7 @@ function computeSeveralSnapshotVersions(latestVersionId){
 	
 	var lastVersion = arr[arr.length-1];
 	var nextVersion = Math.floor(Base * Math.pow(Rate, k+1))
-	console.log(latestVersionId + ' k: ' + k);
+	//console.log(latestVersionId + ' k: ' + k);
 	_.assertInt(nextVersion);
 	for(var i=1;i<TemporaryWindow;++i){
 		var t = lastVersion + Math.floor((nextVersion-lastVersion)*(i/(TemporaryWindow+1)));

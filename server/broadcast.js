@@ -41,13 +41,16 @@ exports.make = function(inv){
 
 	var realObjKey = {};
 	
-	function notifyChanged(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
-		_.assertLength(arguments, 8);
+	function notifyChanged(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+		_.assertLength(arguments, 9);
 		_.assertArray(path);
 		_.assertInt(syncId);
 		_.assertInt(editId);
 
-		console.log('notifyChanged: ' + JSON.stringify([subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId]));
+		_.assertInt(subjTypeCode);
+		_.assertInt(subjId);
+
+		//console.log('notifyChanged: ' + JSON.stringify([subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]).slice(0,300));
 		
 		var key = typeCode + ':' + id;
 		if(realObjKey[editId] !== undefined && realObjKey[editId] !== key) _.errout('db code error: ' + realObjKey[editId] + ' ' + key + ' ' + editId);
@@ -56,13 +59,13 @@ exports.make = function(inv){
 		
 		var t = byType[subjTypeCode];
 		if(t !== undefined){
-			console.log('notifying ' + t.length + ' type listeners');
-			for(var i=0;i<t.length;++t){
+			console.log('notifying ' + t.length + ' type listeners ' + typeCode + ' ' + id);
+			for(var i=0;i<t.length;++i){
 				var listener = t[i];
 				
 				//note that subjTypeCode and subjId are for the object of the type this listener is listening to,
 				//whereas typeCode and id might be for any object related by an FK
-				listener(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId);
+				listener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId);
 			}
 		}
 		var ob = byObject[subjTypeCode];
@@ -72,38 +75,43 @@ exports.make = function(inv){
 				console.log('notifying ' + obj.length + ' object listeners');
 				for(var i=0;i<obj.length;++i){
 					var listener = obj[i];
-					listener(typeCode, id, path, edit, syncId, editId);
+					listener(typeCode, id, path, op, edit, syncId, editId);
 				}
 			}
 		}
 	}
 	
 	//note that the object referred to will always be the most local normalized object (and the path will be relative to that.)
-	function objectChanged(destTypeCode, destId, typeCode, id, path, edit, syncId, editId){
-		_.assertLength(arguments, 8);
+	function objectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId){
+		_.assertLength(arguments, 9);
 		_.assertInt(editId);
 		_.assertInt(syncId);
+		_.assertString(op)
 		
-		notifyChanged(destTypeCode, destId, typeCode, id, path, edit, syncId, editId);
+		notifyChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId);
 		
 		//TODO: what about cyclic dependencies?
-		inv.getInverse(destTypeCode, destId, function(invArr){
+		inv.getInverse(destId, function(invArr){
 			for(var i=0;i<invArr.length;++i){
 				var e = invArr[i];
-				console.log('inv e: ' + JSON.stringify(e));
-				objectChanged(e[0], e[1], typeCode, id, path, edit, syncId, editId);
+				//console.log('inv e: ' + JSON.stringify(e));
+				_.assertInt(e[0]);
+				_.assertInt(e[1])
+				objectChanged(e[0], e[1], typeCode, id, path, op, edit, syncId, editId);
 			}
 		});
 	}
 	
 	return {
 		input: {
-			objectChanged: function(typeCode, id, path, edit, syncId, editId){
-				_.assertLength(arguments, 6);
+			objectChanged: function(typeCode, id, path, op, edit, syncId, editId){
+				_.assertLength(arguments, 7);
 				_.assertInt(syncId);
 				_.assertInt(editId);
+				_.assertString(op)
+				_.assertInt(typeCode)
 				
-				objectChanged(typeCode, id, typeCode, id, path, edit, syncId, editId);
+				objectChanged(typeCode, id, typeCode, id, path, op, edit, syncId, editId);
 			},
 			objectDeleted: function(typeCode, id){
 				var c = delByType[typeCode];
@@ -115,6 +123,7 @@ exports.make = function(inv){
 			},
 			objectCreated: function(typeCode, id, editId){
 				_.assertLength(arguments, 3);
+				_.assertInt(typeCode)
 				var c = createdByType[typeCode];
 				//console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
 				if(c !== undefined){

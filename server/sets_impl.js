@@ -8,6 +8,8 @@ var objutil = require('./objutil');
 var set = require('structures').set;
 
 function getParamByName(params, name, viewSchema){
+	if(name === 'true') return true;
+	
 	var res;
 	_.each(viewSchema.params, function(p, index){
 		if(p.name === name){
@@ -15,6 +17,7 @@ function getParamByName(params, name, viewSchema){
 			if(p.type.type === 'set') _.assert(!_.isPrimitive(res));
 		}
 	});	
+	if(res === undefined) _.errout('undefined param: ' + name);
 	_.assertDefined(res);
 	return res;
 }
@@ -24,24 +27,28 @@ function makeUpdateMatches(rel, objectState, viewCode){
 	
 	return function updateMatches(filterFunction, state, typeCode, id, paramsStr, includeObjectCb, cbs, editId){
 		cbs.hold(editId);
-		objectState.getObjectState(typeCode, id, function(obj){
-			var key = obj[0][2] + ':' + obj[0][1];
+		objectState.getObjectState(id, function(obj){
+			//_.assertDefined(obj);
+			if(obj == undefined) _.errout('object does not exist: ' + typeCode + ' ' + id);
+			
+			var id = obj.meta.id
 			var changed = false;
 			if(filterFunction(obj)){
-				if(!state.didPass[key]){
+				if(!state.didPass[id]){
 					++state.many;
-					state.didPass[key] = true;
+					state.didPass[id] = true;
 					changed = true;
 				}
 			}else{
-				if(state.didPass[key]){
+				if(state.didPass[id]){
 					--state.many;
-					state.didPass[key] = false;
+					state.didPass[id] = false;
 					changed = true;
 				}
 			}
-			//cbs.listener(viewCode, paramsStr,[rel.code],{op: 'set', value: state.many}, -1, -1);
-			cbs.listener({op: 'set', value: state.many}, editId);
+			if(changed){
+				cbs.listener('set', {value: state.many}, editId);
+			}
 			cbs.release(editId);
 		});
 	}
@@ -63,11 +70,13 @@ function doSyncFilteringCount(updateMatches, viewTypeCode, objectState, broadcas
 			ids = ids.get();
 			
 			var many = ids.length;
+			//console.log('many: ' + many);
 			var state = {many: many, didPass: {}};
 			for(var i=0;i<ids.length;++i){
 				var id = ids[i];
-				var key = id[0] + ':' + id[1];
-				state.didPass[key] = true;
+				//var key = id[0] + ':' + id[1];
+				_.assertInt(id);
+				state.didPass[id] = true;
 			}
 			
 			function typeListener(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
@@ -113,38 +122,38 @@ function doSyncFilteringObjectsWithPropertyConstraints(updateMatches, objTypeCod
 		
 		objectState.selectByMultiplePropertyConstraints(objTypeCode, dps, rfs, function(idLists){
 
-			var resultIds = setFunc(idLists);
+			var resultIds = setFunc(idLists)
+			
+			//console.log('got resultIds: ' + JSON.stringify(resultIds))
+			
+			var ids = resultIds.get();
+			//resultIds = resultIds.get()
 
-			objectState.getObjects(objTypeCode, resultIds, function(objs){
-
+			objectState.getObjects(objTypeCode, ids, function(objs){
+			
 				var state = {didPass: {}};
 			
-				var relObj = {};
-				var ids = resultIds.get();
+				var relObj = [];
 				for(var i=0;i<ids.length;++i){
 					var id = ids[i];
 					var obj = objs[id];
-					var typeCode = obj[0][3];
-					_.assert(obj[0][0] === -1);
-					_.assertArray(obj[0]);
+					var typeCode = obj.meta.typeCode
+					//_.assertArray(obj[0]);
 					_.assertInt(typeCode);
 
-					var key = typeCode + ':' + id;
-
-					state.didPass[key] = true;
+					state.didPass[id] = true;
 					includeObjectCb(typeCode, id, obj);
 
-					if(relObj[typeCode] === undefined) relObj[typeCode] = [];
-					relObj[typeCode].push(id);
+					relObj.push(id);
 				}
 				
 				console.log('done: ' + objTypeCode + ' ' + _.size(idLists[0]) + ' relObj: ' + JSON.stringify(relObj).length + ' chars');
 			
 				doneCb(relObj);
 		
-				function typeListener(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
-					_.assertLength(arguments, 8);
-					updateMatches(dps, rfs, setFunc, state, subjTypeCode, subjId, viewId, includeObjectCb, cbs, editId);
+				function typeListener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+					_.assertLength(arguments, 9);
+					updateMatches(dps, rfs, setFunc, state, subjTypeCode, subjId, viewId, includeObjectCb, cbs, editId, op, edit, path, syncId);
 				}
 				function newListener(typeCode, id, editId){
 					console.log('heard of new ' + typeCode + ' ' + id);
@@ -193,21 +202,19 @@ function doSyncFilteringObjects(updateMatches, viewTypeCode, objectState, broadc
 			console.log('do-sync-filtering-objects got: ' + objs.length + ' objs. *****************************');
 		
 			//var ids = [];
-			var relObj = {};
+			var relObj = [];
 			_.each(objs, function(obj){
-				var typeCode = obj[0][3];
-				_.assert(obj[0][0] === -1);
 				_.assertArray(obj[0]);
-				//console.log('meta: ' + JSON.stringify(obj[0]));
 				_.assertInt(typeCode);
-				var id = obj[0][2];
+				var id = obj.meta.id
 				//ids.push(id);
-				var key = typeCode + ':' + id;
-				state.didPass[key] = true;
+				//var key = typeCode + ':' + id;
+				state.didPass[id] = true;
 				includeObjectCb(typeCode, id, obj);
 				//console.log('adding: ' + typeCode + ' ' + id);
-				if(relObj[typeCode] === undefined) relObj[typeCode] = [];
-				relObj[typeCode].push(id);
+				//if(relObj[typeCode] === undefined) relObj[typeCode] = [];
+				//relObj[typeCode].push(id);
+				relObj.push(id)
 			});
 			
 			//console.log('dunning: ' + JSON.stringify(relObj));
@@ -259,8 +266,10 @@ function makeIsValueFilterFunction(propertyCode, value){
 }
 
 function makeEqualFunction(value){
-	console.log('making equal function for value: ' + value);
-	return function equalFunction(v){return v === value;}
+	//console.log('making equal function for value: ' + value);
+	return function equalFunction(v){
+		return v === value;
+	}
 }
 
 //TODO refactor with better filter logic from non-count code
@@ -300,11 +309,11 @@ function makeCountMacroFilterGetter(rel, viewSchema, schema, broadcaster, object
 					
 					dsfc(paramsStr, equalFunction, includeObjectCb, doneCb, cbs);
 				}else{
-					console.log('finding count by primitive property(' + propertyCode + '): ' + value);
+					//console.log('finding count by primitive property(' + propertyCode + '): ' + value);
 					var start = Date.now();
 					objectState.selectByPropertyConstraint(objSchema.code, [propertyCode], equalFunction, function(ids){
 						var end = Date.now();
-						console.log('finding took: ' + (end-start) + 'ms, found: ' + ids.size());
+						//console.log('finding took: ' + (end-start) + 'ms, found: ' + ids.size());
 						doneCb(ids.size());
 					});
 				}
@@ -329,18 +338,10 @@ function makeCountMacroFilterGetter(rel, viewSchema, schema, broadcaster, object
 			var updateMatches = makeUpdateMatches(rel, objectState, viewSchema.code);
 			var dsfc = doSyncFilteringCount(updateMatches, objectState, objSchema.code, objectState, broadcaster, [propertyCode]);
 			
+			//console.log('paramSet: ' + JSON.stringify(paramSet));
 			return function(params, includeObjectCb, doneCb, cbs){
 		
 				function filterInFunction(v){
-			
-					/*for(var i=0;i<obj.length;++i){
-						var entry = obj[i];
-						if(entry[0] === propertyCode){
-							_.assertDefined(entry[1]);
-							return paramSet.indexOf(entry[1]) !== -1;
-						}
-					}
-					return false;*/
 					return paramSet.indexOf(v) !== -1
 				}
 
@@ -362,6 +363,52 @@ function makeCountMacroFilterGetter(rel, viewSchema, schema, broadcaster, object
 	}
 }
 
+function makeMaxGetter(rel, viewSchema, schema, broadcaster, objectState){
+
+	_.assertLength(arguments, 5);
+	_.assertFunction(broadcaster.output.listenByType);
+
+	if(rel.params[0].type === 'property' && rel.params[0].context.type === 'type'){
+
+		//console.log(JSON.stringify(rel.params[1]));
+		
+		var typeName = rel.params[0].context.name;
+		var objSchema = schema[typeName];
+		
+		var defaultValue = Number(rel.params[1].name)
+		
+		var df = makeDescentFunction(schema, objSchema, rel.params[0]);
+		
+		return function(params, includeObjectCb, doneCb){
+			var typeName = rel.params[0].name;
+			objectState.getAllObjects(objSchema.code, function(objs){//TODO do this in a streaming manner
+				var maxValue = defaultValue;
+				_.each(objs, function(obj, idStr){
+					//console.log('*obj: ' + JSON.stringify(obj))
+					var value = df(obj);
+					if(value == undefined) return;
+					
+					//console.log('property: ' + rel.params[0].name);
+					_.assertNumber(value);
+					if(value < defaultValue){
+						console.log('WARNING: value is less than defaultValue(' + defaultValue+'): ' + value);
+					}
+					if(value > maxValue){
+						maxValue = value;
+					}
+				});
+				//console.log('maxValue: ' + maxValue);
+				//_.assertInt(many);
+				_.assertNumber(maxValue)
+				doneCb(maxValue);
+			});
+		}
+
+	}
+	//console.log('rel: ' + JSON.stringify(rel));
+	_.errout('TODO');
+}
+
 function makeCountGetter(rel, viewSchema, schema, broadcaster, objectState){
 
 	_.assertLength(arguments, 5);
@@ -370,10 +417,9 @@ function makeCountGetter(rel, viewSchema, schema, broadcaster, objectState){
 	if(rel.params[0].type === 'type'){
 		return function(params, includeObjectCb, doneCb){
 			var typeName = rel.params[0].name;
-			objectState.getManyOfType(schema[typeName].code, function(many){
-				_.assertInt(many);
-				doneCb(many);
-			});
+			var many = objectState.getManyOfType(schema[typeName].code)//, function(many){
+			_.assertInt(many);
+			doneCb(many);
 		}
 
 	}else if(rel.params[0].type === 'macro'){
@@ -381,44 +427,38 @@ function makeCountGetter(rel, viewSchema, schema, broadcaster, objectState){
 		if(macro.expr.type === 'view' && macro.expr.view === 'filter'){
 			var filter = macro.expr;
 			if(isAmpersand(filter.params[0]) && macro.context.type === 'type'){
-				//console.log("FILTER");
 			
 				return makeCountMacroFilterGetter(rel, viewSchema, schema, broadcaster, objectState);
 			}
 		}		
 	}
-	console.log('rel: ' + JSON.stringify(rel));
+	//console.log('rel: ' + JSON.stringify(rel));
 	_.errout('TODO');
 }
 
 function makeUpdateMatchingObjects(rel, objectState, viewCode){
 	return function updateMatching(filterFunction, state, typeCode, id, paramsStr, includeObjectCb, cbs, editId){
 		cbs.hold(editId);
-		objectState.getObjectState(typeCode, id, function(obj){
-			var key = obj[0][3] + ':' + obj[0][2];
+		objectState.getObjectState(id, function(obj){
+			var id = obj.meta.id;
 			var changed = false;
 			console.log('filtering ' + key);
 			if(filterFunction(obj)){
-				if(!state.didPass[key]){
+				if(!state.didPass[id]){
 					//console.log('calling include-object-cb: ' + typeCode + ' ' + id);
 					includeObjectCb(typeCode, id, obj);
-					//cbs.listener(viewCode, paramsStr,[rel.code],
-					//	{op: 'addExisting', type: typeCode, id: id});
 						
-					cbs.listener({op: 'addExisting', type: typeCode, id: id}, editId);
+					cbs.listener('addExisting', {id: id}, editId);
 					
-					state.didPass[key] = true;
+					state.didPass[id] = true;
 					changed = true;
 				}
 			}else{
-				if(state.didPass[key]){
+				if(state.didPass[id]){
 
-					//cbs.listener(viewCodee, paramsStr,[rel.code],
-					//	{op: 'remove', type: typeCode, id: id});
+					cbs.listener('remove', {id: id}, editId);
 					
-					cbs.listener({op: 'remove', type: typeCode, id: id}, editId);
-					
-					state.didPass[key] = false;
+					state.didPass[id] = false;
 					changed = true;
 				}
 			}
@@ -428,7 +468,7 @@ function makeUpdateMatchingObjects(rel, objectState, viewCode){
 }
 
 function matchesPropertyConstraints(schema, typeCode, obj, descentPaths, filterFunctions, setFunc){
-	console.log('many paths: ' + descentPaths.length);
+//	console.log('many paths: ' + descentPaths.length);
 	var setList = [];
 	for(var k=0;k<descentPaths.length;++k){
 
@@ -436,13 +476,10 @@ function matchesPropertyConstraints(schema, typeCode, obj, descentPaths, filterF
 		var filterFunction = filterFunctions[k];
 		
 		var v = objutil.descendObject(schema, typeCode, obj, descentPath);
-		var id = obj[0][2];
+		var id = obj.meta.id
 		if(filterFunction(v)){
-			//return 
-			//setList.push(new IdSet([id]));
 			setList.push(set.fromArray([id]));
 		}else{
-			//setList.push(new IdSet());
 			setList.push(set.empty);
 		}
 	}
@@ -451,37 +488,41 @@ function matchesPropertyConstraints(schema, typeCode, obj, descentPaths, filterF
 
 function makeUpdateMatchingObjectsWithPropertyConstraints(schema, rel, objectState, viewCode){
 
-	return function updateMatching(dps, rfs, setFunc, state, typeCode, id, paramsStr, includeObjectCb, cbs, editId){
+	return function updateMatching(dps, rfs, setFunc, state, typeCode, id, paramsStr, includeObjectCb, cbs, editId, op, edit, path, syncId){
+		
+		_.assert(arguments.length === 14 || arguments.length === 10);
+		
 		cbs.hold(editId);
 		_.assertDefined(schema._byCode[typeCode]);
-		objectState.getObjectState(typeCode, id, function(obj){
-			var key = obj[0][3] + ':' + obj[0][2];
+		objectState.getObjectState(id, function(obj){
+			var id = obj.meta.id
 			var changed = false;
-			console.log('filtering ' + key);
+			
 			if(matchesPropertyConstraints(schema, typeCode, obj, dps, rfs, setFunc)){
-				if(!state.didPass[key]){
-					//console.log('calling include-object-cb: ' + typeCode + ' ' + id);
-					console.log('state of ' + typeCode + ' ' + id + ' (' + key + ') changed to include it in the set: ' + JSON.stringify(rel));
+				if(!state.didPass[id]){
 					includeObjectCb(typeCode, id, obj);
-					//_.assertInt(relCode);
-					//cbs.listener(viewCode, paramsStr, {op: 'addExisting', type: typeCode, id: id}, -1, -1);
-					cbs.listener({op: 'addExisting', type: typeCode, id: id}, editId, {obj: obj});
+					cbs.listener('addExisting', {id: id}, editId, {obj: obj});
 					
-					state.didPass[key] = true;
+					state.didPass[id] = true;
 					changed = true;
+				}else{
+
+					console.log('still included');
+					
+					console.log('forwarding edit: ' + JSON.stringify(edit));
+					cbs.forward(typeCode, id, path, op, edit, syncId, editId);
 				}
 			}else{
 				if(state.didPass[key]){
 
-					console.log('state of ' + typeCode + ' ' + id + ' changed to exclude it from the set: ' + JSON.stringify(rel));
+					console.log('changed to exclude it from the set');
 					
-					//cbs.listener(viewCodee, paramsStr,[relCode],
-					//	{op: 'remove', type: typeCode, id: id});
+					cbs.listener('remove', {id: id}, editId, {obj: obj});
 					
-					cbs.listener({op: 'remove', type: typeCode, id: id}, editId, {obj: obj});
-					
-					state.didPass[key] = false;
+					state.didPass[id] = false;
 					changed = true;
+				}else{
+					console.log('still excluded');
 				}
 			}
 			cbs.release(editId);
@@ -494,12 +535,10 @@ function processObjects(includeObjectCb, doneCb, typeCode, ids, objs){
 	for(var i=0;i<ids.length;++i){
 		var id = ids[i];
 		var obj = objs[id];
-		//_.assertEqual(obj[0][2], id);
 		includeObjectCb(typeCode, id, obj);
 	}
 
-	var obj = {};
-	obj[typeCode] = ids;
+	var obj = [].concat(ids)
 	doneCb(obj);
 }
 function handleObjectIds(objectState, includeObjectCb, objSchema, objectIds, doneCb){
@@ -508,8 +547,16 @@ function handleObjectIds(objectState, includeObjectCb, objSchema, objectIds, don
 	var ids = objectIds.get();
 	var typeCode = objSchema.code;
 	
-	objectState.getObjects(typeCode, objectIds, 
-		processObjects.bind(undefined, includeObjectCb, doneCb, typeCode, ids));
+	//console.log('getting objects')
+	var ff = processObjects.bind(undefined, includeObjectCb, doneCb, typeCode, ids)
+	if(ids.length === 0){
+		ff({})
+		return;
+	}
+	objectState.getObjects(typeCode, ids, function(objs){
+		//console.log('got objects')
+		ff(objs)
+	});
 }
 
 function makeObjectsPassingHandler(includeObjectCb, objSchema, doneCb){
@@ -520,14 +567,11 @@ function makeObjectsPassingHandler(includeObjectCb, objSchema, doneCb){
 		var ids = [];
 		for(var i=0;i<objs.length;++i){
 			var obj = objs[i];
-			ids.push(obj[0][2]);
-			//console.log('pushing object: ' + JSON.stringify(obj[0]))
-			includeObjectCb(objSchema.code, obj[0][2], obj);
+			ids.push(obj.meta.id)
+			includeObjectCb(objSchema.code, obj.meta.id, obj);
 		}
 		
-		var obj = {};
-		obj[objSchema.code] = ids;
-		doneCb(obj);
+		doneCb(ids);
 	}
 }
 
@@ -540,6 +584,17 @@ function findMapValue(key, mapValues){
 	}
 }
 
+function getAllPropertiesFor(schema, objSchema){
+	var res = {};
+	_.extend(res, objSchema.properties);
+	_.each(objSchema.superTypes, function(dummy, sn){
+		var st = schema[sn];
+		if(st){
+			_.extend(res, getAllPropertiesFor(schema, st))
+		}
+	})
+	return res;
+}
 function makeDescentPath(schema, objSchema, expr){
 	var cur = expr;
 	var curSchema = objSchema;
@@ -551,20 +606,13 @@ function makeDescentPath(schema, objSchema, expr){
 	}
 	if(reversed.length === 1){
 		var n = reversed[0];
-		var ps = curSchema.properties[n];
-		/*return function(obj){
-			var pv = objutil.findPropertyValue(ps.code, obj);
-			return pv;
-		}*/
+		var ps = getAllPropertiesFor(schema, curSchema)[n];
 		return [ps.code];
 	}else if(reversed.length === 2){
 		var n = reversed[0];
 		var ps = curSchema.properties[n];
 		_.assertEqual(ps.type.type, 'map');
 		var n2 = reversed[1];
-		/*return function(obj){
-			return findMapValue(n2, objutil.findPropertyValue(ps.code, obj));
-		}*/
 		return [ps.code, n2];
 	}else{
 		_.errout("TODO: " + JSON.stringify(expr));
@@ -585,7 +633,9 @@ function makeDescentFunction(schema, objSchema, expr){
 		var n = reversed[0];
 		var ps = curSchema.properties[n];
 		return function(obj){
+			//console.log('descending property ' + ps.name + ' on object of type ' + objSchema.name);
 			var pv = objutil.findPropertyValue(ps.code, obj);
+			//console.log(JSON.stringify(obj));
 			return pv;
 		}
 	}else if(reversed.length === 2){
@@ -609,7 +659,7 @@ function makePropertyFilterGetter(rel, viewSchema, schema, broadcaster, objectSt
 	var fExpr = rel.expr.params[1];
 	
 	var df = makeDescentFunction(schema, objSchema, fExpr.params[0]);
-	console.log(JSON.stringify(rel));
+	//console.log(JSON.stringify(rel));
 	var pfa = makePartialFunctionMaker(selfCall, schema, viewSchema, df, fExpr);
 
 	var updateMatching = makeUpdateMatchingObjects(rel, objectState, viewSchema.code);
@@ -640,6 +690,7 @@ function makePartialFunctionMaker(selfCall, schema, viewSchema, df, expr){
 
 	function f(obj){
 		var v = df(obj);
+		//console.log('comparing ' + v + ' ' + sp.value);
 		return v === sp.value;
 	}
 	
@@ -648,33 +699,38 @@ function makePartialFunctionMaker(selfCall, schema, viewSchema, df, expr){
 			_.assertDefined(sp.value);
 			//console.log('sp.value: ' + sp.value);
 
-			return function(params){
-				return f;
+			return function(params,cb){
+				_.assertLength(arguments, 2);
+				cb(f);
 			}
 		}else if(sp.type === 'param'){
-			return function(params){
+			return function(params, cb){
+				_.assertLength(arguments, 2);
 				var paramValue = getParamByName(params, sp.name, viewSchema);
 				//_.assertDefined(paramValue);
-				return function(obj){
+				cb(function(obj){
 					var v = df(obj);
+					//console.log('*comparing ' + v + ' ' + paramValue);
 					return paramValue === v;
-				}
+				})
 			}
 		}else{
 			_.errout('TODO');
 		}
 	}else if(expr.view === 'in'){
 		if(sp.type === 'param'){
-			return function(params){
+			return function(params,cb){
+				_.assertLength(arguments, 2);
 				var paramSet = getParamByName(params, sp.name, viewSchema);
 				_.assertDefined(paramSet);
 				_.assertArray(paramSet);
-				//console.log('paramSet: ' + JSON.stringify(paramSet));
-				return function(obj){
+				
+				cb(function(obj){
 					var v = df(obj);
 					var iv = paramSet.indexOf(v);
+					//console.log('paramSet: ' + JSON.stringify(paramSet));	
 					return iv !== -1;
-				}
+				})
 			}
 		}else if(sp.type === 'property'){
 			if(sp.context.type === 'view'){
@@ -695,11 +751,10 @@ function makePartialFunctionMaker(selfCall, schema, viewSchema, df, expr){
 				//TODO handle changes to view params, or at least explicitly determine whether that is a possibility
 				//and errout-todo if it is.
 				
-				return function(params){
-					//console.log('params: ' + JSON.stringify(params));
+				return function(params,cb){
+					_.assertLength(arguments, 2);
+					console.log('params: ' + JSON.stringify(params));
 					//TODO translate params, etc., into vs params
-					
-					var results = [];
 					
 					var paramValues = [];
 					var cdl = _.latch(paramFuncs.length, function(){
@@ -707,9 +762,16 @@ function makePartialFunctionMaker(selfCall, schema, viewSchema, df, expr){
 							//include object callback
 							_.errout('TODO ok?');							
 						},
-						function(values){
+						function(results){
 							//results.push(values);
-							results = values;
+							//console.log('**** in-set values: ' + JSON.stringify(results).substr(0,300));
+							//results = values;
+							cb(function(obj){
+								var v = df(obj);
+								//console.log('**** in-set: ' + JSON.stringify(results).substr(0,300));
+								//console.log('**** v: ' + v);
+								return results.indexOf(v) !== -1;
+							})
 						});
 					});
 					
@@ -718,17 +780,13 @@ function makePartialFunctionMaker(selfCall, schema, viewSchema, df, expr){
 							//include object callback
 							_.errout('TODO ok?');
 						}, function(values){
+							console.log('got param ' + i + ' out of ' + JSON.stringify(Object.keys(paramFuncs)));
 							paramValues[i] = values;
 							cdl();
 						});
 					});
 					
-					return function(obj){
-						var v = df(obj);
-						//console.log('**** in-set: ' + JSON.stringify(results));
-						//console.log('**** v: ' + v);
-						return results.indexOf(v) !== -1;
-					}
+					
 				}
 			}else{
 				_.errout('pTODO: ' + JSON.stringify(sp));
@@ -751,15 +809,12 @@ function makePartialFunctionMakerSmart(selfCall, schema, viewSchema, dff, expr){
 	if(isPropertiesEndingInAmpersand(expr.params[0])){
 		dp = dff(expr.params[0]);
 	}else{
-		//console.log(JSON.stringify(expr));
-		//_.errout('TODO: ' + JSON.stringify(expr.params[0]));
 		pdf = makePartialFunctionMakerSmart(selfCall, schema, viewSchema, dff, expr.params[0])
 	}
 
 	var sp = expr.params[1];
 
 	function f(v){
-		//if(Math.random() < .001) console.log('v: ' + v + ' ? ' + sp.value);
 		return v === sp.value;
 	}
 	
@@ -767,16 +822,18 @@ function makePartialFunctionMakerSmart(selfCall, schema, viewSchema, dff, expr){
 		if(sp.type === 'value'){
 			_.assertDefined(sp.value);
 			//console.log('sp.value: ' + sp.value);
-			return [[dp, function(params){
-				return f;
+			return [[dp, function(params,cb){
+				_.assertLength(arguments, 2);
+				cb(f);
 			}]]
 		}else if(sp.type === 'param'){
-			return [[dp, function(params){
+			return [[dp, function(params, cb){
+				_.assertLength(arguments, 2);
 				var paramValue = getParamByName(params, sp.name, viewSchema);
 				//_.assertDefined(paramValue);
-				return function(v){
+				cb(function(v){
 					return paramValue === v;
-				}
+				})
 			}]]
 		}else{
 			_.errout('TODO');
@@ -787,16 +844,17 @@ function makePartialFunctionMakerSmart(selfCall, schema, viewSchema, dff, expr){
 		return pdf.concat(sdf);
 	}else if(expr.view === 'in'){
 		if(sp.type === 'param'){
-			return [[dp, function(params){
+			return [[dp, function(params, cb){
+				_.assertLength(arguments, 2);
 				var paramSet = getParamByName(params, sp.name, viewSchema);
 				_.assertDefined(paramSet);
 				_.assertArray(paramSet);
 
-				return function(v){
+				cb(function(v){
 					var iv = paramSet.indexOf(v);
 					//console.log('in: ' + iv + ' ' + v + ' ' + JSON.stringify(dp));
 					return iv !== -1;
-				}
+				})
 			}]]
 		}else if(sp.type === 'property'){
 			if(sp.context.type === 'view'){
@@ -818,22 +876,24 @@ function makePartialFunctionMakerSmart(selfCall, schema, viewSchema, dff, expr){
 				//TODO handle changes to view params, or at least explicitly determine whether that is a possibility
 				//and errout-todo if it is.
 				
-				return [[dp, function(params){
+				return [[dp, function(params, cb){
+					_.assertLength(arguments, 2);
 					//console.log('params: ' + JSON.stringify(params));
 					//TODO translate params, etc., into vs params
 					
-					var results = [];
-					
 					var paramValues = [];
 					var cdl = _.latch(paramFuncs.length, function(){
+						//console.log('calling relFunc: ' + JSON.stringify(paramValues));
 						relFunc(paramValues, function(){
 							//include object callback
 							_.errout('TODO ok?');							
 						},
-						function(values){
-							//results.push(values);
-							results = values;
-						});
+						_.once(function(results){
+							//console.log('in-set results(' + sp.context.view + '): ' + JSON.stringify(results));
+							cb(function(v){
+								return results.indexOf(v) !== -1;
+							})
+						}));
 					});
 					
 					_.each(paramFuncs, function(pf, i){
@@ -845,10 +905,6 @@ function makePartialFunctionMakerSmart(selfCall, schema, viewSchema, dff, expr){
 							cdl();
 						});
 					});
-					
-					return function(v){
-						return results.indexOf(v) !== -1;
-					}
 				}]]
 			}else{
 				_.errout('pTODO: ' + JSON.stringify(sp));
@@ -894,6 +950,7 @@ function makeSetOperationFunction(selfCall, schema, viewSchema, dff, expr){
 		
 		return makeBooleanSetFunction(selfCall, schema, viewSchema, dff, expr, function(a, b){
 			//console.log(a);
+			//console.log('finding union: ' + JSON.stringify(a) + ' ' + JSON.stringify(b));
 			return a.getUnion(b);
 		});
 	}else if(expr.view === 'and'){
@@ -935,40 +992,42 @@ function makeGeneralFilterGetter(rel, boolFunc, viewSchema, schema, broadcaster,
 	
 	return function(params, includeObjectCb, doneCb, cbs){
 
-		var rfs = [];
-		for(var i=0;i<fss.length;++i){
-			rfs.push(fss[i](params));
-		}
+		var cdl = _.latch(fss.length, function(){
+			if(cbs){
+				//console.log('general filter cbs');
 
-		if(cbs){
-			//console.log('general filter cbs');
-
-			var paramsStr = JSON.stringify(params);			
-			dsfc(paramsStr, dps, rfs, setFunc, includeObjectCb, doneCb, cbs);
-		}else{
+				var paramsStr = JSON.stringify(params);			
+				dsfc(paramsStr, dps, rfs, setFunc, includeObjectCb, doneCb, cbs);
+			}else{
 		
-			//console.log('general filter - no cbs: ' + new Error().stack);
+				//console.log('general filter - no cbs: ' + new Error().stack);
 
-			var timeoutHandle = setTimeout(function(){
-				console.log('objectState.selectByMultiplePropertyConstraints taking a long time to finish');
-				_.errout('computing general filter rel set has taken more than 10 seconds without completing');
-			}, 30000);			
+				var timeoutHandle = setTimeout(function(){
+					console.log('objectState.selectByMultiplePropertyConstraints taking a long time to finish');
+					_.errout('computing general filter rel set has taken more than 10 seconds without completing');
+				}, 30000);			
 			
-			//var hf = makeObjectIdsPassingHandler(objectState, includeObjectCb, objSchema, doneCb);
+				//console.log('selecting by constraints')
+				objectState.selectByMultiplePropertyConstraints(objSchema.code, dps, rfs, function(idLists){
+					//console.log('got select results')
 
-			objectState.selectByMultiplePropertyConstraints(objSchema.code, dps, rfs, function(idLists){
-
-				var resultIds = setFunc(idLists);
+					var resultIds = setFunc(idLists);
 				
-				//console.log('general filter resulted in (' + objSchema.code + '): ' + resultIds.size());
-				
-				clearTimeout(timeoutHandle);
+					clearTimeout(timeoutHandle);
 
-				//hf(resultIds);
-				handleObjectIds(objectState, includeObjectCb, objSchema, resultIds, doneCb);
+					handleObjectIds(objectState, includeObjectCb, objSchema, resultIds, doneCb);
+				});
+			
+			}
+		});
+		var rfs = [];
+		_.each(fss, function(f,index){
+			f(params, function(res){
+				rfs[index] = res;
+				cdl();
 			});
-			
-		}
+		});
+
 	}		
 }
 
@@ -1002,13 +1061,6 @@ function getNextNotProperty(expr){
 }
 function ignore(){}
 
-/*
-function andFunc(af, bf){
-	return function(v){return af(v) && bf(v);};
-}
-function orFunc(af, bf){
-	return function(v){return af(v) || bf(v);};
-}*/
 function andFunc(aIds, bIds){
 	return aIds.intersection(bIds);
 }
@@ -1016,16 +1068,27 @@ function orFunc(aIds, bIds){
 	return aIds.union(bIds);
 }
 
+function getTypeAndSubtypeCodes(schema, objSchema){
+	var res = [objSchema.code];
+	_.each(objSchema.subTypes, function(v, subType){
+		res = res.concat(getTypeAndSubtypeCodes(schema, schema[subType]));
+	});
+	return res;
+}
+
 function makeSimpleMapMacro(schema, rel, objectState, broadcaster){
 	
 	var objSchema = schema[rel.context.name];
-	var baseTypeCode = objSchema.code;
+	var baseTypeCodes = getTypeAndSubtypeCodes(schema, objSchema)//gobjSchema.code;
+
+	_.assert(baseTypeCodes.length >= 1)
+	//_.assertInt(baseTypeCode);
 	
 	var keyDf;
 	var valueDf;
 	
 	if(rel.keyExpr.name === 'id'){
-		keyDf = function(obj){return obj[0][2];}
+		keyDf = function(obj){return obj.meta.id;}
 	}else{
 		var keyPropertyCode = objSchema.properties[rel.keyExpr.name].code;
 		_.assertInt(keyPropertyCode);
@@ -1034,7 +1097,7 @@ function makeSimpleMapMacro(schema, rel, objectState, broadcaster){
 		}
 	}
 	if(rel.valueExpr.name === 'id'){
-		valueDf = function(obj){return obj[0][2];}
+		valueDf = function(obj){return obj.meta.id;}
 	}else{
 		var valuePropertyCode = objSchema.properties[rel.valueExpr.name].code;
 		_.assertInt(valuePropertyCode);
@@ -1055,53 +1118,93 @@ function makeSimpleMapMacro(schema, rel, objectState, broadcaster){
 			cbs.onStop(function(){
 				stopped = true;
 			});
-		}		
-		objectState.getAllObjects(baseTypeCode, function(objs){
-			//console.log('objs: ' + JSON.stringify(objs));
+		}
+		
+		var relObj = {};
+		function handler(typeCode, doneTypeCb, objs){
+			//console.log('****objs: ' + JSON.stringify(objs));
+			
+			var objectKeys = {};
 
-			var relObj = [];
 			var gotKeys = {};
 			function addObjectToRel(obj, editId){
+				var id = obj.meta.id
+				
 				var key = keyDf(obj);
+				objectKeys[id] = key;
 				if(key !== undefined){
 					var value = valueDf(obj);
-					relObj.push([key, value]);
-					//console.log('added map-macro ' + key + ' ' + value);
+					//relObj.push([key, value]);
+					relObj[key] = value;
+					//console.log('added map-macro(' + baseTypeCode + ') ' + key + ' ' + value);
 					
 					if(editId !== undefined && cbs){
-						cbs.listener({op: 'put', key: key, value: value}, editId);
+						cbs.listener('put', {key: key, value: value}, editId);
 					}
+				}else{
+					//console.log('null key: ' + JSON.stringify(obj));
 				}
 			}
 			_.each(objs, function(obj){
-				var typeCode = obj[0][3];
-				_.assert(obj[0][0] === -1);
-				_.assertArray(obj[0]);
+				//console.log('obj: ' + JSON.stringify(obj))
+				var typeCode = obj.meta.typeCode
 				_.assertInt(typeCode);
-				//var id = obj[0][2];
-				//includeObjectCb(typeCode, id, obj);
-				//if(relObj[typeCode] === undefined) relObj[typeCode] = [];
-				//relObj[typeCode].push(id);
 				addObjectToRel(obj);
 			});
 			//console.log('relObj: ' + JSON.stringify(relObj));
 			
 			clearTimeout(timeoutHandle);
 			
-			doneCb(relObj);
+			doneTypeCb();
 
-			function typeListener(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
-				_.assertLength(arguments, 8);
+			function typeListener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+				_.assertLength(arguments, 9);
 				_.assertInt(syncId);
 				//cbs.forward(typeCode, id, path, edit, syncId, editId);
-				console.log('WARNING: TODO map-macro type listener update');
+				//console.log('WARNING: TODO map-macro type listener update');
+
+				cbs.hold(editId);
+				objectState.getObjectState(id, function(obj){
+				
+					//console.log('updating map for object: ' + typeCode + ' ' + id);
+
+					var key = keyDf(obj);
+					var id = obj.meta.id;
+					var oldKey = objectKeys[id];
+					if(key !== oldKey){
+						//console.log('oldKey: ' + oldKey + ', newKey: ' + key);
+						cbs.listener('remove', {key: oldKey}, editId);
+					}
+						
+					if(key !== undefined){
+						var value = valueDf(obj);
+						//console.log('checking if we need to change value: ' + key + '->' + value);
+						//var foundDifferent = true;
+						var found = relObj[key];
+						
+						if(found !== undefined){
+							if(found !== value){
+								//console.log('putting new value');
+								cbs.listener('put', {key: key, value: value}, editId);
+								relObj[key] = found;//[key, value];
+							}else{
+								//console.log('same value');
+							}
+						}else{
+							cbs.listener('put', {key: key, value: value}, editId);
+							relObj[key] = value;
+						}
+					}else{
+						delete objectKeys[id];
+					}
+					
+					
+					cbs.release(editId);
+				});
 			}
 			function newListener(typeCode, id, editId){
 				cbs.hold(editId);
-				//console.log('map-macro newListener fired: ' + typeCode + ' ' + id);
-				objectState.getObjectState(typeCode, id, function(obj){
-					//includeObjectCb(typeCode, id, obj);
-					//console.log('map-macro newListener adding: ' + typeCode + ' ' + id);
+				objectState.getObjectState(id, function(obj){
 					addObjectToRel(obj, editId);
 					cbs.release(editId);
 				});
@@ -1117,9 +1220,39 @@ function makeSimpleMapMacro(schema, rel, objectState, broadcaster){
 					broadcaster.output.stopListeningForNew(baseTypeCode, newListener);			
 				});
 			}
-		});
+		}
+		var cdl = _.latch(baseTypeCodes.length, function(){
+			doneCb(relObj)
+		})
+		for(var i=0;i<baseTypeCodes.length;++i){
+			var baseTypeCode = baseTypeCodes[i];
+			objectState.getAllObjects(baseTypeCode, handler.bind(undefined,baseTypeCode, cdl));
+		}
 	}
 }
+
+function getById(rel, typeCode, objectState, viewSchema, selfCall){
+	_.assertInt(typeCode)
+	var inner = selfCall(rel.params[0], viewSchema);//expression for id
+	return function(params, includeObjectCb, doneCb, cbs){
+		function ourDoneCb(id){
+			if(id === undefined){
+				doneCb();
+			}else{
+				_.assertInt(id);
+				objectState.getObjectState(id, function(obj){
+					includeObjectCb(typeCode, id, obj);
+					doneCb(id);
+				});
+			}
+		}
+		if(cbs){
+			//TODO listen for edits to object, forward them
+		}
+		inner(params, includeObjectCb, _.once(ourDoneCb));
+	}
+}
+
 function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView){
 	_.assertLength(arguments, 6);
 	_.assertFunction(broadcaster.output.listenByType);
@@ -1130,6 +1263,93 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 	
 	if(rel.type === 'view' && rel.view === 'count'){
 		return makeCountGetter(rel, viewSchema, schema, broadcaster, objectState);
+	}else if(rel.type === 'view' && rel.view === 'max'){
+		return makeMaxGetter(rel, viewSchema, schema, broadcaster, objectState);
+	}else if(rel.type === 'view' && rel.view === 'get'){
+		var paramName = rel.params[1].name;
+		//console.log('paramName: ' + paramName);
+		//console.log('rel.params[1]: ' + JSON.stringify(rel.params[1]));
+		var typeCode = schema[rel.params[0].name].code;
+		
+		var idFunction = selfCall(rel.params[1], viewSchema);
+		return function(params, includeObjectCb, doneCb, cbs){
+		
+			idFunction(params, includeObjectCb, _.once(ourDoneCb), cbs);
+			
+			function ourDoneCb(results){
+				_.assertLength(arguments, 1);
+				var id = results;
+				//console.log('params: ' + JSON.stringify(params));
+				_.assertInt(id);
+				objectState.getObjectState(id, function(obj){
+					//console.log(JSON.stringify([typeCode, id]))
+					if(obj === undefined){
+						doneCb();
+					}else{
+						_.assertDefined(obj)
+						includeObjectCb(typeCode, id, obj);
+					
+						if(cbs){
+							broadcaster.output.listenByObject(typeCode, id, cbs.forward);						
+							cbs.onStop(function(){
+								broadcaster.output.stopListeningByObject(typeCode, id, cbs.forward);						
+							})
+						}
+					
+					
+						doneCb(id);
+					}
+				});
+			}
+		}		
+	}else if(rel.type === 'view' && rel.view === 'one'){
+
+		var inner = selfCall(rel.params[0], viewSchema);
+		return function(params, includeObjectCb, doneCb, cbs){
+			function ourDoneCb(results){
+				_.assertArray(results);
+				if(results.length === 0){
+					doneCb();
+				}else{
+					console.log(JSON.stringify(results));
+					var id;
+					//var typeCode;
+					_.assertLength(results, 1);
+					id = results[0];
+
+					if(id === undefined){
+						doneCb();
+					}else{
+						doneCb(id);
+					}
+				}
+			}
+			var wcbs
+			if(cbs){
+				var wcbs = {};
+				_.extend(wcbs, cbs);
+
+				wcbs.listener = function(op, edit, editId, more){
+					_.assertLength(arguments, 4);
+					_.assertString(op)
+					console.log(JSON.stringify(arguments));
+					var object = more.obj;
+					if(op === 'addExisting'){
+						//console.log('HERE#*$#()@$*_#@$');
+						//cbs.listener({op: 'object-snap', id: edit.id, value: object, type: edit.type});
+						var typeCode = object.meta.typeCode;
+						_.assertInt(typeCode)
+						includeObjectCb(typeCode, edit.id, object);
+						cbs.listener('setObject', {id: edit.id}, editId);
+						//_.errout('TODO: set super-property!');
+					}else{
+						cbs.listener.apply(undefined, Array.prototype.slice.call(arguments));
+					}
+				}
+				//throw new Error(JSON.stringify(Object.keys(cbs)) + '\n' + JSON.stringify(Object.keys(wcbs)))
+			}
+			inner(params, includeObjectCb, _.once(ourDoneCb), wcbs);
+		}
 	}else if(rel.type === 'macro'){
 		if(rel.expr.type === 'view' && rel.expr.view === 'filter' && isAmpersand(rel.expr.params[0]) &&
 			rel.context.type === 'type'){
@@ -1155,22 +1375,23 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 				}
 				
 				function processValues(valuesSet){
+					_.assertLength(arguments, 1);
 
-					var results = {};					
+					var results = [];					
 					var cdl = _.latch(valuesSet.length, function(){
 						doneCb(results);
 					});
 					
 					_.assertArray(valuesSet);
-					//console.log('VALUES: ' + JSON.stringify(valuesSet));
-					//for(var i=0;i<valuesSet.length;++i){
-					
+
 					_.each(valuesSet, function(v){
 						var np = {};
+						_.assertDefined(v);
 						np['&'] = v;
 
 						var reqIncl = [];
 						function incl(typeCode, id, object){
+							_.assertInt(typeCode);
 							//console.log('wants to include: ' + typeCode + ' ' + id);
 							reqIncl.push([typeCode, id, object]);
 						}
@@ -1183,24 +1404,14 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 								return;
 							}
 
-							_.assertArray(resultValue);
-							var tc = resultValue[0];
-							_.assertInt(tc);
-							resultValue = resultValue[1];
-							
 							for(var i=0;i<reqIncl.length;++i){
 								var e = reqIncl[i];
 								includeObjectCb(e[0], e[1], e[2]);
 							}
 
-							//console.log('resultValue: ' + JSON.stringify(resultValue));
-							//var tc = resultValue[0][3];
-							if(results[tc] === undefined) results[tc] = [];
-							results[tc].push(resultValue);
-							//_.errout('TODO');
+							results.push(resultValue);
 							cdl();
 						});
-						//_.errout('TODO');
 					});
 				}
 				if(cbs){
@@ -1214,7 +1425,6 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 		rel.keyExpr.type === 'property' && isAmpersand(rel.keyExpr.context) &&
 		rel.valueExpr.type === 'property' && isAmpersand(rel.valueExpr.context)){
 		
-		//_.errout('TODO');
 		if((rel.keyExpr.name === 'id' || schema[rel.context.name].properties[rel.keyExpr.name].type.type === 'primitive') &&
 			(rel.valueExpr.name === 'id' || schema[rel.context.name].properties[rel.valueExpr.name].type.type === 'primitive')){
 			return makeSimpleMapMacro(schema, rel, objectState, broadcaster);
@@ -1243,25 +1453,24 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 					var propertyCode = objSchema.properties[rel.name].code;
 					_.assert(rel.context.type !== 'property');
 					wrappedCbs = {
-						listener: function(edit, editId, more){
+						listener: function(op, edit, editId, more){
 							//_.assertLength(arguments, 1);
 							_.assert(arguments.length >= 2);
 							_.assert(arguments.length <= 3);
+							_.assertString(op)
 							
-							if(edit.op === 'addExisting'){
+							if(op === 'addExisting'){
 								var nv = df(more.obj);
 								if(result.indexOf(nv) === -1){
 									result.push(nv);
-									cbs.listener({op: 'add', value: nv}, editId);
+									cbs.listener('add', {id: nv}, editId);
 								}else{
 									//_.errout('already got property: ' + nv + ' of type ' + objSchema.name + '.' + rel.name);
 									console.log('already got property: ' + nv + ' of type ' + objSchema.name + '.' + rel.name);
 								}
-							}else if(edit.op === 'remove'){
-								//_.errout('TODO');
+							}else if(op === 'remove'){
 								console.log('WARNING: TODO(' + edit.op + ') ' + new Error().stack);
 							}else{
-								//_.errout('TODO');
 								console.log('WARNING: TODO(' + edit.op + ') ' + new Error().stack);
 							}
 						}, 
@@ -1273,57 +1482,55 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 				
 				macroFunction(params, ignore, function(valuesSet){
 
+					//console.log('got macro-property values: ' + JSON.stringify(valuesSet).substr(0,300));
 					
-					var totalCount = 0;
-					_.each(valuesSet, function(arr, typeCodeStr){
-						totalCount += arr.length;
-					});
+					var totalCount = valuesSet.length;
+					//_.each(valuesSet, function(arr, typeCodeStr){
+					//	totalCount += arr.length;
+					//});
+					//
+					var alreadyGot = {};
 					
 					var cdl = _.latch(totalCount, function(){
-						//console.log('calling back done: ' + JSON.stringify(result));
+						//console.log('calling back done(' + result.length + '): ' + JSON.stringify(result).substr(0,300));
 						clearTimeout(timeoutHandle);
 						doneCb(result);
 					});
 											
-					_.assertObject(valuesSet);
-					_.each(valuesSet, function(arr, typeCodeStr){
-						var typeCode = parseInt(typeCodeStr);
-						_.each(arr, function(id){
-							_.assertInt(id);
-							objectState.getObjectState(typeCode, id, function(obj){
+					_.assertArray(valuesSet);
+						
+					var arr = valuesSet;
+					
+					_.each(arr, function(id){
+						_.assertInt(id);
+						objectState.getObjectState(id, function(obj){
+						
+							var res = df(obj);
+							if(!_.isPrimitive(res)) _.errout('TODO');
 							
-								var res = df(obj);
-								if(!_.isPrimitive(res)) _.errout('TODO');
-								
-								if(result.indexOf(res) === -1) result.push(res);
-								
-								cdl();
-							});
+							if(res === undefined){
+								//console.log(JSON.stringify(rel));
+								//if(Math.random() < .05) console.log('no value for: ' + JSON.stringify(obj));
+							}else{
+
+								_.assertDefined(res);
+								if(alreadyGot[res] === undefined) result.push(res);
+								alreadyGot[res] = true;
+							}
+							
+							cdl();
 						});
 					});
 					
 				}, wrappedCbs);
 			}
 		}else if(rel.context.type === 'view'){
-
-			//var objSchema = schema[macroExpr.context.name];
-
-			//var df = makeDescentFunction(schema, objSchema, rel);
-			
-			//var newViewSchema
-			
-			console.log(JSON.stringify(rel));
 			
 			var actualView = schema[rel.context.view];
 			_.assertDefined(actualView);
 			//console.log(JSON.stringify(actualView));
 			var actualExpression = actualView.rels[rel.name];
 			_.assertDefined(actualExpression);
-
-			console.log(JSON.stringify(actualView));
-			
-			//TODO translate view params in actualExpression to param values given
-			console.log(JSON.stringify(actualExpression));
 
 			_.errout('TODO: ');
 
@@ -1362,7 +1569,7 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 				var paramValue = getParamByName(params, paramName, viewSchema);
 				//console.log('paramValue: ' + paramValue);
 				_.assertInt(paramValue);
-				objectState.getObjectState(objectTypeCode, paramValue, function(obj){
+				objectState.getObjectState(paramValue, function(obj){
 					if(obj === undefined){
 						clearTimeout(timeoutHandle);
 						console.log('Error: cannot find object ' + objectTypeCode + ' ' + paramValue);
@@ -1375,7 +1582,7 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 							broadcaster.output.listenByObject(objectTypeCode, paramValue, cbs.forward);
 						}
 						clearTimeout(timeoutHandle);
-						doneCb([objectTypeCode, paramValue]);
+						doneCb(paramValue);
 					}
 				});
 			}
@@ -1407,6 +1614,12 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 			}
 		}
 	}else if(rel.type === 'view'){
+	
+		if(!schema[rel.view].isView){
+			//console.log('rel: ' + JSON.stringify(rel))
+			var typeCode = schema[rel.view].code;
+			return getById(rel, typeCode, objectState, viewSchema, selfCall);
+		}
 
 		var subView = schema[rel.view];
 		//_.assertDefined(subView);
@@ -1434,31 +1647,40 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 			//_.assertNot(cbs);
 			//if(cbs) _.assertNot(cbs.listener.isCbFunction);
 			//console.log(new Error().stack);
-		
+			//var beganView = false;
 			var timeoutHandle = setTimeout(function(){
-				_.errout('computing view rel set has taken more than 10 seconds without completing');
-			}, 10000);
+				console.log('computing view rel set has taken more than 30 seconds without completing');
+				console.log(new Error().stack);
+			}, 35000);
 		
 			var subParams = [];
 			var cdl = _.latch(viewParamFunctions.length, function(){
 
-				function gotViewCb(viewObjData){
-					var typeCode = viewObjData[0];
-					var viewObj = viewObjData[1];
+				//beganView = true;
+				
+				function gotViewCb(viewObj){
+					_.assertLength(arguments, 1);
+					//_.assertArray(viewObjData);
+					//var typeCode = viewObjData[0];
+					//var viewObj = viewObjData[1];
 					clearTimeout(timeoutHandle);
-					console.log('got view object: ' + subView.code);
+					//console.log('got view object: ' + subView.code);
 					//_.assertNot(_.isArray(viewObj));
 					//console.log(doneCb);
 					//console.log(JSON.stringify(viewObj));
 					//doneCb(viewObj);
-					var viewId = viewObj[0][2];
+					var viewId = viewObj.meta.id;
+					var typeCode = viewObj.meta.typeCode;
 					_.assertString(viewId);
 					includeObjectCb(typeCode, viewId, viewObj);
-					doneCb([typeCode, viewId]);
+					doneCb(viewId);
 				}
 
-				function listenerCb(typeCode, id, path, edit, syncId, editId){
-					cbs.forward(typeCode, id, path, edit, syncId, editId);
+				function listenerCb(typeCode, id, path, op, edit, syncId, editId){
+					_.assertLength(arguments, 7);
+					_.assertString(op)
+					_.assertInt(typeCode)
+					cbs.forward(typeCode, id, path, op, edit, syncId, editId);
 				}
 				
 				if(cbs){
@@ -1475,9 +1697,9 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 				});
 			});
 		
-			if(cbs){
-				console.log('WARNING TODO: set_impl.js, rel.type === view does not handle the listening case');
-			}
+			//if(cbs){
+			//	console.log('WARNING TODO: set_impl.js, rel.type === view does not handle the listening case');
+			//}
 		}
 	}else if(rel.type === 'type'){
 		
@@ -1498,16 +1720,15 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 			objectState.getAllObjects(baseTypeCode, function(objs){
 				//console.log('objs: ' + JSON.stringify(objs));
 
-				var relObj = {};
+				var relObj = [];
 				_.each(objs, function(obj){
-					var typeCode = obj[0][3];
-					_.assert(obj[0][0] === -1);
-					_.assertArray(obj[0]);
+					var typeCode = obj.meta.typeCode
+					//_.assertArray(obj[0]);
 					_.assertInt(typeCode);
-					var id = obj[0][2];
+					var id = obj.meta.id;
 					includeObjectCb(typeCode, id, obj);
-					if(relObj[typeCode] === undefined) relObj[typeCode] = [];
-					relObj[typeCode].push(id);
+					//if(relObj[typeCode] === undefined) relObj[typeCode] = [];
+					relObj.push(id);
 				});
 				//console.log('relObj: ' + JSON.stringify(relObj));
 				
@@ -1515,15 +1736,31 @@ function getRvGetter(rel, viewSchema, schema, broadcaster, objectState, getView)
 				
 				doneCb(relObj);
 
-				function typeListener(subjTypeCode, subjId, typeCode, id, path, edit, syncId, editId){
-					_.assertLength(arguments, 8);
+				var lastForwarded = -1;
+				var uid = Math.random();
+				function typeListener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+					_.assertLength(arguments, 9);
 					_.assertInt(syncId);
-					cbs.forward(typeCode, id, path, edit, syncId, editId);
+					if(rel.name === 'map'){
+						console.log(uid);
+						console.log('map forwarding(' + lastForwarded + ')(' + editId + '): ' + JSON.stringify(edit));
+					}
+					if(editId <= lastForwarded){
+						console.log('type listener got dup: ' + editId);
+						return;
+					}
+					lastForwarded = editId;
+					cbs.forward(typeCode, id, path, op, edit, syncId, editId);
 				}
 				function newListener(typeCode, id, editId){
 					cbs.hold(editId);
-					objectState.getObjectState(typeCode, id, function(obj){
+					console.log("NEW LISTENER *************************************************");
+					objectState.getObjectState(id, function(obj){
 						includeObjectCb(typeCode, id, obj);
+
+						//(op, edit, editId, more){
+						cbs.listener('addExisting', {id: id}, editId, {obj: obj});
+
 						cbs.release(editId);
 					});
 				}		

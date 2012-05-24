@@ -1,6 +1,8 @@
 "use strict";
 
-//#requires minnow-service:socket.io,sync_api matterhorn-standard:jquery-1.5
+//TODO translate to new browser-side packaging
+
+//#requires minnow-service:socket.io,sync_api matterhorn-standard:domready
 
 var gotSnapshot;
 var gotSchema;
@@ -66,31 +68,25 @@ function tryLoad(){
 
 function mergeSnapshots(snaps){
 
-	var result = {version: snaps[snaps.length-1].version, objects: {}};
+	var result = {version: snaps[snaps.length-1].version, objects: []};
 	
 	var taken = {};
 	for(var i=snaps.length-1;i>=0;--i){
 		var m = snaps[i].objects;
 		
-		var typeCodes = Object.keys(m);
-		for(var k=0;k<typeCodes.length;++k){
-			var typeCode = typeCodes[k];
-			var objs = m[typeCode];
+		var objs = m
+		
+		var t = taken
+		
+		var resObjs = result.objects
+		
+		for(var j=0;j<objs.length;++j){
+			var obj = objs[j];
+			var id = obj.object.meta.id
 			
-			var t = taken[typeCode];
-			if(t === undefined) t = taken[typeCode] = {};
-			
-			var resObjs = result.objects[typeCode];
-			if(resObjs === undefined) resObjs = result.objects[typeCode] = {};
-			
-			var ids = _.keys(objs);
-			for(var j=0;j<ids.length;++j){
-				var id = ids[j];
-				
-				if(!t[id]){
-					t[id] = true;
-					resObjs[id] = objs[id];
-				}
+			if(!t[id]){
+				t[id] = true;
+				resObjs.push(obj)
 			}
 		}
 	}
@@ -125,7 +121,7 @@ function loadMinnowView(){
 		root = api.getRoot();
 		getRoot = function(){return root;}
 		
-		$(document).ready(function(){
+		domready(function(){
 			_.each(listeners, function(listener){
 				listener(root);
 			});
@@ -157,22 +153,22 @@ function establishSocket(sendFacade, readyCb){
 function doEstablishSocket(sendFacade, readyCb){
 	console.log('socket.io loaded, ready to begin socket.io connection');
 	
-	var socket = io.connect(window.location.protocol + '//' + window.location.hostname + ':8934'); 
+	var socket = io.connect(window.location.protocol + '//' + window.location.hostname + ':' + minnowSocketPort); 
 
 	//This is less a means of disconnecting the socket, and more a means of
 	//disabling Firefox's "Javascript Caching" which is a horror in this context - memory leaks,
 	//errors from cached code receiving socket messages, etc.
-	$(window).unload(function(){
+	/*$(window).unload(function(){
 		socket.disconnect();
-	});
+	});*/
 	
 	var connected = false;
 	
 	var localSyncId = syncId;
 	
-	function editSender(typeCode, id, path, edit){
+	function editSender(id, path, op, edit){
 		
-		var msgStr = JSON.stringify([typeCode, id, path, edit, syncId]);
+		var msgStr = JSON.stringify([id, path, op, edit]);
 		console.log('sending message: ' + msgStr);
 		socket.send(msgStr);
 		//console.log('message sent');
@@ -189,23 +185,29 @@ function doEstablishSocket(sendFacade, readyCb){
 		sendFacade.editBuffer = undefined;
 	});
 
+	var wasAlreadyReady = false;
+	
 	socket.on('message', function(data){ 
 		//console.log('started message processing...');
-		console.log('msg: ' + data);
+		//console.log('*msg: ' + data);
 		//console.log('local syncId: ' + localSyncId);
 		//console.log('syncId: ' + syncId);
 		
 		data = JSON.parse(data);
 		if(data.length === 1){
 			if(data[0] === 'reset'){
+				//console.log('ressetting');
 				window.location.reload();
 			}else if(data[0] === 'ready'){
+				wasAlreadyReady = true;
 				readyCb();
 			}else{
 				console.log('unknown command: ' + data[0]);
 			}
 		}else{
-			var doneRefresh = api.changeListener(data[0], data[1], data[2], data[3], data[4] || undefined);
+			console.log('processing message: ' + data);
+			if(!wasAlreadyReady) _.assert(api.root === undefined)
+			var doneRefresh = api.changeListener(data[0], data[1], data[2], data[3], data[4], data[5]);
 			_.assertFunction(doneRefresh);
 			doneRefresh();
 		}

@@ -12,39 +12,80 @@ var util = require('util');
 
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 'is', 'and', 'or', 'id'];
 
-function loadViews(schemaName, schema, schemaDir, cb){
+function loadViews(schemaDir, str, schema, cb){
 
-	fs.readFile(schemaDir + '/' + schemaName + '.view.minnow', 'utf8', function(err, str){
-		if(err) throw err;
-		
-		var view = myrtle.parse(str);
-		view = viewMinnowize(view, schema, schemaName);
-		
-		_.each(view, function(view, viewName){
-			schema._byCode[view.code] = view.schema;
-			schema[viewName] = view.schema;
-			view.schema.isView = true;
-			view.schema.code = view.code;
-			view.schema.viewSchema = JSON.parse(JSON.stringify(view));
-			view.schema.name = viewName;
-		});
-		
-		cb();
+	var view = myrtle.parse(str);
+	view = viewMinnowize(schemaDir, view, schema);
+	
+	_.each(view, function(view, viewName){
+		schema._byCode[view.code] = view.schema;
+		schema[viewName] = view.schema;
+		view.schema.isView = true;
+		view.schema.code = view.code;
+		view.schema.viewSchema = JSON.parse(JSON.stringify(view));
+		//view.schema.name = viewName;
 	});
+	
+	cb();
 }
 
-exports.load = function(schemaName, schemaDir, cb){
+function readAllSchemaFiles(schemaDir, cb){
+	var strs = []
+	fs.readdir(schemaDir, function(err, files){
+		if(err) throw err;
+		var minnowFiles = []
+		console.log('readdir: ' + JSON.stringify(files))
+		files.forEach(function(f){
+			var mi = f.indexOf('.minnow')
+			if(mi !== -1 && mi === f.length-'.minnow'.length){
+				minnowFiles.push(f)
+			}
+		})
+		var cdl = _.latch(minnowFiles.length, function(){
+			if(strs.length === 0) _.errout('no schema files found in dir: ' + schemaDir)
+			cb(strs)
+		})
+		console.log('readdir-minnow: ' + JSON.stringify(minnowFiles))
+		minnowFiles.forEach(function(f){
+			fs.readFile(schemaDir+'/'+f, 'utf8', function(err, str){
+				if(err) throw err;
+				strs.push(str)
+				cdl()
+			})
+		})
+	})
+}
+
+exports.load = function(schemaDir, cb){
+	_.assertLength(arguments, 2)
 	
 	schemaDir = schemaDir || process.cwd();
 	
-	fs.readFile(schemaDir + '/' + schemaName+'.minnow', 'utf8', function(err, str){
-		if(err) throw err;
+	//var schemaPath = schemaDir + '/' + schemaName+'.minnow';
+	console.log('loading all schemas in dir: ' + schemaDir)
+	
+	//fs.readFile(schemaPath, 'utf8', function(err, str){
+	//	if(err) throw err;
+	readAllSchemaFiles(schemaDir, function(strs){
+		var str = strs.join('\n')
 		
-		var schema = keratin.parse(str, reservedTypeNames);
+		//console.log('str: ' + str)
 		
-		loadViews(schemaName, schema, schemaDir, function(){
-			
+		var schema;
+		try{
+			schema = keratin.parse(str, reservedTypeNames);
+		}catch(e){
+			console.log('keratin failed parsing: ' +schemaDir);
+			throw e;
+		}
+		
+		loadViews(schemaDir, str, schema, function(){
+			var takenObjectTypeCodes = {}
 			_.each(schema, function(st, name){
+				if(takenObjectTypeCodes[st.code]){
+					throw new Error('type code of ' + name + ' already taken: ' + st.code);
+				}
+				takenObjectTypeCodes[st.code] = true
 				_.each(st.superTypes, function(v, superType){
 					if(reservedTypeNames.indexOf(superType) === -1){
 						if(schema[superType] === undefined) _.errout('cannot find super type "' + superType + '" of "' + name + '"');
@@ -68,6 +109,7 @@ function parseInfix(expr, name){
 var ampersandParam = {type: 'param', name: '&'}
 
 function safeSplit(str, delim){
+	
 	
 	var res = [];
 	var cur = '';
@@ -99,6 +141,9 @@ function safeSplit(str, delim){
 	if(square !== 0) _.errout('mismatched [] brackets: ' + str);
 	if(curly !== 0) _.errout('mismatched {} brackets: ' + str);
 	if(round !== 0) _.errout('mismatched () brackets: ' + str);
+
+	console.log('safeSplit: ' + str)
+	console.log('res: ' + res)
 	
 	return res;
 }
@@ -121,6 +166,7 @@ function parseViewExpr(expr){
 	var path = [];
 	
 	while(expr.length > 0){
+		console.log('expr: ' + expr)
 		var fc = expr.charAt(0);
 		if(fc === '['){
 			var end = expr.lastIndexOf(']');
@@ -128,7 +174,7 @@ function parseViewExpr(expr){
 			var head = expr.substring(1, end);
 			expr = expr.substr(head.length+2);
 			//path.push({type: 'filter', expr: parseConstraint(head)});
-			//console.log('(' + head + ')');
+			console.log('(' + head + ')');
 			var macroExpr = {type: 'view', view: 'filter', params: [ampersandParam, parseViewExpr(head)]};
 			path.push({type: 'macro', expr: macroExpr});
 		}else if(fc === '{'){
@@ -137,6 +183,7 @@ function parseViewExpr(expr){
 			break;
 		}else if(fc === '<'){
 			var inner = expr.substring(1, expr.indexOf('>'));
+			console.log('expr: ' + expr)
 			var both = safeSplit(inner, ',');//expr: parseViewExpr(inner)
 			_.assertLength(both, 2);
 			path.push({type: 'map-macro', keyExpr: parseViewExpr(both[0]), valueExpr: parseViewExpr(both[1])});
@@ -147,14 +194,13 @@ function parseViewExpr(expr){
 			break;
 		}else if(fc === '*'){
 			var filter;
-			var typeNameEndIndex = expr.indexOf('[');
 			var typeName;
 			
+			var typeNameEndIndex = expr.indexOf('[');
 			typeNameEndIndex = subIndex(typeNameEndIndex, expr.indexOf('.'));
 			typeNameEndIndex = subIndex(typeNameEndIndex, expr.indexOf('{'));
 			typeNameEndIndex = subIndex(typeNameEndIndex, expr.indexOf('<'));
 			typeNameEndIndex = subIndex(typeNameEndIndex, expr.length);
-
 
 			typeName = expr.substring(expr.indexOf('*')+1, typeNameEndIndex);
 			expr = expr.substr(typeNameEndIndex);
@@ -282,6 +328,18 @@ var builtinViews = {
 	},
 	unique: {
 		code: 253
+	},
+	max: {
+		code: 252
+	},
+	min: {
+		code: 251
+	},
+	one: {
+		code: 250
+	},
+	get: {
+		code: 249
 	}
 };
 
@@ -325,6 +383,9 @@ function computeType(rel, v, schema, viewMap, macroType){
 		if(v === undefined){
 			v = builtinViews[rel.view];
 		}
+		if(schema[rel.view]){
+			return {type: 'object', object: rel.view, code: schema[rel.view].code};
+		}
 		if(v === undefined){
 			_.errout('unknown view referred to: ' + rel.view);
 		}
@@ -337,8 +398,21 @@ function computeType(rel, v, schema, viewMap, macroType){
 		}else if(rel.view === 'unique'){
 			//_.errout('TODO');
 			return {type: 'set', members: computeType(rel.params[0], v, schema, viewMap, macroType)};
+		}else if(rel.view === 'max'){
+			var valuesType = computeType(rel.params[0], v, schema, viewMap, macroType);
+			_.assert(valuesType.type === 'set' || valuesType.type === 'list')
+			_.assertEqual(valuesType.members.type, 'primitive');
+			return {type: 'primitive', primitive: valuesType.members.primitive};
 		}else if(rel.view === 'filter'){
 			return computeType(rel.params[0], v, schema, viewMap, macroType);
+		}else if(rel.view === 'one'){
+			var t = computeType(rel.params[0], v, schema, viewMap, macroType);
+			//console.log('one: ' + JSON.stringify(t));
+			return t.members;
+		}else if(rel.view === 'get'){
+			var typeName = rel.params[0].name;
+			var t = schema[typeName];
+			return {type: 'object', object: t.name, code: t.code};
 		}else{
 			//_.errout('TODO view type computation: ' + JSON.stringify(rel));
 			//var viewSchema = schema[rel.view];
@@ -363,7 +437,7 @@ function computeType(rel, v, schema, viewMap, macroType){
 				var ps = mos.properties[rel.name];
 				_.assertDefined(ps);
 				//return ps;
-				return {type:'set', members: ps};
+				return {type:'set', members: ps.type};
 			}else if(ct.members.type.type === 'map'){
 				return {type:'set', members: ct.members.type.value};
 			}else{
@@ -400,8 +474,8 @@ function computeType(rel, v, schema, viewMap, macroType){
 		_.assertObject(mt);
 		_.assert(mt.type === 'set' || mt.type === 'list');
 		var exprType = computeType(rel.expr, v, schema, viewMap, mt.members);
-		console.log(JSON.stringify(exprType));
-		console.log(JSON.stringify(mt));
+		//console.log(JSON.stringify(exprType));
+		//console.log(JSON.stringify(mt));
 		//_.errout('TODO');
 		//_.assert(exprType.type  === 'set' || exprType.type === 'list');
 		return {type: mt.type, members: exprType};
@@ -411,9 +485,9 @@ function computeType(rel, v, schema, viewMap, macroType){
 		_.assert(mt.type === 'set' || mt.type === 'list');
 		var keyExprType = computeType(rel.keyExpr, v, schema, viewMap, mt.members);
 		var valueExprType = computeType(rel.valueExpr, v, schema, viewMap, mt.members);
-		console.log(JSON.stringify(keyExprType));
-		console.log(JSON.stringify(valueExprType));
-		console.log(JSON.stringify(mt));
+		//console.log(JSON.stringify(keyExprType));
+		//console.log(JSON.stringify(valueExprType));
+		//console.log(JSON.stringify(mt));
 		//_.errout('TODO');
 		//_.assert(exprType.type  === 'set' || exprType.type === 'list');
 		return {type: 'map', key: keyExprType, value: valueExprType};
@@ -433,6 +507,7 @@ function makeViewSchema(v, schema, result, viewMap){
 		p.type = computeType(rel, v, schema, viewMap);
 		_.assertInt(rel.code);
 		p.code = rel.code;
+		p.tags = {};
 		_.assertNumber(p.code);
 		//console.log(p.code);
 		result.propertiesByCode[p.code] = p;
@@ -441,7 +516,7 @@ function makeViewSchema(v, schema, result, viewMap){
 	return result;
 }
 
-function viewMinnowize(view, schema, schemaName){
+function viewMinnowize(schemaDir, view, schema){
 	_.assertLength(arguments, 3);
 	_.assertObject(schema);
 
@@ -456,9 +531,12 @@ function viewMinnowize(view, schema, schemaName){
 	
 	_.each(view.children, function(v){
 		var expr = v.tokens[0];
-		var name = expr.substr(0, expr.indexOf('('));
+		var obi = expr.indexOf('(')
+		if(obi === -1) return;//skip non-views (objects)
+		var cbi = expr.indexOf(')')
+		var name = expr.substr(0, obi);
 		if(reservedTypeNames.indexOf(name) !== -1) _.errout('using reserved name: ' + name);
-		var params = expr.substring(expr.indexOf('(')+1, expr.indexOf(')'));
+		var params = expr.substring(obi+1, cbi);
 		if(params.trim().length > 0){
 			params = params.split(',');
 		}else{
@@ -504,6 +582,7 @@ function viewMinnowize(view, schema, schemaName){
 			relTakenCodes[cc] = true;
 			_.assertInt(cc);
 			vn.rels[rName].code = cc;
+			//vn.rels[rName].tags = {};
 		});
 		vn.schema = {};
 	});
@@ -526,7 +605,7 @@ function viewMinnowize(view, schema, schemaName){
 		vsStr += '\n';
 	});
 	
-	fs.writeFile(schemaName + '.view.schema.generated', vsStr, 'utf8');
+	fs.writeFile(schemaDir + '/view.schema.generated', vsStr, 'utf8');
 	
 	//console.log(JSON.stringify(result));
 	

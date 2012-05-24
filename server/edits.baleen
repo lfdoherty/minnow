@@ -1,0 +1,83 @@
+make 1
+	obj ^ 1 required
+	id int 2
+	temporary int 3 required
+	editId int 4
+cache 2
+	id int 1 required
+	value ^ 2 required
+
+setId 3
+	id int 1 required
+
+ascend 5
+	many byte 1 required
+
+descend 6
+	path string 1 required //list:[string|int] is the real type here...
+
+set 7
+	value primitive 1 required
+
+setObject 21 
+	id int 1 required
+
+setToNew 22
+	//newType int 1 required
+	//external bool 2 required
+	temporary int 3 required
+	obj ^ 1 required
+	
+setData 23
+	data binary 1 required
+
+truncate 25
+	newLength int 1 required
+writeData 26
+	position int 1 required
+	data binary 2 required
+append 27
+	data binary 1 required
+	
+add 10
+	value primitive 1 required
+
+addNewInternal 11
+	//newType int 1 required
+	temporary int 2 required
+	id int 3
+	obj ^ 1 required
+	
+addExisting 12
+	id int 1 required
+
+remove 13
+	id int 1 required
+
+removePrimitive 14
+	value primitive 1 required
+
+replaceNew 16 //the id being removed is implicit in the path
+	temporary int 3 required
+	obj ^ 1 required
+	id int 2
+		
+replaceExisting 17//old id is implicit in the path
+	newId int 2 required
+	newType int 3 required
+	
+put 18
+	key primitive 1 required
+	value primitive 2 required
+
+putNew 24
+	key primitive 1 required
+	//newType int 2 required
+	//external boolean 3 required
+	temporary int 4 required
+	obj ^ 5 required
+	
+shift 20
+
+objectSnap 19
+	value ^ 3

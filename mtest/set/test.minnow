@@ -1,0 +1,6 @@
+
+entity 1
+	data set:string 1
+	
+general() 100
+	s one(*entity) 1

@@ -23,8 +23,6 @@ function parseParams(schema, params){
 			}
 		}else if(p.type.type === 'object'){
 			pv = parseInt(pv);
-			//var objSchema = schema[p.type.object];
-			//pv = [objSchema.code, pv];
 		}else{
 			_.errout('TODO: ' + JSON.stringify(p));
 		}
@@ -33,18 +31,56 @@ function parseParams(schema, params){
 	return result;
 }
 
+function doParseParams(paramsStr, s){
+	if(paramsStr === '-') return []
+	
+	var parsedParams;
+	if(s.isView){
+		var params = paramsStr.split(';');
+		for(var i=0;i<params.length;++i){
+			params[i] = querystring.unescape(params[i]);
+		}
+		parsedParams = parseParams(s.viewSchema, params);
+	}else{
+		parsedParams = parseInt(paramsStr);
+	}
+	return parsedParams
+}
+function stringifyParams(params){
+	var str = ''
+	for(var i=0;i<params.length;++i){
+		if(i > 0) str += ';';
+		str += querystring.escape(params[i]);
+	}
+	return str
+}
+exports.parseParams = doParseParams
+exports.stringifyParams = stringifyParams
+
 exports.make = function(schema, cc){
-	return {
+	var handle = {
 		
-		getSyncId: function(cb){
-			cc.getSyncId(cb);
+		makeSyncId: function(cb){
+			cc.makeSyncId(cb);
 		},
 		//returns the paths for the snapshots for the view
-		getViewFiles: function(viewName, params, cb){
+		getViewFiles: function(viewName, params, syncId, cb){
+			_.assertLength(arguments, 4)
+			_.assertDefined(params)
+			
 			var s = schema[viewName];
+			if(s === undefined) _.errout('unknown view: ' + viewName)
+			
 			var viewCode = s.code;
 			
-			cc.getSnapshots(viewCode, params, function(snapshotIds, lastVersionId){
+			console.log('getting snapshots: ' + JSON.stringify(params))
+			var getMsg = {typeCode: viewCode, params: JSON.stringify(params)}
+			_.assert(getMsg.params != 'null')
+			cc.getSnapshots(getMsg, _.once(function(e){
+
+				var snapshotIds = e.snapshotVersionIds;
+				var lastVersionId = e.lastVersionId;
+
 				if(arguments.length === 0){
 					cb();
 				}else{
@@ -67,53 +103,58 @@ exports.make = function(schema, cc){
 						paths.push(cc.serverInstanceUid() + '/' + viewCode + '/' + id + '/' + previousId + '/' + key);
 					}
 				
-					cc.getSyncId(function(syncId){
-						cb(snapshotIds, paths, syncId, lastVersionId);
-					});
+					//cc.makeSyncId(function(syncId){
+						cb(snapshotIds, paths, lastVersionId);
+					//});
 				}
-			});
+			}));
 		},
 		
 		//returns the javascript string content of the view file
 		getViewFile: function(viewCode, snapshotId, previousId, paramsStr, cb){
 
+			handle.getViewJson(viewCode, snapshotId, previousId, paramsStr, function(json){
+				cb('gotSnapshot(' + JSON.stringify(json) + ');\n');
+			})
+		},
+		getViewJson: function(viewCode, snapshotId, previousId, paramsStr, cb){
 			var s = schema._byCode[viewCode];
 
-			var parsedParams;
+			var parsedParams = doParseParams(paramsStr, s)
 			//console.log('paramsStr: ' + paramsStr);
-			if(s.isView){
-				var params = paramsStr.split(';');
-				for(var i=0;i<params.length;++i){
-					params[i] = querystring.unescape(params[i]);
-				}
-				parsedParams = parseParams(s.viewSchema, params);
-			}else{
-				parsedParams = parseInt(paramsStr);
-			}
 			
 			//console.log('got blah: ' + JSON.stringify(params));
 
 			
-			cc.getSnapshot(viewCode, parsedParams, snapshotId, previousId, function(snap){
-				snap.id = snapshotId;
-				cb('gotSnapshot(' + JSON.stringify(snap) + ');\n');
+			var snapReq = {typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			cc.getSnapshot(snapReq, function(response){
+				response.snap.id = snapshotId;
+				cb(response.snap)
 			});
 		},
 		
 		beginSync: function(viewCode, params, snapshotId, cb, readyCb){
 			_.assertFunction(readyCb);
-			cc.beginSync(viewCode, params, snapshotId, cb, readyCb);
+			var req = {typeCode: viewCode, params: JSON.stringify(params), latestSnapshotVersionId: snapshotId};
+			cc.beginSync(req, cb, readyCb);
 		},
-		endSync: function(viewCode, params, cb){
-			cc.endSync(viewCode, params, cb);
+		endSync: function(syncId){
+			_.assertLength(arguments, 1);
+			_.assertInt(syncId)
+			cc.endSync({syncId: syncId});
 		},
 		
-		processEdit: function(typeCode, id, path, edit, syncId){
+		processEdit: function(id, path, op, edit, syncId){
 			_.assertLength(arguments, 5);
 			_.assertInt(syncId);
-			_.assertInt(typeCode);
+			_.assertInt(id);
 			//console.log(arguments);
-			cc.persistEdit(typeCode, id, path, edit, syncId);
+			cc.persistEdit({id: id, path: JSON.stringify(path), edit: {type: op, object: edit}, syncId: syncId}, function(result){
+				//_.errout('TODO')
+				//TODO notify the source sync handle of the result
+			});
 		}
 	};
+	return handle
 }
+
