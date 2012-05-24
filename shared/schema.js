@@ -69,7 +69,7 @@ exports.load = function(schemaDir, cb){
 	readAllSchemaFiles(schemaDir, function(strs, allFiles){
 		var str = strs.join('\n')
 		
-		//console.log('str: ' + str)
+		console.log('str: ' + str)
 		
 		var schema;
 		try{
