@@ -38,7 +38,7 @@ function readAllSchemaFiles(schemaDir, cb){
 		files.forEach(function(f){
 			var mi = f.indexOf('.minnow')
 			if(mi !== -1 && mi === f.length-'.minnow'.length){
-				minnowFiles.push(f)
+				minnowFiles.push(schemaDir + '/' + f)
 			}
 		})
 		var cdl = _.latch(minnowFiles.length, function(){
@@ -47,7 +47,7 @@ function readAllSchemaFiles(schemaDir, cb){
 		})
 		console.log('readdir-minnow: ' + JSON.stringify(minnowFiles))
 		minnowFiles.forEach(function(f){
-			fs.readFile(schemaDir+'/'+f, 'utf8', function(err, str){
+			fs.readFile(f, 'utf8', function(err, str){
 				if(err) throw err;
 				strs.push(str)
 				cdl()
