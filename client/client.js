@@ -204,7 +204,8 @@ function makeServer(dbSchema, dataDir, port, cb){
 
 
 exports.makeServer = function(schemaDir, dataDir, port, cb){
-	_.assertLength(arguments, 4)
+	//_.assertLength(arguments, 4)
+	if(arguments.length !== 4) throw new Error('makeServer(schemaDir, dataDir, port, cb) only got ' + arguments.length + ' arguments.')
 	schema.load(schemaDir, function(dbSchema){
 		makeServer(dbSchema, dataDir, port, cb)
 	})
