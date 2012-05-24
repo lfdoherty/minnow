@@ -81,6 +81,7 @@ exports.load = function(schemaDir, cb){
 		
 		loadViews(schemaDir, str, schema, function(){
 			var takenObjectTypeCodes = {}
+			console.log('many schema: ' + _.size(schema))
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
 					console.log('ERROR while processing files: ' + JSON.stringify(allFiles))
