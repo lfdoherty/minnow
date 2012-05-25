@@ -8,6 +8,7 @@ var _ = require('underscorem')
 
 var rimraf = require('rimraf')
 
+var start = Date.now()
 
 var includedTestDir
 var includedTest
@@ -85,6 +86,7 @@ function moreCont(){
 	var failedList = []
 	var dieCdl = _.latch(tests.length, function(){
 		console.log('all tests finished: ' + passedCount + '/' + (failedCount+passedCount));
+		console.log('took ' + (Date.now()-start)+'ms.')
 		if(failedList.length > 0){
 			console.log('failed: ')
 			failedList.forEach(function(f){

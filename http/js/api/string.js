@@ -24,14 +24,17 @@ StringHandle.prototype.set = function(str){
 	this.obj = str;
 	
 	//console.log('path: ' + JSON.stringify(this.getPath()));
+	var e = {value: this.obj}
+	
 	this.getSh().persistEdit(
 		this.getObjectId(), 
 		this.getPath(),
 		'set',
-		{value: this.obj}, 
+		e, 
 		this.getEditingId());
 		
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'set', str)()
 }
 StringHandle.prototype.value = function(){
 	return this.obj === undefined ? '' : this.obj;

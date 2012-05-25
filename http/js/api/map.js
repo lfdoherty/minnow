@@ -129,10 +129,11 @@ MapHandle.prototype.changeListener = function(path, op, edit, syncId){
 
 	if(op === 'put'){
 		this.obj[edit.key] = edit.value;
+		return this.emit(edit, 'put')
 	}else{
 		_.errout('-TODO implement op: ' + JSON.stringify(edit));
 	}
 
-	return this.refresh();
+//	return this.refresh();
 }
 module.exports = MapHandle

@@ -266,7 +266,7 @@ exports.make = function(schema, broadcaster, objectState){
 		after(snapshot, addObject, tryToFinish, fail);
 	}
 
-	var stopLookup = [];
+	//var stopLookup = [];
 
 	var handle = {
 		getSnapshots: function(typeCode, params, cb){
@@ -357,11 +357,13 @@ exports.make = function(schema, broadcaster, objectState){
 			var params = JSON.parse(e.params)
 			var latestSnapshotVersionId = e.latestSnapshotVersionId
 			
+			var stopped = false
+			
 			var slfs = [];
 			function stopListening(f){
 				slfs.push(f);
 			}
-			var stopped = false;
+			//var stopped = false;
 			function doStop(){
 				_.assertNot(stopped);
 				stopped = true;
@@ -369,7 +371,7 @@ exports.make = function(schema, broadcaster, objectState){
 					slfs[i]();
 				}
 			}
-			stopLookup.push([listenerCb, doStop]);
+			//stopLookup.push([listenerCb, doStop]);
 			
 			getSnapshotStateAndListen(typeCode, params, -1, latestSnapshotVersionId, function(snap){
 				console.log('*******HERE: ' + _.size(snap.objects));
@@ -407,9 +409,20 @@ exports.make = function(schema, broadcaster, objectState){
 				}
 				
 				readyCb(updatePacket);
-			}, listenerCb, stopListening);			
+			}, function(){
+				var args = Array.prototype.slice.apply(arguments)
+				if(stopped) throw new Error('server internal error: edit passed to stopped sync handle');
+				listenerCb.apply(undefined, args)
+			}, stopListening);			
 
-		},
+			return {
+				end: function(){
+					//stopped = true
+					doStop()
+				}
+			}
+
+		}/*,
 		endSync: function(typeCode, params, listenerCb){
 
 			for(var i=0;i<stopLookup.length;++i){
@@ -422,7 +435,7 @@ exports.make = function(schema, broadcaster, objectState){
 				}
 			}
 			_.errout('listenerCb not found in stopLookup');
-		}
+		}*/
 	};
 	
 	return handle;

@@ -137,11 +137,12 @@ exports.primitiveChangeListener = function changeListener(path, op, edit, syncId
 	
 	if(op === 'set'){
 		this.obj = edit.value;
+		return this.emit(edit, 'set')
 	}else{
 		_.errout('-TODO implement op: ' + JSON.stringify(edit));
 	}
 	
-	return this.refresh();
+	//return this.refresh();
 }
 
 exports.doRefresh = function doRefresh(already, sourceOfRefresh, e){

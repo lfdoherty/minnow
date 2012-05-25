@@ -26,7 +26,7 @@ ViewObjectSetHandle.prototype.get = ObjectSetHandle.prototype.get
 ViewObjectSetHandle.prototype.each = ObjectSetHandle.prototype.each
 
 ViewObjectSetHandle.prototype.remove = function(){
-	_.errout('cannot remove from view set')
+	_.errout('TODO: remove from view set')
 }
 
 //TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
@@ -43,13 +43,13 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 	
 	var id = objHandle.id();
 	
-	//var ee = {id: id}
-	
-	//this.saveEdit('addExisting', ee);
-	
-	this.obj.push(id);
+	if(this.obj.indexOf(objHandle) !== -1){
+		console.log('WARNING: ignored redundant add on viewobjectset')
+	}else{
+		this.obj.push(id);
 
-	this.refresh()();
+		this.emit(undefined, 'add', objHandle)()
+	}
 }
 
 module.exports = ViewObjectSetHandle

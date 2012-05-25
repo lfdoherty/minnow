@@ -672,11 +672,13 @@ function make(schema, ol){//initialEditCount, initialSyncIdCounter, raf, already
 	var internalHandle = {
 		setId: function(e){
 			//ap.setId(id);
+			console.log('internal setId: ' + JSON.stringify(e))
 			_.assertInt(e.id);
 			currentId = e.id;
 		},
 		setTypeAndId: function(e){
 			//ap.setTypeAndId(typeCode, id);
+			//console.log('internal setTypeAndId: ' + JSON.stringify(e))
 			currentType = e.typeCode;
 			currentId = e.id;
 		},

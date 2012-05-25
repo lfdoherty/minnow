@@ -117,11 +117,14 @@ function convertJsonToObject(dbSchema, type, json){
 			}else if(p.type.type === 'object'){
 				if(_.isInteger(pv)){
 					//_.errout('TODO: ' + JSON.stringify(p));
-					var typeCode = dbSchema[p.type.object].code;
+					//var typeCode = dbSchema[p.type.object].code;
 					//obj.push([p.code, [typeCode, pv]]);
 					obj[p.code] = pv;
 				}else{
-					_.errout('TODO: ' + JSON.stringify(pv) + ' (' + name + ')');
+					var typeCode = dbSchema[p.type.object].code;
+					////obj.push([p.code, [typeCode, pv]]);
+					obj[p.code] = pv.id()
+					//_.errout('TODO: ' + JSON.stringify(pv) + ' (' + name + ')');
 				}
 			}else{
 				_.errout('TODO: ' + p.type.type + ' (' + name + ')');

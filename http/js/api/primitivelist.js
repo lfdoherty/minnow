@@ -36,9 +36,11 @@ PrimitiveListHandle.prototype.add = function(value){
 		
 	this.obj.push(value);
 	
-	this.saveEdit('add', {value: value});
+	var e = {value: value}
+	this.saveEdit('add', e);
 		
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'add', value)()
 }
 PrimitiveListHandle.prototype.push = PrimitiveListHandle.prototype.add
 
@@ -50,9 +52,11 @@ PrimitiveListHandle.prototype.remove = function(value){
 
 		this.obj.splice(index, 1);
 
-		this.saveEdit('removePrimitive', {value: value});
+		var e = {value: value}
+		this.saveEdit('removePrimitive', e);
 		
-		this.refresh()();
+		//this.refresh()();
+		this.emit(e, 'remove', value)()
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
 	}
@@ -62,11 +66,13 @@ PrimitiveListHandle.prototype.shift = function(){
 
 	if(this.obj.length < 1) _.errout('cannot shift empty list')
 	
-	this.saveEdit('shift', {});
+	var e = {}
+	this.saveEdit('shift', e);
 
 	var v = this.obj.shift();
 		
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'shift', v)()
 	return v;
 }
 
@@ -90,7 +96,8 @@ PrimitiveListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			
 			this.obj.push(edit.value);
 			
-			return this.refresh();
+//			return this.refresh();
+			return this.emit(edit, 'add')
 		}else{
 			return stub;
 		}
@@ -100,7 +107,8 @@ PrimitiveListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			_.assert(this.obj.length >= 1);
 			this.obj.shift();
 
-			return this.refresh();
+			//return this.refresh();
+			return this.emit(edit, 'shift')
 			
 		}else{
 			return stub;
@@ -113,7 +121,8 @@ PrimitiveListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			}else{
 				this.obj.splice(index, 1);
 				
-				return this.refresh();
+//				return this.refresh();
+				return this.emit(edit, 'remove')
 			}
 		}		
 		return stub;

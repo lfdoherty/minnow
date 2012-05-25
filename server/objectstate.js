@@ -17,7 +17,7 @@ function couldHaveForeignKey(objSchema){
 }
 
 
-function makeSelectByMultiplePropertyConstraints(indexing){
+function makeSelectByMultiplePropertyConstraints(indexing, handle){
 
 	return function(typeCode, descentPaths, filterFunctions, cb){
 		var start = Date.now();
@@ -31,6 +31,7 @@ function makeSelectByMultiplePropertyConstraints(indexing){
 			var descentPath = descentPaths[k];
 			var filterFunction = filterFunctions[k];
 			indexing.selectByPropertyConstraint(typeCode, descentPath, filterFunction, function(m){
+				if(m === undefined) failed = true
 				matchedList[k] = m;
 				cdl();
 			});
@@ -47,7 +48,7 @@ function makeSelectByMultiplePropertyConstraints(indexing){
 					for(var k=0; k<descentPaths.length;++k){
 						var descentPath = descentPaths[k];
 						var filterFunction = filterFunctions[k];
-						var matched = new IdSet();
+						var matched = set.make()
 						_.each(objs, function(obj){
 							//TODO use a more complete descent method that can descend along FKs to top-level objects
 							var v = objutil.descendObject(schema, typeCode, obj, descentPath);
@@ -173,7 +174,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 		setIndexing: _.once(function(i){
 			_.assertUndefined(indexing);
 			indexing = i;
-			handle.selectByMultiplePropertyConstraints = makeSelectByMultiplePropertyConstraints(indexing);
+			handle.selectByMultiplePropertyConstraints = makeSelectByMultiplePropertyConstraints(indexing, handle);
 		}),
 		getSnapshots: function(typeCode, id, cb){
 			cb([-1]);//TODO make this smarter

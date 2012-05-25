@@ -87,9 +87,10 @@ function load(dataDir, schema, ol, cb){
 			if(property === undefined){
 				_.errout('cannot follow path: ' + JSON.stringify(descentPath))
 			}
-			_.assertLength(descentPath, 1) //TODO support more
+			//_.assertLength(descentPath, 1) 
 			
-			if(supportedPropertyIndex(property)){
+			//TODO support longer descent paths
+			if(descentPath.length === 1 && supportedPropertyIndex(property)){
 			
 				getPvi(typeCode, propertyCode, function(pvi){
 

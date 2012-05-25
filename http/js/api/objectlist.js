@@ -68,14 +68,16 @@ ObjectListHandle.prototype.remove = function(objHandle){
 		this.obj.splice(index, 1);
 		this.clearApiCache(id);
 
+		var e = {}
 		this.getSh().persistEdit(
 			this.getObjectId(), 
 			this.getPath().concat([id]),
 			'remove',
-			{},
+			e,
 			this.getEditingId());
 		
-		this.refresh()();
+		//this.refresh()();
+		this.emit(e, 'remove')()
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
 	}
@@ -168,8 +170,7 @@ ObjectListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			
 					doListReplace(this, objHandle, edit.newId);
 
-					return this.refresh();
-				
+					return this.emit(edit, 'replace')
 				}
 			}
 			return stub;
@@ -191,11 +192,10 @@ ObjectListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			
 					doListReplace(this, objHandle, edit.obj.object);
 
-					return this.refresh();
-				
+					//return this.refresh();
+					return this.emit(edit, 'replace')				
 				}
 			}	
-			return this.refresh();
 		}else{
 			_.errout('^TODO implement op: ' + op + ' ' + JSON.stringify(edit));			
 		}
@@ -213,23 +213,7 @@ ObjectListHandle.prototype.changeListener = function(path, op, edit, syncId){
 		return a.changeListener(path.slice(1), op, edit, syncId);
 	}	
 	
-	
-	
-	/*if(op === 'addNewExternal'){
-
-		if(this.getEditingId() === syncId){
-			reifyTemporary();
-		}else{
-			//if(edit.object.external){
-				_.errout('TODO')
-			//}else{
-				//var newObj = {meta: {typeCode: edit.object.newType, id: temporary
-				//this.obj.push(edit.object
-			//}
-		}
-				
-		return this.refresh();
-	}else */if(op === 'addNewInternal'){
+	if(op === 'addNewInternal'){
 
 		if(this.getEditingId() === syncId){
 			u.reifyTemporary(this.obj, edit.temporary, edit.id, this);
@@ -237,22 +221,20 @@ ObjectListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			_.assertInt(edit.id)
 			var newObj = edit.obj.object//{meta: {typeCode: edit.newType, id: edit.id}}
 			this.obj.push(newObj)
+			return this.emit(edit, 'add')
 		}
 				
-		return this.refresh();
+		//return this.refresh();
+		return this.emit(edit, 'add', this.get(edit.id))
 	}else if(op === 'add'){
 		if(this.getEditingId() !== syncId){
-
-			if(this.schema.type.members.type !== 'primitive'){
-				console.log('TODO: implement complex remote add merging');
-			}
 			
 			//if(this.obj === undefined) this.obj = []
 			_.assertInt(edit.value)
 			this.obj.push(edit.value);
 
-			return this.refresh();
-			
+			//return this.refresh();
+			return this.emit(edit, 'add')			
 		}else{
 			return stub;
 		}
@@ -262,8 +244,8 @@ ObjectListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			_.assert(this.obj.length >= 1);
 			this.obj.shift();
 
-			return this.refresh();
-			
+//			return this.emit(edit, 'shift')
+			return this.emit(edit, 'shift')
 		}else{
 			return stub;
 		}
@@ -276,7 +258,7 @@ ObjectListHandle.prototype.changeListener = function(path, op, edit, syncId){
 				this.obj.splice(index, 1);
 				this.clearApiCache(edit.id);
 				
-				return this.refresh();
+				return this.emit(edit, 'remove')
 			}
 		}		
 		return stub;
@@ -362,15 +344,17 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 	//var obj = 
 	//_.assert(id >= 0);
 	
+	var e = {temporary: temporaryId, newType: type.code, obj: {type: type.code, object: obj}}
+	
 	this.getSh().persistEdit(
 		this.getObjectId(), 
 		this.getPath().concat([id]), 
 		'replaceNew',
-		{temporary: temporaryId, newType: type.code, obj: {type: type.code, object: obj}},
+		e,
 		this.getEditingId());
 	
 	
-	this.refresh()();	
+	this.emit(e, 'replace')()
 }
 
 ObjectListHandle.prototype.replaceExisting = function(oldObjHandle, newObjHandle){
@@ -396,14 +380,17 @@ ObjectListHandle.prototype.replaceExisting = function(oldObjHandle, newObjHandle
 	
 	this.obj[index] = id;
 	
+	var e = {newId: id, newType: newObjHandle.typeSchema.code, oldId: oldId}
+	
 	this.getSh().persistEdit(
 		this.getObjectId(), 
 		this.getPath().concat([oldId]), 
 		'replaceExisting',
-		{newId: id, newType: newObjHandle.typeSchema.code, oldId: oldId},
+		e,
 		this.getEditingId());
 		
-	this.refresh()();	
+//	this.refresh()();	
+	this.emit(e, 'replace')()
 }
 
 ObjectListHandle.prototype.shift = function(){
@@ -412,11 +399,13 @@ ObjectListHandle.prototype.shift = function(){
 
 	if(this.obj === undefined || this.obj.length < 1) _.errout('cannot shift empty list')
 	
-	this.savEdit('shift', {});
+	var e = {}
+	this.saveEdit('shift', e);
 
 	var v = this.obj.shift();
 		
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'shift')()
 	return v;
 }
 
@@ -445,9 +434,12 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	this.addToApiCache(temporaryId, res);
 	this.saveEdit('addNewInternal', ee);
 		
-	this.refresh()();
+	//this.refresh()();
 	
 	res.prepare();
+
+	this.emit(ee, 'add', res)()
+	
 	return res;
 }
 
@@ -456,13 +448,17 @@ ObjectListHandle.prototype.add = function(objHandle){
 	
 	if(!(objHandle instanceof TopObjectHandle)) _.errout('TODO implement hoist to top');
 	
-	this.saveEdit('addExisting',{id: objHandle.id()});
+	var e = {id: objHandle.id()}
+	
+	this.saveEdit('addExisting',e);
 
 	//if(this.obj === undefined) this.obj = [];
 	
 	this.obj.push(objHandle.id());
 		
-	this.refresh()();	
+	//this.refresh()();	
+	this.emit(e, 'add', objHandle)()
+	
 }
 
 

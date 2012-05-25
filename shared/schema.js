@@ -23,7 +23,6 @@ function loadViews(schemaDir, str, schema, cb){
 		view.schema.isView = true;
 		view.schema.code = view.code;
 		view.schema.viewSchema = JSON.parse(JSON.stringify(view));
-		//view.schema.name = viewName;
 	});
 	
 	cb();
@@ -34,7 +33,7 @@ function readAllSchemaFiles(schemaDir, cb){
 	fs.readdir(schemaDir, function(err, files){
 		if(err) throw err;
 		var minnowFiles = []
-		console.log('readdir: ' + JSON.stringify(files))
+		//console.log('readdir: ' + JSON.stringify(files))
 		files.forEach(function(f){
 			var mi = f.indexOf('.minnow')
 			if(mi !== -1 && mi === f.length-'.minnow'.length){
@@ -45,7 +44,7 @@ function readAllSchemaFiles(schemaDir, cb){
 			if(strs.length === 0) _.errout('no schema files found in dir: ' + schemaDir)
 			cb(strs, minnowFiles)
 		})
-		console.log('readdir-minnow: ' + JSON.stringify(minnowFiles))
+	//	console.log('readdir-minnow: ' + JSON.stringify(minnowFiles))
 		minnowFiles.forEach(function(f){
 			fs.readFile(f, 'utf8', function(err, str){
 				if(err) throw err;
@@ -69,7 +68,7 @@ exports.load = function(schemaDir, cb){
 	readAllSchemaFiles(schemaDir, function(strs, allFiles){
 		var str = strs.join('\n')
 		
-		console.log('str: ' + str)
+	//	console.log('str: ' + str)
 		
 		var schema;
 		try{
@@ -81,7 +80,7 @@ exports.load = function(schemaDir, cb){
 		
 		loadViews(schemaDir, str, schema, function(){
 			var takenObjectTypeCodes = {}
-			console.log('many schema: ' + _.size(schema))
+		//	console.log('many schema: ' + _.size(schema))
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
 					console.log('ERROR while processing files: ' + JSON.stringify(allFiles))
@@ -144,8 +143,8 @@ function safeSplit(str, delim){
 	if(curly !== 0) _.errout('mismatched {} brackets: ' + str);
 	if(round !== 0) _.errout('mismatched () brackets: ' + str);
 
-	console.log('safeSplit: ' + str)
-	console.log('res: ' + res)
+	//console.log('safeSplit: ' + str)
+	//console.log('res: ' + res)
 	
 	return res;
 }
@@ -168,7 +167,7 @@ function parseViewExpr(expr){
 	var path = [];
 	
 	while(expr.length > 0){
-		console.log('expr: ' + expr)
+		//console.log('expr: ' + expr)
 		var fc = expr.charAt(0);
 		if(fc === '['){
 			var end = expr.lastIndexOf(']');
@@ -176,7 +175,7 @@ function parseViewExpr(expr){
 			var head = expr.substring(1, end);
 			expr = expr.substr(head.length+2);
 			//path.push({type: 'filter', expr: parseConstraint(head)});
-			console.log('(' + head + ')');
+			//console.log('(' + head + ')');
 			var macroExpr = {type: 'view', view: 'filter', params: [ampersandParam, parseViewExpr(head)]};
 			path.push({type: 'macro', expr: macroExpr});
 		}else if(fc === '{'){
@@ -185,7 +184,7 @@ function parseViewExpr(expr){
 			break;
 		}else if(fc === '<'){
 			var inner = expr.substring(1, expr.indexOf('>'));
-			console.log('expr: ' + expr)
+			//console.log('expr: ' + expr)
 			var both = safeSplit(inner, ',');//expr: parseViewExpr(inner)
 			_.assertLength(both, 2);
 			path.push({type: 'map-macro', keyExpr: parseViewExpr(both[0]), valueExpr: parseViewExpr(both[1])});
@@ -517,6 +516,51 @@ function makeViewSchema(v, schema, result, viewMap){
 	
 	return result;
 }
+/*
+function replaceSingleSugar(rel){
+	var typeName = rel.params[0]
+	var idExpr = rel.params[1]
+	console.log('single ' + JSON.stringify([typeName, idExpr]))
+	var res = {type: 'view',
+		code: rel.code,
+		view: 'one',
+		params: [{
+			type: 'macro',
+			expr: {
+				type: 'view',
+				view: 'filter',
+				params: [
+					ampersandParam,
+					{
+						type: 'view',
+						view: 'is',
+						params: [
+							{
+								type: 'property',
+								property: 'id',
+								context: ampersandParam
+							},
+							idExpr
+						]
+					}							
+				]
+			},
+			context: {
+				type: 'type',
+				name: typeName.name
+			}
+		}]
+	}
+	return res
+}
+function replaceSyntaxSugar(v){
+	_.each(v.rels, function(rel, relName){
+		if(rel.type === 'view' && rel.view === 'single'){
+			console.log(util.inspect(rel))
+			v.rels[relName] = replaceSingleSugar(rel)
+		}
+	})
+}*/
 
 function viewMinnowize(schemaDir, view, schema){
 	_.assertLength(arguments, 3);
@@ -589,11 +633,14 @@ function viewMinnowize(schemaDir, view, schema){
 		vn.schema = {};
 	});
 	
-
+	
 	var vsStr = '';
 	
 	//we do this separately to resolve circular dependencies
 	_.each(result, function(vn, name){
+
+		//replaceSyntaxSugar(vn)
+
 		makeViewSchema(vn, schema, vn.schema, result);
 		vsStr += keratin.stringize(vn.schema, name, vn.code, function(t){
 			if(t.type === 'view'){

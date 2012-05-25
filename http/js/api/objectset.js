@@ -176,14 +176,16 @@ ObjectSetHandle.prototype.remove = function(objHandle){
 	}	
 	
 	if(found){
+		var e = {}
 		this.getSh().persistEdit(
 			this.getObjectId(), 
 			this.getPath().concat([id]),
 			'remove',
-			{},
+			e,
 			this.getEditingId());
 			
-		this.refresh()();
+		//this.refresh()();
+		this.emit(e, 'remove')()
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
 	}
@@ -207,7 +209,8 @@ ObjectSetHandle.prototype.changeListener = function(path, op, edit, syncId){
 			var arr = this.obj//[edit.type];
 			//if(arr === undefined) arr = this.obj[edit.type] = [];
 			arr.push(edit.id);
-			return this.refresh();
+			//return this.refresh();
+			return this.emit(edit, 'add', this.get(edit.id))
 		}
 	}/*else if(op === 'add'){
 		var arr = this.obj
@@ -219,7 +222,8 @@ ObjectSetHandle.prototype.changeListener = function(path, op, edit, syncId){
 			var arr = this.obj
 			if(arr === undefined) arr = this.obj = [];
 			arr.push(edit.obj.object);
-			return this.refresh();
+//			return this.refresh();
+			return this.emit(edit, 'add')
 		}else{
 			u.reifyTemporary(this.obj, edit.temporary, edit.id, this);
 		}
@@ -275,7 +279,8 @@ ObjectSetHandle.prototype.add = function(objHandle){
 	
 	this.obj.push(id);
 
-	this.refresh()();
+	//this.refresh()();
+	this.emit(ee, 'add', this.get(id))()
 }
 
 
@@ -309,10 +314,13 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 
 	//_.extend(obj, json)
 		
-	this.refresh()();
+	//this.refresh()();
 	//console.log('finished refresh after addNew');
 	
-	return this.wrapObject(obj, [], this)
+	var res = this.wrapObject(obj, [], this)
+
+	this.emit(ee, 'add', res)()
+	return res
 }
 
 

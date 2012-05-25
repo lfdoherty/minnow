@@ -95,7 +95,7 @@ exports.make = function(schema, dataDir, cb){
 				//console.log('beginning sync')
 				
 				if(schema._byCode[e.typeCode].isView){
-					viewState.beginSync(e, listenerCb, function(updatePacket){
+					return viewState.beginSync(e, listenerCb, function(updatePacket){
 						//var syncId = syncHandleCounter;
 						//++syncHandleCounter;
 						console.log('got UPDATE PACKET')

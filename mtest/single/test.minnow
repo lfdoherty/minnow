@@ -1,0 +1,8 @@
+
+entity 1
+	name string 1
+	
+general() 100
+
+specific(entityId int) 101
+	object get(entity, entityId) 1

@@ -20,7 +20,51 @@ function setPropertyValue(obj, code, value){
 function refresh(e){
 	return this.doRefresh({}, true, e);
 }
+function emit(e, eventName){
+	var afterCallbacks = []
+		
+	var args = Array.prototype.slice.call(arguments, 2)
+	
+	if(this.onListeners && this.onListeners[eventName]){
+		this.onListeners[eventName].forEach(function(cb){
+			var af = cb.apply(undefined, args)
+			if(af) afterCallbacks.push(af)
+		})
+	}
 
+	var fullRefresh = this.doRefresh({}, true, e);
+	if(fullRefresh) afterCallbacks.push(fullRefresh)	
+
+	return function(){
+		for(var i=0;i<afterCallbacks.length;++i){
+			afterCallbacks[i]()
+		}
+	}
+}
+function on(eventName, cb){
+	if(this.onListeners === undefined) this.onListeners = {}
+	if(this.onListeners[eventName] === undefined) this.onListeners[eventName] = []
+	this.onListeners[eventName].push(cb)
+}
+function off(eventName, cb){
+	if(arguments.length === 0){
+		this.onListeners = undefined
+	}else if(arguments.length === 1){
+		this.onListeners[eventName] = undefined
+	}else{
+		if(this.onListeners === undefined){
+			console.log('WARNING: off called for eventName: ' + eventName + ', but no listeners have ever been added.')
+			return
+		}
+		var listeners = this.onListeners[eventName]
+		var ii = listeners.indexOf(cb)
+		if(ii !== -1){
+			listeners.splice(cb, 1)
+		}else{
+			console.log('WARNING: off called for eventName: ' + eventName + ', but listener function not found.')
+		}
+	}
+}
 
 function removeListener(listenerName){
 
@@ -50,6 +94,9 @@ function listenForRefresh(listenerName, listener){
 
 function addRefreshFunctions(classPrototype){
 	if(classPrototype.refresh === undefined) classPrototype.refresh = refresh;
+	if(classPrototype.on === undefined) classPrototype.on = on;
+	if(classPrototype.off === undefined) classPrototype.off = off;
+	if(classPrototype.emit === undefined) classPrototype.emit = emit;
 	if(classPrototype.doRefresh === undefined) classPrototype.doRefresh = u.doRefresh;
 	if(classPrototype.listenForRefresh === undefined){
 		classPrototype.listenForRefresh = listenForRefresh;

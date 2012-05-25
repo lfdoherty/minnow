@@ -37,9 +37,11 @@ PrimitiveSetHandle.prototype.add = function(value){
 		
 	this.obj.push(value);
 	
-	this.saveEdit('add', {value: value});
+	var e = {value: value}
+	this.saveEdit('add', e);
 		
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'add', value)()
 }
 
 PrimitiveSetHandle.prototype.remove = function(value){
@@ -48,9 +50,11 @@ PrimitiveSetHandle.prototype.remove = function(value){
 	if(index === -1) _.errout('tried to remove value not in collection: ' + value);
 	
 	this.obj.splice(index, 1)
-	this.saveEdit('removePrimitive', {value: value});
+	var e = {value: value}
+	this.saveEdit('removePrimitive', e);
 	
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'remove', value)()
 }
 
 PrimitiveSetHandle.prototype.changeListener = function(path, op, edit, syncId){
@@ -63,7 +67,8 @@ PrimitiveSetHandle.prototype.changeListener = function(path, op, edit, syncId){
 		var arr = this.obj
 		if(arr === undefined) arr = this.obj = [];
 		arr.push(edit.value);
-		return this.refresh();
+		//return this.refresh();
+		return this.emit(edit, 'add')
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}

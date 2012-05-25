@@ -595,6 +595,40 @@ function getAllPropertiesFor(schema, objSchema){
 	})
 	return res;
 }
+
+
+function makeDescentPath(schema, objSchema, expr){
+	var cur = expr;
+	var curSchema = objSchema;
+	var funcs = [];
+	var reversed = [];
+	while(cur.type === 'property'){
+		reversed.unshift(cur.name);
+		cur = cur.context;
+	}
+	var path = []
+	//reversed.forEach(function(r, index){
+	for(var i=0;i<reversed.length;++i){
+		var r = reversed[i]
+		var ps = getAllPropertiesFor(schema, curSchema)[r];
+		path.push(ps.code)
+		if(ps.type.type === 'object'){
+			curSchema = schema[ps.type.object];
+		}else if(ps.type.type === 'map'){
+			path.push(r)
+			++i
+		}else{
+			if(reversed.length > i+1) _.errout(
+				'TODO(' + i+'): ' + JSON.stringify(expr) + '\n'+
+				JSON.stringify(reversed)+'\n'+
+				JSON.stringify(ps)+'\n'+
+				JSON.stringify(path))
+		}
+	}
+	//})
+	return path
+}
+/*
 function makeDescentPath(schema, objSchema, expr){
 	var cur = expr;
 	var curSchema = objSchema;
@@ -619,6 +653,7 @@ function makeDescentPath(schema, objSchema, expr){
 	}
 	_.errout("TODO");
 }
+*/
 
 function makeDescentFunction(schema, objSchema, expr){
 	var cur = expr;

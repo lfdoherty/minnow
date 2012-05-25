@@ -64,6 +64,8 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 			}
 		}
 		
+		var syncHandles = []
+		
 		var reader = {
 			makeSyncId: function(e){
 				var syncId = s.makeNewSyncId();
@@ -74,7 +76,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 				//console.log('tcpserver got client request beginSync: ' + JSON.stringify(e))
 				//var syncId = s.makeNewSyncId();
 				//w.open({requestId: e.requestId, syncId: syncId});
-				s.beginSync(e, function(typeCode, id, path, op, edit, syncId, editId){
+				var syncHandle = s.beginSync(e, function(typeCode, id, path, op, edit, syncId, editId){
 					_.assertLength(arguments, 7);
 					_.assertString(op);
 					//_.assertInt(id);
@@ -87,9 +89,11 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 					w.ready({requestId: e.requestId, updatePacket: JSON.stringify(updatePacket)})
 					w.flush();
 				});
+				syncHandles.push(syncHandle)
 			},
 			endSync: function(e){
 				console.log('tcpserver got client request endSync: ' + JSON.stringify(e))
+				//TODO
 			},
 			persistEdit: function(e){
 				var op = e.edit.type;
@@ -121,7 +125,12 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		}
 
 		c.on('end', function() {
-		//console.log('server disconnected');
+			console.log('client disconnected')
+			syncHandles.forEach(function(sh){
+				sh.end()
+			})
+			w.end()
+			w = undefined
 		});
 
 		var deser;

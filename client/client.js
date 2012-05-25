@@ -123,10 +123,10 @@ function getView(dbSchema, cc, st, type, params, syncId, cb){
 	});
 }
 
-function makeClient(port, clientCb){
+function makeClient(host, port, clientCb){
 	if(console.log !== ooo) ooo('@got schema')
 
-	tcpclient.make(port, function(serverHandle, syncId){
+	tcpclient.make(host, port, function(serverHandle, syncId){
 		_.assertInt(syncId)
 		
 		var dbSchema = serverHandle.schema;
@@ -205,13 +205,20 @@ function makeServer(dbSchema, dataDir, port, cb){
 
 exports.makeServer = function(schemaDir, dataDir, port, cb){
 	//_.assertLength(arguments, 4)
-	if(arguments.length !== 4) throw new Error('makeServer(schemaDir, dataDir, port, cb) only got ' + arguments.length + ' arguments.')
+	if(arguments.length < 3) throw new Error('makeServer(schemaDir, dataDir, port[, cb]) only got ' + arguments.length + ' arguments.')
+	if(arguments.length > 4) throw new Error('makeServer(schemaDir, dataDir, port[, cb]) got ' + arguments.length + ' arguments.')
 	schema.load(schemaDir, function(dbSchema){
-		makeServer(dbSchema, dataDir, port, cb)
+		makeServer(dbSchema, dataDir, port, cb||function(){})
 	})
 }
-exports.makeClient = function(port, cb){
-	_.assertLength(arguments, 2)
-	makeClient(port, cb)
+exports.makeClient = function(port, host, cb){
+	//_.assertLength(arguments, 2)
+	if(arguments.length === 2){
+		cb = host
+		host = undefined
+	}
+	_.assertInt(port)
+	_.assertFunction(cb)
+	makeClient(host||'localhost', port, cb)
 }
 

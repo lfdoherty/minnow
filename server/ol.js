@@ -209,6 +209,8 @@ exports.make = function(dataDir, schema, cb){
 		//calls-back with the json representation, and saves it once the callback returns
 		//must be in buffer or cache
 		change: function(id, cb){
+			_.assertInt(id)
+			
 			var bi = bufferIndex[id]
 			if(bi !== undefined){
 				var e = buffer[bi];

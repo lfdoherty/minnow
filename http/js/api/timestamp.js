@@ -13,22 +13,27 @@ TimestampHandle.prototype.changeListener = u.primitiveChangeListener;
 TimestampHandle.prototype.set = function(v){
 	var sh = this.getSh();
 	_.errout('FIXME')
-	sh.setContext(this.getEditingId(), this.getPath());
+	/*sh.setContext(this.getEditingId(), this.getPath());
 	this.obj = v;
 	sh.setTimestamp(this.obj);
-	this.refresh()();
+	
+	this.refresh()();*/
+	//this.emit(e, 'set', this.obj)()
 }
 TimestampHandle.prototype.setNow = function(){
 	this.obj = Date.now();
 
+	var e = {value: this.obj}
+	
 	this.getSh().persistEdit(
 		this.getObjectId(), 
 		this.getPath(),
 		'set',
-		{value: this.obj}, 
+		e, 
 		this.getEditingId());
 		
-	this.refresh()();
+	//this.refresh()();
+	this.emit(e, 'set', this.obj)()
 }
 TimestampHandle.prototype.value = function(){
 	return this.obj;

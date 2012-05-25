@@ -9,8 +9,9 @@ var baleen = require('baleen')
 var shared = require('./../server/tcp_shared');
 var bin = require('./../util/bin')
 
-function make(port, readyCb){
-	_.assertLength(arguments, 2);
+function make(host, port, readyCb){
+	_.assertLength(arguments, 3);
+	_.assertString(host)
 	_.assertInt(port);
 	_.assertFunction(readyCb);
 	
@@ -85,7 +86,7 @@ function make(port, readyCb){
 	};
 	
 	var deser;
-	var client = net.connect(port, function(){
+	var client = net.connect(port, host, function(){
 		//readyCb(handle);
 		//console.log('tcp client waiting for setup message');
 	});

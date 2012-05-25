@@ -27,6 +27,7 @@ function removeTypeListener(typeCode, listener, typeMap){
 		var ci = arr.indexOf(listener);
 		if(ci === -1){
 			console.log('WARNING: tried to remove unknown type listener');
+		}else{
 			arr.splice(ci, 1);
 		}
 	}
@@ -172,6 +173,8 @@ exports.make = function(inv){
 				c.push(listener);
 			},
 			stopListeningForNew: function(typeCode, listener){
+				_.assertInt(typeCode)
+				_.assertFunction(listener)
 				removeTypeListener(typeCode, listener, createdByType);
 			},
 			

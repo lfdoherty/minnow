@@ -1,0 +1,10 @@
+user 1
+	name string 1
+	
+message 2
+	text string 1
+	user user 2
+	roomName string 3
+		
+roomView(roomName string) 100
+	messages *message[is(&.roomName,roomName)] 1
