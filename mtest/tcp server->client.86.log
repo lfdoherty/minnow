@@ -1,6 +1,0 @@
-sending update: {"order":2,"typeCode":119,"id":"119:[]","path":[1],"op":"setInt","edit":{"value":1},"syncId":-1,"editId":1}
-writing edit: setSyncId {"syncId":-1} -1 1 1
-writing edit: selectTopViewObject {"id":"119:[]"} -1 1 1
-writing edit: reset {} -1 1 1
-writing edit: selectProperty {"typeCode":1} -1 1 1
-writing edit: setInt {"value":1} -1 1 1

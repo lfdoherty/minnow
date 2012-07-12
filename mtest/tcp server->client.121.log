@@ -1,8 +1,0 @@
-sending update: {"order":2,"typeCode":114,"id":"114:[\"sue\"]","path":[1],"op":"addBoolean","edit":{"value":false},"syncId":-1,"editId":6}
-writing edit: setSyncId {"syncId":-1} -1 6 1
-writing edit: selectTopViewObject {"id":"114:[\"sue\"]"} -1 6 1
-writing edit: reset {} -1 6 1
-writing edit: selectProperty {"typeCode":1} -1 6 1
-writing edit: addBoolean {"value":false} -1 6 1
-sending update: {"order":3,"typeCode":114,"id":"114:[\"sue\"]","path":[1],"op":"addBoolean","edit":{"value":true},"syncId":-1,"editId":12}
-writing edit: addBoolean {"value":true} -1 12 1

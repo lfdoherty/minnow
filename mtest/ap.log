@@ -1,8 +1,0 @@
-1 -1 [] make {"typeCode":2,"forget":false} 1
-3 1 selectProperty {"typeCode":1} 1
-4 1 [1] setString {"value":"bill"} 1
-5 -1 [] make {"typeCode":1,"forget":false} 1
-7 2 selectProperty {"typeCode":2} 1
-8 2 [2] setObject {"id":1} 1
-wrote selectTopObject(1)
-10 1 [1] setString {"value":"ted"} 2
