@@ -1,0 +1,50 @@
+sending update: {"order":2,"typeCode":109,"id":"109:[]","path":[94],"op":"addString","edit":{"value":"big"},"syncId":-1,"editId":4}
+writing edit: setSyncId {"syncId":-1} -1 4 1
+writing edit: selectTopViewObject {"id":"109:[]"} -1 4 1
+writing edit: reset {} -1 4 1
+writing edit: selectProperty {"typeCode":94} -1 4 1
+writing edit: addString {"value":"big"} -1 4 1
+sending update: {"order":3,"typeCode":109,"id":"109:[]","path":[99],"op":"addExistingViewObject","edit":{"id":"110:,big"},"syncId":-1,"editId":4}
+writing edit: reselectProperty {"typeCode":99} -1 4 1
+writing edit: addExistingViewObject {"id":"110:,big"} -1 4 1
+sending update: {"order":4,"typeCode":110,"id":"110:,big","path":[8],"op":"setString","edit":{"value":"big"},"syncId":-1,"editId":4}
+writing edit: selectTopViewObject {"id":"110:,big"} -1 4 1
+writing edit: reset {} -1 4 1
+writing edit: selectProperty {"typeCode":8} -1 4 1
+writing edit: setString {"value":"big"} -1 4 1
+sending update: {"order":5,"typeCode":109,"id":"109:[]","path":[94],"op":"addString","edit":{"value":"small"},"syncId":-1,"editId":5}
+writing edit: selectTopViewObject {"id":"109:[]"} -1 5 1
+writing edit: reselectProperty {"typeCode":94} -1 5 1
+writing edit: addString {"value":"small"} -1 5 1
+sending update: {"order":6,"typeCode":109,"id":"109:[]","path":[99],"op":"addExistingViewObject","edit":{"id":"110:,small"},"syncId":-1,"editId":5}
+writing edit: reselectProperty {"typeCode":99} -1 5 1
+writing edit: addExistingViewObject {"id":"110:,small"} -1 5 1
+sending update: {"order":7,"typeCode":110,"id":"110:,small","path":[8],"op":"setString","edit":{"value":"small"},"syncId":-1,"editId":5}
+writing edit: selectTopViewObject {"id":"110:,small"} -1 5 1
+writing edit: reset {} -1 5 1
+writing edit: selectProperty {"typeCode":8} -1 5 1
+writing edit: setString {"value":"small"} -1 5 1
+sending update: {"order":8,"typeCode":109,"id":"109:[]","path":[94],"op":"addString","edit":{"value":"important"},"syncId":-1,"editId":9}
+writing edit: selectTopViewObject {"id":"109:[]"} -1 9 1
+writing edit: reselectProperty {"typeCode":94} -1 9 1
+writing edit: addString {"value":"important"} -1 9 1
+sending update: {"order":9,"typeCode":109,"id":"109:[]","path":[99],"op":"addExistingViewObject","edit":{"id":"110:,important"},"syncId":-1,"editId":9}
+writing edit: reselectProperty {"typeCode":99} -1 9 1
+writing edit: addExistingViewObject {"id":"110:,important"} -1 9 1
+sending update: {"order":10,"typeCode":110,"id":"110:,important","path":[8],"op":"setString","edit":{"value":"important"},"syncId":-1,"editId":9}
+writing edit: selectTopViewObject {"id":"110:,important"} -1 9 1
+writing edit: reset {} -1 9 1
+writing edit: selectProperty {"typeCode":8} -1 9 1
+writing edit: setString {"value":"important"} -1 9 1
+sending update: {"order":11,"typeCode":109,"id":"109:[]","path":[94],"op":"addString","edit":{"value":"trivial"},"syncId":-1,"editId":10}
+writing edit: selectTopViewObject {"id":"109:[]"} -1 10 1
+writing edit: reselectProperty {"typeCode":94} -1 10 1
+writing edit: addString {"value":"trivial"} -1 10 1
+sending update: {"order":12,"typeCode":109,"id":"109:[]","path":[99],"op":"addExistingViewObject","edit":{"id":"110:,trivial"},"syncId":-1,"editId":10}
+writing edit: reselectProperty {"typeCode":99} -1 10 1
+writing edit: addExistingViewObject {"id":"110:,trivial"} -1 10 1
+sending update: {"order":13,"typeCode":110,"id":"110:,trivial","path":[8],"op":"setString","edit":{"value":"trivial"},"syncId":-1,"editId":10}
+writing edit: selectTopViewObject {"id":"110:,trivial"} -1 10 1
+writing edit: reset {} -1 10 1
+writing edit: selectProperty {"typeCode":8} -1 10 1
+writing edit: setString {"value":"trivial"} -1 10 1

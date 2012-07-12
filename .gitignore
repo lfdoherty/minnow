@@ -7,3 +7,4 @@ views_plan
 *.schema.generated
 save
 */minnow_data
+mtest/*/

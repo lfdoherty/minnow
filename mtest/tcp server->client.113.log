@@ -1,0 +1,34 @@
+(undefined) tcpserver got client(1) request persistEdit: {"requestId":4,"op":"make","edit":{"typeCode":3,"forget":false},"syncId":1}
+(1) tcpserver got client(1) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":1}
+(1) tcpserver got client(1) request persistEdit: {"requestId":6,"op":"setInt","edit":{"value":18},"syncId":1}
+(1) tcpserver got client(1) request persistEdit: {"requestId":7,"op":"ascend1","edit":{},"syncId":1}
+sending update: {"order":2,"typeCode":3,"id":1,"path":[1],"op":"setInt","edit":{"value":18},"syncId":1,"editId":4}
+writing edit: setSyncId {"syncId":1} -1 4 1
+writing edit: selectTopObject {"id":1} -1 4 1
+writing edit: reset {} -1 4 1
+writing edit: selectProperty {"typeCode":1} -1 4 1
+writing edit: setInt {"value":18} 1 4 1
+sending object: 2
+sending update: {"order":3,"typeCode":111,"id":"111:[1]","path":[1],"op":"addExisting","edit":{"id":2},"syncId":-1,"editId":12}
+writing edit: setSyncId {"syncId":-1} -1 12 1
+writing edit: selectTopViewObject {"id":"111:[1]"} -1 12 1
+writing edit: reset {} -1 12 1
+writing edit: selectProperty {"typeCode":1} -1 12 1
+writing edit: addExisting {"id":2} -1 12 1
+sending update: {"order":4,"typeCode":1,"id":2,"path":[1],"op":"setInt","edit":{"value":18},"syncId":2,"editId":12}
+writing edit: setSyncId {"syncId":2} -1 12 1
+writing edit: selectTopObject {"id":2} -1 12 1
+writing edit: reset {} -1 12 1
+writing edit: selectProperty {"typeCode":1} -1 12 1
+writing edit: setInt {"value":18} 2 12 1
+(1) tcpserver got client(1) request persistEdit: {"requestId":11,"op":"selectTopObject","edit":{"id":1},"syncId":1}
+(1) tcpserver got client(1) request persistEdit: {"requestId":12,"op":"selectProperty","edit":{"typeCode":1},"syncId":1}
+(1) tcpserver got client(1) request persistEdit: {"requestId":13,"op":"setInt","edit":{"value":19},"syncId":1}
+sending update: {"order":5,"typeCode":3,"id":1,"path":[1],"op":"setInt","edit":{"value":19},"syncId":1,"editId":13}
+writing edit: setSyncId {"syncId":1} -1 13 1
+writing edit: selectTopObject {"id":1} -1 13 1
+writing edit: setInt {"value":19} 1 13 1
+sending update: {"order":6,"typeCode":111,"id":"111:[1]","path":[1],"op":"remove","edit":{"id":2},"syncId":-1,"editId":13}
+writing edit: setSyncId {"syncId":-1} -1 13 1
+writing edit: selectTopViewObject {"id":"111:[1]"} -1 13 1
+writing edit: remove {"id":2} -1 13 1

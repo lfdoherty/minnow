@@ -1,0 +1,16 @@
+sending update: {"order":2,"typeCode":100,"id":"100:[]","path":[1,"young"],"op":"putAddString","edit":{"value":"jim"},"syncId":-1,"editId":7}
+writing edit: setSyncId {"syncId":-1} -1 7 1
+writing edit: selectTopViewObject {"id":"100:[]"} -1 7 1
+writing edit: reset {} -1 7 1
+writing edit: selectProperty {"typeCode":1} -1 7 1
+writing edit: selectStringKey {"key":"young"} -1 7 1
+writing edit: putAddString {"value":"jim"} -1 7 1
+sending update: {"order":3,"typeCode":100,"id":"100:[]","path":[1,"tall"],"op":"putAddString","edit":{"value":"jim"},"syncId":-1,"editId":7}
+writing edit: reselectStringKey {"key":"tall"} -1 7 1
+writing edit: putAddString {"value":"jim"} -1 7 1
+sending update: {"order":4,"typeCode":100,"id":"100:[]","path":[1,"old"],"op":"putAddString","edit":{"value":"mary"},"syncId":-1,"editId":14}
+writing edit: reselectStringKey {"key":"old"} -1 14 1
+writing edit: putAddString {"value":"mary"} -1 14 1
+sending update: {"order":5,"typeCode":100,"id":"100:[]","path":[1,"tall"],"op":"putAddString","edit":{"value":"mary"},"syncId":-1,"editId":14}
+writing edit: reselectStringKey {"key":"tall"} -1 14 1
+writing edit: putAddString {"value":"mary"} -1 14 1

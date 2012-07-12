@@ -1,0 +1,11 @@
+sending object: 2
+sending object: 1
+(undefined) tcpserver got client(2) request persistEdit: {"requestId":4,"op":"selectTopObject","edit":{"id":1},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":6,"op":"setString","edit":{"value":"ted"},"syncId":2}
+sending update: {"order":2,"typeCode":2,"id":1,"path":[1],"op":"setString","edit":{"value":"ted"},"syncId":2,"editId":10}
+writing edit: setSyncId {"syncId":2} -1 10 2
+writing edit: selectTopObject {"id":1} -1 10 2
+writing edit: reset {} -1 10 2
+writing edit: selectProperty {"typeCode":1} -1 10 2
+writing edit: setString {"value":"ted"} 2 10 2

@@ -1,0 +1,12 @@
+sending update: {"order":2,"typeCode":108,"id":"108:[]","path":[98],"op":"addString","edit":{"value":"big"},"syncId":-1,"editId":4}
+writing edit: setSyncId {"syncId":-1} -1 4 1
+writing edit: selectTopViewObject {"id":"108:[]"} -1 4 1
+writing edit: reset {} -1 4 1
+writing edit: selectProperty {"typeCode":98} -1 4 1
+writing edit: addString {"value":"big"} -1 4 1
+sending update: {"order":3,"typeCode":108,"id":"108:[]","path":[98],"op":"addString","edit":{"value":"small"},"syncId":-1,"editId":5}
+writing edit: addString {"value":"small"} -1 5 1
+sending update: {"order":4,"typeCode":108,"id":"108:[]","path":[98],"op":"addString","edit":{"value":"important"},"syncId":-1,"editId":9}
+writing edit: addString {"value":"important"} -1 9 1
+sending update: {"order":5,"typeCode":108,"id":"108:[]","path":[98],"op":"addString","edit":{"value":"trivial"},"syncId":-1,"editId":10}
+writing edit: addString {"value":"trivial"} -1 10 1

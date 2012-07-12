@@ -1,0 +1,17 @@
+sending update: {"order":2,"typeCode":103,"id":"103:[]","path":[1,"a"],"op":"putInt","edit":{"value":19},"syncId":-1,"editId":6}
+writing edit: setSyncId {"syncId":-1} -1 6 1
+writing edit: selectTopViewObject {"id":"103:[]"} -1 6 1
+writing edit: reset {} -1 6 1
+writing edit: selectProperty {"typeCode":1} -1 6 1
+writing edit: selectStringKey {"key":"a"} -1 6 1
+writing edit: putInt {"value":19} -1 6 1
+sending update: {"order":3,"typeCode":103,"id":"103:[]","path":[1,"a"],"op":"putInt","edit":{"value":37},"syncId":-1,"editId":12}
+writing edit: putInt {"value":37} -1 12 1
+sending update: {"order":4,"typeCode":103,"id":"103:[]","path":[1,"b"],"op":"putInt","edit":{"value":22},"syncId":-1,"editId":18}
+writing edit: reselectStringKey {"key":"b"} -1 18 1
+writing edit: putInt {"value":22} -1 18 1
+sending update: {"order":5,"typeCode":103,"id":"103:[]","path":[1,"b"],"op":"putInt","edit":{"value":50},"syncId":-1,"editId":24}
+writing edit: putInt {"value":50} -1 24 1
+sending update: {"order":6,"typeCode":103,"id":"103:[]","path":[1,"c"],"op":"putInt","edit":{"value":21},"syncId":-1,"editId":30}
+writing edit: reselectStringKey {"key":"c"} -1 30 1
+writing edit: putInt {"value":21} -1 30 1

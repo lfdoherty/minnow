@@ -102,10 +102,10 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		function temporaryGenerator(){
 			var nt = nextTemporary
 			--nextTemporary
-			ws.write('(' + syncId + ') generating temporary: ' + nt+'\n')
-			ws.write(new Error().stack+'\n')
-			console.log('(' + syncId + ') generating temporary: ' + nt+'\n')
-			console.log(new Error().stack+'\n')
+			//ws.write('(' + syncId + ') generating temporary: ' + nt+'\n')
+			//ws.write(new Error().stack+'\n')
+			//console.log('(' + syncId + ') generating temporary: ' + nt+'\n')
+			//console.log(new Error().stack+'\n')
 			return nt
 		}
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
@@ -176,6 +176,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		function sendObject(e, ob){
 			_.assertBuffer(ob.edits)
 			ws.write('sending object: ' + ob.id+'\n')
+			console.log('sending object: ' + ob.id)
 			ob.destinationSyncId = e.syncId
 			w.updateObject(ob);
 		}

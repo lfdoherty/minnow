@@ -1,0 +1,391 @@
+running tests in dirs: ["/home/liam/Dropbox/me/dev/minnow/mtest/list"]
+callling
+loading all schemas in dir: /home/liam/Dropbox/me/dev/minnow/mtest/list
+computing schema for general
+done load cb
+done...
+done ol
+got ol
+done ol after cb
+done loading 0 commands in 1ms
+got ap
+got uid
+making for rel: primitiveList 1
+tcp client waiting for setup message
+tcp server got connection
+Error
+    at Server.<anonymous> (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:119:15)
+    at Server.EventEmitter.emit (events.js:88:17)
+    at TCP.onconnection (net.js:1043:8)
+got buf 3146 3114
+setting up
+made SyncApi 0.4904178308788687
+0.9584607214201242 getting view general[]
+tcpclient: getSnapshots: {"typeCode":100,"params":"[]","requestId":1}
+GOT SNAPSHOTS: 0
+Error
+    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/viewstate.js:80:16)
+    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:224:16)
+    at net.createServer.reader.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:341:7)
+    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
+    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
+    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:386:4)
+    at Socket.EventEmitter.emit (events.js:88:17)
+    at TCP.onread (net.js:397:14)
+tcpclient: getSnapshots
+created bindings for params: []->{}
+curEditId: 0
+*************VIEW KEY: 100:[] 0
+TYPE got all ids: []
+attached to type ************ [] 1
+Error
+    at handle.attach (/home/liam/Dropbox/me/dev/minnow/server/variables/type.js:62:16)
+    at Object.Cache.store.value.attach (/home/liam/Dropbox/me/dev/minnow/server/variable_cache.js:25:13)
+    at svgGeneralOne (/home/liam/Dropbox/me/dev/minnow/server/variables/one.js:64:11)
+    at /home/liam/Dropbox/me/dev/minnow/server/variables/view.js:403:41
+    at Array.forEach (native)
+    at internalView (/home/liam/Dropbox/me/dev/minnow/server/variables/view.js:401:29)
+    at Object.exports.make.handle.getAllSnapshotStates (/home/liam/Dropbox/me/dev/minnow/server/viewstate.js:88:26)
+    at Object.exports.make.handle.getAllSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:238:16)
+    at net.createServer.reader.getAllSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:352:7)
+    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
+    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
+    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:386:4)
+    at Socket.EventEmitter.emit (events.js:88:17)
+    at TCP.onread (net.js:397:14)
+GETTING SNAPSHOT STATES: [0]
+ &&&&&&& between -1 0
+SNAP READY: [1,-1,0]
+{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}
+GOT A SNAP
+GOT ALL SNAPSHOT STATES
+got request reply: 2
+many snaps: 1
+deserialized: {"requestId":2,"snapshots":[{"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}]}
+got snapshots: [{"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}]
+snapshot: {"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
+tcpclient e.params: "[]"
+0.681689835852012 writing: 8
+beginView: {"requestId":3,"syncId":1,"typeCode":100,"params":"[]","latestSnapshotVersionId":0}
+params: []
+beginning view after 0
+created bindings for params: []->{}
+*************VIEW KEY: 100:[] 1
+GOT READY PACKET:[]
+ready!!!!!!!!!!!!!!!!!!!!!!!1
+calling back with view: 100:[]+++++++++++++++++++++
+100:[]: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
+100:[] preparing topobject with edits: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
+ignoring view object creation
+preparing: primitiveList
+made empty readonly object 1 undefined
+tcp client waiting for setup message
+tcp server got connection
+Error
+    at Server.<anonymous> (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:119:15)
+    at Server.EventEmitter.emit (events.js:88:17)
+    at TCP.onconnection (net.js:1043:8)
+got buf 3146 3114
+setting up
+made SyncApi 0.2073510349728167
+0.1479292819276452 getting view general[]
+tcpclient: getSnapshots: {"typeCode":100,"params":"[]","requestId":1}
+GOT SNAPSHOTS: 0
+Error
+    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/viewstate.js:80:16)
+    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:224:16)
+    at net.createServer.reader.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:341:7)
+    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
+    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
+    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:386:4)
+    at Socket.EventEmitter.emit (events.js:88:17)
+    at TCP.onread (net.js:397:14)
+tcpclient: getSnapshots
+created bindings for params: []->{}
+curEditId: 0
+*************VIEW KEY: 100:[] 0
+GETTING SNAPSHOT STATES: [0]
+ &&&&&&& between -1 0
+SNAP READY: [1,-1,0]
+{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}
+GOT A SNAP
+GOT ALL SNAPSHOT STATES
+got request reply: 2
+many snaps: 1
+deserialized: {"requestId":2,"snapshots":[{"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}]}
+got snapshots: [{"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}]
+snapshot: {"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
+tcpclient e.params: "[]"
+beginView: {"requestId":3,"syncId":2,"typeCode":100,"params":"[]","latestSnapshotVersionId":0}
+params: []
+beginning view after 0
+created bindings for params: []->{}
+*************VIEW KEY: 100:[] 1
+GOT READY PACKET:[]
+ready!!!!!!!!!!!!!!!!!!!!!!!1
+calling back with view: 100:[]+++++++++++++++++++++
+100:[]: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
+100:[] preparing topobject with edits: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
+ignoring view object creation
+preparing: primitiveList
+made empty readonly object 1 undefined
+op: make
+-2 preparing topobject with edits: []
+preparing: data
+setting up primitive list: undefined
+is view, just setting
+adjust top path: [] -> 1
+id: -2 for selectProperty
+op: selectProperty
+here: addString
+id: -2 for addString
+op: addString
+(undefined) tcpserver got client(2) request persistEdit: {"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":2}
+
+current id (tcpserver-client): undefined
+{"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":2}
+adding edit: [-1,[],"make",{"typeCode":1,"forget":false},2]
+wrote object: 1
+1 -1 [] make {"typeCode":1,"forget":false} 2
+
+wrote objectMade
+object created: 1 1 1
+object created: 1(tc: 1, id: 1)
+type emitting created: 1 1 1
+1 including object: 1 editId: 1
+---- got
+0 objects actually sent
+2 including object: 1 editId: 1
+---- got
+0 objects actually sent
+view translating set id to setObject
+0.31805133121088147 (0) 100:[] view got change: setObject {"id":1} -1 1
+view translating set id to setObject
+0.6686470734421164 (0) 100:[] view got change: setObject {"id":1} -1 1
+(1) tcpserver got client(2) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+
+current id (tcpserver-client): 1
+{"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+processed path update: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+path now: [1]
+emitting all: 1
+0.31805133121088147 sync sequencer emitting(2): {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+intercepted setObject *************: 1
+function includeObjectCb(id, editId){
+					_.assertInt(id)
+					_.assert(id >= 0)
+					if(alreadySent[id]){
+						console.log('already sent: ' + id)
+						return;
+					}else{
+						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
+						//TODO buffer for streaming all the edits for the object and any objects it depends on
+						var pointer = {got: false, edits: []}
+						sentBuffer.push(pointer)
+						_.assertInt(editId)
+						_.assertInt(id)
+						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
+							if(alreadySent[id]) return
+							
+							alreadySent[id] = true
+							_.assertBuffer(objEditsBuffer)
+							pointer.edits.push({id: id, edits: objEditsBuffer})
+
+						}, function(){
+							console.log('---- got')
+							pointer.got = true
+							advanceSentBuffer()
+						})
+						return;
+					}				
+				}
+already sent: 1
+e: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+typeCode: 100
+updating to path [1]
+[] -> [1]
+sending update: ["reset",{}]
+sending update: ["selectProperty",{"typeCode":1}]
+object: stringList
+typeCode: 1
+...done updating to path [1]
+sending actual: ["setObject",{"id":1}]
+emitting all: 1
+0.6686470734421164 sync sequencer emitting(2): {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+intercepted setObject *************: 1
+function includeObjectCb(id, editId){
+					_.assertInt(id)
+					_.assert(id >= 0)
+					if(alreadySent[id]){
+						console.log('already sent: ' + id)
+						return;
+					}else{
+						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
+						//TODO buffer for streaming all the edits for the object and any objects it depends on
+						var pointer = {got: false, edits: []}
+						sentBuffer.push(pointer)
+						_.assertInt(editId)
+						_.assertInt(id)
+						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
+							if(alreadySent[id]) return
+							
+							alreadySent[id] = true
+							_.assertBuffer(objEditsBuffer)
+							pointer.edits.push({id: id, edits: objEditsBuffer})
+
+						}, function(){
+							console.log('---- got')
+							pointer.got = true
+							advanceSentBuffer()
+						})
+						return;
+					}				
+				}
+already sent: 1
+e: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+typeCode: 100
+updating to path [1]
+[] -> [1]
+sending update: ["reset",{}]
+sending update: ["selectProperty",{"typeCode":1}]
+object: stringList
+typeCode: 1
+...done updating to path [1]
+sending actual: ["setObject",{"id":1}]
+1 tcpserver sent change: {"editId":1,"op":"setSyncId","edit":{"syncId":-1},"destinationSyncId":1}
+0.4904178308788687 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":-1},"2":1}
+GOT BACK OBJECT MADE EVENT
+response: {"requestId":4,"id":1,"temporary":-2}
+reifying id -2 -> 1
+1 tcpserver sent change: {"editId":1,"op":"selectTopViewObject","edit":{"id":"100:[]"},"destinationSyncId":1}
+0.4904178308788687 SyncApi changeListener: selectTopViewObject {"0":"selectTopViewObject","1":{"id":"100:[]"},"2":1}
+1 tcpserver sent change: {"editId":1,"op":"reset","edit":{},"destinationSyncId":1}
+0.4904178308788687 SyncApi changeListener: reset {"0":"reset","1":{},"2":1}
+1 tcpserver sent change: {"editId":1,"op":"selectProperty","edit":{"typeCode":1},"destinationSyncId":1}
+0.4904178308788687 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":1},"2":1}
+1 tcpserver sent change: {"editId":1,"op":"setObject","edit":{"id":1},"destinationSyncId":1}
+0.4904178308788687 SyncApi changeListener: setObject {"0":"setObject","1":{"id":1},"2":1}
+set to: 1 1 100:[] primitiveList
+snap: {"latestVersionId":-1,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
+edits: [
+  {
+    "op": "setSyncId",
+    "edit": {
+      "syncId": -1
+    },
+    "editId": 1
+  },
+  {
+    "op": "selectTopViewObject",
+    "edit": {
+      "id": "100:[]"
+    },
+    "editId": 1
+  },
+  {
+    "op": "reset",
+    "edit": {},
+    "editId": 1
+  },
+  {
+    "op": "selectProperty",
+    "edit": {
+      "typeCode": 1
+    },
+    "editId": 1
+  },
+  {
+    "op": "setObject",
+    "edit": {
+      "id": 1
+    },
+    "editId": 1
+  }
+]
+cache: ["100:[]"]
+1 no object in snapshot with id: 1
+Error
+    at Object.more.errout (/home/liam/Dropbox/me/dev/underscorem/underscorem.js:82:16)
+    at SyncApi.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:693:5)
+    at TopObjectHandle.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:283:21)
+    at TopObjectHandle.ObjectHandle.changeListenerElevated (/home/liam/Dropbox/me/dev/minnow/http/js/api/object.js:210:22)
+    at TopObjectHandle.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/api/topobject.js:347:7)
+    at SyncApi.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:484:26)
+    at Object.changeListenerWrapper [as edit] (/home/liam/Dropbox/me/dev/minnow/client/client.js:196:7)
+    at reader.update (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:180:7)
+    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
+    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
+    at Socket.<anonymous> (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:300:3)
+    at Socket.EventEmitter.emit (events.js:88:17)
+    at TCP.onread (net.js:397:14)
+{"latestVersionId":-1,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
+[
+  {
+    "op": "setSyncId",
+    "edit": {
+      "syncId": -1
+    },
+    "editId": 1
+  },
+  {
+    "op": "selectTopViewObject",
+    "edit": {
+      "id": "100:[]"
+    },
+    "editId": 1
+  },
+  {
+    "op": "reset",
+    "edit": {},
+    "editId": 1
+  },
+  {
+    "op": "selectProperty",
+    "edit": {
+      "typeCode": 1
+    },
+    "editId": 1
+  },
+  {
+    "op": "setObject",
+    "edit": {
+      "id": 1
+    },
+    "editId": 1
+  }
+]
+got uncaught exception
+test failed: list.append
+affe
+Error: 1 no object in snapshot with id: 1
+    at Object.more.errout (/home/liam/Dropbox/me/dev/underscorem/underscorem.js:83:10)
+    at SyncApi.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:693:5)
+    at TopObjectHandle.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:283:21)
+    at TopObjectHandle.ObjectHandle.changeListenerElevated (/home/liam/Dropbox/me/dev/minnow/http/js/api/object.js:210:22)
+    at TopObjectHandle.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/api/topobject.js:347:7)
+    at SyncApi.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:484:26)
+    at Object.changeListenerWrapper [as edit] (/home/liam/Dropbox/me/dev/minnow/client/client.js:196:7)
+    at reader.update (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:180:7)
+    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
+    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
+    at Socket.<anonymous> (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:300:3)
+    at Socket.EventEmitter.emit (events.js:88:17)
+    at TCP.onread (net.js:397:14)
+all tests finished: 0/1
+took 466ms.
+failed: 
+list.append failed
+Error: 1 no object in snapshot with id: 1
+    at Object.more.errout (/home/liam/Dropbox/me/dev/underscorem/underscorem.js:83:10)
+    at SyncApi.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:693:5)
+    at TopObjectHandle.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:283:21)
+    at TopObjectHandle.ObjectHandle.changeListenerElevated (/home/liam/Dropbox/me/dev/minnow/http/js/api/object.js:210:22)
+    at TopObjectHandle.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/api/topobject.js:347:7)
+    at SyncApi.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:484:26)
+    at Object.changeListenerWrapper [as edit] (/home/liam/Dropbox/me/dev/minnow/client/client.js:196:7)
+    at reader.update (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:180:7)
+    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
+    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
+    at Socket.<anonymous> (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:300:3)
+    at Socket.EventEmitter.emit (events.js:88:17)
+    at TCP.onread (net.js:397:14)

@@ -609,17 +609,13 @@ exports.make = function(dataDir, schema, cb){
 				var cdl = _.latch(ids.length, gCdl)
 				
 				for(var i=0;i<ids.length;++i){
-					//if(!already[ids[i]]){
-					
-					//var af = _.extend({}, already)
-					//af[id] = true
+
 					if(ids[i] === id){
 						cdl()
 						continue
 					}
 					
 					handle.streamVersion(already, ids[i], startEditId, endEditId, cb, cdl)
-					//}
 				}
 			})
 		},

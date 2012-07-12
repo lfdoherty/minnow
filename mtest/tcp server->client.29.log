@@ -1,0 +1,76 @@
+(undefined) tcpserver got client(2) request persistEdit: {"requestId":4,"op":"make","edit":{"typeCode":2,"forget":false},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":6,"op":"setString","edit":{"value":"tim"},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":7,"op":"ascend1","edit":{},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":8,"op":"selectProperty","edit":{"typeCode":3},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":9,"op":"setInt","edit":{"value":19},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":10,"op":"ascend1","edit":{},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":11,"op":"make","edit":{"typeCode":2,"forget":false},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":12,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":13,"op":"setString","edit":{"value":"robert"},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":14,"op":"ascend1","edit":{},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":15,"op":"selectProperty","edit":{"typeCode":3},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":16,"op":"setInt","edit":{"value":18},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":17,"op":"ascend1","edit":{},"syncId":2}
+(2) tcpserver got client(2) request persistEdit: {"requestId":18,"op":"make","edit":{"typeCode":2,"forget":false},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":19,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":20,"op":"setString","edit":{"value":"janice"},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":21,"op":"ascend1","edit":{},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":22,"op":"selectProperty","edit":{"typeCode":3},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":23,"op":"setInt","edit":{"value":22},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":24,"op":"ascend1","edit":{},"syncId":2}
+(3) tcpserver got client(2) request persistEdit: {"requestId":25,"op":"make","edit":{"typeCode":2,"forget":false},"syncId":2}
+(4) tcpserver got client(2) request persistEdit: {"requestId":26,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+sending update: {"order":2,"typeCode":2,"id":1,"path":[1],"op":"setString","edit":{"value":"tim"},"syncId":2,"editId":4}
+writing edit: setSyncId {"syncId":2} -1 4 2
+writing edit: selectTopObject {"id":1} -1 4 2
+writing edit: reset {} -1 4 2
+writing edit: selectProperty {"typeCode":1} -1 4 2
+writing edit: setString {"value":"tim"} 2 4 2
+sending update: {"order":3,"typeCode":2,"id":1,"path":[3],"op":"setInt","edit":{"value":19},"syncId":2,"editId":6}
+writing edit: reselectProperty {"typeCode":3} -1 6 2
+writing edit: setInt {"value":19} 2 6 2
+sending update: {"order":4,"typeCode":2,"id":2,"path":[1],"op":"setString","edit":{"value":"robert"},"syncId":2,"editId":10}
+writing edit: selectTopObject {"id":2} -1 10 2
+writing edit: reset {} -1 10 2
+writing edit: selectProperty {"typeCode":1} -1 10 2
+writing edit: setString {"value":"robert"} 2 10 2
+sending update: {"order":5,"typeCode":2,"id":2,"path":[3],"op":"setInt","edit":{"value":18},"syncId":2,"editId":12}
+writing edit: reselectProperty {"typeCode":3} -1 12 2
+writing edit: setInt {"value":18} 2 12 2
+sending update: {"order":6,"typeCode":2,"id":3,"path":[1],"op":"setString","edit":{"value":"janice"},"syncId":2,"editId":16}
+writing edit: selectTopObject {"id":3} -1 16 2
+writing edit: reset {} -1 16 2
+writing edit: selectProperty {"typeCode":1} -1 16 2
+writing edit: setString {"value":"janice"} 2 16 2
+sending update: {"order":7,"typeCode":2,"id":3,"path":[3],"op":"setInt","edit":{"value":22},"syncId":2,"editId":18}
+writing edit: reselectProperty {"typeCode":3} -1 18 2
+writing edit: setInt {"value":22} 2 18 2
+(4) tcpserver got client(2) request persistEdit: {"requestId":27,"op":"setString","edit":{"value":"sue"},"syncId":2}
+(4) tcpserver got client(2) request persistEdit: {"requestId":28,"op":"ascend1","edit":{},"syncId":2}
+(4) tcpserver got client(2) request persistEdit: {"requestId":29,"op":"selectProperty","edit":{"typeCode":3},"syncId":2}
+(4) tcpserver got client(2) request persistEdit: {"requestId":30,"op":"setInt","edit":{"value":28},"syncId":2}
+(4) tcpserver got client(2) request persistEdit: {"requestId":31,"op":"ascend1","edit":{},"syncId":2}
+(4) tcpserver got client(2) request persistEdit: {"requestId":32,"op":"make","edit":{"typeCode":2,"forget":false},"syncId":2}
+(5) tcpserver got client(2) request persistEdit: {"requestId":33,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+(5) tcpserver got client(2) request persistEdit: {"requestId":34,"op":"setString","edit":{"value":"bruce"},"syncId":2}
+(5) tcpserver got client(2) request persistEdit: {"requestId":35,"op":"ascend1","edit":{},"syncId":2}
+(5) tcpserver got client(2) request persistEdit: {"requestId":36,"op":"selectProperty","edit":{"typeCode":3},"syncId":2}
+(5) tcpserver got client(2) request persistEdit: {"requestId":37,"op":"setInt","edit":{"value":21},"syncId":2}
+(5) tcpserver got client(2) request persistEdit: {"requestId":38,"op":"ascend1","edit":{},"syncId":2}
+sending update: {"order":8,"typeCode":2,"id":4,"path":[1],"op":"setString","edit":{"value":"sue"},"syncId":2,"editId":22}
+writing edit: selectTopObject {"id":4} -1 22 2
+writing edit: reset {} -1 22 2
+writing edit: selectProperty {"typeCode":1} -1 22 2
+writing edit: setString {"value":"sue"} 2 22 2
+sending update: {"order":9,"typeCode":2,"id":4,"path":[3],"op":"setInt","edit":{"value":28},"syncId":2,"editId":24}
+writing edit: reselectProperty {"typeCode":3} -1 24 2
+writing edit: setInt {"value":28} 2 24 2
+sending update: {"order":10,"typeCode":2,"id":5,"path":[1],"op":"setString","edit":{"value":"bruce"},"syncId":2,"editId":28}
+writing edit: selectTopObject {"id":5} -1 28 2
+writing edit: reset {} -1 28 2
+writing edit: selectProperty {"typeCode":1} -1 28 2
+writing edit: setString {"value":"bruce"} 2 28 2
+sending update: {"order":11,"typeCode":2,"id":5,"path":[3],"op":"setInt","edit":{"value":21},"syncId":2,"editId":30}
+writing edit: reselectProperty {"typeCode":3} -1 30 2
+writing edit: setInt {"value":21} 2 30 2

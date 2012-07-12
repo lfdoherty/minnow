@@ -169,7 +169,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		if(has[id] === undefined){
 			//has[id] = true
 			++manyObjectsOut
-			//console.log('getting state(' + id + '): ' + manyObjectsOut)
+			console.log('getting state(' + id + '): ' + manyObjectsOut)
 
 			//gets only edits between the given range
 			//TODO set start point to -1 if the first ensure source falls within this snapshots edit interval
@@ -182,7 +182,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			}
 			objectState.streamObjectState(has, id, s, endEditId, function(id, editsBuffer){
 				_.assertLength(arguments, 2)
-				//console.log('added object to buffer: ' + id)
+				console.log('added object to buffer: ' + id)
 				//_.assertInt(manyEdits)
 				if(editsBuffer){
 					_.assertBuffer(editsBuffer)
@@ -194,6 +194,8 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 				--manyObjectsOut
 				//console.log('got state(' + id + '): ' + manyObjectsOut)
 			})	
+		}else{
+			console.log('already has: ' + id)
 		}
 	}
 	var detachViewVariable;
@@ -345,6 +347,8 @@ exports.make = function(schema, objectState, broadcaster, includeObjectCb, editC
 			if(e.op === 'addExisting'){
 				includeObjectCb(e.edit.id, e.editId)
 			}else if(e.op === 'setObject'){
+				console.log('intercepted setObject *************: ' + e.edit.id)
+				console.log('' + includeObjectCb)
 				includeObjectCb(e.edit.id, e.editId)
 			}
 		}
@@ -441,7 +445,7 @@ exports.make = function(schema, objectState, broadcaster, includeObjectCb, editC
 			_.assert(id >= 0)
 			objectState.subscribeToObject(id, function(subjTypeCode, subjId, path, op, edit, syncId, editId){//destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId){
 				console.log('adding edit via subscription for ' + infoSyncId)
-				console.log(new Error().stack)
+				//console.log(new Error().stack)
 				_.assertInt(editId)
 				_.assertArray(path)
 				editBuffer.add({order: ++orderIndex, typeCode: subjTypeCode, id: subjId, path: path, op: op, edit: edit, syncId: syncId, editId: editId})

@@ -150,6 +150,9 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 								//console.log('sending object: ' + JSON.stringify(e).slice(0,300))
 								objectCb(e)
 							})
+							if(e.edits.length === 0){
+								console.log('0 objects actually sent')
+							}
 							sentBuffer.shift()
 							//advanceSentBuffer()
 						}else if(e.got === false){
@@ -166,6 +169,7 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 					_.assertInt(id)
 					_.assert(id >= 0)
 					if(alreadySent[id]){
+						console.log('already sent: ' + id)
 						return;
 					}else{
 						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
@@ -174,34 +178,15 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 						sentBuffer.push(pointer)
 						_.assertInt(editId)
 						_.assertInt(id)
-						objectState.streamObjectState(alreadySent, id, -1, editId,/*editId, -1,*/ function(id, objEditsBuffer){
-							if(alreadySent[id]) return
+						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
+							//if(alreadySent[id]) return
 							
 							alreadySent[id] = true
 							_.assertBuffer(objEditsBuffer)
 							pointer.edits.push({id: id, edits: objEditsBuffer})
-							
-							/*if(editId !== -1 && obj.meta.editId > editId){
-								throw new Error('internal error, editId of object is too recent: ' + obj.meta.editId + ' > ' + editId)
-							}*/
 
-							/*pointer.edits.push({
-								op: 'objectSnap', 
-								edit: {value: {type: obj.meta.typeCode, object: obj}},
-								editId: editId,
-								id: -1,
-								path: []
-							})*/
-							/*broadcaster.output.listenByObject(id, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-								//cb(typeCode, id, path, op, edit, syncId, editId)
-								var e = {typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId}
-								if(sentBuffer.length > 0){
-									sentBuffer.push(e)
-								}else{
-									listenerCb(e)
-								}
-							})*/
 						}, function(){
+							console.log('---- got')
 							pointer.got = true
 							advanceSentBuffer()
 						})

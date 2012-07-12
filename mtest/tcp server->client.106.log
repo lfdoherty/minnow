@@ -1,0 +1,28 @@
+sending update: {"order":2,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":999},"syncId":-1,"editId":7}
+writing edit: setSyncId {"syncId":-1} -1 7 1
+writing edit: selectTopViewObject {"id":"107:[]"} -1 7 1
+writing edit: reset {} -1 7 1
+writing edit: selectProperty {"typeCode":1} -1 7 1
+writing edit: setInt {"value":999} -1 7 1
+sending update: {"order":3,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":-661},"syncId":-1,"editId":9}
+writing edit: setInt {"value":-661} -1 9 1
+sending update: {"order":4,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":386},"syncId":-1,"editId":11}
+writing edit: setInt {"value":386} -1 11 1
+sending update: {"order":5,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":1387},"syncId":-1,"editId":13}
+writing edit: setInt {"value":1387} -1 13 1
+sending update: {"order":6,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":1388},"syncId":-1,"editId":14}
+writing edit: setInt {"value":1388} -1 14 1
+sending update: {"order":7,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":-111},"syncId":-1,"editId":15}
+writing edit: setInt {"value":-111} -1 15 1
+sending update: {"order":8,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":-112},"syncId":-1,"editId":16}
+writing edit: setInt {"value":-112} -1 16 1
+sending update: {"order":9,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":888},"syncId":-1,"editId":17}
+writing edit: setInt {"value":888} -1 17 1
+sending update: {"order":10,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":-611},"syncId":-1,"editId":19}
+writing edit: setInt {"value":-611} -1 19 1
+sending update: {"order":11,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":389},"syncId":-1,"editId":21}
+writing edit: setInt {"value":389} -1 21 1
+sending update: {"order":12,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":1390},"syncId":-1,"editId":23}
+writing edit: setInt {"value":1390} -1 23 1
+sending update: {"order":13,"typeCode":107,"id":"107:[]","path":[1],"op":"setInt","edit":{"value":-330},"syncId":-1,"editId":25}
+writing edit: setInt {"value":-330} -1 25 1

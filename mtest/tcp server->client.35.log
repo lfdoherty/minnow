@@ -1,0 +1,28 @@
+(undefined) tcpserver got client(2) request persistEdit: {"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":2}
+sending object: 1
+(1) tcpserver got client(2) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":3},"syncId":2}
+sending update: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+writing edit: setSyncId {"syncId":-1} -1 1 2
+writing edit: selectTopViewObject {"id":"100:[]"} -1 1 2
+writing edit: reset {} -1 1 2
+writing edit: selectProperty {"typeCode":1} -1 1 2
+writing edit: setObject {"id":1} -1 1 2
+(1) tcpserver got client(2) request persistEdit: {"requestId":6,"op":"addNew","edit":{"typeCode":2},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":7,"op":"selectTopObject","edit":{"id":1},"syncId":2}
+sending update: {"order":3,"typeCode":1,"id":1,"path":[3],"op":"addedNew","edit":{"id":2,"typeCode":2},"syncId":2,"editId":4}
+writing edit: setSyncId {"syncId":2} -1 4 2
+writing edit: selectTopObject {"id":1} -1 4 2
+writing edit: reset {} -1 4 2
+writing edit: selectProperty {"typeCode":3} -1 4 2
+writing edit: addedNew {"id":2,"typeCode":2} 2 4 2
+sending update: {"order":4,"typeCode":1,"id":1,"path":[3],"op":"addedNew","edit":{"id":2,"typeCode":2},"syncId":2,"editId":4}
+already sent edit: 1|4addedNew[3]
+(1) tcpserver got client(2) request persistEdit: {"requestId":8,"op":"selectObject","edit":{"id":-3},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":9,"op":"selectProperty","edit":{"typeCode":2},"syncId":2}
+(1) tcpserver got client(2) request persistEdit: {"requestId":10,"op":"setString","edit":{"value":"something"},"syncId":2}
+sending update: {"order":5,"typeCode":1,"id":1,"path":[3,2,2],"op":"setString","edit":{"value":"something"},"syncId":2,"editId":7}
+writing edit: selectObject {"id":2} -1 7 2
+writing edit: selectProperty {"typeCode":2} -1 7 2
+writing edit: setString {"value":"something"} 2 7 2
+sending update: {"order":6,"typeCode":1,"id":1,"path":[3,2,2],"op":"setString","edit":{"value":"something"},"syncId":2,"editId":7}
+already sent edit: 1|7setString[3,2,2]

@@ -1,0 +1,24 @@
+sending object: 1
+sending object: 2
+sending update: {"order":2,"typeCode":106,"id":"106:[14]","path":[1],"op":"addExisting","edit":{"id":1},"syncId":-1,"editId":4}
+writing edit: setSyncId {"syncId":-1} -1 4 1
+writing edit: selectTopViewObject {"id":"106:[14]"} -1 4 1
+writing edit: reset {} -1 4 1
+writing edit: selectProperty {"typeCode":1} -1 4 1
+writing edit: addExisting {"id":1} -1 4 1
+sending update: {"order":3,"typeCode":1,"id":1,"path":[1],"op":"setInt","edit":{"value":15},"syncId":2,"editId":4}
+writing edit: setSyncId {"syncId":2} -1 4 1
+writing edit: selectTopObject {"id":1} -1 4 1
+writing edit: reset {} -1 4 1
+writing edit: selectProperty {"typeCode":1} -1 4 1
+writing edit: setInt {"value":15} 2 4 1
+sending update: {"order":4,"typeCode":106,"id":"106:[14]","path":[1],"op":"addExisting","edit":{"id":2},"syncId":-1,"editId":8}
+writing edit: setSyncId {"syncId":-1} -1 8 1
+writing edit: selectTopViewObject {"id":"106:[14]"} -1 8 1
+writing edit: addExisting {"id":2} -1 8 1
+sending update: {"order":5,"typeCode":1,"id":2,"path":[1],"op":"setInt","edit":{"value":22},"syncId":2,"editId":8}
+writing edit: setSyncId {"syncId":2} -1 8 1
+writing edit: selectTopObject {"id":2} -1 8 1
+writing edit: reset {} -1 8 1
+writing edit: selectProperty {"typeCode":1} -1 8 1
+writing edit: setInt {"value":22} 2 8 1
