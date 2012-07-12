@@ -4,16 +4,19 @@ Error.stackTraceLimit = 100
 
 var _ = require('underscorem');
 
-var viewstate = require('./vs');
+//var viewstate = require('./vs');
+var viewStateModule = require('./viewstate')
+var viewSequencer = require('./view_sequencer')
 
 var fs = require('fs')
 var path = require('path')
+var exists = fs.exists ? fs.exists : path.exists
 
 var seedrandom = require('seedrandom')
 
 function openUid(dataDir, cb){
 	var fn = dataDir + '/minnow_data/server.uid'
-	path.exists(fn, function(exists){
+	exists(fn, function(exists){
 		if(exists){
 			fs.readFile(fn, 'utf8', function(err, uid){
 				if(err) throw err;
@@ -27,16 +30,16 @@ function openUid(dataDir, cb){
 	})
 }
 
-exports.make = function(schema, dataDir, cb){
-	_.assertLength(arguments, 3);
+exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
+	_.assertLength(arguments, 5);
 	
 	//schema.name = appName;
-	
+
 	var serverUid;
 	
 	function makeDirIfNecessary(cb){
 		var p = dataDir + '/minnow_data'
-		path.exists(p, function(exists){
+		exists(p, function(exists){
 			if(!exists){
 				fs.mkdir(p, function(err){
 					if(err) throw err;
@@ -51,29 +54,31 @@ exports.make = function(schema, dataDir, cb){
 	makeDirIfNecessary(function(){
 		require('./ol').make(dataDir, schema, _.assureOnce(function(ol){
 			console.log('got ol')
-			require('./ap').make(dataDir, schema, ol, function(ap, indexing, broadcaster, apClose){
+			require('./ap').make(dataDir, schema, ol, function(ap, broadcaster, apClose){
 				console.log('got ap')
-				_.assertLength(arguments, 4);
+				_.assertLength(arguments, 3);
 				openUid(dataDir, function(uid){
 					serverUid = uid
 					console.log('got uid')
 					var objectState = require('./objectstate').make(schema, ap, broadcaster, ol);
-					objectState.setIndexing(indexing)
-					load(ap, indexing, objectState, broadcaster, apClose, ol);
+					//objectState.setIndexing(indexing)
+					load(ap, objectState, broadcaster, apClose, ol);
 				})
 			});
 		}));
 	})
 
-	function load(ap, indexing, objectState, broadcaster, apClose, ol){
-		console.log('loading...');
+	function load(ap, objectState, broadcaster, apClose, ol){
+		//console.log('loading...');
 	
-		var viewState = viewstate.make(schema, broadcaster, objectState);
+		var viewState = viewStateModule.make(schema, globalMacros, broadcaster, objectState);
 
 		//TODO the ap should initialize the sync handle counter to avoid using the same one multiple times
 		//var syncHandleCounter = 1;
 	
 		function stub(){}
+		
+		var listenerCbs = {}
 		
 		var handle = {
 			serverInstanceUid: function(){return serverUid;},
@@ -84,54 +89,143 @@ exports.make = function(schema, dataDir, cb){
 					console.log('closed server')
 					cb()
 				})
-				apClose(cdl)
-				ol.close(cdl)
+				apClose(function(){console.log('closed ap');cdl()})
+				ol.close(function(){console.log('closed ol');cdl()})
 			},
 		
-			beginSync: function(e, listenerCb, readyCb){
-				_.assertFunction(listenerCb);
+			beginView: function(e, readyCb){
+				//_.assertFunction(listenerCb);
+				_.assertLength(arguments, 2)
 				_.assertFunction(readyCb);
 				
-				//console.log('beginning sync')
-				
-				if(schema._byCode[e.typeCode].isView){
-					return viewState.beginSync(e, listenerCb, function(updatePacket){
-						//var syncId = syncHandleCounter;
-						//++syncHandleCounter;
-						console.log('got UPDATE PACKET')
+				var listenerCb = listenerCbs[e.syncId]
+				_.assertFunction(listenerCb)
+				console.log('beginView: ' + JSON.stringify(e))
+				return viewState.beginView(e, listenerCb.seq, listenerCb, function(updatePacket){
 						readyCb(updatePacket);
-					});
-				}else{
-					_.errout('ERROR');
-					//broadcaster.output.listenByObject(typeCode, params, listenerCb);
-				}
+				})
 			},
-			endSync: function(typeCode, params, listenerCb){
-				_.assertInt(typeCode);
-				if(schema._byCode[typeCode].isView){
-					viewState.endSync(typeCode, params, listenerCb);
-				}else{
-					_.errout('ERROR');
-					//broadcaster.output.stopListeningByObject(typeCode, params, listenerCb);
-				}
-			},
-			persistEdit: function(id, path, op, edit, syncId, cb){
-				_.assertLength(arguments, 6);
-				_.assertInt(id);
+			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, cb){//(typeCode, id, path, op, edit, syncId, cb){
+				_.assertLength(arguments, 7);
+				//_.assertInt(id);
+				_.assertInt(id)
+				_.assertString(op)				
+				_.assertArray(path)
 				_.assertInt(syncId);
-				_.assertString(op)
 				_.assertFunction(cb)
 				
 				console.log('adding edit: ' + JSON.stringify([id, path, op, edit, syncId]).slice(0, 300))
-
-				objectState.addEdit(id, path, op, edit, syncId, cb);
+				
+				if(op === 'make'){
+					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, function(res){
+						//console.log('args: ' + JSON.stringify(arguments))
+						//console.log('in MAKE CALLBACK #$%)@#$@#$)(#@$')
+						//console.log('subscribing for syncId ' + syncId)
+						var listenerCb = listenerCbs[syncId];						
+						listenerCb.seq.subscribeToObject(res.id)
+						cb(res)
+					});
+				}else{
+					//objectState.addEdit(typeCode, id, path, op, edit, syncId, cb);
+					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, cb);
+				}
 			},
 		
-			makeNewSyncId: function(){//TODO really should be called getNewSyncId
-				/*var shId = syncHandleCounter;
-				++syncHandleCounter;
-			*/
-				return ap.makeNewSyncId();
+			beginSync: function(listenerCb, objectCb){
+				_.assertFunction(listenerCb)
+				_.assertFunction(objectCb)
+				var syncId = ap.makeNewSyncId();
+				
+				var alreadySent = {}
+				var sentBuffer = []
+				function advanceSentBuffer(){
+					while(true){
+						if(sentBuffer.length === 0) return
+						var e = sentBuffer[0]
+						if(e.got === true){
+							e.edits.forEach(function(e){
+								//listenerCb(e)
+								_.assertBuffer(e.edits)
+								//console.log('e: ' + JSON.stringify(e).slice(0,300))
+								//console.log('sending object: ' + JSON.stringify(e).slice(0,300))
+								objectCb(e)
+							})
+							sentBuffer.shift()
+							//advanceSentBuffer()
+						}else if(e.got === false){
+							return;
+						}else{
+							_.assert(e.id === -1 || alreadySent[e.id])
+							console.log('sending edit: ' + JSON.stringify(e))
+							listenerCb(e)
+							sentBuffer.shift()
+						}
+					}
+				}
+				function includeObjectCb(id, editId){
+					_.assertInt(id)
+					_.assert(id >= 0)
+					if(alreadySent[id]){
+						return;
+					}else{
+						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
+						//TODO buffer for streaming all the edits for the object and any objects it depends on
+						var pointer = {got: false, edits: []}
+						sentBuffer.push(pointer)
+						_.assertInt(editId)
+						_.assertInt(id)
+						objectState.streamObjectState(alreadySent, id, -1, editId,/*editId, -1,*/ function(id, objEditsBuffer){
+							if(alreadySent[id]) return
+							
+							alreadySent[id] = true
+							_.assertBuffer(objEditsBuffer)
+							pointer.edits.push({id: id, edits: objEditsBuffer})
+							
+							/*if(editId !== -1 && obj.meta.editId > editId){
+								throw new Error('internal error, editId of object is too recent: ' + obj.meta.editId + ' > ' + editId)
+							}*/
+
+							/*pointer.edits.push({
+								op: 'objectSnap', 
+								edit: {value: {type: obj.meta.typeCode, object: obj}},
+								editId: editId,
+								id: -1,
+								path: []
+							})*/
+							/*broadcaster.output.listenByObject(id, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+								//cb(typeCode, id, path, op, edit, syncId, editId)
+								var e = {typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId}
+								if(sentBuffer.length > 0){
+									sentBuffer.push(e)
+								}else{
+									listenerCb(e)
+								}
+							})*/
+						}, function(){
+							pointer.got = true
+							advanceSentBuffer()
+						})
+						return;
+					}				
+				}
+				function listenerCbWrapper(e){//(typeCode, id, path, op, edit, syncId, editId){
+					_.assertLength(arguments, 1);
+					_.assertInt(e.typeCode)
+					console.log('e: ' + JSON.stringify(e))
+					//console.log(new Error().stack)
+					if(sentBuffer.length > 0){
+						sentBuffer.push(e)
+					}else{
+						listenerCb(e)
+					}
+				}
+
+				listenerCbs[syncId] = listenerCbWrapper
+
+				var seq = viewSequencer.make(schema, objectState, broadcaster, includeObjectCb, listenerCbWrapper, syncId)
+				listenerCbWrapper.seq = seq
+				
+				return syncId
 			},
 		
 			getSnapshots: function(e, cb){
@@ -145,7 +239,6 @@ exports.make = function(schema, dataDir, cb){
 					viewState.getSnapshots(typeCode, params, cb);
 				}else{
 					_.errout('ERROR')
-					//objectState.getSnapshots(typeCode, params, cb);
 				}
 			},
 			getAllSnapshots: function(e, cb){
@@ -160,7 +253,6 @@ exports.make = function(schema, dataDir, cb){
 					viewState.getAllSnapshotStates(typeCode, params, snapshotIds, cb);
 				}else{
 					_.errout('ERROR')
-					//objectState.getAllSnapshotStates(typeCode, params, snapshotIds, cb);
 				}			
 			},
 			getSnapshot: function(e, cb){
@@ -178,11 +270,10 @@ exports.make = function(schema, dataDir, cb){
 					viewState.getSnapshotState(typeCode, params, snapshotId, previousId, cb);
 				}else{
 					_.errout('ERROR')
-					//objectState.getSnapshotState(typeCode, params, snapshotId, previousId, cb);
 				}			
 			}
 		};
-		console.log('cbing')
+		//console.log('cbing')
 		cb(handle);
 	}
 }

@@ -21,15 +21,10 @@ BooleanHandle.prototype.changeListener = u.primitiveChangeListener;
 BooleanHandle.prototype.set = function(v){
 	this.obj = v;
 
-	this.getSh().persistEdit(
-		this.getObjectId(), 
-		this.getPath(),
-		'set',
-		{value: this.obj}, 
-		this.getEditingId());
+	var e = {value: this.obj}
+	this.saveEdit('setBoolean', e);
 		
-	this.refresh()();
-
+	this.emit(e, 'set', v)()
 }
 
 module.exports = BooleanHandle

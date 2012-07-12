@@ -6,8 +6,6 @@ var apf = require('./apf');
 
 var objectstate = require('./objectstate');
 
-var indexing = require('./indexing')
-
 exports.make = function(dataDir, schema, ol, cb){
 	_.assertLength(arguments, 4);
 	
@@ -15,24 +13,20 @@ exports.make = function(dataDir, schema, ol, cb){
 
 	var ap;
 	
-	//var doingRafization;
-		
-	//	var remaining = 0;
 	apState = require('./ap_state').make(schema, ol);
+
+	var inv = require('./inverse').make();
 	
-	var inv = require('./inverse').make(apState.external);
 	var broadcaster = require('./broadcast').make(inv);
+	inv.setBroadcaster(broadcaster)
 	
 	apState.external.setBroadcaster(broadcaster)
 	
-	indexing.load(dataDir, schema, ol, function(indexingObj){
+	//TODO apf load should go straight to OLE
+	apf.load(dataDir, schema, ol.readers, ol.getLatestVersionId(), function(aph){
 	
-		apf.load(dataDir, schema, apState.internal, ol.getLatestVersionId(), function(aph){
-		
-			apState.setIndexing(indexingObj);
-			apState.setAp(aph)
-			cb(apState.external, indexingObj, broadcaster, aph.close.bind(aph))
-		})
+		apState.setAp(aph)
+		cb(apState.external, broadcaster, aph.close.bind(aph))
 	})
 
 }

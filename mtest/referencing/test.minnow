@@ -1,0 +1,12 @@
+
+entity 1
+	ref secondary 1
+
+secondary 2
+	name string 1
+
+general() 100
+	s one(*entity) 1
+	
+
+

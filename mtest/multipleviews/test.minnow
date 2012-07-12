@@ -1,0 +1,14 @@
+
+entity 1
+	ref secondary 2
+
+secondary 2
+	name string 1
+
+general() 100
+
+specific(e entity) 101
+	e e 1
+	
+
+

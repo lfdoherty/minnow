@@ -1,0 +1,12 @@
+
+explodeInner(first *, second macro){second(first,~)}//'first' is one of the 'input' values, & will be one of the results of the firstMacro
+explode(input *, firstMacro macro, secondMacro macro){
+	each(
+		input,
+		{each(
+			firstMacro(~),
+			explodeInner<~,secondMacro>
+		)}
+	)
+}
+

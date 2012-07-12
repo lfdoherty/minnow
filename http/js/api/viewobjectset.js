@@ -8,11 +8,11 @@ var ObjectSetHandle = require('./objectset')
 
 function ViewObjectSetHandle(typeSchema, obj, part, parent){
 	this.part = part;
-	this.obj = obj || [];
 	this.parent = parent;
 	this.schema = typeSchema;
 
-	this.apiCache = {};
+	console.log('obj: ' + JSON.stringify(obj))
+	this.obj = u.wrapCollection(this, obj)
 }
 
 ViewObjectSetHandle.prototype.count = function(){return this.obj.length;}
@@ -29,10 +29,6 @@ ViewObjectSetHandle.prototype.remove = function(){
 	_.errout('TODO: remove from view set')
 }
 
-//TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
-//if it doesn't that's a client error
-ViewObjectSetHandle.prototype.changeListener = ObjectSetHandle.prototype.changeListener
-
 ViewObjectSetHandle.prototype.toJson = ObjectSetHandle.prototype.toJson
 
 ViewObjectSetHandle.prototype.types = u.genericCollectionTypes
@@ -41,14 +37,48 @@ ViewObjectSetHandle.prototype.types = u.genericCollectionTypes
 ViewObjectSetHandle.prototype.add = function(objHandle){
 	_.assertObject(objHandle)
 	
-	var id = objHandle.id();
-	
 	if(this.obj.indexOf(objHandle) !== -1){
 		console.log('WARNING: ignored redundant add on viewobjectset')
 	}else{
-		this.obj.push(id);
+		this.obj.push(objHandle);
 
 		this.emit(undefined, 'add', objHandle)()
+	}
+}
+
+//TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
+//if it doesn't that's a client error
+ViewObjectSetHandle.prototype.changeListener = function(/*path,*/ op, edit, syncId, editId){
+	//_.assertLength(arguments, 5);
+	_.assertString(op)
+
+	//console.log('view object set handle changeListener')
+/*
+	if(path.length > 0){	
+		var a = this.get(path[0]);
+		_.assertObject(a);	
+		return a.changeListener(path.slice(1), op, edit, syncId);
+	}*/
+	
+	if(op === 'addExistingViewObject' || op === 'addExisting'){
+		//_.assertString(edit.id)
+		var addedObjHandle = this.getObjectApi(edit.id);
+		//console.log('got obj handle: ' + addedObjHandle.id())
+		//console.log(_.map(this.obj, function(v){return v.id();}))
+		if(this.obj.indexOf(addedObjHandle) !== -1){
+			_.errout('already have obj handle')
+		}else{
+			//console.log('view adding: ' + JSON.stringify(addedObjHandle.id()))
+			this.obj.push(addedObjHandle)
+			addedObjHandle.prepare()
+			return this.emit(edit, 'add', addedObjHandle)
+		}
+	}else if(op === 'remove'){
+		var objHandle = this.getObjectApi(edit.id);
+		this.obj.splice(this.obj.indexOf(objHandle), 1)
+		return this.emit(edit, 'remove', objHandle)
+	}else{
+		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}
 }
 

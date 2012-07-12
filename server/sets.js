@@ -81,10 +81,11 @@ function wrapForHoldAndRelease(viewTypeCode, relListenerMakerList){
 				_.assert(_.isString(id) || _.isInt(id))
 				lcb(typeCode, id, path, op, edit, syncId, editId);
 			}
+			var rrr = Math.random()
 			function forwardCb(typeCode, id, path, op, edit, syncId, editId){
 				_.assertLength(arguments, 7);
 				_.assert(_.isString(id) || _.isInt(id))
-				//console.log('*forwarding edit(' + editId + ' sid: ' + syncId + '): ' + JSON.stringify(edit));
+				console.log(rrr + ' *forwarding edit(' + editId + ' sid: ' + syncId + '): ' + JSON.stringify(edit));
 				if(alreadySent === undefined || alreadySent < editId || 
 						(alreadySent === editId && syncId === -1)//edits sourced from views may reuse the same editId
 					){
@@ -96,7 +97,7 @@ function wrapForHoldAndRelease(viewTypeCode, relListenerMakerList){
 						waitingEdits.push([editId, Array.prototype.slice.call(arguments, 0)]);
 					}
 				}else{
-					console.log('WARNING: ignoring already sent (or skipped, in error) edit(' + editId + '): ' + JSON.stringify(edit));
+					console.log(rrr + ' WARNING(' + alreadySent + '): ignoring already sent (or skipped, in error) edit(' + editId + '): ' + JSON.stringify(edit));
 				}
 				if(syncId !== -1) alreadySent = editId;
 			}
@@ -175,25 +176,25 @@ exports.make = function(schema, broadcaster, objectState){
 		
 		var alreadyDone = false;
 
-		console.log('getting view state: ' + _.size(viewSchema.rels));
+		//console.log('getting view state: ' + _.size(viewSchema.rels));
 		var manyRels = _.size(viewSchema.rels);
 		var em = manyRels
 		var cdl = _.latch(manyRels, 20000, function(){			
 			if(failed) return;
 			alreadyDone = true;
-			console.log('done getting view state')
+			console.log('done getting view state:'+ typeCode)
 			doneCb(obj);
 		}, function(c){
-			console.log('view ' + typeCode + ' with params: ' + paramsStr);
+			/*console.log('view ' + typeCode + ' with params: ' + paramsStr);
 			console.log('have not yet completed ' + c + ' rels out of ' + manyRels);
 			console.log('completed: ' + JSON.stringify(Object.keys(obj)));
 			console.log('failed to complete construction of view state within 30 seconds');
-			console.log(new Error().stack);
+			console.log(new Error().stack);*/
 		});
 		var oldCdl = cdl
 		cdl = function(){
 			--em
-			console.log('completed part of view state: ' + em)
+			//console.log('completed part of view state: ' + em)
 			oldCdl()
 		}
 

@@ -1,0 +1,29 @@
+
+entity 1
+	other membrance 11
+	value string 21
+
+membrance 2
+	other entity 81
+	value string 82
+	
+wrapper(entity entity) 101
+	wrappedValue entity.value 41
+	wrappedOtherValue entity.other.value 42
+
+simplerWrapper(entity entity) 106
+	wrappedOtherValue entity.other.value 46
+
+simple() 102
+	s wrapper(one(*entity)) 1
+
+simpleOther() 104
+	s one(each(*entity,{wrapper(~)})) 10
+
+simpleOther2() 105
+	s one(each(*entity,{simplerWrapper(~)})) 19
+	
+general() 100
+	s each(*entity, {wrapper(~)}) 1
+
+empty() 103

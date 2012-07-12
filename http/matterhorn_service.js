@@ -16,11 +16,13 @@ var _ = require('underscorem');
 exports.name = 'minnow-service';
 exports.dir = __dirname;
 exports.module = module
-exports.requirements = ['matterhorn-standard'];
+exports.requirements = ['matterhorn-standard', 'minnow-service-core'];
 
 require('matterhorn-standard');
 
 var matterhorn = require('matterhorn');
+
+var longpoll = require('./longpoll')
 
 function sendData(res, data){
 	res.setHeader('Content-Encoding', 'gzip');
@@ -30,28 +32,23 @@ function sendData(res, data){
 	res.end(data);
 }
 
-exports.make = function(local, port, minnowClient){
-	_.assertInt(port);
+exports.make = function(appName, schema, local, minnowClient, authenticator, clientInfoBySyncId){
+	_.assertLength(arguments, 6)
+	_.assertString(appName)
+	_.assertFunction(authenticator)
 	
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
-	//console.log(minnowClient.schema);
+	var snapPath = '/mnw/snaps/' + appName + '/';
 	
-	var snapPath = '/mnw/snaps/' + minnowClient.schemaName + '/';
-	
-	console.log('minnow socket listening on: ' + port);
-	
-	//app.js(exports, 'all', 'browserclient');
-	
-	//app.serveJavascriptFile(exports, __dirname + './../client/sync_api.js', 'sync_api');
-
+	//console.log('minnow socket listening on: ' + port);
+	/*
 	app.serveJavascriptFile(
 		exports, 
-		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js')
-		//, 'socket.io');
+		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js')*/
 	
 	var schemaUrl;
-	app.serveJavascript(exports, minnowClient.schemaName, function(ccc){
+	app.serveJavascript(exports, appName, function(ccc){
 		_.assertFunction(ccc);
 		schemaUrl = ccc('gotSchema(' + JSON.stringify(minnowClient.schema) + ');');
 	});
@@ -96,6 +93,12 @@ exports.make = function(local, port, minnowClient){
 		}
 	});
 	
+	//var clientInfoBySyncId = longpoll.load(exports, appName, schema, authenticator, minnowClient)
+	
+	//longpoll.make(
+	
+	/*
+	
 	var clientInfoBySyncId = {};
 	
 	var socketServer = require('http').createServer(function (req, res) {});
@@ -130,7 +133,7 @@ exports.make = function(local, port, minnowClient){
 			var editId = e.editId;
 			
 			_.assertString(op)
-			console.log('sending socket.io message for sync ' + editId);
+			console.log('sending socket.io message for sync ' + syncId + ', editId: ' + editId);
 			if(!(_.isInt(syncId))){
 				_.errout('invalid syncId: ' + syncId);
 			}
@@ -198,8 +201,10 @@ exports.make = function(local, port, minnowClient){
 	
 	socketServer.listen(port);
 	
+	*/
+	
 	app.serveJavascriptFile(exports, 
-		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js'/*,'socket.io'*/);
+		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
 	
 	console.log('minnow matterhorn service set up');
 	
@@ -207,8 +212,9 @@ exports.make = function(local, port, minnowClient){
 		getViewTags: function(viewName, params, vars, cb){
 			_.assertLength(arguments, 4);
 			
-			service.getViewFiles(viewName, params, function(snapshotIds, paths, syncId, lastSeenVersionId){
-			
+			var viewCode = minnowClient.schema[viewName].code
+			service.getViewFiles(viewName, params, function(snapshotIds, paths, lastSeenVersionId){
+				
 				if(arguments.length === 0){
 					cb();
 				}else{
@@ -216,13 +222,14 @@ exports.make = function(local, port, minnowClient){
 				
 					vars.snapshotIds = snapshotIds;
 					vars.lastId = lastSeenVersionId;
-					vars.baseTypeCode = minnowClient.schema[viewName].code;
+					vars.baseTypeCode = viewCode;
 					vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
-					vars.syncId = syncId;
+					vars.applicationName = appName
+					vars.mainViewParams = params
 					
-					vars.minnowSocketPort = port
+					//vars.minnowSocketPort = port
 
-					clientInfoBySyncId[syncId] = [vars.baseTypeCode, params, snapshotIds];
+					//clientInfoBySyncId[syncId] = [vars.baseTypeCode, params, snapshotIds];
 				
 					for(var i=0;i<paths.length;++i){
 						var p = paths[i];

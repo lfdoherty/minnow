@@ -42,6 +42,8 @@ exports.make = function(inv){
 
 	var realObjKey = {};
 	
+	var all = []
+	
 	function notifyChanged(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 		_.assertLength(arguments, 9);
 		_.assertArray(path);
@@ -60,7 +62,7 @@ exports.make = function(inv){
 		
 		var t = byType[subjTypeCode];
 		if(t !== undefined){
-			console.log('notifying ' + t.length + ' type listeners ' + typeCode + ' ' + id);
+			//console.log('notifying ' + t.length + ' type listeners ' + typeCode + ' ' + id);
 			for(var i=0;i<t.length;++i){
 				var listener = t[i];
 				
@@ -69,22 +71,28 @@ exports.make = function(inv){
 				listener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId);
 			}
 		}
-		var ob = byObject[subjTypeCode];
-		if(ob !== undefined){
+		var ob = byObject//[subjTypeCode];
+		//if(ob !== undefined){
 			var obj = ob[subjId];
 			if(obj !== undefined){
-				console.log('notifying ' + obj.length + ' object listeners');
+				//console.log('notifying ' + obj.length + ' object listeners');
 				for(var i=0;i<obj.length;++i){
 					var listener = obj[i];
-					listener(typeCode, id, path, op, edit, syncId, editId);
+					//listener(typeCode, id, path, op, edit, syncId, editId);
+					listener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId);
 				}
 			}
-		}
+		//}
 	}
 	
 	//note that the object referred to will always be the most local normalized object (and the path will be relative to that.)
 	function objectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId){
 		_.assertLength(arguments, 9);
+		var already = {}
+		internalObjectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId, already)
+	}
+	function internalObjectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId, already){
+		_.assertLength(arguments, 10);
 		_.assertInt(editId);
 		_.assertInt(syncId);
 		_.assertString(op)
@@ -92,13 +100,19 @@ exports.make = function(inv){
 		notifyChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId);
 		
 		//TODO: what about cyclic dependencies?
+		already[destId] = true
 		inv.getInverse(destId, function(invArr){
+			console.log('inverse: ' + invArr.length)
 			for(var i=0;i<invArr.length;++i){
 				var e = invArr[i];
-				//console.log('inv e: ' + JSON.stringify(e));
+				if(already[e[1]]){
+					console.log('already notified: ' + e[1])
+					continue;
+				}
+				console.log('inv e: ' + JSON.stringify(e));
 				_.assertInt(e[0]);
 				_.assertInt(e[1])
-				objectChanged(e[0], e[1], typeCode, id, path, op, edit, syncId, editId);
+				internalObjectChanged(e[0], e[1], typeCode, id, path, op, edit, syncId, editId, already);
 			}
 		});
 	}
@@ -111,14 +125,21 @@ exports.make = function(inv){
 				_.assertInt(editId);
 				_.assertString(op)
 				_.assertInt(typeCode)
+				_.assert(id > 0)
 				
+				console.log('broadcasting: ' + JSON.stringify(path))
+				for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
+				
+				all.forEach(function(listener){
+					listener(typeCode, id, path, op, edit, syncId, editId);
+				})
 				objectChanged(typeCode, id, typeCode, id, path, op, edit, syncId, editId);
 			},
-			objectDeleted: function(typeCode, id){
+			objectDeleted: function(typeCode, id, editId){
 				var c = delByType[typeCode];
 				if(c !== undefined){
 					for(var i=0;i<c.length;++i){
-						c[i](typeCode, id);
+						c[i](typeCode, id, editId);
 					}
 				}
 			},
@@ -126,7 +147,7 @@ exports.make = function(inv){
 				_.assertLength(arguments, 3);
 				_.assertInt(typeCode)
 				var c = createdByType[typeCode];
-				//console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
+				console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
 				if(c !== undefined){
 					for(var i=0;i<c.length;++i){
 						c[i](typeCode, id, editId);
@@ -135,6 +156,9 @@ exports.make = function(inv){
 			}
 		},
 		output: {
+			listenToAll: function(listener){
+				all.push(listener)
+			},
 			//reports any edits that happen to an object of the given type (including to other normalized objects by FK)
 			//useful in cases where it is inefficient to listen to each related object individually
 			//i.e. the number of listeners is likely to be considerably smaller than the total number of objects being listened to
@@ -148,12 +172,15 @@ exports.make = function(inv){
 			
 			//reports any edits that happen to the given object (including to other normalized objects by FK)
 			//cb(typeCode, id, path, edit)
-			listenByObject: function(typeCode, id, listener){
-				lazyArray(lazyObj(byObject, typeCode), id).push(listener);
+			listenByObject: function(/*typeCode, */id, listener){
+				_.assertLength(arguments, 2)
+				//lazyArray(lazyObj(byObject, typeCode), id).push(listener);
+				lazyArray(byObject, id).push(listener);
 			},
-			stopListeningByObject: function(typeCode, id, listener){
-				var objMap = byObject[typeCode];
-				if(objMap !== undefined){
+			stopListeningByObject: function(/*typeCode, */id, listener){
+				_.assertLength(arguments, 2)
+				var objMap = byObject//byObject[typeCode];
+				//if(objMap !== undefined){
 					var listeners = objMap[id];
 					if(listeners !== undefined){
 						var ci = listeners.indexOf(listener);
@@ -162,7 +189,7 @@ exports.make = function(inv){
 							return;
 						}
 					}
-				}
+				//}
 				console.log('WARNING: tried to remove non-existent object listener: ' + typeCode + ', ' + id);
 			},
 			

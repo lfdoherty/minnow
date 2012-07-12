@@ -3,44 +3,45 @@ setup 9
 	serverInstanceUid string 1
 	
 newSyncId 8
-	requestId int 1 required
-	syncId int 2 required
+	requestId int 1
+	syncId int 2
 
 //indicates that a sync handle has been created, and instructs the handle to wait for updates
 //note that 'ready' (and 'open') responses refer to the sync handle, not the client<->server connection in a global sense
 open 1
-	requestId int 1 required
+	requestId int 1
 	
 update 2
-	requestId int 7 required
-	id primitive 1 required
-	path string 2 required
-	edit ^ 4 required
-	syncId int 5 required
-	editId int 6 required
+	editId int 1 required
+	op string 5 required
+	edit binary 2
+	destinationSyncId int 3
 
+updateObject 11
+	id int 1
+	edits binary 2
+	destinationSyncId int 3 required
+	syncId int 4
+	
 //comes after open (and possibly some updates), indicates that the sync handle is ready for use
 ready 3
-	requestId int 1 required
-	updatePacket string 2 required
+	requestId int 1
+	updatePacket string 2
 gotSnapshots 4
-	requestId int 1 required
-	snapshotVersionIds list:int 2 required
-	lastVersionId int 3 required
+	requestId int 1
+	snapshotVersionIds binary 2 required//structure is 4-byte int series with 1 byte count prefix
 	
 gotAllSnapshots 5
-	requestId int 1 required
-	snapshots list:snap 2 required inline
+	requestId int 1
+	snapshots binary 2 required//structure is like gotSnapshot.snap, with each snap prefixed with a byte length
 
 gotSnapshot 6
-	requestId int 1 required
-	snap snap 2 required inline
-	
-snap 7
-	latestVersionId int 1 required
-	objects set:^^ 2 required // ^ means "objects from the wrapped schema", ^^ means objects from the wrapped schema of the wrapped schema...
+	requestId int 1
+	snap binary 3 //structure is 4-byte latestVersionId, followed by update objects
 	
 //this is the response to a persistEdit request with op==='make'
+//TODO generalize this for all temporaries as a temporary->id message?
 objectMade 10
-	requestId int 1 required
-	id int 2 required
+	requestId int 1
+	id int 2
+	temporary int 3 required

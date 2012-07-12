@@ -7,22 +7,18 @@ function LongHandle(typeSchema, obj, part, parent){
 	this.parent = parent;
 }
 LongHandle.prototype.value = function(){
+	//console.log('returning value: ' + this.obj)
 	return this.obj;
 }
 LongHandle.prototype.set = function(v){
 	
 	this.obj = v;
 	
-	//console.log('path: ' + JSON.stringify(this.getPath()));
-	this.getSh().persistEdit(
-		this.getObjectId(), 
-		this.getPath(),
-		'set',
-		{value: this.obj}, 
-		this.getEditingId());
+	var e = {value: this.obj}
+	this.saveEdit('setLong', e)
 		
-	this.refresh()();
+	this.emit(e, 'set', v)()
 }
 LongHandle.prototype.changeListener = u.primitiveChangeListener;
-
+LongHandle.prototype.toJson = function(){return this.obj}
 module.exports = LongHandle

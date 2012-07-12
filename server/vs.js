@@ -9,13 +9,13 @@ function varianceMag(v){
 	var m = Math.pow(10,Math.floor(mag));
 	return m;
 }
-
+/*
 var old = console.log
 console.log = function(msg){
 	msg = msg + ''
-	if(msg.length > 10000) _.errout('too long: ' + msg.slice(0, 300))
+	if(msg.length > 400) _.errout('too long: ' + msg.slice(0, 300))
 	old(msg)
-}
+}*/
 function getNewestVersion(snapshot, latestId){
 	//console.log('getting newest version: ' + JSON.stringify(snapshot))
 	if(latestId === -1){
@@ -42,6 +42,30 @@ function getObjectVersions(snapshot){
 	}
 	result.sort(function(a, b){return a - b;});
 	return result;
+}
+
+function translateParameterIds(s, params, objectState, syncId){
+	_.assertInt(syncId)
+	
+	var viewSchema = s.viewSchema
+	console.log(JSON.stringify(viewSchema))
+	if(viewSchema.params.length === 0) return []
+	
+	var res = []
+	viewSchema.params.forEach(function(p, i){
+		//_.errout(JSON.stringify(p))
+		if(p.type.type === 'object'){
+			var id = params[i]
+			if(id < 0){
+				res.push(objectState.translateTemporaryId(id, syncId))
+			}else{
+				res.push(id)
+			}
+		}else{
+			res.push(params[i])
+		}
+	})
+	return res
 }
 
 exports.make = function(schema, broadcaster, objectState){
@@ -81,7 +105,7 @@ exports.make = function(schema, broadcaster, objectState){
 				}
 			);
 		}
-		doGetSnapshotState(typeCode, params, latestId, previousId, cb, after,undefined);
+		doGetSnapshotState(typeCode, params, latestId, previousId, cb, after,undefined, {});
 	}
 	
 	function getSnapshotStateAndListen(typeCode, params, latestId, previousId, cb, listenerCb, stopListening){
@@ -103,29 +127,40 @@ exports.make = function(schema, broadcaster, objectState){
 
 				editStreamBuffer.shift()
 				if(f.got){
-					listenerCb.apply(undefined, f.got)
+					f.got.reverse().forEach(function(v){
+						listenerCb.apply(undefined, v)
+					})
 				}else{
 					listenerCb.apply(undefined, f)
 				}
 			}
 			waiting = false
 		}
+		
 		function listenerCbWrapper(typeCode, id, path, op, edit, syncId, editId){
 		
-			if(op === 'replaceExisting' || op === 'addExisting'){
+			if(op === 'replaceExternalExisting' || op === 'replaceInternalExisting' || op === 'addExisting' || op === 'make' || op === 'setObject'){
 				var newId = edit.newId || edit.id
 				
 				if(!knownIds[newId]){
 					waiting = true
 					var flag = {got: false}
 					editStreamBuffer.push(flag)
-					objectState.getObjectState(newId, function(obj){
-						flag.got = [obj.meta.typeCode, obj.meta.id, [], 'objectSnap',
-							{value: {type: obj.meta.typeCode, object: obj}}, -1, -1]
+					var list = []
+					objectState.streamObjectState(knownIds, newId, function(obj){
+						if(!knownIds[obj.meta.id]){
+							knownIds[obj.meta.id] = true
+							list.push([obj.meta.typeCode, obj.meta.id, [], 'objectSnap',
+								{value: {type: obj.meta.typeCode, object: obj}}, -1, -1])
+						}
+					}, function(){
+						flag.got = list
 						continueEditStream()
 					})
 				}
+				
 			}
+			
 		
 			if(waiting){
 				editStreamBuffer.push([typeCode, id, path, op, edit, syncId, editId])
@@ -161,13 +196,14 @@ exports.make = function(schema, broadcaster, objectState){
 				stopListening
 			);
 		}
-		doGetSnapshotState(typeCode, params, latestId, previousId, cb, after,listenerCb);
+		doGetSnapshotState(typeCode, params, latestId, previousId, cb, after,listenerCb, knownIds);
 	}
 	
-	function doGetSnapshotState(typeCode, params, latestId, previousId, cb, after,listenerCb){
-		_.assertLength(arguments, 7);
+	function doGetSnapshotState(typeCode, params, latestId, previousId, cb, after,listenerCb, hasAlready){
+		_.assertLength(arguments, 8);
 		_.assertInt(latestId);
 		_.assertInt(previousId);
+		_.assertObject(hasAlready)
 
 		var failed = false;
 		function fail(){
@@ -205,6 +241,8 @@ exports.make = function(schema, broadcaster, objectState){
 				//console.log('cannot finish yet: ' + stillNeededIncludes + ' ' + stillNeedObject + ' ' + gotObject);
 			}
 		}
+
+		//var hasAlready = {};
 		
 		function addObject(typeCode, id, object){
 			if(failed) return;
@@ -217,7 +255,6 @@ exports.make = function(schema, broadcaster, objectState){
 
 			object = JSON.parse(JSON.stringify(object));
 
-			var hasAlready = {};
 		
 			if(loadingSnapshot){
 				//top-level objects to include (i.e. includeObject(...))
@@ -255,7 +292,7 @@ exports.make = function(schema, broadcaster, objectState){
 						hasAlready[id] = true;
 						//typeList.push(object)//TODO? for reuse/caching of snapshot?
 						
-						console.log('sending object snap: ' + id)
+						//console.log('sending object snap: ' + id)
 
 						listenerCb(typeCode, id, [], 'objectSnap', {type: typeCode, id: id, value: {type: object.meta.typeCode, object: object}}, -1, -1);
 					}
@@ -272,7 +309,7 @@ exports.make = function(schema, broadcaster, objectState){
 		getSnapshots: function(typeCode, params, cb){
 			//TODO do this more efficiently (without actually retrieving the entire snapshot.)
 			handle.getSnapshotState(typeCode, params, -1, -1, function(snap){
-				console.log('HERE');
+				//console.log('HERE');
 				if(snap === undefined){
 					cb();
 				}else{
@@ -329,11 +366,15 @@ exports.make = function(schema, broadcaster, objectState){
 			}
 			_.assert(params.length === schema._byCode[typeCode].viewSchema.params.length);
 
+			//params = translateParameterIds(schema._byCode[typeCode], params, objectState, )
+
 			getSnapshotState(typeCode, params, snapshotId, previousSnapshotId, cb);			
 		},
 		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb){
 			_.assertArray(params);
 			//if(snapshotIds.length !== 1 || snapshotIds[0] !== -1) _.errout('TODO implement: ' + JSON.stringify(snapshotIds));
+			
+			//params = translateParameterIds(schema._byCode[typeCode], params, objectState)
 			
 			var list = [];
 			var cdl = _.latch(snapshotIds.length, function(){
@@ -355,6 +396,7 @@ exports.make = function(schema, broadcaster, objectState){
 			
 			var typeCode = e.typeCode;
 			var params = JSON.parse(e.params)
+			params = translateParameterIds(schema._byCode[typeCode], params, objectState, e.syncId)
 			var latestSnapshotVersionId = e.latestSnapshotVersionId
 			
 			var stopped = false
@@ -373,17 +415,23 @@ exports.make = function(schema, broadcaster, objectState){
 			}
 			//stopLookup.push([listenerCb, doStop]);
 			
+			function listenerCbWrapper(){
+				var args = Array.prototype.slice.apply(arguments)
+				if(stopped) throw new Error('server internal error: edit passed to stopped sync handle');
+				listenerCb.apply(undefined, args)
+			}
+			
 			getSnapshotStateAndListen(typeCode, params, -1, latestSnapshotVersionId, function(snap){
-				console.log('*******HERE: ' + _.size(snap.objects));
+				//console.log('*******HERE: ' + _.size(snap.objects));
 				var updatePacket = []
-				console.log('snap.version: ' + snap.version)
+				//console.log('snap.version: ' + snap.version)
 				if(snap.version > latestSnapshotVersionId){
 					//_.each(snap.objects, function(k, tc){
 					_.each(snap.objects, function(obj, id){
 						//_.each(k, function(obj, id){
 						var originalObj = obj
 						obj = obj.object
-						console.log('obj: ' + JSON.stringify(obj))
+						//console.log('obj: ' + JSON.stringify(obj))
 							_.assertObject(obj);
 							//console.log('ID: ' + id);
 							
@@ -392,15 +440,15 @@ exports.make = function(schema, broadcaster, objectState){
 							var version = obj.meta.editId
 							var tc = obj.meta.typeCode
 							_.assertDefined(obj.meta.id);
-							console.log('updating view from ' + latestSnapshotVersionId)
+							//console.log('updating view from ' + latestSnapshotVersionId)
 							if(version > latestSnapshotVersionId){
 								//listenerCb(id, [], 'objectSnap', {type: parseInt(tc), id: obj.meta.id, value: obj}, -1, -1);
 								updatePacket.push([id, [], 'objectSnap', {
 									type: parseInt(tc), id: obj.meta.id, value: originalObj}, -1, -1])
-								console.log('sent objectSnap: ' + tc + ' ' + id);
+								//console.log('sent objectSnap: ' + tc + ' ' + id);
 							}else{
 								
-								console.log('skipping ' + tc + ' ' + id + ' ' + version + ' <= ' + latestSnapshotVersionId);
+								//console.log('skipping ' + tc + ' ' + id + ' ' + version + ' <= ' + latestSnapshotVersionId);
 							}
 						//});
 					});
@@ -409,11 +457,7 @@ exports.make = function(schema, broadcaster, objectState){
 				}
 				
 				readyCb(updatePacket);
-			}, function(){
-				var args = Array.prototype.slice.apply(arguments)
-				if(stopped) throw new Error('server internal error: edit passed to stopped sync handle');
-				listenerCb.apply(undefined, args)
-			}, stopListening);			
+			}, listenerCbWrapper, stopListening);			
 
 			return {
 				end: function(){

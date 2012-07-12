@@ -1,0 +1,42 @@
+
+entity 1
+	age int 1
+	
+general() 100
+	c count(*entity) 1
+//	t *entity 2
+	oldestAge max(*entity.age) 3
+	youngestAge min(*entity.age) 4
+	//adults each(*entity,{filter(~,greaterThan(~.age,18))}) 5
+
+specific(minAge int) 102
+	oldEnough subset(*entity,{greaterThan(~.age,minAge)}) 1
+	
+/*
+each(*entity,{filter(~,greaterThan(~.age,minAge))})
+
+subset(*entity,{greaterThan(~.age,minAge)})
+
+subset(*entity,{~.age},{greaterThan(~2,minAge)})
+
+*/
+
+ageThreshold(minAge int){filter(~,greaterThan(~.age,minAge))}
+
+specificPartial(minAge int) 103
+	oldEnough each(*entity,ageThreshold<minAge>) 1
+
+allOfIt(input set:entity, minAge int){each(input,ageThreshold<minAge>)}
+reallySpecific(minAge int) 104
+	oldEnough allOfIt(*entity, minAge) 1
+
+//tests passing a bound macro
+partOfIt(input set:entity, transform macro){each(input,transform)}
+macroParameter(minAge int) 105
+	oldEnough partOfIt(*entity, ageThreshold<minAge>) 1
+
+//tests passing a bound macro and calling with its second parameter
+doIt(minAge int,it macro){it(minAge)}
+macroParameterAgain(minAge int) 106
+	oldEnough doIt(minAge, allOfIt<*entity>) 1
+

@@ -36,7 +36,7 @@ minnow.makeClient(Port, function(c){//get a DB connection to the server
 		c.view('roomView', [roomName], function(rv){//get a view of the room
 			roomView = rv
 			user = roomView.make('user', {name: username})//create a new user
-			out.write('you have entered room: ' + roomName+'\n')
+			out.write('you have entered room: ' + roomName + '\n')
 			prompt()
 			inn.resume();
 			
@@ -45,8 +45,9 @@ minnow.makeClient(Port, function(c){//get a DB connection to the server
 			//chat.minnow, will be sent from the server to the client
 			//and will trigger this event
 			roomView.messages.on('add', function(msg){
-				console.log('GOT ADD EVENT: ' + new Error().stack)
-				out.write(msg.user.name.value()+'> ' + msg.text.value()+'\n')
+				if(msg.user !== user){
+					out.write(msg.user.name.value() + '> ' + msg.text.value() + '\n')
+				}
 			})
 			currentTask = sendMessage
 		})
@@ -66,6 +67,6 @@ minnow.makeClient(Port, function(c){//get a DB connection to the server
 		prompt()
 	}
 
-	function prompt(){out.write(username+'> ');}	
+	function prompt(){out.write(username + '> ');}	
 })
 

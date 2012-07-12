@@ -21,6 +21,7 @@ pretty much every step of that sequence is one->many, except the propertyType->,
 Once DF is implemented, inverse.js may also cache results.
 
 */
+/*
 exports.make = function(ap){
 
 	return {
@@ -50,4 +51,42 @@ exports.make = function(ap){
 		},
 		
 	};
+}*/
+
+exports.make = function(broadcaster){
+
+	var map = {}//TODO persist this
+	var has = {}//TODO will need to persist ref count
+	
+	function setBroadcaster(broadcaster){
+		broadcaster.output.listenToAll(function(typeCode, id, path, op, edit, syncId, editId){
+			if(op === 'setExisting' || op === 'addExisting' || op === 'setObject'){
+
+				if(edit.id === id) return//no need to track self-referencing
+
+				if(has[edit.id] && has[edit.id][id]) return
+			
+				var m = map[edit.id]
+				var h = has[edit.id]
+				if(m === undefined){
+					m = map[edit.id] = []
+					h = has[edit.id] = {}
+				}
+				console.log('mapping inverse ' + edit.id + ' -> ' + id)
+				m.push([typeCode, id])
+				h[id] = true
+			}
+		})
+	}
+	
+	var handle = {
+		getInverse: function(id, cb){
+			var arr = map[id]
+			cb(arr||[])
+		},
+		setBroadcaster: setBroadcaster
+	}
+	return handle
 }
+
+

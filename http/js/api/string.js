@@ -3,8 +3,12 @@ var u = require('./util')
 var _ = require('underscorem')
 
 function StringHandle(typeSchema, obj, part, parent){
+
 	this.part = part;
 	this.parent = parent;
+	
+	this.rrr = Math.random()
+	console.log('made string handle ' + this.rrr)
 	
 	if(obj === undefined){
 		_.each(typeSchema.tags, function(value, tag){
@@ -24,16 +28,12 @@ StringHandle.prototype.set = function(str){
 	this.obj = str;
 	
 	//console.log('path: ' + JSON.stringify(this.getPath()));
-	var e = {value: this.obj}
+	console.log(this.rrr + ' string set: ' + str)
 	
-	this.getSh().persistEdit(
-		this.getObjectId(), 
-		this.getPath(),
-		'set',
-		e, 
-		this.getEditingId());
+	var e = {value: this.obj}
+
+	this.saveEdit('setString', e);
 		
-	//this.refresh()();
 	this.emit(e, 'set', str)()
 }
 StringHandle.prototype.value = function(){

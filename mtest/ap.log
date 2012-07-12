@@ -1,0 +1,10 @@
+1 -1 [] make {"typeCode":1,"forget":false} 2
+3 1 selectProperty {"typeCode":1} 2
+4 1 [1] setInt {"value":22} 2
+5 1 reselectProperty {"typeCode":2} 2
+6 1 [2] setString {"value":"brian"} 2
+7 -1 [] make {"typeCode":1,"forget":false} 2
+9 2 selectProperty {"typeCode":1} 2
+10 2 [1] setInt {"value":13} 2
+11 2 reselectProperty {"typeCode":2} 2
+12 2 [2] setString {"value":"sue"} 2

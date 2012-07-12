@@ -25,12 +25,7 @@ TimestampHandle.prototype.setNow = function(){
 
 	var e = {value: this.obj}
 	
-	this.getSh().persistEdit(
-		this.getObjectId(), 
-		this.getPath(),
-		'set',
-		e, 
-		this.getEditingId());
+	this.saveEdit('setLong', e);
 		
 	//this.refresh()();
 	this.emit(e, 'set', this.obj)()

@@ -1,0 +1,385 @@
+"use strict";
+
+var Cache = require('./../variable_cache')
+
+var schema = require('./../../shared/schema')
+var listenerSet = require('./../variable_listeners')
+
+var _ = require('underscorem')
+
+function stub(){}
+
+function eachType(rel, ch){
+	//var r = Math.random()
+	//console.log('each computing input type... ' + r)
+	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
+	//console.log('...done ' + r)
+	var singleInputType = inputType.members
+	_.assertDefined(singleInputType)
+	var newBindings = {}
+	var implicits = rel.params[1].implicits//['p'+Math.random()]
+	_.assertArray(implicits)
+	//console.log('implicits: ' + JSON.stringify(implicits))
+	newBindings[implicits[0]] = singleInputType
+	//console.log('\n\neach bound ' + implicits[0] + ' to ' + JSON.stringify(singleInputType))
+	//console.log('each reduced bindings to: ' + JSON.stringify(newBindings))
+	var valueType = ch.computeMacroType(rel.params[1], ch.bindingTypes, newBindings, implicits)
+
+	if(valueType.type === 'set' || valueType.type === 'list'){
+		valueType = valueType.members;
+	}
+	if(inputType.type === 'set'){
+		return {type: 'set', members: valueType}
+	}else if(inputType.type === 'list'){
+		return {type: 'list', members: valueType}
+	}else{
+		_.errout('TODO?: ' + JSON.stringify(rel))
+	}
+}
+schema.addFunction('each', {
+	schemaType: eachType,
+	implementation: eachMaker,
+	minParams: 2,
+	maxParams: 2,
+	callSyntax: 'each(collection,macro)'
+})
+
+function eachMaker(s, self, rel, typeBindings){
+
+	//console.log('##### making each: ' + JSON.stringify(rel))
+	//console.log(new Error().stack)
+	
+	var inputType = rel.params[0].schemaType.type
+	if(inputType !== 'set' && inputType !== 'list'){
+		throw new Error('each param 1 must be a collection, not: ' + JSON.stringify(rel.params[0].schemaType))
+	}
+
+	var contextGetter = self(rel.params[0], typeBindings)
+	
+	var newTypeBindings = _.extend({}, typeBindings)
+	newTypeBindings[rel.params[1].implicits[0]] = contextGetter//rel.params[0].schemaType.members
+	//console.log('extended type bindings with each param: ' + JSON.stringify(newTypeBindings))
+	var exprGetter = self(rel.params[1], newTypeBindings)//typeBindings)
+	//console.log(JSON.stringify(rel.params[1]))
+	_.assertFunction(exprGetter.wrapAsSet)
+	//console.log(JSON.stringify(rel.params[0]))
+	_.assertFunction(contextGetter.wrapAsSet)
+	
+	var cache = new Cache()
+	s = _.extend({}, s)
+	s.outputType = rel//.params[1].schemaType
+	if(rel.params[1].type === 'macro' || rel.params[1].type === 'partial-application' || rel.params[1].type === 'param'){
+		var t = rel.params[1].schemaType
+		if(t.type === 'set' || t.type === 'list'){
+			var res = svgEachMultiple.bind(undefined, s, rel.params[1].implicits, cache, exprGetter, contextGetter)
+			res.schemaType = rel.schemaType
+			res.wrappers = exprGetter.wrappers
+			res.wrapAsSet = function(v){
+				return exprGetter.wrapAsSet(v)
+			}
+			return res
+		}else{
+			var res = svgEachSingle.bind(undefined, s, rel.params[1].implicits, cache, exprGetter, contextGetter)
+			res.schemaType = rel.schemaType
+			if(rel.params[1].schemaType.type == 'view'){
+				//console.log(JSON.stringify(rel.params[1]))
+				//console.log(require('util').inspect(exprGetter))
+				_.assertObject(exprGetter.wrappers)
+			}
+			res.wrappers = exprGetter.wrappers
+			res.wrapAsSet = function(v, editId){
+				return exprGetter.wrapAsSet(v, editId)
+			}
+			return res
+		}
+	}else if(rel.params[1].type === 'view'){
+		var gm = s.globalMacros[rel.params[1].view]
+		_.assertObject(gm)
+		_.errout('TODO gm')
+	}else{
+		_.errout('TODO: ' + JSON.stringify(rel))
+	}
+}
+
+function copyBindings(bindings){
+	var newBindings = Object.create(null)
+	Object.keys(bindings).forEach(function(key){
+		newBindings[key] = bindings[key]
+	})
+	return newBindings
+}
+
+function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter, bindings, editId){
+
+	var elements = contextExprGetter(bindings, editId)
+
+	var concreteGetter = exprExprGetter(bindings, editId)
+	_.assertDefined(concreteGetter.key)
+	
+	var key = elements.key+':'+concreteGetter.key
+	if(cache.has(key)) return cache.get(key)
+	
+	var listeners = listenerSet()
+	
+	var allSets = {}
+	var counts = {}
+	var values = []
+	
+	var cachedObjectChanges = []
+	
+	var should = {}
+	var shouldCounts = {}
+	
+	var resultSetListener = {
+		add: function(value, editId){
+			//console.log('each got add: ' + value)
+			if(!counts[value]){
+				counts[value] = 1
+				listeners.emitAdd(value, editId)
+				values.push(value)
+			}else{
+				++counts[value]
+			}
+		},
+		remove: function(value, editId){
+			if(counts[value] === 1){
+				delete counts[value]
+				listener.emitRemove(value, editId)
+				values.splice(values.indexOf(value), 1)
+			}else{
+				--counts[value]
+			}
+		},
+		shouldHaveObject: function(id, flag, editId){
+			if(flag){
+				if(shouldCounts[id] === undefined) shouldCounts[id] = 0
+				should[id] = id
+				++shouldCounts[id]
+				if(shouldCounts[id] === 1){
+					listeners.emitShould(id, true, editId)
+				}
+			}else{
+				--shouldCounts[id]
+				if(shouldCounts[id] === 0){
+					delete should[id]
+					delete shouldCounts[id]
+					listeners.emitShould(id, false, editId)
+				}
+			}
+		},
+		
+		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+			//console.log('each passing on objectChange to ' + listeners.many())
+			var e = [subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]
+			cachedObjectChanges.push(e)
+			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
+		}
+	}
+	
+	function oldest(){
+		var oldestEditId = elements.oldest()
+		Object.keys(allSets).forEach(function(key){
+			var valueSet = allSets[key]
+			var old = valueSet.oldest()
+			if(old < oldestEditId) oldestEditId = old
+		})
+		return oldestEditId
+	}
+	
+	elements.attach({
+		add: function(v, editId){
+			var newBindings = copyBindings(bindings)
+			var ss = contextExprGetter.wrapAsSet(v, editId)
+			if(ss.isType) _.errout('isType')
+			newBindings[implicits[0]] = ss
+			var newSet = concreteGetter(newBindings, editId)
+			//console.log('multiple each attaching to macro: ' + key)
+			//console.log(JSON.stringify(s.outputType))
+			newSet.attach(resultSetListener, editId)
+		},
+		remove: function(v, editId){
+			var removedSet = allSets[v]
+			removedSet.detach(resultSetListener, editId)
+		},
+		shouldHaveObject: function(){
+			//_.errout('TODO')
+		},
+		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+			//_.errout('TODO')
+		}
+	}, editId)
+	
+	var handle = {
+		attach: function(listener, editId){
+			_.assertFunction(listener.objectChange)
+			
+			listeners.add(listener)
+			//console.log('multiple: ' + new Error().stack)
+			//console.log(JSON.stringify(s.outputType))
+			Object.keys(should).forEach(function(key){
+				var id = should[key]
+				listener.shouldHaveObject(id, true, editId)
+			})
+			values.forEach(function(v){listener.add(v, editId)})
+			cachedObjectChanges.forEach(function(v){
+				listener.objectChange.apply(undefined, v)
+			})
+		},
+		detach: function(listener, editId){
+			listeners.remove(listener)
+			if(editId){
+				Object.keys(should).forEach(function(key){
+					var id = should[key]
+					listener.shouldHaveObject(id, false, editId)
+				})
+				values.forEach(function(v){listener.remove(v, editId)})
+			}
+		},
+		oldest: oldest,
+		key: key
+	}
+		
+	return cache.store(key, handle)
+}
+
+
+function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings, editId){
+	var elements = contextGetter(bindings, editId)
+
+	var concreteGetter = exprGetter(bindings, editId)
+	
+	var key = elements.key+':'+concreteGetter.key
+	if(cache.has(key)) return cache.get(key)
+	
+	var listeners = listenerSet()
+	
+	var allSets = {}
+	var counts = {}
+	var values = []
+	
+	var cachedObjectChanges = []
+
+	var should = {}
+	var shouldCounts = {}
+	
+	var resultSetListener = {
+		set: function(value, oldValue, editId){
+			//console.log('each got set ' + value + ' ' + oldValue)
+			if(oldValue !== undefined){
+				--counts[oldValue]
+				if(counts[oldValue] === 0){
+					delete counts[oldValue]
+					values.splice(values.indexOf(oldValue), 1)
+					listeners.emitRemove(oldValue, editId)
+				}
+			}
+			//console.log('value: ' + value)
+			if(value !== undefined){
+				if(!counts[value]){
+					counts[value] = 1
+					listeners.emitAdd(value, editId)
+					values.push(value)
+				}else{
+					++counts[value]
+				}
+			}
+		},
+		shouldHaveObject: function(id, flag, editId){
+			if(flag){
+				if(shouldCounts[id] === undefined) shouldCounts[id] = 0
+				should[id] = id
+				++shouldCounts[id]
+				if(shouldCounts[id] === 1){
+					listeners.emitShould(id, true, editId)
+				}
+			}else{
+				--shouldCounts[id]
+				if(shouldCounts[id] === 0){
+					delete should[id]
+					delete shouldCounts[id]
+					listeners.emitShould(id, false, editId)
+				}
+			}
+		},
+		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+			console.log('each passing on objectChange to ' + listeners.many())
+			console.log(new Error().stack)
+			var e = [subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]
+			cachedObjectChanges.push(e)
+			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
+			//_.errout('TODO: ' + op + ' ' + JSON.stringify(edit))
+		}
+	}
+	
+	function oldest(){
+		var oldestEditId = elements.oldest()
+		Object.keys(allSets).forEach(function(key){
+			var valueSet = allSets[key]
+			var old = valueSet.oldest()
+			if(old < oldestEditId) oldestEditId = old
+		})
+		//console.log('each oldest ' + oldestEditId + ' ' + elements.oldest())
+		return oldestEditId
+	}
+	
+	elements.attach({
+		add: function(v, editId){
+			var newBindings = copyBindings(bindings)
+			//console.log(JSON.stringify(Object.keys(elements)))
+			console.log('key: ' + elements.key + ' ' + v + ' ' + editId)
+			//console.log('attach: ' + elements.attach)
+			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId)
+			if(ss.isType) throw new Error('is type')
+			var newSet = concreteGetter(newBindings, editId)
+			newSet.attach(resultSetListener, editId)
+			allSets[v] = newSet
+		},
+		remove: function(v, editId){
+			var removedSet = allSets[v]
+			removedSet.detach(resultSetListener, editId)
+		},
+		shouldHaveObject: function(id, flag, editId){
+			//_.errout('TODO: ' + JSON.stringify(arguments))
+			//console.log('TODO?: ' + JSON.stringify([id, flag, editId]))
+			_.assertInt(id)
+		},
+		objectChange: stub//ignore object changes - that's the result set listener's job
+	}, editId)
+	
+	var handle = {
+		attach: function(listener, editId){
+			listeners.add(listener)
+			//console.log('attached to each: ' + JSON.stringify(s.outputType))
+			_.assertFunction(listener.shouldHaveObject)
+			_.assertFunction(listener.objectChange)
+			//console.log('each key: ' + key + ' ' + values.length)
+
+			Object.keys(should).forEach(function(key){
+				var id = should[key]
+				listener.shouldHaveObject(id, true, editId)
+			})
+
+			cachedObjectChanges.forEach(function(v){
+				listener.objectChange.apply(undefined, v)
+			})
+			
+			values.forEach(function(v){listener.add(v, editId)})
+
+		},
+		detach: function(listener, editId){
+			listeners.remove(listener)
+			
+			if(editId){
+				Object.keys(should).forEach(function(key){
+					var id = should[key]
+					listener.shouldHaveObject(id, false, editId)
+				})
+				values.forEach(function(v){listener.remove(v, editId)})
+			}
+		},
+		oldest: oldest,
+		key: key
+	}
+		
+	return cache.store(key, handle)
+}

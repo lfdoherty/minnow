@@ -4,6 +4,19 @@ var querystring = require('querystring');
 
 var _ = require('underscorem');
 
+var crypto = require('crypto')
+function computeHash(str){
+	var hash = crypto.createHash('md5');
+	hash.update(str);
+	var h = hash.digest('base64');
+	h = removeHashPadding(h);
+	return h;
+}
+function removeHashPadding(hash){
+	return hash.replace(/=/gi,'').replace(/\+/gi,'_').replace(/\//gi,'_');
+}
+
+
 function parseParams(schema, params){
 	var ps = schema.params;
 	var result = [];
@@ -57,15 +70,58 @@ function stringifyParams(params){
 exports.parseParams = doParseParams
 exports.stringifyParams = stringifyParams
 
+function viewExprHash(e){
+	var s = ''
+	if(e.type === 'view'){
+		e.params.forEach(function(ep){
+			s += viewExprHash(ep)
+		})
+	}else if(e.type === 'value'){
+		s += JSON.stringify(e.value)
+	}else if(e.type === 'int'){
+		s += JSON.stringify(e.value)
+	}else if(e.type === 'macro'){
+		s += viewExprHash(e.expr)
+	}else if(e.type === 'param'){
+		//console.log('e: ' + JSON.stringify(e))
+		_.assertObject(e.schemaType)
+		s += JSON.stringify(e.schemaType)
+	}else{
+		_.errout('TODO: ' + JSON.stringify(e))
+	}
+	return s
+}
+function schemaHash(schema){
+	var s = ''
+	_.each(schema, function(sch){
+		if(sch.code === undefined) return
+		
+		s += sch.code+':'
+		_.each(sch.properties, function(p){
+			s += p.code+','
+			if(sch.isView){
+				var v = sch.viewSchema
+				var vr = v.rels[p.name]
+				_.assertObject(vr.schemaType)
+				s += viewExprHash(vr)
+			}
+		})
+	})
+	return s
+}
 exports.make = function(schema, cc){
+
+	var sh = schemaHash(schema)
+	var serverStateUid = computeHash(cc.serverInstanceUid()+sh)
+
 	var handle = {
 		
 		makeSyncId: function(cb){
 			cc.makeSyncId(cb);
 		},
 		//returns the paths for the snapshots for the view
-		getViewFiles: function(viewName, params, syncId, cb){
-			_.assertLength(arguments, 4)
+		getViewFiles: function(viewName, params, cb){
+			_.assertLength(arguments, 3)
 			_.assertDefined(params)
 			
 			var s = schema[viewName];
@@ -78,8 +134,10 @@ exports.make = function(schema, cc){
 			_.assert(getMsg.params != 'null')
 			cc.getSnapshots(getMsg, _.once(function(e){
 
-				var snapshotIds = e.snapshotVersionIds;
-				var lastVersionId = e.lastVersionId;
+				var snapshotIds = e.snapshotVersionIds.concat([-1]);
+				var lastVersionId = snapshotIds[snapshotIds.length-2]//e.lastVersionId;
+				console.log(JSON.stringify(e))
+				_.assertInt(lastVersionId)
 
 				if(arguments.length === 0){
 					cb();
@@ -100,12 +158,10 @@ exports.make = function(schema, cc){
 					for(var i=0;i<snapshotIds.length;++i){
 						var id = snapshotIds[i];
 						var previousId = i > 0 ? snapshotIds[i-1] : -1;
-						paths.push(cc.serverInstanceUid() + '/' + viewCode + '/' + id + '/' + previousId + '/' + key);
+						paths.push(serverStateUid + '/' + viewCode + '/' + id + '/' + previousId + '/' + key);
 					}
 				
-					//cc.makeSyncId(function(syncId){
-						cb(snapshotIds, paths, lastVersionId);
-					//});
+					cb(snapshotIds, paths, lastVersionId);
 				}
 			}));
 		},
@@ -138,6 +194,7 @@ exports.make = function(schema, cc){
 			var req = {typeCode: viewCode, params: JSON.stringify(params), latestSnapshotVersionId: snapshotId};
 			cc.beginSync(req, cb, readyCb);
 		},
+		
 		endSync: function(syncId){
 			_.assertLength(arguments, 1);
 			_.assertInt(syncId)

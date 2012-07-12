@@ -4,11 +4,12 @@ var _ = require('underscorem')
 module.exports = PrimitiveListHandle
 
 var stub = function(){}
+function readonlyError(){_.errout('readonly');}
 
 function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 	
 	this.part = part;
-	this.obj = obj || [];
+	this.obj = [].concat(obj || []);
 	this.parent = parent;
 	this.schema = typeSchema;
 
@@ -20,8 +21,14 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 		this.add = readonlyError;
 		this.shift = readonlyError;
 	}
+	this.latestVersionId = -1
+	console.log('setting up primitive list: ' + JSON.stringify(obj))
+	
+	this.addOp = u.getAddOperator(typeSchema)
+	this.removeOp = u.getRemoveOperator(typeSchema)
 }
 PrimitiveListHandle.prototype.prepare = stub
+
 
 PrimitiveListHandle.prototype.toJson = function(){return [].concat(this.obj);}
 PrimitiveListHandle.prototype.count = function(){return this.obj.length;}
@@ -37,9 +44,8 @@ PrimitiveListHandle.prototype.add = function(value){
 	this.obj.push(value);
 	
 	var e = {value: value}
-	this.saveEdit('add', e);
+	this.saveEdit(this.addOp, e);
 		
-	//this.refresh()();
 	this.emit(e, 'add', value)()
 }
 PrimitiveListHandle.prototype.push = PrimitiveListHandle.prototype.add
@@ -53,9 +59,8 @@ PrimitiveListHandle.prototype.remove = function(value){
 		this.obj.splice(index, 1);
 
 		var e = {value: value}
-		this.saveEdit('removePrimitive', e);
+		this.saveEdit(this.removeOp, e);
 		
-		//this.refresh()();
 		this.emit(e, 'remove', value)()
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
@@ -71,7 +76,6 @@ PrimitiveListHandle.prototype.shift = function(){
 
 	var v = this.obj.shift();
 		
-	//this.refresh()();
 	this.emit(e, 'shift', v)()
 	return v;
 }
@@ -86,17 +90,20 @@ PrimitiveListHandle.prototype.each = function(cb, endCb){
 	this.obj.forEach(cb)
 	if(endCb) endCb();
 }
-PrimitiveListHandle.prototype.changeListener = function(path, op, edit, syncId){
+PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 
-	if(path.length > 0) _.errout('invalid path, cannot descend into primitive list: ' + JSON.stringify(path))
+	//if(!this.schema.isView) _.assert(syncId >= 0)
+	
+	if(this.latestVersionId < editId) this.latestVersionId = editId
+	//if(editId < this.latestVersionId) throw new Error('out of order edits(' + this.latestVersionId + ' > ' + editId + '): ' + JSON.stringify(arguments))
+	//if(path.length > 0) _.errout('invalid path, cannot descend into primitive list: ' + JSON.stringify(path))
 		
-	if(op === 'add'){
+	if(op.indexOf('add') === 0){
 		if(this.getEditingId() !== syncId){
-			
+			console.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
 			this.obj.push(edit.value);
 			
-//			return this.refresh();
 			return this.emit(edit, 'add')
 		}else{
 			return stub;
@@ -107,13 +114,12 @@ PrimitiveListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			_.assert(this.obj.length >= 1);
 			this.obj.shift();
 
-			//return this.refresh();
 			return this.emit(edit, 'shift')
 			
 		}else{
 			return stub;
 		}
-	}else if(op === 'removePrimitive'){
+	}else if(op.indexOf('remove') === 0){
 		if(this.getEditingId() !== syncId){
 			var index = this.obj.indexOf(edit.value);
 			if(index === -1){
@@ -121,7 +127,6 @@ PrimitiveListHandle.prototype.changeListener = function(path, op, edit, syncId){
 			}else{
 				this.obj.splice(index, 1);
 				
-//				return this.refresh();
 				return this.emit(edit, 'remove')
 			}
 		}		

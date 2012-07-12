@@ -19,16 +19,20 @@ var MaxDesiredSegmentSize = 1024*1024;
 function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	_.assertLength(arguments, 5);
 	
-	var objEx = baleen.makeFromSchema(objectSchema,undefined,true);
-	var ex = baleen.makeFromSchema(editSchema, objEx);
+	//var objEx = baleen.makeFromSchema(objectSchema,undefined,true);
+	var ex = baleen.makeFromSchema(editSchema)//, objEx);
 	
 	var exReader = {}
 	Object.keys(reader).forEach(function(key){
 		var rf = reader[key];
 		exReader[key] = function(e){
 			++count;
-			if(count > olLatestVersionId){
+			//console.log(olLatestVersionId + ' reading: ' + key)
+			//console.log(rf)
+			if(count >= olLatestVersionId){
 				rf(e, count)
+			}else{
+				console.log('skipping: ' + count)
 			}
 		}
 	})
@@ -40,7 +44,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	
 	var fullName = dir+'/ap'
 
-	var count = 0;	
+	var count = 0;//for compatibility with ol, we don't start from 0
 	
 	var manyDesered = 0;
 	
@@ -88,14 +92,14 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			clearInterval(flushHandle)
 			//w.flush()
 			var cdl = _.latch(2, function(){
-				console.log('closed apf')
+				//console.log('closed apf')
 				cb()
 			})
 			w.flush()
 			w.end(cdl)
 			sfw.end()
 			sfw.sync(function(){
-				console.log('apf segment file synced')
+				//console.log('apf segment file synced')
 				cdl()
 			})
 		}
@@ -109,7 +113,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 		var segmentSize = sfw.getCurrentSegmentSize()
 	
 		function write(buf){
-			console.log('*writing buf: ' + buf.length);
+			//console.log('*writing buf: ' + buf.length);
 			sfw.write(buf)
 			segmentSize += buf.length;
 			if(segmentSize > MaxDesiredSegmentSize){
@@ -133,7 +137,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			});
 			_.each(w, function(writer, name){
 				handle[name] = function(json){
-					console.log('wrote object to apf')
+					//console.log('wrote object to apf')
 					++count;
 					writer(json);
 					return count;

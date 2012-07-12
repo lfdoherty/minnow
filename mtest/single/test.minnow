@@ -5,4 +5,4 @@ entity 1
 general() 100
 
 specific(entityId int) 101
-	object get(entity, entityId) 1
+	object entity(entityId) 1

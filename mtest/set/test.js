@@ -3,20 +3,25 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-exports.append = function(dir, serverDir, port, done){
-	minnow.makeServer(dir, serverDir, port, function(){
-		minnow.makeClient(port, function(client){
+function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+
+exports.append = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
 			client.view('general', function(c){
 			
-				c.onChange(function(){
+				poll(function(){
+					console.log(c.has('s'))
 					if(c.has('s') && c.s.data.size() === 1){
 						done()
+						return true
 					}
 				})
 
-				minnow.makeClient(port, function(otherClient){
+				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(v){
-						var obj = v.setPropertyToNew('s', true)
+						var obj = v.make('entity')
+						v.setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')

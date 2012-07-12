@@ -6,6 +6,10 @@ var versions = require('./versions');
 
 var set = require('structures').set;
 
+var pathupdater = require('./pathupdater')
+
+var pathmerger = require('./pathmerger')
+
 function couldHaveForeignKey(objSchema){
 	return _.any(objSchema.properties, function(p){
 		if(p.type.type === 'object') return true;
@@ -66,6 +70,49 @@ function makeSelectByMultiplePropertyConstraints(indexing, handle){
 		}
 	}
 }
+
+function makeGetForeignKeys(objSchema){
+	var objProperties = [];
+	var objCollectionProperties = []
+	Object.keys(objSchema.properties).forEach(function(propertyName){
+		var p = objSchema.properties[propertyName]
+		if(p.type.type === 'object'){
+			objProperties.push(p)
+		}else if(p.type.type === 'list' || p.type.type === 'set'){
+			if(p.type.members.type === 'object'){
+				objCollectionProperties.push(p)
+			}
+		}else if(p.type.type === 'map'){
+			//console.log('map: ' + JSON.stringify(p))
+			if(p.type.value.type === 'object'){
+				objCollectionProperties.push(p)
+			}
+		}
+	})
+	return function(obj){
+		var res = []
+		objProperties.forEach(function(p){
+			var idOrObject = obj[p.code]
+			if(_.isInt(idOrObject)) res.push(idOrObject)
+		})
+		objCollectionProperties.forEach(function(p){
+			var arr = obj[p.code]
+			if(arr){
+				for(var i=0;i<arr.length;++i){
+					var v = arr[i]
+					if(_.isInt(v)){
+						res.push(v)
+					}
+				}
+			}
+		})
+		//console.log('got foreign keys of ' + obj.meta.id + ': ' + JSON.stringify(res))
+		return res;
+	}
+}
+
+function errorStub(){_.errout('this should never be called');}
+
 exports.make = function(schema, ap, broadcaster, ol){
 	_.assertLength(arguments, 4);
 	
@@ -75,6 +122,15 @@ exports.make = function(schema, ap, broadcaster, ol){
 
 	var indexing;
 	
+	var pm = pathmerger.make(schema, ol, ap.saveEdit, ap.persistEdit, function(id, syncId){
+		return ap.translateTemporaryId(id, syncId)
+	})
+	
+	var getForeignKeys = {}
+	Object.keys(schema._byCode).forEach(function(id){
+		var objSchema = schema._byCode[id]
+		getForeignKeys[objSchema.code] = makeGetForeignKeys(objSchema)
+	})
 	function makeFullIncludeFunction(objSchema){
 		var funcs = {};
 		_.each(objSchema.properties, function(p){
@@ -170,79 +226,303 @@ exports.make = function(schema, ap, broadcaster, ol){
 		}
 	});
 	
+	var subscriptions = {}
+	
 	var handle = {
+		getCurrentEditId: function(){
+			return ol.getLatestVersionId()
+		},
 		setIndexing: _.once(function(i){
 			_.assertUndefined(indexing);
 			indexing = i;
 			handle.selectByMultiplePropertyConstraints = makeSelectByMultiplePropertyConstraints(indexing, handle);
 		}),
-		getSnapshots: function(typeCode, id, cb){
-			cb([-1]);//TODO make this smarter
-		},
-		getSnapshotState: function(typeCode, id, snapshotId, cb){
-			_.errout('TODO');
-		},
-		getAllSnapshotStates: function(typeCode, id, snapshotIds, cb){
-			if(snapshotIds.length !== 1 || snapshotIds[0] !== -1) _.errout('TODO implement');
-			
-			handle.getObjectState(id, function(state){
-				if(state === undefined){
-					cb();
-					return;
-				}
-				
-				var snap = {objects: {}};
-				snap.objects[typeCode] = {};
-				snap.objects[typeCode][id] = state;
-				snap.version = state.meta.editId
 
-				//TODO retrieve FKs in state, include them
-			
-				cb([snap]);
-			});
-		},
-		addEdit: function(id, path, op, edit, syncId, cb){
-			_.assertLength(arguments, 6);
-			_.assertInt(id);
+		addEdit: function(id, op, path, edit, syncId, computeTemporary, cb){
+			_.assertLength(arguments, 7);
+			if(op !== 'make') _.assertInt(id);
 			_.assertInt(syncId);
 			_.assertString(op)
 			//TODO support merge models
-			ap.persistEdit(id, path, op, edit, syncId, cb);
-		},
-		
-		//unlike getting a snapshot, performs no FK-following
-		getObjectState: function(id, cb){
-			_.assertLength(arguments, 2);
+			
+			//TODO merge path updates with actual edit stream
+			
 			/*
-			var state = ap.getObjectState(id);
-			if(state !== undefined){
-				cb(state);
-			}else{
-				raf.getObject(id, function(state){
-					//if(state === undefined) _.errout('unknown object: ' + typeCode + ' ' + id);
-					cb(state);
+			ap.persistEdit(id, op, edit, syncId, computeTemporary, function(e){
+				var editId = e.editId
+				_.assertInt(editId)
+				var subs = subscriptions[id]
+				//console.log('ooking for subs: ' + id + ' ' + JSON.stringify(Object.keys(subscriptions)))
+				if(subs){
+					subs.forEach(function(s){
+						console.log('sending to subscription')
+						//s(typeCode, id, path, op, edit, syncId, editId)
+						s({typeCode: typeCode, id: id, op: op, edit: edit, syncId: syncId, editId: editId})
+					})
+				}
+				cb(e)				
+			});
+			*/
+			if(op === 'make'){
+				ap.persistEdit(-1, -1, [], op, edit, syncId, computeTemporary, function(e){
+					var editId = e.editId
+					_.assertInt(editId)
+					var subs = subscriptions[id]
+					//console.log('ooking for subs: ' + id + ' ' + JSON.stringify(Object.keys(subscriptions)))
+					if(subs){
+						subs.forEach(function(s){
+							console.log('sending to subscription')
+							//s(typeCode, id, path, op, edit, syncId, editId)
+							s({typeCode: typeCode, id: id, op: op, edit: edit, syncId: syncId, editId: editId})
+						})
+					}
+					cb(e)				
 				});
-			}*/
-			ol.get(id, function(state){
-				_.assertObject(state)
-				cb(state)
+			}else{
+				if(id < -1){
+					id = ap.translateTemporaryId(id, syncId)
+				}
+				_.assert(id > 0)
+				pm(id, path, op, edit, syncId, computeTemporary, function(e){
+					var editId = e.editId
+					_.assertInt(editId)
+					var subs = subscriptions[id]
+					//console.log('ooking for subs: ' + id + ' ' + JSON.stringify(Object.keys(subscriptions)))
+					if(subs){
+						subs.forEach(function(s){
+							console.log('sending to subscription')
+							//s(typeCode, id, path, op, edit, syncId, editId)
+							s({typeCode: typeCode, id: id, op: op, edit: edit, syncId: syncId, editId: editId})
+						})
+					}
+					cb(e)				
+				})
+			}
+		},
+		translateTemporaryId: function(id, syncId){
+			_.assertInt(id)
+			_.assertInt(syncId)
+			_.assert(id < 0)
+			_.assert(syncId >= 0)
+			return ap.translateTemporaryId(id, syncId)
+		},
+		syntheticEditId: function(){
+			return ap.syntheticEditId()
+		},
+	
+		//TODO upgrade to streamPath?
+		//TODO add specialize methods for streaming collection properties vs single-value properties?
+		streamProperty: function(objId, propertyCode, editId, cb){
+			ol.get(objId, -1, editId, function(edits){
+				//_.errout('TODO: ' + JSON.stringify(edits))
+				var prop;
+				var currentPropertyCode;
+				console.log('streamProperty got ' + edits.length + ' edits')
+				console.log(JSON.stringify(edits))
+				var depth = 0
+				edits.forEach(function(e){
+					
+					var op = e.op
+					if(op === 'selectProperty'){
+						if(depth === 0){
+							currentPropertyCode = e.edit.typeCode
+						}
+						++depth
+					}else if(op === 'reselectProperty'){
+						if(depth === 1){
+							currentPropertyCode = e.edit.typeCode
+						}
+					}else if(op === 'selectObject'){
+						++depth
+					}else if(op === 'reselectObject'){
+					}else if(op === 'ascend1'){
+						depth -= 1
+					}else if(op === 'ascend2'){
+						depth -= 2
+					}else if(op === 'ascend3'){
+						depth -= 3
+					}else if(op === 'ascend4'){
+						depth -= 4
+					}else if(op === 'ascend5'){
+						depth -= 5
+					}
+
+					console.log(JSON.stringify(e))
+
+					if(currentPropertyCode !== propertyCode || depth !== 1) return
+					
+					console.log('in current property code: ' + propertyCode)
+					
+					if(op.indexOf('set') === 0){
+						if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+							if(e.edit.value !== prop){
+								prop = e.edit.value
+								//cb(prop, e.editId)
+							}
+						}else if(op === 'setExisting' || op === 'setObject'){
+							if(e.edit.id !== prop){
+								prop = e.edit.id
+								//cb(prop, e.editId)
+							}
+						}else if(op === 'setSyncId'){
+						}else{
+							_.errout('TODO: ' + op)
+						}
+					}else if(op.indexOf('add') === 0){
+						if(prop === undefined) prop = []
+						if(op === 'addString' || op === 'addLong' || op === 'addInt'){
+							if(prop.indexOf(e.edit.value) === -1){
+								prop.push(e.edit.value)
+								//cb(prop, e.editId)
+							}
+						}else if(op === 'addExisting' || op === 'addedNew'){
+							if(prop.indexOf(e.edit.id) === -1){
+								prop.push(e.edit.id)
+							}
+						}else{
+							_.errout('TODO: ' + JSON.stringify(e))
+						}
+					}else if(op.indexOf('remove') === 0){
+					//	_.errout('TODO: ' + op)
+						if(op === 'remove'){
+							if(prop.indexOf(e.edit.id) !== -1){
+								prop.splice(e.edit.id, 1)
+							}								
+						}else{
+							_.errout('TODO: ' + op)
+						}
+					}
+				})
+				console.log('streaming ' + propertyCode + ' for ' + objId + ': ' + JSON.stringify(prop))
+				cb(prop, editId)
+				
+				//TODO standardize this stuff by schema (require typeCode in call?)
+				
+				broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+					if(path.length > 1) return
+					if(id ===objId && path.length === 1 && path[0] === propertyCode){
+						if(op.indexOf('set') === 0){
+							if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+								if(edit.value !== prop){
+									prop = edit.value
+									cb(prop, editId)
+								}
+							}else if(op === 'setObject'){
+								if(edit.id !== prop){
+									prop = edit.id
+									cb(prop, editId)
+								}
+							}else{
+								_.errout('TODO: ' + op)
+							}
+						}else if(op.indexOf('add') === 0){
+							//_.errout('TODO: ' + op)
+							if(op === 'addString' || op === 'addInt' || op === 'addLong' || op === 'addBoolean'){
+								if(prop === undefined) prop = []
+								if(prop.indexOf(edit.value) === -1){
+									prop.push(edit.value)
+									cb(prop, editId)
+								}
+							}else if(op === 'addExisting'){
+								if(prop === undefined) prop = []
+								if(prop.indexOf(edit.id) === -1){
+									prop.push(edit.id)
+									cb(prop, editId)
+								}
+							}else{
+								_.errout('TODO: ' + op)
+							}
+						}else if(op.indexOf('remove') === 0){
+							if(op === 'remove'){
+								if(prop.indexOf(edit.id) !== -1){
+									prop.splice(edit.id, 1)
+									cb(prop, editId)
+								}								
+							}else{
+								_.errout('TODO: ' + op)
+							}
+						}
+					}
+				})
 			})
 		},
-		streamObjectState: function(id, cb, endCb){
-			handle.getObjectState(id, function(state){
+		getObjectProperty: function(id, propertyCode, editId, cb){
+			_.assertLength(arguments, 4)
 			
-				//TODO retrieve FKs in state, include them
-				//making additional callbacks
-				//as much as possible, proceed depth-first.
-				//console.log('TODO STREAMING ' + typeCode + ' ' + id);
-				//console.log(JSON.stringify(state));
+			console.log('getting object property: ' + id + ' ' + propertyCode + ' ' + editId)
+			//_.errout('TODO')
+			ol.get(id, -1, editId, function(edits){
+				//_.errout('TODO: ' + JSON.stringify(edits))
+				var prop;
+				var pu = pathupdater.make()
+				edits.forEach(function(e){
+					pu.update(e)
+					if(pu.getPath().length > 0 && pu.getPath()[0] === propertyCode){
+						if(e.op.indexOf('set') === 0){
+							if(e.op === 'setInt' || e.op === 'setString' || e.op === 'setLong' || e.op === 'setBoolean'){
+								prop = e.edit.value
+								cb(prop, e.editId)
+							}else{
+								_.errout('TODO: ' + JSON.stringify(e))
+							}
+						}else if(e.op.indexOf('add') === 0){
+							_.errout('TODO: ' + JSON.stringify(e))
+						}else if(e.op.indexOf('remove') === 0){
+							_.errout('TODO: ' + JSON.stringify(e))
+						}
+					}
+				})
+				cb(prop)
+			})
+			//_.errout('TODO')
+		},
+		streamObjectState: function(already, id, startEditId, endEditId, cb, endCb){
+			_.assertLength(arguments, 6)
+			_.assertInt(startEditId)
+			_.assertInt(endEditId)
+			_.assertObject(already)
+			_.assert(id > 0)
+
+			ol.streamVersion(already, id, startEditId, endEditId, cb, endCb)
+		},
+		streamObjectStateLatest: function(already, id, cb, endCb){
+			_.assertLength(arguments, 4)
+			_.assertObject(already)
 			
-				cb(id, state);
-				
-				endCb();
+			handle.getObjectStateLatest(id, function(state){
+				var ids = getForeignKeys[state.meta.typeCode](state)//getForeignKeys(schema._byCode[state.meta.typeCode], state)
+				cb(state);			
+				//console.log('streamObjectState found fk ids for(' + id + '): ' + JSON.stringify(ids))
+				if(ids.length === 0){
+					endCb();
+				}else{
+					var cdl = _.latch(ids.length, endCb);
+					ids.forEach(function(id){
+						if(already[id]){
+							cdl()
+							return;
+						}
+						handle.streamObjectState(already, id, state.meta.editId, cb, cdl)
+					})
+				}
 			});
 		},
-		
+		streamObject: function(objId, editId, cb){
+
+			ol.get(objId, editId, -1, function(res){
+
+				res.forEach(function(e){
+					_.errout('TODO')
+				})
+				broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+					cb(typeCode, id, path, op, edit, syncId, editId)
+				})
+			})
+
+		},
+		subscribeToObject: function(id, listenerCb){
+			handle.streamObject(id, ol.getLatestVersionId(), listenerCb)
+		},		
 		includeContainedObjects: function(typeCode, id, obj, addObjectCb, endCb){
 			includeFunctions[typeCode](id, obj, addObjectCb, endCb);
 		},
@@ -251,14 +531,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 		//by fetching the async parts and then synchronously merging them with the AP parts
 		getManyOfType: function(typeCode){
 			_.assertLength(arguments, 1)
-			/*raf.getManyOfType(typeCode, function(many){
-				var apMany = ap.getManyCreatedOfType(typeCode);
-				//console.log('getting many of type ' + typeCode + ' ' + many + ' ' + apMany)
-				cb(many+apMany);
-			});*/
 			return ol.getMany(typeCode)
 		},
-		
 		getObjects: function(typeCode, ids, cb){
 			_.assertFunction(cb);
 			_.assertArray(ids)
@@ -268,61 +542,23 @@ exports.make = function(schema, ap, broadcaster, ol){
 				return;
 			}
 
-			console.log('getting objects: ' + ids.length)
+			//console.log('getting objects: ' + ids.length)
 
 			var objs = {}
 			var cdl = _.latch(ids.length, function(){
-				console.log('got all objects, done')
+				//console.log('got all objects, done')
 				cb(objs)
 			})
 			ol.getSet(ids, function(obj){
 				objs[obj.meta.id] = obj
-				console.log('got obj')
+				//console.log('got obj')
 				cdl()
 			})
-			/*raf.getObjects(typeCode, ids.get(), function(rafObjs){
-
-				var apObjs = ap.getObjects(typeCode, ids);
-
-				var keys = Object.keys(apObjs);
-				for(var i=0;i<keys.length;++i){
-					var obj = apObjs[keys[i]];
-					_.assertObject(obj);
-					rafObjs[obj.meta.id] = obj;
-				}
-				
-				if(ids.size() !== _.size(rafObjs)){
-					_.errout('expected ' + ids.size() + ', but got only ' + _.size(rafObjs) + ' from ids ' + JSON.stringify(ids.get()));
-				}
-				
-				cb(rafObjs);
-			});*/
+		},
+		getAllIdsOfType: function(typeCode, cb){
+			ol.getAllIdsOfType(typeCode, cb)
 		},
 		getAllObjects: function(typeCode, cb){
-			/*_.assertFunction(cb);
-			raf.getAllObjects(typeCode, function(objs){
-				var result = {};
-				var apObjs = ap.getAllObjects(typeCode);
-				//console.log('got ' + typeCode + ' ' + _.size(objs) + ' ' + _.size(apObjs));
-				//console.log('rafObjs: ' + JSON.stringify(objs));
-				//console.log('apObjs: ' + JSON.stringify(apObjs));
-				
-				var objsKeys = Object.keys(objs);
-				for(var i=0;i<objsKeys.length;++i){
-					var idStr = objsKeys[i];
-					_.assertDefined(idStr);
-					result[idStr] = objs[idStr];
-				}
-
-				var apObjsKeys = Object.keys(apObjs);
-				for(var i=0;i<apObjsKeys.length;++i){
-					var idStr = apObjsKeys[i];
-					_.assertDefined(idStr);
-					result[idStr] = apObjs[idStr];
-				}
-
-				cb(result);
-			});*/
 			ol.getAllOfType(typeCode, function(objs){
 				cb(objs)
 			})
@@ -357,55 +593,6 @@ exports.make = function(schema, ap, broadcaster, ol){
 				cb(ids);
 			});
 		},
-		/*getAllObjectsPassing: function(typeCode, filter, filterIsAsync, cb){
-			_.assertLength(arguments, 4);
-			handle.getAllObjects(typeCode, function(objs){
-				var res = [];
-
-				//console.log('filtering ' + objs.length + ' objects with filter ' + JSON.stringify(filter));
-				//console.log(typeCode);
-			
-				if(filterIsAsync){
-
-					var cdl = _.latch(objs.length, function(){
-						//console.log(res.length + ' objects passed.');
-						cb(res);
-					});
-				
-					_.each(objs, function(obj){
-						filter(obj, function(p){
-							if(p) res.push(obj);
-							cdl();
-						});
-					});
-				}else{
-					_.each(objs, function(obj){
-						if(filter(obj)){
-							res.push(obj);
-						}
-					});
-					cb(res);
-				}
-			});
-		},
-		getObjectPasses: function(typeCode, id, filter, cb){
-			handle.getObjectState(id, function(state){
-				filter.passes(state, function(p){
-					cb(p, state);
-				});
-			});
-		},
-		
-		objectExists: function(typeCode, id, cb){
-			var e = ap.objectExists(typeCode, id);
-			if(e){
-				cb(e);
-			}else{
-				raf.objectExists(typeCode, id, function(e){
-					cb(e);
-				});
-			}
-		}*/
 	};
 	
 	return handle;

@@ -1,0 +1,258 @@
+"use strict";
+
+var Cache = require('./../variable_cache')
+
+var schema = require('./../../shared/schema')
+var listenerSet = require('./../variable_listeners')
+
+var _ = require('underscorem')
+
+
+function multimapType(rel, ch){
+	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
+	var singleInputType = inputType.members
+	//console.log('singleInputType: ' + JSON.stringify(singleInputType))
+	//console.log('inputType: ' + JSON.stringify(inputType))
+	_.assertDefined(singleInputType)
+	
+	var implicits1 = rel.params[1].implicits
+	var implicits2 = rel.params[2].implicits
+	
+	var binding1 = {}
+	binding1[implicits1[0]] = singleInputType
+	var binding2 = {}
+	binding2[implicits2[0]] = singleInputType
+	
+	var keyType = ch.computeMacroType(rel.params[1], ch.bindingTypes, binding1)
+	if(keyType.type === 'list' || keyType.type === 'set'){
+		keyType = keyType.members
+	}
+	var valueType = ch.computeMacroType(rel.params[2], ch.bindingTypes, binding2)
+	if(valueType.type !== 'list' && valueType.type !== 'set'){
+		valueType = {type: 'set', members: valueType}
+	}else if(valueType.type !== 'list'){
+		valueType = {type: 'set', members: valueType.members}
+	}
+	return {type: 'map', key: keyType, value: valueType}
+}
+schema.addFunction('multimap', {
+	schemaType: multimapType,
+	implementation: multimapMaker,
+	minParams: 3,
+	maxParams: 3,
+	callSyntax: 'multimap(collection,key-macro,value-macro)'
+})
+
+function multimapMaker(s, self, rel, typeBindings){
+	var contextGetter = self(rel.params[0], typeBindings)
+
+	_.assert(rel.params[1].type === 'macro')
+	_.assert(rel.params[2].type === 'macro')
+
+	var keyImplicit = rel.params[1].implicits[0]
+	var valueImplicit = rel.params[2].implicits[0]
+
+	var newTypeBindingsKey = _.extend({}, typeBindings)
+	var newTypeBindingsValue = _.extend({}, typeBindings)
+	newTypeBindingsKey[keyImplicit] = contextGetter
+	newTypeBindingsValue[valueImplicit] = contextGetter
+
+	//var keyGetter = self(rel.params[1], typeBindings)
+	//var valueGetter = self(rel.params[2], typeBindings)
+	var keyGetter = self(rel.params[1], newTypeBindingsKey)
+	var valueGetter = self(rel.params[2], newTypeBindingsValue)
+	//var reduceGetter;
+	/*if(rel.params.length > 3){
+		_.assert(rel.params[3].type === 'macro')
+		var newTypeBindingsReduce = _.extend({}, typeBindings)
+		//newTypeBindingsReduce[reduceImplicitFirst] = keyGetter
+		//newTypeBindingsReduce[reduceImplicitSecond] = valueGetter
+		//reduceGetter = self(rel.params[3], newTypeBindingsReduce)
+	}*/
+
+	var cache = new Cache()
+	
+	var kt = rel.params[1].schemaType
+	var t = rel.params[2].schemaType
+	if(t.type === 'set' || t.type === 'list'){//if the result of the values macro is a set
+		if(reduceGetter === undefined) throw new Error('a reduce-macro is required for map(collection,key-macro,value-macro,reduce-macro) when the result of the value macro has multiple values.')
+		//return svgMapMultiple.bind(undefined, s, cache, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+		_.errout('TODO')
+	}else{//if the result of the values macro is a single value
+		var hasObjectValues = t.type === 'object'
+		if(kt.type === 'set' || kt.type === 'list'){
+			return svgMapKeyMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+		}else{
+			//return svgMapSingle.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+			_.errout('TODO')
+		}
+	}
+}
+
+function copyBindings(bindings){
+	var newBindings = Object.create(null)
+	Object.keys(bindings).forEach(function(key){
+		newBindings[key] = bindings[key]
+	})
+	return newBindings
+}
+
+function stub(){}
+
+function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit, bindings, editId){
+	var elements = contextGetter(bindings, editId)
+
+	var cKeyGetter = keyGetter(bindings, editId)
+	var cValueGetter = valueGetter(bindings, editId)
+
+	//_.assert(hasObjectValues)
+	
+	var key = elements.key+cKeyGetter.key+cValueGetter.key
+	
+	if(cache.has(key)) return cache.get(key)
+	
+	var listeners = listenerSet()
+	
+	var allSets = {}
+	function oldest(){
+		var oldestEditId = elements.oldest()
+		//console.log('*map: ' + oldestEditId)
+		Object.keys(allSets).forEach(function(key){
+			var v = allSets[key]
+			var old = v.key.oldest()
+			if(old < oldestEditId) oldestEditId = old
+			old = v.value.oldest()
+			if(old < oldestEditId) oldestEditId = old
+		})
+		//console.log('map: ' + oldestEditId)
+		return oldestEditId
+	}
+	
+
+	var multiCounts = {}
+	var multiValues = {}
+
+	var should = {}
+
+	var state = multiValues
+
+	elements.attach({
+		add: function(v, editId){
+			//console.log('ADDED: ' + v)
+			
+			var newBindingsKey = copyBindings(bindings)
+			var newBindingsValue = copyBindings(bindings)
+			newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId)
+			var newKeyVariable = cKeyGetter(newBindingsKey, editId)
+			var newValueVariable = cValueGetter(newBindingsValue, editId)
+			
+			var keys = []
+			var value
+
+			function addKey(k, editId){
+				keys.push(k)
+				console.log('ADD KEY: ' + k + ' ' + value)
+				if(value !== undefined){
+					var kvk = k+':'+value
+					if(multiCounts[kvk] === undefined){
+						multiCounts[kvk] = 1
+						if(multiValues[k] === undefined) multiValues[k] = []
+						multiValues[k].push(value)
+					}else{
+						++multiCounts[kvk]
+					}
+				}
+			}
+			function removeKey(k, editId){
+				var i = keys.indexOf(k)
+				keys.splice(i, 1)
+				--multiCounts[kvk]
+				if(multiCounts[kvk] === 0){
+					delete multiCounts[kvk]
+					multiValues[k].splice(multiValues[k].indexOf(value), 1)
+				}
+			}
+			function valueListener(v, oldValue, editId){
+				_.assertInt(editId)
+				value = v
+				console.log('GOT VALUE: ' + v)
+				if(oldValue !== undefined){
+					for(var i=0;i<keys.length;++i){
+						var k = keys[i]
+						var kvk = k+':'+oldValue
+						--multiCounts[kvk]
+						if(multiCounts[kvk] === 0){
+							delete multiCounts[kvk]
+							multiValues[k].splice(multiValues[k].indexOf(oldValue), 1)
+						}
+					}
+				}
+				for(var i=0;i<keys.length;++i){
+					var k = keys[i]
+					var kvk = k+':'+value
+					//multiState[kvk] = multiState[kvk] ? multiState[kvk]+1 : 1
+					if(multiCounts[kvk] === undefined){
+						multiCounts[kvk] = 1
+						if(multiValues[k] === undefined) multiValues[k] = []
+						multiValues[k].push(value)
+					}else{
+						++multiCounts[kvk]
+					}					
+					listeners.emitPutAdd(k, value, editId)
+				}
+			}
+			
+			allSets[v] = {key: newKeyVariable, value: newValueVariable/*, keyListener: keyListener, valueListener: valueListener*/}
+
+			newKeyVariable.attach({
+				add: addKey, 
+				remove: removeKey
+			}, editId)
+			
+			newValueVariable.attach({
+				set: valueListener, 
+				shouldHaveObject: stub
+			}, editId)
+		},
+		remove: function(v, editId){
+			var r = allSets[v]
+			r.key.detach(r.keyListener, editId)
+			r.value.detach(r.valueListener, editId)
+		},
+		shouldHaveObject: function(id, flag, editId){
+			/*if(flag){
+				should[id] = id
+			}else{
+				delete should[id]
+			}*/
+			//_.errout('TODO')
+			/*if(hasObjectValues){
+				_.errout('TODO')
+			}*/
+		},
+		objectChange: stub
+	}, editId)
+
+	
+	var handle = {
+		attach: function(listener, editId){
+			listeners.add(listener)
+			Object.keys(state).forEach(function(key){
+				var value = state[key]
+				for(var i=0;i<value.length;++i){
+					listener.putAdd(key, value[i], editId)
+				}
+			})
+		},
+		detach: function(listener, editId){
+			listeners.remove(listener)
+			if(editId){
+				throw new Error('TODO')
+			}
+		},
+		oldest: oldest,
+		key: key
+	}
+		
+	return cache.store(key, handle)
+}

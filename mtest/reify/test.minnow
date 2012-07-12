@@ -1,0 +1,8 @@
+
+entity 1
+	name string 1
+
+col 2
+	objs set:entity 1
+	
+general() 100

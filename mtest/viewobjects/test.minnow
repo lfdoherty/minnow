@@ -1,0 +1,17 @@
+
+entity 1
+	value string 1
+
+wrapper(entity entity) 101
+	wrappedValue entity.value 1
+	
+general() 100
+	s each(*entity, {wrapper(~)}) 1
+
+context 2
+	entities set:entity 1
+	
+specific(context context) 102
+	s each(context.entities, {wrapper(~)}) 1
+
+empty() 103

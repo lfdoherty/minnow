@@ -1,0 +1,74 @@
+
+empty() 120
+
+entity 1
+	age int 1
+	name string 2
+	numbers set:int 3
+
+idtest() 119
+	v one(*entity).id 1
+	
+general() 100
+	c count(*entity) 1
+	t *entity 2
+	oldestAge max(*entity.age) 3
+	youngestAge min(*entity.age) 4
+	adults each(*entity,{filter(~,greaterThan(~.age,18))}) 5
+	manyAdults count(each(*entity,{filter(~,greaterThan(~.age,18))})) 6
+
+specific(minAge6 int) 102
+	oldEnough each(*entity,{filter(~,greaterThan(~.age,minAge6))}) 1
+
+ageThreshold(minAge5 int){filter(~,greaterThan(~.age,minAge5))}
+
+specificPartial(minAge4 int) 103
+	oldEnough each(*entity,ageThreshold<minAge4>) 1
+
+allOfIt(input set:entity, minAge int){each(input,ageThreshold<minAge>)}
+reallySpecific(minAge int) 104
+	oldEnough allOfIt(*entity, minAge) 1
+
+//tests passing a bound macro
+partOfIt(input set:entity, transform macro){each(input,transform)}
+macroParameter(minAge3 int) 105
+	oldEnough partOfIt(*entity, ageThreshold<minAge3>) 1
+
+//tests passing a bound macro and calling with its second parameter
+doIt(minAge2 int,it macro){it(minAge2)}
+macroParameterAgain(minAgeA int) 106
+	oldEnough doIt(minAgeA, allOfIt<*entity>) 1
+
+
+nowTest() 107
+	beat sub(now({1000}),now({1500})) 1
+
+tagging 2
+	tags list:string 1
+taggingView(tag string) 110
+	tag tag 8
+mergeTest() 108
+	allTags *tagging.tags 98
+viewMergeTest() 109
+	flatTags each(*tagging, {each(~.tags, {~})}) 94
+	allTags each(*tagging, {each(~.tags, {taggingView(~)})}) 99
+
+ageConfiguration 3
+	ageOfMajority int 1
+
+//majorityFilter(ageConfig ageConfiguration){each(*entity, {filter(~,greaterThan(add(1,~.age),ageConfig.ageOfMajority))})}
+majorityFilter(ageConfig ageConfiguration){subset(*entity, {greaterThan(add(1,~.age),ageConfig.ageOfMajority)})}
+pairedFilterTest(ac ageConfiguration) 111
+	adults majorityFilter(ac) 1
+
+crazyHandler(first *){add(first.age,~)}
+crazyPartialMacroTest() 112
+	crazy each(*entity, {each(~.numbers, crazyHandler<~>)}) 1
+	
+sameNameMacro(otherName string, name string){eq(name, otherName)}
+nameCollisionTest(name string) 113
+	named each(*entity, {filter(~,sameNameMacro(name, ~.name))}) 1
+	
+booleanSetTest(name string) 114
+	truth each(*entity, {sameNameMacro(name, ~.name)}) 1
+

@@ -28,6 +28,12 @@ PrimitiveSetHandle.prototype.each = function(cb){
 	this.obj.forEach(cb);
 }
 
+var typeSuffix = {
+	'int': 'Int',
+	string: 'String',
+	long: 'Long',
+	boolean: 'Boolean'
+}
 PrimitiveSetHandle.prototype.add = function(value){
 	this.assertMemberType(value)
 
@@ -38,9 +44,10 @@ PrimitiveSetHandle.prototype.add = function(value){
 	this.obj.push(value);
 	
 	var e = {value: value}
-	this.saveEdit('add', e);
+	var ts = typeSuffix[this.schema.type.members.primitive]
+	_.assertString(ts)
+	this.saveEdit('add'+ts, e);
 		
-	//this.refresh()();
 	this.emit(e, 'add', value)()
 }
 
@@ -51,23 +58,26 @@ PrimitiveSetHandle.prototype.remove = function(value){
 	
 	this.obj.splice(index, 1)
 	var e = {value: value}
-	this.saveEdit('removePrimitive', e);
+	var ts = typeSuffix[this.schema.type.members.primitive]
+	_.assertString(ts)
+	this.saveEdit('remove'+ts, e);
 	
-	//this.refresh()();
 	this.emit(e, 'remove', value)()
 }
 
-PrimitiveSetHandle.prototype.changeListener = function(path, op, edit, syncId){
+PrimitiveSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 	_.assertString(op)
 
-	if(path.length > 0) _.errout('invalid path, cannot descend into primitive set: ' + JSON.stringify(path))
+	//console.log('primitive set handle changeListener')
+
+	//if(path.length > 0) _.errout('invalid path, cannot descend into primitive set: ' + JSON.stringify(path))
 	
-	if(op === 'add'){
+	if(op.indexOf('add') === 0){
 		var arr = this.obj
 		if(arr === undefined) arr = this.obj = [];
 		arr.push(edit.value);
-		//return this.refresh();
+
 		return this.emit(edit, 'add')
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));

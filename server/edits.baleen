@@ -1,83 +1,185 @@
-make 1
-	obj ^ 1 required
-	id int 2
-	temporary int 3 required
-	editId int 4
-cache 2
-	id int 1 required
-	value ^ 2 required
+make 1 //implicitly does a selectTopObject, as does makeViewObject
+	typeCode int 1
+	forget boolean 4
 
-setId 3
-	id int 1 required
+made 2//what gets broadcast when 'make' happens
+	id int 1
+	typeCode int 2
+makeMapped 3//what gets sent back to the make source syncId (for make and the various *New edits as well for internal ops.)
+	id int 1
+	temporary int 2
+	
+madeViewObject 33
+	id string 1
+	typeCode int 2
 
-ascend 5
-	many byte 1 required
+setSyncId 50
+	syncId int 1 required
+selectObject 51
+	id int 1
+selectViewObject 52
+	id string 1
+selectProperty 53
+	typeCode int 1
+reselectObject 54
+	id int 1
+reselectViewObject 55
+	id string 1
+reselectProperty 56
+	typeCode int 1
+	
+selectStringKey 65
+	key string 1
+selectIntKey 66
+	key int 1
+selectLongKey 67
+	key long 1
+selectBooleanKey 68
+	key boolean 1
 
-descend 6
-	path string 1 required //list:[string|int] is the real type here...
+reselectStringKey 88
+	key string 1
+reselectIntKey 89
+	key int 1
+reselectLongKey 90
+	key long 1
+reselectBooleanKey 91
+	key boolean 1
 
-set 7
-	value primitive 1 required
+//TODO should this be a 'destination set'?  how do we optimize large-multicast scenarios?
+setDestinationSyncId 70 //used for multiplexed server->client streams (where proxying is occuring.)
+	syncId int 1
+
+ascend 57
+	many int 1
+reset 58//equivalent to ascend <depth>, sets the pointer back to the root of the object
+//these are more optimal special cases
+ascend1 59
+ascend2 60
+ascend3 61
+ascend4 62
+ascend5 63
+
+//switches the current top object, without disturbing the path of the object it left or the new one
+selectTopObject 64
+	id int 1
+selectTopViewObject 71
+	id string 1
+
+setInt 75
+	value int 1
+setLong 76
+	value long 1
+setString 77
+	value string 1
+setBoolean 78
+	value boolean 1
 
 setObject 21 
-	id int 1 required
+	id int 1
 
+setViewObject 107
+	id string 1
+	
 setToNew 22
-	//newType int 1 required
-	//external bool 2 required
-	temporary int 3 required
-	obj ^ 1 required
 	
 setData 23
-	data binary 1 required
+	data binary 1
 
 truncate 25
-	newLength int 1 required
+	newLength int 1
 writeData 26
-	position int 1 required
-	data binary 2 required
+	position int 1
+	data binary 2
 append 27
-	data binary 1 required
+	data binary 1
 	
-add 10
-	value primitive 1 required
+addInt 10
+	value int 1
+addLong 79
+	value long 1
+addString 80
+	value string 1
+addBoolean 81
+	value boolean 1
 
-addNewInternal 11
-	//newType int 1 required
+addNew 11
+	typeCode int 1 required
+addedNew 96
+	id int 1 required
 	temporary int 2 required
-	id int 3
-	obj ^ 1 required
+	typeCode int 3 required
 	
 addExisting 12
-	id int 1 required
+	id int 1
+
+addExistingViewObject 35
+	id string 1
+
+syntheticEdit 98
 
 remove 13
+	id int 1
+removeInt 14
+	value int 1
+removeString 82
+	value string 1
+removeLong 83
+	value long 1
+removeBoolean 84
+	value boolean 1
+
+replaceExternalNew 16
+	id int 2 //id being replaced
+	typeCode int 3
+replaceInternalNew 28 //the id being replaced is in the path
+	id int 2 //id being replaced
+	typeCode int 3
+replacedNew 95
+	newId int 1 required
+	typeCode int 2 required
+	temporary int 3 required
+	oldId int 4 required
+	
+replaceExternalExisting 17
+	oldId int 1
+	newId int 2
+	newType int 3
+replaceInternalExisting 29
+	oldId int 1
+	newId int 2
+	newType int 3
+
+putInt 18
+	value int 1
+putString 85
+	value string 1
+putLong 86
+	value long 1
+putBoolean 87
+	value boolean 1
+putReal 99
+	value real 1
+
+putAddExisting 100
 	id int 1 required
 
-removePrimitive 14
-	value primitive 1 required
-
-replaceNew 16 //the id being removed is implicit in the path
-	temporary int 3 required
-	obj ^ 1 required
-	id int 2
-		
-replaceExisting 17//old id is implicit in the path
-	newId int 2 required
-	newType int 3 required
+putAddInt 101
+	value int 1
+putAddString 102
+	value string 1
+putAddLong 103
+	value long 1
+putAddBoolean 104
+	value boolean 1
+putAddReal 105
+	value real 1
 	
-put 18
-	key primitive 1 required
-	value primitive 2 required
+del 31
 
 putNew 24
-	key primitive 1 required
-	//newType int 2 required
-	//external boolean 3 required
-	temporary int 4 required
-	obj ^ 5 required
+putExisting 30
+	id int 2
 	
 shift 20
 
-objectSnap 19
-	value ^ 3

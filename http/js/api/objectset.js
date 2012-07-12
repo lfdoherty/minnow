@@ -3,15 +3,16 @@ var u = require('./util')
 var jsonutil = require('./../jsonutil')
 var _ = require('underscorem')
 
+var ObjectHandle = require('./object')
+
 module.exports = ObjectSetHandle
 
 function ObjectSetHandle(typeSchema, obj, part, parent){
 	this.part = part;
-	this.obj = obj || [];
 	this.parent = parent;
 	this.schema = typeSchema;
 
-	this.apiCache = {};
+	this.obj = u.wrapCollection(this, obj)
 }
 
 ObjectSetHandle.prototype.count = function(){return this.obj.length;}
@@ -25,208 +26,153 @@ ObjectSetHandle.prototype.eachJson = function(cb, endCb){
 	if(endCb) endCb();
 }
 ObjectSetHandle.prototype.contains = function(desiredHandle){
-	var desiredId = desiredHandle.id();
-	
-	for(var i=0;i<this.obj.length;++i){
-		var id = this.obj[i];
-		if(_.isInteger(id)){
-			if(id === desiredId) return true;
-		}else{
-			if(id.meta.id === desiredId) return true;
-		}
-	}
-	return false;
+	return this.obj.indexOf(desiredHandle) !== -1
 }
-ObjectSetHandle.prototype.has = function(desiredId){
-	
-	if(this.obj === undefined){
-		//_.errout('unknown id: ' + desiredId);
-		return false;
-	}
-	
-	var a = this.getFromApiCache(desiredId);
-	if(a){
-		return true;
-	}
-	
-	var arr = this.obj;
+ObjectSetHandle.prototype.has = ObjectSetHandle.prototype.contains
 
-	for(var i=0;i<arr.length;++i){
-		var idOrObject = arr[i];
-		if(_.isInteger(idOrObject)){
-			if(desiredId === idOrObject) return true;
-		}
-	}
-
-	return false;
-}
 ObjectSetHandle.prototype.get = function(desiredId){
 	_.assertLength(arguments, 1);
+	_.assertInt(desiredId)
 	
-	if(this.obj === undefined){
-		_.errout('unknown id: ' + desiredId);
-	}
-	
-	var a = this.getFromApiCache(desiredId);
-	if(a){
-		a.prepare();
-		return a;
-	}
-	
-	var local = this;
-
-	var arr = local.obj;
-
-	for(var i=0;i<arr.length;++i){
-		var idOrObject = arr[i];
-		if(_.isInteger(idOrObject) || _.isString(idOrObject)){
-			var id = idOrObject;
-			if(desiredId === id){
-				a = local.getObjectApi(id, local);
-				_.assertObject(a);
-				local.addToApiCache(id, a);
-				a.prepare();
-				return a;
-			}
-		}else{
-			var obj = idOrObject;
-			var localObjId = obj.meta.id
-			if(desiredId === localObjId){
-
-				a = local.wrapObject(obj, [], local);
-				local.addToApiCache(desiredId, a);
-				a.prepare();
-				return a;
-			}
-		}
-	}
-	
-	_.errout('unknown id: ' + desiredId);
-}
-
-ObjectSetHandle.prototype.each = function(cb){
-	//console.log('in each: ' + JSON.stringify(this.obj));
-	//console.log(JSON.stringify(this.schema));
-	if(this.schema.type.members.type === 'primitive'){
-		_.each(this.obj, cb);
-	}else{
-		if(this.obj === undefined){
-			return;
-		}
-		var local = this;
-		var arr = local.obj;
-		
-		for(var i=0;i<arr.length;++i){
-
-			var id = arr[i];
-			var a = getObject(local, id);
-			a.prepare();
-			cb(a, i);
-		}
-	}
-}
-
-
-function getObject(local, id){
-
-	var localObjId;
-	if(_.isInteger(id)){
-		localObjId = id;
-	}else{
-		//_.assertObject(id)
-		//console.log('obj: ' + JSON.stringify(id))
-		localObjId = id.meta.id
-	}
-	
-	var a = local.getFromApiCache(localObjId);
-	
-	if(a === undefined){
-		if(_.isInteger(id)){
-			a = local.getObjectApi(id, local);
-		}else{
-			a = local.wrapObject(id, [], local);
-		}
-		local.addToApiCache(localObjId, a);
-	}
-	_.assertObject(a);
+	var a = u.findObj(this.obj, desiredId)
+	if(!a) return;
+	a.prepare()
 	return a;
 }
 
+ObjectSetHandle.prototype.each = function(cb, endCb){
+	_.each(this.obj, function(obj){
+		obj.prepare()
+		cb(obj)
+	})
+	if(endCb) endCb()
+}
+
+ObjectSetHandle.prototype.adjustPath = u.adjustObjectCollectionPath
 
 ObjectSetHandle.prototype.remove = function(objHandle){
 
-	var id = objHandle.id();
-	var found = false;
-	for(var i=0;i<this.obj.length;++i){
-		var e = this.obj[i];
-		if(_.isInteger(e)){
-			if(e === id){
-				found = true;
-				this.obj.splice(i, 1);
-				break;
-			}
-		}else{
-			var eId = e.meta.id
-			if(id === eId){
-				found = true;
-				this.obj.splice(i, 1);
-				break;
-			}
+	//if(objHandle.isInner()){
+		var index = this.obj.indexOf(objHandle)
+		if(index === -1){
+			console.log('WARNING: ignoring remove of object not in set')
+			return;
 		}
-	}	
-	
-	if(found){
+
+		this.obj.splice(index, 1);
+
 		var e = {}
-		this.getSh().persistEdit(
+		/*this.getSh().persistEdit(
+			this.getObjectTypeCode(),
 			this.getObjectId(), 
-			this.getPath().concat([id]),
+			this.getPath().concat([objHandle._internalId()]),
 			'remove',
 			e,
-			this.getEditingId());
-			
-		//this.refresh()();
-		this.emit(e, 'remove')()
-	}else{
-		_.errout('tried to remove object not in collection, id: ' + id);
-	}
-}
+			this.getEditingId());*/
+		this.saveEdit('remove', {id: objHandle._internalId()})
+	
+		this.emit(e, 'remove', objHandle)()
+	/*}else{
+		var index = this.obj.indexOf(objHandle)
+		if(index === -1){
+			console.log('WARNING: ignoring remove of object not in set')
+			return;
+		}
 
-ObjectSetHandle.prototype.changeListener = function(path, op, edit, syncId){
+		this.obj.splice(index, 1);
+
+		var e = {id: objHandle._internalId()}
+		this.saveEdit('remove', e)
+	}*/
+}
+function stub(){}
+ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 	//if(path.length > 0) _.errout('TODO implement');
+	console.log('object set handle changeListener')
 	_.assertString(op)
+/*
+	if(path.length === 1 && op === 'remove'){
+		if(this.getEditingId() !== syncId){
+			console.log('removing inner object ^^^^^^^^^^^^^^^^6: ' + path[0])
+			var removedObj = u.findObj(this.obj, path[0])//this.getObjectApi(path[0])
+			_.assertDefined(removedObj)
+			this.obj.splice(this.obj.indexOf(removedObj), 1);
+			return this.emit(edit, 'remove', removedObj)
+		}else{
+			return stub;
+		}
+	}
 
 	if(path.length > 0){
 	
 		var a = this.get(path[0]);
+
+		if(a === undefined){
+			console.log('WARNING: did not descend into object in set - might already have been removed')
+			return;
+		}
+
 		_.assertObject(a);	
 		return a.changeListener(path.slice(1), op, edit, syncId);
-	}
+	}*/
 	
 	if(op === 'addExisting'){
 		//console.log('added to set: ' + edit.id);
 		if(this.getEditingId() !== syncId){
-			var arr = this.obj//[edit.type];
-			//if(arr === undefined) arr = this.obj[edit.type] = [];
-			arr.push(edit.id);
-			//return this.refresh();
-			return this.emit(edit, 'add', this.get(edit.id))
+			var addedObj = this.getObjectApi(edit.id)
+			this.obj.push(addedObj);
+			return this.emit(edit, 'add', addedObj)
 		}
-	}/*else if(op === 'add'){
-		var arr = this.obj
-		if(arr === undefined) arr = this.obj = [];
-		arr.push(edit.value);
-		return this.refresh();
-	}*/else if(op === 'addNewInternal'){
-		if(this.getEditingId() !== syncId){
-			var arr = this.obj
-			if(arr === undefined) arr = this.obj = [];
-			arr.push(edit.obj.object);
-//			return this.refresh();
-			return this.emit(edit, 'add')
+	}/*else if(op === 'addNew'){
+		_.errout('TODO reimplement')
+		var temporary = edit.temporary
+		if(this.getEditingId() === syncId){
+			var objHandle = this.get(temporary);
+			if(objHandle === undefined){
+				console.log('WARNING: did not reify new inner object created via add - might already have been removed')
+				return;
+			}
+			objHandle.reify(edit.obj.object.meta.id)
+			return
 		}else{
-			u.reifyTemporary(this.obj, edit.temporary, edit.id, this);
+			//_.assertInt(id)
+			var newObj = edit.obj.object
+
+			var res = this.wrapObject(newObj, [], this)
+			this.obj.push(res)
+			res.prepare()
+			return this.emit(edit, 'add', res)
 		}
+	}*/else if(op === 'addedNew'){
+		var id = edit.id//edit.obj.object.meta.id
+		var temporary = edit.temporary
+		if(this.getEditingId() === syncId){
+			var objHandle = this.get(temporary);
+			if(objHandle === undefined){
+				console.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
+				return;
+			}
+			objHandle.reify(id)
+			return
+		}else{
+			_.assertInt(id)
+
+			var res = this.wrapObject(id, edit.typeCode, [], this)
+			this.obj.push(res)
+			res.prepare()
+			return this.emit(edit, 'add', res)
+		}
+	}else if(op === 'remove'){
+		if(this.getEditingId() === syncId){
+			return stub;
+		}
+		var removedObj = u.findObj(this.obj, edit.id)//this.getObjectApi(edit.id)
+		var i = this.obj.indexOf(removedObj)
+		_.assert(i >= 0)
+		this.obj.splice(i, 1);
+		console.log('new length: ' + this.obj.length)
+		return this.emit(edit, 'remove', removedObj)		
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}
@@ -237,53 +183,38 @@ function convertToJson(type, obj, objSchema, local){
 	
 }
 
-ObjectSetHandle.prototype.toJson = function(){
-	
-	if(this.schema.type.members.type === 'primitive'){
-		if(this.obj !== undefined){
-			return [].concat(this.obj);
-		}else{
-			return [];
-		}
-	}else{
-		var result = [];
-		var local = this;
-		var fullSchema = local.getFullSchema();
-		var arr = this.obj;
-		for(var i=0;i<arr.length;++i){
-			var objOrId = arr[i];
-			if(_.isInteger(objOrId)){
-				var a = getObject(local, objOrId);
-				result.push(a.toJson());
-			}else{
-				_.errout('TODO');
-			}
-		}
-
-		return result;
-	}	
+ObjectSetHandle.prototype.toJson = function(already){
+	var result = []
+	//console.log(this + '.toJson(): ' + JSON.stringify(this.obj))
+	for(var i=0;i<this.obj.length;++i){
+		var obj = this.obj[i]
+		result.push(obj.toJson(already))
+	}
+	return result
 }
 
 ObjectSetHandle.prototype.types = u.genericCollectionTypes
 
-
-
 ObjectSetHandle.prototype.add = function(objHandle){
 	_.assertObject(objHandle)
 	
-	var id = objHandle.id();
+	if(this.obj.indexOf(objHandle) !== -1){
+		console.log('WARNING: ignoring redundant add: object already in object set')
+		return;
+	}
 	
-	var ee = {id: id}
+	var id = objHandle._internalId()
+	console.log('id: ' + id)
+	_.assertInt(id)
+	_.assert(id > 0 || id < -1)
+	var ee = {id: id, typeCode: objHandle.typeSchema.code}
 	
 	this.saveEdit('addExisting', ee);
 	
-	this.obj.push(id);
+	this.obj.push(objHandle);
 
-	//this.refresh()();
-	this.emit(ee, 'add', this.get(id))()
+	this.emit(ee, 'add', objHandle)()
 }
-
-
 
 ObjectSetHandle.prototype.addNew = function(typeName, json){
 
@@ -295,32 +226,40 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 	}
 	json = json || {}
 	
-	var type = u.getOnlyPossibleType(this, typeName);
+	var type = u.getOnlyPossibleType(this, typeName);	
 	
-	var temporaryId = u.makeTemporaryId();
+	this.saveEdit('addNew', {typeCode: type.code})
+
+	var n = this._makeAndSaveNew(json, type)
 	
-	var obj = jsonutil.convertJsonToObject(this.getFullSchema(), type.name, json);
+	this.emit({}, 'add', n)()
+	this.obj.push(n)
+
+	return n
+	/*
+	var res = //this.createNewExternalObject(type.code, temporary, edits, forg)
 	
+		res.prepare();
+
+		if(cb){
+			if(this.parent.objectCreationCallbacks === undefined) this.parent.objectCreationCallbacks = {};
+			this.parent.objectCreationCallbacks[temporary] = cb;
+		}
+
+		return res;*/
+	/*
 	obj.meta = {typeCode: type.code, id: temporaryId, editId: -10}
 	
 	var ee = {temporary: temporaryId, newType: type.code, obj: {type: type.code, object: obj}};
 	
 	this.saveEdit('addNewInternal',	ee);
 	
-	if(this.obj === undefined) this.obj = [];
-
-	//var newObj = {meta: {id: temporaryId, typeCode: type.code}}
-	this.obj.push(obj);
-
-	//_.extend(obj, json)
-		
-	//this.refresh()();
-	//console.log('finished refresh after addNew');
-	
 	var res = this.wrapObject(obj, [], this)
 
+	this.obj.push(res);	
+
 	this.emit(ee, 'add', res)()
-	return res
+	return res*/
 }
 
 

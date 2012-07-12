@@ -1,37 +1,37 @@
 
-makeSyncId 7
-	requestId int 1 required
-
 beginSync 1
-	requestId int 1 required
-	typeCode int 2 required
-	params string 3 required
-	latestSnapshotVersionId int 4 required
+	requestId int 1
 	
 endSync 2
-	syncId int 1 required
+	syncId int 1
 
+beginView 7
+	requestId int 1
+	syncId int 5
+	typeCode int 2
+	params string 3
+	latestSnapshotVersionId int 4
+	
 persistEdit 3
-	requestId int 6 required
-	id int 1 required
-	path string 2 required
-	edit ^ 4 required inline
-	syncId int 5 required
-
+	requestId int 1
+	op string 2
+	edit binary 3
+	syncId int 4
+	
 getSnapshots 4
-	requestId int 1 required
-	typeCode int 2 required
-	params string 3 required
+	requestId int 1
+	typeCode int 2
+	params string 3
 
 getAllSnapshots 5
-	requestId int 1 required
-	typeCode int 2 required
-	params string 3 required
-	snapshotVersionIds list:int 4 required
+	requestId int 1
+	typeCode int 2
+	params string 3
+	snapshotVersionIds binary 4
 
 getSnapshot 6
-	requestId int 1 required
-	typeCode int 2 required
-	params string 3 required
-	previousVersionId int 4 required
-	latestVersionId int 5 required
+	requestId int 1
+	typeCode int 2
+	params string 3
+	previousVersionId int 4
+	latestVersionId int 5

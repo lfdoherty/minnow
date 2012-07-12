@@ -10,6 +10,11 @@ var TemporaryWindow = 3;
 
 var LogRate = Math.log(Rate);
 
+//Composes a partition of the version id 0-latestVersionId range, through a combination
+//of an exponential-gap-size partitioning and a new-chunk-merging (linear) partitioning.
+//Note that 'latestVersionId' is actually just the length of the snapshot object's version ids list,
+//hence we're segmenting that space, not the actual version id space.
+//The segmenting is then mapped to the real version id space.
 function computeSeveralSnapshotVersions(latestVersionId){
 	if(latestVersionId < Base) return [];
 	
@@ -19,12 +24,14 @@ function computeSeveralSnapshotVersions(latestVersionId){
 	
 	var arr = [];
 
+	//exponential partitioning
 	for(var nk=k;nk>=0 && arr.length < Window;--nk){
 		arr.unshift(Math.floor(Base * Math.pow(Rate, nk)));
 	}
 
 	//console.log('before temporaries: ' + JSON.stringify(arr));
 	
+	//new chunk linear partitioning
 	var lastVersion = arr[arr.length-1];
 	var nextVersion = Math.floor(Base * Math.pow(Rate, k+1))
 	//console.log(latestVersionId + ' k: ' + k);

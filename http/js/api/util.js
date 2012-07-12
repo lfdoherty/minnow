@@ -1,81 +1,9 @@
 
 var _ = require('underscorem')
 
-var temporaryIdCounter = -1;
-function makeTemporaryId(){
-	--temporaryIdCounter;
-	return temporaryIdCounter
-}
-exports.makeTemporaryId = makeTemporaryId
+//exports.makeTemporaryId = makeTemporaryId
 
 function stub(){}
-
-exports.getObject = function getObject(local, id){
-
-	var localObjId;
-	if(_.isInteger(id)){
-		localObjId = id;
-	}else{
-		localObjId = id.meta.id
-	}
-	
-	var a = local.getFromApiCache(localObjId);
-	
-	if(a === undefined){
-		if(_.isInteger(id)){
-			a = local.getObjectApi(id, local);
-		}else{
-			a = local.wrapObject(id, [], local);
-		}
-		local.addToApiCache(localObjId, a);
-	}
-	_.assertObject(a);
-	return a;
-}
-
-exports.genericCollectionGet = function get(desiredId){
-	_.assertLength(arguments, 1);
-	
-	if(this.obj === undefined){
-		_.errout('unknown id: ' + desiredId);
-	}
-	
-	var a = this.getFromApiCache(desiredId);
-	if(a){
-		a.prepare();
-		return a;
-	}
-	
-	var local = this;
-
-	var arr = local.obj;
-
-	for(var i=0;i<arr.length;++i){
-		var idOrObject = arr[i];
-		if(_.isInteger(idOrObject) || _.isString(idOrObject)){
-			var id = idOrObject;
-			if(desiredId === id){
-				a = local.getObjectApi(id, local);
-				_.assertObject(a);
-				local.addToApiCache(id, a);
-				a.prepare();
-				return a;
-			}
-		}else{
-			var obj = idOrObject;
-			var localObjId = obj.meta.id
-			if(desiredId === localObjId){
-
-				a = local.wrapObject(obj, [], local);
-				local.addToApiCache(desiredId, a);
-				a.prepare();
-				return a;
-			}
-		}
-	}
-	
-	_.errout('unknown id: ' + desiredId);
-}
 
 exports.genericCollectionTypes = function types(){
 	var fullSchema = this.getFullSchema();
@@ -89,7 +17,7 @@ function recursivelyGetLeafTypes(objType, schema){
 	}
 	
 	var res = [];
-	//if(!objType.superTypes.abstract) res.push(objType.name)
+
 	_.each(objType.subTypes, function(v, subType){
 		res = res.concat(recursivelyGetLeafTypes(schema[subType], schema));
 	});
@@ -125,116 +53,120 @@ exports.getPrimitiveCollectionAssertion = function(collectionType, typeSchema){
 	if(typeSchema.type.members.primitive === 'string') return _.assertString
 	else if(typeSchema.type.members.primitive === 'int') return _.assertInt
 	else if(typeSchema.type.members.primitive === 'long') return _.assertNumber
+	else if(typeSchema.type.members.primitive === 'boolean') return _.assertBoolean
 	else _.errout('TODO: ' + typeSchema.type.members.primitive)
 }
 
-exports.primitiveChangeListener = function changeListener(path, op, edit, syncId){
-	_.assertLength(path, 0);
+exports.primitiveChangeListener = function changeListener(op, edit, syncId, editId){
+	//_.assertLength(path, 0);
 
 	if(syncId === this.getEditingId()){
+		console.log('ignoring change by same user')
 		return stub;//TODO deal with local/global priority
 	}
 	
-	if(op === 'set'){
+	if(op.indexOf('set') === 0){
 		this.obj = edit.value;
+		console.log('set happened(' + this.getEditingId() + ')(' + syncId + '): ' + edit.value)
+		//this.parent.obj[this.part[0]] = edit.value
 		return this.emit(edit, 'set')
 	}else{
-		_.errout('-TODO implement op: ' + JSON.stringify(edit));
+		_.errout('-TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}
-	
-	//return this.refresh();
 }
 
-exports.doRefresh = function doRefresh(already, sourceOfRefresh, e){
-	if(this.invalidated) _.errout('refresh called on invalid API object');
-	
-	already = JSON.parse(JSON.stringify(already));
-	
-	var cbs = [];
-	if(this.refreshListeners){
-		//console.log('got listeners');
-
-		_.each(this.refreshListeners, function(listener, listenerName){
-			if(already[listenerName]) return;
-			already[listenerName] = true;
-			//console.log('calling ' + listenerName + ' listener');
-			var cb = listener(e, sourceOfRefresh);
-			if(cb){
-				_.assertFunction(cb);
-				cbs.push(cb);
-			}
-		});
-	}else{
-		//console.log('ignoring refresh, no listeners');
-	}
-
-	if(this.parent){
-		//console.log('refreshing upwards (' + this.constructor.name + ')');
-		var cb = this.parent.doRefresh(already, false, e);
-		_.assertFunction(cb);
-		cbs = cbs.concat(cb);
-	}
-	//if(!this.parent && !this.refreshListeners){
-	//	console.log('WARNING: refresh encountered neither parents nor listeners');
-	//}
-	
-	return function(){
-		for(var i=0;i<cbs.length;++i){
-			cbs[i]();
+function findObj(arr, desiredId){
+	_.assertInt(desiredId)
+	//console.log('finding: ' + desiredId)
+	//console.log(JSON.stringify(arr))
+	//console.log('out of: ' + JSON.stringify(_.map(arr, function(v){return v.id();})))
+	var res;
+	for(var i=0;i<arr.length;++i){
+		var a = arr[i]
+		if(a._internalId() === desiredId){
+			res = a
+			break;
 		}
 	}
+	return res
 }
+exports.findObj = findObj
 
-exports.reifyTemporary = function reifyTemporary(arr, temporary, realId, local){
-	//var realId = edit.id;
-	_.assertInt(realId)
-	
-	console.log('reifying temporary ' + temporary + ' -> ' + realId);
-	var did = false;
-	
-	var index = findListElement(arr, temporary);
-	if(index === undefined){
-		console.log('WARNING: cannot reify missing object (might be ok if removed): real(' + realId + ') temporary(' + temporary + ') ' + JSON.stringify(arr));
-		return;
-	}
-	
-	var e = arr[index];
-	if(_.isInteger(e)){
-		arr[index] = realId
-		local.parent.reifyExternalObject(temporary, realId);
-	}else{
-		console.log(JSON.stringify(e))
-		_.assertEqual(e.meta.id, temporary);
-		e.meta.id = realId;
-	}
 
-	console.log('reified temporary id ' + temporary + ' -> ' + realId);
-
-	var key = temporary;
-	if(local.apiCache[key]){
-		var newKey = realId;
-		_.assert(local.apiCache[newKey] === undefined);
-		local.apiCache[newKey] = local.apiCache[key];
-		local.apiCache[key].objectId = realId;
-		delete local.apiCache[key];
-		console.log('reified api cache entry');
+function wrapCollection(local, arr){
+	var res = []
+	if(arr){
+		arr.forEach(function(idOrObject){
+			if(_.isInt(idOrObject) || _.isString(idOrObject)){
+				var a = local.getObjectApi(idOrObject, local);
+				res.push(a)
+			}else{
+				var a = local.wrapObject(idOrObject, [], local);
+				res.push(a)
+			}
+		})
 	}
+	return res
 }
+exports.wrapCollection = wrapCollection
 
-function findListElement(arr, id){
-	for(var i=0;i<arr.length;++i){
-		var e = arr[i];
-		if(_.isInteger(e)){
-			if(e === id){
-				return i;
+function adjustObjectCollectionPath(source){
+	console.log('adjust object collection path ' + source)
+	var remainingCurrentPath = this.parent.adjustPath(this.part)
+	if(remainingCurrentPath.length === 0){
+		console.log('zero')
+		this.persistEdit('selectObject', {id: source})
+		return []
+	}else if(remainingCurrentPath[0] !== source){
+		console.log('different')
+		if(remainingCurrentPath.length > 1){
+			if(remainingCurrentPath.length < 6){
+				console.log('primitive ascending ' + remainingCurrentPath[0])
+				this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
+			}else{
+				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
 			}
 		}else{
-			var obj = e;
-			var eId = obj.meta.id
-			if(id === eId){
-				return i;
-			}
+			console.log('reselecting')
 		}
+		this.persistEdit('reselectObject', {id: source})
+		return []
+	}else{
+		console.log('same')
+		return remainingCurrentPath.slice(1)
 	}
 }
-exports.findListElement = findListElement
+exports.adjustObjectCollectionPath = adjustObjectCollectionPath
+
+var typeSuffix = {
+	string: 'String',
+	int: 'Int',
+	long: 'Long',
+	boolean: 'Boolean',
+	real: 'Real'
+}
+exports.getAddOperator = function(schema){
+	var ts = typeSuffix[schema.type.members.primitive]
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return 'add' + ts
+}
+exports.getRemoveOperator = function(schema){
+	var ts = typeSuffix[schema.type.members.primitive]
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return 'remove' + ts
+}
+exports.getPutOperator = function(schema){
+	var ts = typeSuffix[schema.type.value.primitive]
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return 'put' + ts
+}
+exports.getKeyOperator = function(schema){
+	var ts = typeSuffix[schema.type.value.primitive]
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return 'select' + ts + 'Key'
+}
+exports.getSetOperator = function(schema){
+	var ts = typeSuffix[schema.type.primitive]
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return 'set' + ts
+}

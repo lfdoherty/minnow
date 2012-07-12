@@ -2,7 +2,7 @@
 	"name": "minnow",
 	"version": "0.2.1",
 	"description": "An auto-syncing, in-memory-canonical relational database",
-	"main": "./client/client",
+	"main": "./index",
 	"author": "Liam Doherty",
 	"dependencies" : { 
 		"baleen": "git://github.com/lfdoherty/baleen.git",
@@ -17,7 +17,11 @@
 		"segmentedfile": "git://github.com/lfdoherty/segmentedfile.git",
 		"socket.io": "*",
 		"structures": "git://github.com/lfdoherty/structures.git",
-		"underscorem": "git://github.com/lfdoherty/underscorem.git"
+		"underscorem": "git://github.com/lfdoherty/underscorem.git",
+		"fparse": "*"
+	},
+	"devDependencies": {
+		"cover": ">=0.2.8"
 	},
 	"engines": {
 		 "node" : "0.6"
