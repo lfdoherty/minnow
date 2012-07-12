@@ -8,3 +8,4 @@ views_plan
 save
 */minnow_data
 mtest/*/
+*.log
