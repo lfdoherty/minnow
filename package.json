@@ -1,6 +1,6 @@
 {
 	"name": "minnow",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "An auto-syncing, in-memory-canonical relational database",
 	"main": "./index",
 	"author": "Liam Doherty",
@@ -18,8 +18,8 @@
 		"socket.io": "*",
 		"structures": "git://github.com/lfdoherty/structures.git",
 		"underscorem": "git://github.com/lfdoherty/underscorem.git",
-		"fparse": "*",
-		"quicklog": "*"
+		"fparse": "git://github.com/lfdoherty/fparse.git",
+		"quicklog": "git://github.com/lfdoherty/quicklog.git"
 	},
 	"devDependencies": {
 		"cover": ">=0.2.8"
