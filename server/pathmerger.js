@@ -5,6 +5,8 @@ var tcpShared = require('./tcp_shared')
 
 function stub(){}
 
+var log = require('quicklog').make('minnow-pathmerger')
+
 //saveAp is for saving path-changing edits,
 //otherwise we use callAp
 function make(schema, ol, saveAp, callAp, translateTemporary){
@@ -32,8 +34,8 @@ function make(schema, ol, saveAp, callAp, translateTemporary){
 			})
 			
 			var realPath = updater.getCurrentPath()
-			console.log('path: ' + JSON.stringify(e.path))
-			console.log('real: ' + JSON.stringify(realPath))
+			log('path: ' + JSON.stringify(e.path))
+			log('real: ' + JSON.stringify(realPath))
 
 			callAp(typeCode, e.id, realPath, e.op, e.edit, e.syncId, e.computeTemporary, e.cb)
 		})
@@ -48,7 +50,7 @@ function make(schema, ol, saveAp, callAp, translateTemporary){
 		}else{
 			olMap[id] = [e]
 			ol.getObjectMetadata(id, function(typeCode, path, syncId){
-				console.log('GOT OBJECT METADATA: ' + JSON.stringify([id, path]))
+				log('GOT OBJECT METADATA: ' + JSON.stringify([id, path]))
 				advance(id, typeCode, path, syncId)
 			})
 		}

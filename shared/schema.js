@@ -41,6 +41,7 @@ require('./../server/variables/each')
 require('./../server/variables/subset')
 require('./../server/variables/binaryops')
 
+var log = require('quicklog').make('schema')
 
 function loadViews(schemaDir, str, schema, synchronousPlugins, cb){
 
@@ -80,7 +81,6 @@ function concretizeMacrosForView(v, viewMap){
 }
 function concretizeViewExpression(expr, viewMap, bindings){
 	var res = replaceReferencesToParams(expr, viewMap, bindings, [])
-	//console.log(JSON.stringify(res, null, 2))
 	return res
 }
 
@@ -105,36 +105,16 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 					return {type: 'param', name: implicits[num]}
 				}
 			}
-			/*
-			if(expr.name === '&'){
-				//if(bindings[implicits[0]] === undefined) _.errout('creating param for non-bound implicit: ' + implicits[0])
-				//console.log('creating implicit first param: ' + implicits[0])
-				//console.log(JSON.stringify(bindings))
-				//console.log(new Error().stack)
-				return {type: 'param', name: implicits[0]}
-			}
-			if(expr.name === '$'){
-				//if(bindings[implicits[1]] === undefined) _.errout('creating param for non-bound implicit: ' + implicits[1])
-				return {type: 'param', name: implicits[1]}
-			}*/
 			
 			return expr;
-			//if(expr.name !== '&' && expr.name !== '$'){
-				//console.log(JSON.stringify(bindings))
-				//throw new Error('cannot resolve param: ' + expr.name)
-			/*}else{
-				return expr;
-			}
-			return expr*/
+
 		}
 	}else if(expr.type === 'view'){
 		var gm;
-		//console.log('view bindings(' + expr.view + '): ' + JSON.stringify(bindings))
 		if(viewMap[expr.view] !== undefined && viewMap[expr.view].code === undefined){
 			gm = viewMap[expr.view]
 		}else if(bindings[expr.view] !== undefined){
 			if(bindings[expr.view].type === 'global-macro' || bindings[expr.view].type === 'partial-application' || bindings[expr.view].type === 'macro'){
-				//console.log('found param with binding to global macro')
 				gm = bindings[expr.view]
 			}else{
 				_.errout('TODO: ' + JSON.stringify(expr) + '\n' + JSON.stringify(bindings[expr.view]))			
@@ -142,48 +122,34 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		}
 		
 		var newParams = []
-		//console.log(expr.view + ' params: ' + JSON.stringify(expr.params))
 		expr.params.forEach(function(p, index){
 			var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
-			//console.log(JSON.stringify(np))
 			if(!gm) _.assert(np.type !== 'partial-application')
 		})
 		
 		if(gm){
 			if(leavePartials) return expr
 			if(gm.type === 'global-macro'){
-				var newBindings = {}//_.extend({}, bindings)
+				var newBindings = {}
 				gm.params.forEach(function(p, index){
-					//console.log('p: ' + JSON.stringify(p))
-					//var paramExpr = expr.params[index]
-					newBindings[p.name] = newParams[index]//expr.params[index]
+					newBindings[p.name] = newParams[index]
 				})
-				//if(expr.view === 'allOfIt') console.log('replacing allOfIt')
-				//console.log('replacing global macro expression with params/bindings: ' + JSON.stringify(newBindings))
 				var res = replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
-				//console.log('res: ' + JSON.stringify(res))
 				return res
 			}else if(gm.type === 'partial-application'){
-				//console.log('processing partial application')
-				var newBindings = {}//_.extend({}, bindings)
+				var newBindings = {}
 				var pa = gm
 				var gm = viewMap[pa.macro]
-				//console.log('gm: ' + JSON.stringify(pa) + ' ' + JSON.stringify(gm))
 				pa.params.forEach(function(paramExpr, index){
-					//console.log('p: ' + JSON.stringify(gm.params))
 					var paramName = gm.params[index].name
 					_.assertString(paramName)
 					newBindings[paramName] = replaceReferencesToParams(paramExpr, viewMap, bindings, implicits)
 				})
 				var realIndex = pa.params.length
-				//console.log('replacing new params: ' + JSON.stringify(newParams))
-				//console.log('bindings: ' + JSON.stringify(bindings))
 				newParams.forEach(function(paramExpr, index){
-					//console.log('p: ' + JSON.stringify(gm.params))
 					var paramName = gm.params[realIndex].name
 					_.assertString(paramName)
 					newBindings[paramName] = replaceReferencesToParams(paramExpr, viewMap, bindings, implicits)
-					//newBindings[expr.implicits[index]] = newBindings[paramName]//TODO include?
 					++realIndex
 				})
 				return replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
@@ -191,19 +157,10 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 				if(expr.params.length > 2) _.errout('TODO allow calling a macro with more than 2 parameters, somehow?')
 				var newBindings = {}
 				_.assertUndefined(expr.implicits)
-				var newImplicits = //['p&'+Math.random(), 'p$'+Math.random()]
-				newImplicits = gm.implicits//gm.implicits = newImplicits
-				/*if(expr.params.length > 0){
-					newBindings[newImplicits[0]] = newParams[0]
-				}
-				if(expr.params.length > 1){
-					newBindings[newImplicits[1]] = newParams[1]
-				}*/
+				var newImplicits = gm.implicits
 				expr.params.forEach(function(dummy,index){
 					newBindings[newImplicits[index]] = newParams[index]
 				})
-				//console.log('new bindings: ' + JSON.stringify(newBindings))
-				//console.log('new implicits: ' + JSON.stringify(newImplicits))
 				return replaceReferencesToParams(gm.expr, viewMap, newBindings, newImplicits)
 			}else{
 				_.errout('TODO: ' + JSON.stringify(gm))
@@ -212,7 +169,6 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 			var v = {type: 'view', view: expr.view, params: newParams}
 			if(expr.view === 'each'){
 				if(v.params[1].type === 'partial-application'){
-					//console.log(!!gm + ' ' + JSON.stringify(v))
 					throw new Error()
 				}
 			}
@@ -226,20 +182,15 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		if(viewMap[expr.macro] !== undefined){
 			var gm = viewMap[expr.macro]
 			if(gm.type === 'global-macro'){
-				var newBindings = {}//_.extend({}, bindings)
+				var newBindings = {}
 				var fullBindings = _.extend({}, bindings, expr.sourceBindings)
-				//console.log('fullBindings: ' + JSON.stringify(fullBindings))
 				expr.params.forEach(function(paramExpr, index){
-					//console.log('p: ' + JSON.stringify(gm.params))
 					var paramName = gm.params[index].name
 					_.assertString(paramName)
-					newBindings[paramName] = replaceReferencesToParams(paramExpr, viewMap, fullBindings, implicits)//bindings)
+					newBindings[paramName] = replaceReferencesToParams(paramExpr, viewMap, fullBindings, implicits)
 				})
 				_.assertUndefined(expr.implicits)
-				var newImplicits = makeImplicits()//['p&'+Math.random(), 'p$'+Math.random()]
-				//newBindings['&'] = {type: 'param', name: implicits[0]}
-				//newBindings['$'] = {type: 'param', name: implicits[1]}
-				//console.log('new implicits: ' + JSON.stringify(newImplicits))
+				var newImplicits = makeImplicits()
 				return {type: 'macro', expr: replaceReferencesToParams(gm.expr, viewMap, newBindings, newImplicits), implicits: newImplicits}
 			}
 		}
@@ -251,17 +202,10 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		var newImplicits
 		if(expr.implicits){
 			newImplicits = expr.implicits
-			//console.log('-new implicits: ' + JSON.stringify(newImplicits))
 		}else{
-			//newImplicits = ['p&'+Math.random(), 'p$'+Math.random()]
 			newImplicits = makeImplicits()
-			
-			//console.log('*new implicits: ' + JSON.stringify(newImplicits))
 		}
 		var newBindings = _.extend({}, bindings)
-		//newBindings[newImplicits[0]] = {type: 'param', name: '&'}
-		//newBindings[newImplicits[1]] = {type: 'param', name: '$'}
-		//_.assertUndefined(expr.implicits)
 		return {type: 'macro', expr: replaceReferencesToParams(expr.expr, viewMap, newBindings, newImplicits), implicits: newImplicits}
 	}else{
 		_.errout('TODO: ' + JSON.stringify(expr))
@@ -318,7 +262,6 @@ function readAllSchemaFiles(schemaDir, cb){
 		if(err) throw err;
 		var minnowFiles = []
 		minnowFiles.push(__dirname + '/builtins.minnow')
-		//console.log('readdir: ' + JSON.stringify(files))
 		files.forEach(function(f){
 			var mi = f.indexOf('.minnow')
 			if(mi !== -1 && mi === f.length-'.minnow'.length){
@@ -329,7 +272,6 @@ function readAllSchemaFiles(schemaDir, cb){
 			if(strs.length === 0) _.errout('no schema files found in dir: ' + schemaDir)
 			cb(strs, minnowFiles)
 		})
-	//	console.log('readdir-minnow: ' + JSON.stringify(minnowFiles))
 		minnowFiles.forEach(function(f){
 			fs.readFile(f, 'utf8', function(err, str){
 				if(err) throw err;
@@ -348,7 +290,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 	var osp = synchronousPlugins
 	synchronousPlugins = {}
 	_.each(osp, function(plugin, pluginName){
-		console.log('plugin: ' + JSON.stringify(Object.keys(plugin)))
+		log('plugin: ' + JSON.stringify(Object.keys(plugin)))
 		if(plugin.compute === undefined) _.errout('plugin ' + pluginName + ' must define a "compute" function!')
 		if(plugin.type === undefined) _.errout('plugin ' + pluginName + ' must define a "type" function describing its output type.')
 		if(plugin.minParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
@@ -366,13 +308,13 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			implementation: plugin.compute,
 			minParams: plugin.minParams,
 			maxParams: plugin.maxParams,
-			callSyntax: plugin.syntax//'count(collection)'
+			callSyntax: plugin.syntax
 		}
 	})
 
 	syncPlugins = synchronousPlugins
 	
-	console.log('loading all schemas in dir: ' + schemaDir)
+	log('loading all schemas in dir: ' + schemaDir)
 	
 	var schemaDirs = _.isString(schemaDir) ? [schemaDir] : schemaDir
 	var str = ''
@@ -388,16 +330,15 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 		try{
 			schema = keratin.parse(str, reservedTypeNames);
 		}catch(e){
-			console.log('keratin failed parsing: ' +schemaDir);
+			log('keratin failed parsing: ' +schemaDir);
 			throw e;
 		}
 		
 		loadViews(schemaDir, str, schema, synchronousPlugins, function(globalMacros){
 			var takenObjectTypeCodes = {}
-		//	console.log('many schema: ' + _.size(schema))
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
-					console.log('ERROR while processing files: ' + JSON.stringify(allFiles))
+					log('ERROR while processing files: ' + JSON.stringify(allFiles))
 					throw new Error('type code of ' + name + ' already taken: ' + st.code);
 				}
 				takenObjectTypeCodes[st.code] = true
@@ -410,9 +351,9 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			});
 			
 			cb(schema, globalMacros);
-			console.log('done load cb')
+			log('done load cb')
 		});		
-		console.log('done...')
+		log('done...')
 	});
 }
 
@@ -491,9 +432,6 @@ function safeSplit(str, delim){
 	if(curly !== 0) _.errout('mismatched {} brackets: ' + str);
 	if(round !== 0) _.errout('mismatched () brackets: ' + str);
 
-	//console.log('safeSplit: ' + str)
-	//console.log('res: ' + res)
-	
 	return res;
 }
 
@@ -516,7 +454,6 @@ function parseViewExpr(expr){
 	var path = [];
 	
 	while(expr.length > 0){
-		//console.log('expr: ' + expr)
 		var fc = expr.charAt(0);
 		var openRound = findOuterChar(expr, '(')
 		var closeRound = findOuterChar(expr, ')')
@@ -544,7 +481,6 @@ function parseViewExpr(expr){
 			typeName = expr.substring(expr.indexOf('*')+1, typeNameEndIndex);
 			expr = expr.substr(typeNameEndIndex);
 			
-			//path.push({type: 'type', name: typeName});
 			path.push({type: 'view', view: 'type', params: [{type: 'value', value: typeName}]});
 			
 		}else if(fc === '.'){
@@ -557,12 +493,9 @@ function parseViewExpr(expr){
 			var dotc = expr.indexOf('{');
 			if(dotc !== -1 && dotc < end) end = dotc;
 			path.push({type: 'view', view: 'property', params: [{type: 'value', value: expr.substring(1, end)}]});
-			//console.log('adjusted expression: ' + expr);
 			expr = expr.substr(end);
-			//console.log('adjusted expression: ' + expr);
 		}else if(openRound !== -1 && openCurly === -1){
 			var viewName = expr.substr(0, openRound).trim();
-			//console.log('viewName: ' + viewName);
 			var paramStr = expr.substring(openRound+1, expr.lastIndexOf(')'));
 			var paramStrs = safeSplit(paramStr, ',');
 
@@ -579,7 +512,6 @@ function parseViewExpr(expr){
 				viewName = viewExpr.view
 			}
 			path.push(viewExpr);
-			//break;
 			expr = expr.substr(expr.lastIndexOf(')')+1);
 		}else if(openRound !== -1 && openCurly !== -1){
 
@@ -621,7 +553,6 @@ function parseViewExpr(expr){
 				checkAlphanumericOnly(firstPart, 'parameter name must contain only alphanumeric characters, or be & or $ (' + firstPart + ')');
 				path.push({type: 'param', name: firstPart});
 				expr = expr.substr(expr.indexOf('.'));
-				//console.log(expr);
 			}else{
 				expr = expr.trim();
 				if(parseInt(expr)+'' === expr){
@@ -650,7 +581,6 @@ function invertViewExpression(arr){
 	}else{
 		var last = arr[arr.length-1];
 		var rest = arr.slice(0, arr.length-1);
-		//last.context = invertViewExpression(rest);
 		_.assertArray(last.params)
 		last.params.push(invertViewExpression(rest))
 		e = last;
@@ -665,16 +595,13 @@ function computePathResultType(path, baseType, context, schema, viewMap){
 	var t = baseType;
 	_.each(path, function(p){
 		if(p.type === 'property'){
-			//console.log(t);
 			_.errout('TODO?')
 			t = t.properties[p.property];
 			if(t === undefined){
 				_.errout('unknown property: ' + p.property);
 			}
-			//console.log('here:');
 			_.assertObject(t);
 		}else if(p.type === 'macro'){
-			//console.log('macro input t: ' + JSON.stringify(t));
 			_.errout('TODO?')
 			var input = t;
 			t = computeType(p.expr, context, schema, viewMap);
@@ -683,7 +610,6 @@ function computePathResultType(path, baseType, context, schema, viewMap){
 			}else if(input.type.type === 'list'){
 				t = {type: 'list', members: t};
 			}
-			//console.log(t);
 			_.assertObject(t);
 		}else{
 			_.errout('TODO support path part type: ' + p.type);
@@ -697,11 +623,8 @@ function computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper){
 	_.assertArray(implicits)
 	rel.params.forEach(function(p){
 		if(p.type === 'macro' || p.type === 'partial-application'){
-			//throw new Error()
-			return//must be computed by def.schemaType
+			return
 		}
-		//console.log('computing param type: ' + JSON.stringify(p))
-		//console.log('p.type: ' + p.type)
 		computeTypeWrapper(p, bindingTypes, implicits)
 	})
 }
@@ -709,17 +632,12 @@ function computeMacroType(schema, computeType, viewMap, macroParam, bindingTypes
 	var valueType;
 	if(macroParam.type === 'macro'){
 		var nbt = {}
-		//console.log('extending macro bindings: ' + JSON.stringify(bindingTypes))
-		//console.log('new: ' + JSON.stringify(newBindingTypes))
-		//console.log(JSON.stringify(macroParam))
 		_.extend(nbt, bindingTypes, newBindingTypes)
-		//if(implicits) _.assertEqual(macroParam.implicits, implicits)
-		valueType = computeType(macroParam.expr, nbt, macroParam.implicits)//implicits)//macroParam.implicits)//implicits)
+		valueType = computeType(macroParam.expr, nbt, macroParam.implicits)
 		_.assertDefined(valueType)
 		macroParam.schemaType = valueType
 	}else if(macroParam.type === 'view'){
 		if(builtinFunctions[macroParam.view] !== undefined){
-			//_.errout('TODO work out type of builtin')
 			var def = builtinFunctions[macroParam.view]
 			var ch = {
 				computeType: computeType,
@@ -746,27 +664,14 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 	function computeTypeWrapper(relValue, bindingTypes, localImplicits){
 		_.assertDefined(relValue)
 		_.assertObject(bindingTypes)
-		//console.log('rel: ' + JSON.stringify(relValue))
-		//console.log(rel.view + ' rel bindings: ' + JSON.stringify(bindingTypes))
 		_.assertArray(localImplicits)
 		return computeType(relValue, v, schema, viewMap, bindingTypes, localImplicits || implicits, synchronousPlugins)
 	}
 	
-	//console.log('finding param: ' + JSON.stringify(rel));
 	if(rel.type === 'param' && bindingTypes[rel.name] !== undefined){
 		if(bindingTypes[rel.name].type.type === 'object' && bindingTypes[rel.name].type.object === 'macro') throw new Error()
-		//console.log('translated param: ' + rel.name + ' -> ' + JSON.stringify(bindingTypes[rel.name]))
 		return rel.schemaType = bindingTypes[rel.name]
 	}else if(rel.type === 'param'){
-		/*if(rel.name === '&'){
-			_.assert(implicits.length > 0)
-			return rel.schemaType = bindingTypes[implicits[0]]
-		}
-		if(rel.name === '$'){
-			_.assert(implicits.length > 1)
-			return rel.schemaType = bindingTypes[implicits[1]]
-		}*/
-		console.log('here: ' + rel.name)
 		if(rel.name.charAt(0) === '~'){
 			
 			var num = rel.name.length > 1 ? parseInt(rel.name.substr(1)) : 1
@@ -778,9 +683,9 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			if(p.name === rel.name) return true;
 		})
 		if(vv === undefined){
-			console.log('param: ' + JSON.stringify(rel))
-			console.log('binding names: ' + JSON.stringify(Object.keys(bindingTypes)))
-			console.log('bindings: ' + JSON.stringify(bindingTypes))
+			log('param: ' + JSON.stringify(rel))
+			log('binding names: ' + JSON.stringify(Object.keys(bindingTypes)))
+			log('bindings: ' + JSON.stringify(bindingTypes))
 			_.errout('cannot find param: ' + rel.name + ' (' + JSON.stringify(v.params) + ')');
 		}
 		_.assertObject(vv.type);
@@ -793,15 +698,12 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			_.errout('parameter not found: ' + rel.path[0].name);
 		}
 		var initialType = schema[initialTypeName.object];
-		//_.assertObject(initialType);
 		if(initialType === undefined){
 			_.errout('object type not found: ' + JSON.stringify(initialTypeName));
 		}
 		return rel.schemaType = computePathResultType(rel.path.slice(1), initialType, v, schema, viewMap);
 	}else if(rel.type === 'view'){
 		var v = viewMap[rel.view];
-		//_.assertObject(v)
-		
 
 		var ch = {
 			computeType: computeTypeWrapper,
@@ -817,7 +719,6 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		}
 		
 		if(bindingTypes[rel.view] !== undefined){//view is calling a macro in a parameter
-			console.log('returning bound type: ' + rel.view)
 			_.assertLength(rel.params, 0)
 			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
 			return bindingTypes[rel.view].schemaType
@@ -835,8 +736,8 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		}
 		
 		if(def === undefined){
-			console.log(JSON.stringify(Object.keys(schema)))
-			console.log(JSON.stringify(bindingTypes))
+			log(JSON.stringify(Object.keys(schema)))
+			log(JSON.stringify(bindingTypes))
 			throw new Error('cannot find: ' + rel.view)
 		}
 		
@@ -899,8 +800,6 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 		bindingTypes[p.name] = p.type;
 	})
 	
-	//console.log(JSON.stringify(v))
-	//console.log('top-level view bindings: ' + JSON.stringify(bindingTypes))
 	_.each(v.rels, function(rel, name){
 		var p = result.properties[name] = {};
 		p.name = name;
@@ -909,7 +808,6 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 		p.code = rel.code;
 		p.tags = {};
 		_.assertNumber(p.code);
-		//console.log(p.code);
 		result.propertiesByCode[p.code] = p;
 	});
 	
@@ -926,7 +824,6 @@ function parseParams(paramsStr){
 	}else{
 		paramStrings = [];
 	}
-	//console.log([name, params, expr]);
 	var params = _.map(paramStrings, function(p, index){
 		var sp = p.trim().split(' ');
 
@@ -954,12 +851,10 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 		takenCodes[value.code] = true;
 	});
 	
-	//console.log(JSON.stringify(view));
 	var result = {};
 	
 	function processView(v, viewName){
 		if(isMacro(v)){
-			//console.log('parse macro: ' + JSON.stringify(v))
 			var expr = v.tokens[0]
 			_.assertString(expr)
 			expr = expr.replace(/\n/gi, '')
@@ -971,7 +866,6 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 			_.assertObject(bodyExpr)
 			result[name] = {type: 'global-macro', expr: bodyExpr, params: params, name: name};
 		}else{
-			//console.log('parsing: ' + JSON.stringify(v))
 			var expr = v.tokens[0];
 			var obi = expr.indexOf('(')
 			if(obi === -1) return;//skip non-views (objects)
@@ -984,9 +878,7 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 			if(takenCodes[code]){
 				_.errout('view ' + name + ' is using a code that is already taken: ' + code);
 			}
-			//console.log('view: ' + name);
 			takenCodes[code] = true;
-			//console.log(params);
 			var vn = {name: name, params: params, paramsByName: {}, rels: {}, code: code, superTypes: {}};
 			if(result[name]) _.errout('duplicate view name "' + name + '"')
 			result[name] = vn;
@@ -1011,7 +903,6 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 				if(relTakenCodes[cc]){
 					_.errout('view rel ' + rName + ' is using a code that is already taken: ' + cc);
 				}
-				//console.log(rName + ': ' + cc);
 				relTakenCodes[cc] = true;
 				_.assertInt(cc);
 				
@@ -1039,7 +930,7 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 	//we do this separately to resolve circular dependencies
 	_.each(result, function(vn, name){
 		if(vn.schema){
-			console.log('computing schema for ' + name)
+			log('computing schema for ' + name)
 			makeViewSchema(vn, schema, vn.schema, result, synchronousPlugins);
 			vsStr += keratin.stringize(vn.schema, name, vn.code, function(t){
 				if(t.type === 'view'){
@@ -1054,8 +945,6 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 		}
 	});
 	fs.writeFile(schemaDir + '/view.schema.generated', vsStr, 'utf8');
-	
-	//console.log(JSON.stringify(result, null, 2));
 	
 	return result;
 }

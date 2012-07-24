@@ -10,8 +10,7 @@ var fixedPrimitive = require('./../fixed/primitive')
 var fixedObject = require('./../fixed/object')
 
 function propertyType(rel, ch){
-	///return {type: 'set', members: {type: 'object', object: rel.params[0].value}};
-	//_.errout('TODO')
+
 	_.assertLength(rel.params, 2)
 	_.assertObject(rel.params[1].schemaType)
 	
@@ -115,22 +114,19 @@ function viewPropertyMaker(s, self, rel, typeBindings){
 function objectPropertyMaker(s, self, rel, typeBindings){
 	var contextGetter = self(rel.params[1], typeBindings)
 	//console.log(JSON.stringify(rel))
-	//console.log('\n\n###object: ' + rel.params[1].schemaType)
 	var objSchema = s.schema[rel.params[1].schemaType.object]
 
-	console.log('value: ' + rel.params[0].value)
+	//console.log('value: ' + rel.params[0].value)
 	if(rel.params[0].value === 'id'){
 		var f = function(bindings, editId){
-			//console.log('value: ' + rel.params[0].value)
 			var context = contextGetter(bindings, editId)
-			console.log('context: ' + JSON.stringify(Object.keys(context)))
+			//console.log('context: ' + JSON.stringify(Object.keys(context)))
 			var listeners = listenerSet()
 			var value
 			context.attach({set: function(v, oldV, editId){
 				value = v
 				listeners.emitSet(value, oldV||-1, editId)
 			},
-			shouldHaveObject: function(){}
 			}, editId)
 			var handle = {
 				attach: function(listener, editId){
@@ -146,7 +142,6 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 				oldest: context.oldest
 			}
 			return handle
-			//return fixedPrimitive.make(s)(context.getId(), editId)
 		}
 		f.wrapAsSet = function(v, editId){
 			return fixedPrimitive.make(s)(v, editId)
@@ -161,18 +156,17 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 	_.assertInt(propertyCode)
 	var cache = new Cache()
 
+	var isObjectValue
+	
 	var c
 	if(property.type.type === 'set' || property.type.type === 'list'){
-		//if(rel.schemaType.members.type !== 'primitive') _.errout('TODO: handl wrapAsSet for non-primitives')
-		//console.log('Xproperty: ' + JSON.stringify(property))
-		//console.log(JSON.stringify(rel.params[1]))
 		c = svgObjectCollectionValue
+		isObjectValue = property.type.members.type === 'object'
 	}else{
-		//console.log('@property: ' + JSON.stringify(property))
-		//console.log(JSON.stringify(rel.params[1]))
 		c = svgObjectSingleValue
+		isObjectValue = property.type.type === 'object'
 	}
-	var f = c.bind(undefined, s, cache, contextGetter, propertyCode)
+	var f = c.bind(undefined, s, cache, contextGetter, isObjectValue, propertyCode)
 	if(c === svgObjectSingleValue){
 		f.wrapAsSet = function(v, editId){
 			var res
@@ -186,10 +180,10 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 		}
 	}else{
 
-		f.wrapAsSet = function(v, editId){
+		f.wrapAsSet = function(v, editId, context){
 			var res
 			if(property.type.members.type === 'object'){
-				res = fixedObject.make(s)(v, editId)
+				res = fixedObject.make(s)(v, editId, context)
 			}else{		
 				res = fixedPrimitive.make(s)(v, editId)
 			}
@@ -202,6 +196,9 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 
 function objectSetPropertyMaker(s, self, rel, typeBindings){
 	var contextGetter = self(rel.params[1], typeBindings)
+	
+	//_.assertFunction(contextGetter.getDescender)
+	
 	//console.log('\n\n###' + JSON.stringify(rel))
 	//console.log('+object: ' + rel.params[1].schemaType.members.object)
 	var objSchema = s.schema[rel.params[1].schemaType.members.object]
@@ -213,20 +210,23 @@ function objectSetPropertyMaker(s, self, rel, typeBindings){
 
 	//console.log('property: ' + JSON.stringify(property))
 	//if(property.name === 'age') throw new Error()
-
+	
+	var isObjectProperty
 	if(property.type.type === 'set' || property.type.type === 'list'){
 		if(rel.schemaType.members.type !== 'primitive') _.errout('TODO: handl wrapAsSet for non-primitives')
 		c = svgObjectSetCollectionValue
+		isObjectProperty = property.type.members.type === 'object'
 	}else{
 		c = svgObjectSetSingleValue
+		isObjectProperty = property.type === 'object'
 	}	
-	return c.bind(undefined, s, cache, contextGetter, propertyCode)
+	return c.bind(undefined, s, cache, contextGetter, isObjectProperty, propertyCode)
 }
 
 var ccc = 0
 
 
-function svgObjectSingleValue(s, cache, contextGetter, propertyCode, bindings, editId){
+function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
 	_.assertInt(editId)
 	var elements = contextGetter(bindings, editId)
 
@@ -249,6 +249,7 @@ function svgObjectSingleValue(s, cache, contextGetter, propertyCode, bindings, e
 	}
 	
 	var handle = {
+		name: 'property-of-object',
 		attach: function(listener, editId){
 			_.assertInt(editId)
 			listeners.add(listener)
@@ -267,6 +268,13 @@ function svgObjectSingleValue(s, cache, contextGetter, propertyCode, bindings, e
 		oldest: oldest,
 		key: key
 	}
+
+	if(isObjectProperty){
+		var innerLookup = {}
+		handle.descend = function(path, editId, cb){
+			elements.descend([innerLookup[path[0]], propertyCode].concat(path), editId, cb)
+		}
+	}
 	
 	elements.attach({
 		set: function(id, oldId, editId){
@@ -276,26 +284,28 @@ function svgObjectSingleValue(s, cache, contextGetter, propertyCode, bindings, e
 			_.assertInt(id)
 			_.assertInt(editId)
 
-			//console.log('GETTING(' + id + ') PBOJECR: ' + propertyCode)
-			s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){//: function(objId, propertyCode, editId, cb){
-				//console.log('*got ' + id + ' ' + propertyCode + ' ' + JSON.stringify(pv))
+			s.log('GETTING(' + id + ') PBOJECR: ' + propertyCode)
+			s.log(elements.name + ': '+elements)
+			s.log(JSON.stringify(Object.keys(elements)))
+			_.assertInt(id)
+			elements.descend([id, propertyCode], editId, function(pv, editId){
 				if(pv !== value){
-					//process.exit(0)
-					//console.log('*got ' + id + ' ' + propertyCode + ' ' + JSON.stringify(pv))
+					if(isObjectProperty){
+						innerLookup[pv] = id;
+					}
 					listeners.emitSet(pv, value, editId)
 					value = pv
 				}
 				ongoingEditId = undefined
 			})
-		},
-		shouldHaveObject: listeners.emitShould
+		}
 	}, editId)
 	
 	return cache.store(key, handle)
 }
 
 
-function svgObjectCollectionValue(s, cache, contextGetter, propertyCode, bindings, editId){
+function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
 	_.assertInt(editId)
 	var elements = contextGetter(bindings, editId)
 
@@ -320,6 +330,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, propertyCode, binding
 	}
 	
 	var handle = {
+		name: 'property-of-object-collection',
 		attach: function(listener, editId){
 			_.assertInt(editId)
 			listeners.add(listener)
@@ -341,6 +352,18 @@ function svgObjectCollectionValue(s, cache, contextGetter, propertyCode, binding
 	}
 	//TODO listen for changes
 	
+	if(isObjectProperty){
+		var innerLookup = {}
+		handle.descend = function(path, editId, cb){
+			var id = innerLookup[path[0]]
+			if(id === undefined){
+				s.log(JSON.stringify(innerLookup))
+				_.errout('tried to descend into unknown id: ' + path[0])
+			}
+			elements.descend([id, propertyCode].concat(path), editId, cb)
+		}
+	}
+	
 	var previousStreamListener
 	elements.attach({
 		set: function(id, oldId, editId){
@@ -353,14 +376,20 @@ function svgObjectCollectionValue(s, cache, contextGetter, propertyCode, binding
 			if(previousStreamListener) s.objectState.stopStreamingProperty(id, propertyCode, previousStreamListener)
 			function streamListener(pv, editId){
 				ongoingEditId = undefined
-				console.log('streaming property: ' + JSON.stringify(pv))
+				if(isObjectProperty && pv){
+					//_.assertInt(pv)
+					pv.forEach(function(v){
+						innerLookup[v] = id
+					})
+				}
+				s.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
 				//var pv = obj[propertyCode]
 				if(pv !== undefined){
 					pv.forEach(function(v){
 						if(!counts[v]){
 							counts[v] = 1
 							values.push(v)
-							console.log('emitting add: ' + v)
+							s.log('emitting add: ' + v)
 							listeners.emitAdd(v, editId)
 						}else{
 							++counts[v]
@@ -369,9 +398,10 @@ function svgObjectCollectionValue(s, cache, contextGetter, propertyCode, binding
 				}
 			}
 			previousStreamListener = streamListener
-			s.objectState.streamProperty(id, propertyCode, editId, streamListener)
+			//s.objectState.streamProperty(id, propertyCode, editId, streamListener)
+			elements.descend([id, propertyCode], editId, streamListener)
 		},
-		shouldHaveObject: stub,
+		//shouldHaveObject: stub,
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
@@ -382,7 +412,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, propertyCode, binding
 }
 
 
-function svgObjectSetSingleValue(s, cache, contextGetter, propertyCode, bindings, editId){
+function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
 	var elements = contextGetter(bindings, editId)
 
 	var key = elements.key
@@ -428,6 +458,14 @@ function svgObjectSetSingleValue(s, cache, contextGetter, propertyCode, bindings
 		key: key
 	}
 	
+	if(isObjectProperty){
+		var innerLookup = {}
+		handle.descend = function(path, editId, cb){
+			var id = innerLookup[path[0]]
+			elements.descend([id, propertyCode].concat(path), editId, cb)
+		}
+	}
+	
 	elements.attach({
 		add: function(id, outerEditId){
 			wait(outerEditId)
@@ -435,9 +473,15 @@ function svgObjectSetSingleValue(s, cache, contextGetter, propertyCode, bindings
 			//_.errout('TODO stream property state')
 			var cur;
 			var first = true
-			s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
+			//s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
+			elements.descend([id, propertyCode], editId, function(pv, editId){
 				//console.log('GOT PROPERTY VALUE: ' + pv + ' ' + editId)
 				if(pv !== undefined){
+				
+					if(isObjectProperty){
+						innerLookup[pv] = id
+					}
+					
 					cur = pv
 					if(pvCounts[pv] === undefined){
 						pvCounts[pv] = 1
@@ -460,7 +504,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, propertyCode, bindings
 		},
 		remove: function(id, editId){
 			wait(editId)
-			s.objectState.getObjectState(id, function(obj){
+			/*s.objectState.getObjectState(id, function(obj){
 				var pv = obj[propertyCode]
 				if(pvCounts[pv] === 1){
 					delete pvCounts[pv]
@@ -470,9 +514,19 @@ function svgObjectSetSingleValue(s, cache, contextGetter, propertyCode, bindings
 					--pvCounts[pv]
 				}
 				resume(editId)
+			})*/
+			elements.descend([id, propertyCode], editId, function(pv, editId){//TODO stop listening after first get
+				if(pvCounts[pv] === 1){
+					delete pvCounts[pv]
+					propertyValues.splice(propertyValues.indexOf(pv), 1)
+					listeners.emitRemove(pv, editId)
+				}else{
+					--pvCounts[pv]
+				}
+				resume(editId)				
 			})
 		},
-		shouldHaveObject: stub,
+		//shouldHaveObject: stub,
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
@@ -485,7 +539,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, propertyCode, bindings
 
 function stub(){}
 
-function svgObjectSetCollectionValue(s, cache, contextGetter, propertyCode, bindings, editId){
+function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
 	var elements = contextGetter(bindings, editId)
 
 	var key = elements.key
@@ -515,6 +569,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, propertyCode, bind
 	}
 	
 	var handle = {
+		name: 'property-of-object-set-collection',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^6')
@@ -531,21 +586,31 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, propertyCode, bind
 		key: key
 	}
 	
+	if(isObjectProperty){
+		var innerLookup = {}
+		handle.descend = function(path, editId, cb){
+			var id = innerLookup[path[0]]
+			elements.descend([id, propertyCode].concat(path), editId, cb)
+		}
+	}
+	
 	elements.attach({
 		add: function(id, outerEditId){
 			wait(outerEditId)
-			console.log('got add $$$$$$$$$$$$$$$$$$$$$$: ' + id + ' ' + editId + ' ' + propertyCode)
+			s.log('got add $$$$$$$$$$$$$$$$$$$$$$: ' + id + ' ' + editId + ' ' + propertyCode)
 			//TODO listen for changes to object
 			var first = true
-			s.objectState.streamProperty(id, propertyCode, editId, function(v, editId){
-				console.log('got property value: ' + JSON.stringify(v) + ' ' + editId)
+			elements.descend([id, propertyCode], editId, function(v, editId){
+				if(isObjectProperty){
+					innerLookup[v] = id
+				}
 				if(v !== undefined){
 					_.assertArray(v)
 					v.forEach(function(pv){
 						if(pvCounts[pv] === undefined){
 							pvCounts[pv] = 1
 							propertyValues.push(pv)
-							console.log('calling add')
+							s.log('calling add')
 							listeners.emitAdd(pv, editId)
 						}else{
 							++pvCounts[pv]
@@ -560,8 +625,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, propertyCode, bind
 		},
 		remove: function(id, editId){
 			wait(editId)
-			s.objectState.getObjectState(id, function(obj){
-				var v = obj[propertyCode]
+			elements.descend([id, propertyCode], editId, function(v, editId){
 				if(v === undefined){
 					resume(editId)
 					return
@@ -578,7 +642,6 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, propertyCode, bind
 				resume(editId)
 			})
 		},
-		shouldHaveObject: stub,
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')

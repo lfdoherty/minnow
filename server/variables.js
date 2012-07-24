@@ -21,8 +21,11 @@ console.log = function(msg){
 	old(msg)
 }*/
 
-function makeGetter(schema, globalMacros, objectState, broadcaster){
+function makeGetter(schema, globalMacros, objectState, broadcaster, log){
+	_.assertFunction(log)
+	
 	var s = {schema: schema, globalMacros:globalMacros, objectState: objectState, broadcaster: broadcaster}
+	s.log = log
 	var f = variableGetter.bind(undefined, s);
 	return f;
 }
@@ -61,6 +64,8 @@ function isView(expr, name){return expr.type === 'view' && expr.view === name;}
 function variableGetter(s, setExpr, typeBindings){
 	_.assertObject(typeBindings)
 	_.assertDefined(setExpr)
+	_.assertFunction(s.log)
+	
 	var self = variableGetter.bind(undefined, s)
 	
 	if(setExpr.type === 'property'){
@@ -136,13 +141,18 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 		//variableGetter(
 	})
 	
+	var topLevel = {
+		descend: function(path, editId, cb){
+			s.objectState.streamProperty(path, editId, cb)
+		}
+	}
 	return function(params, startingEditId){
 		_.assertArray(params)
 		var bindings = {}
 		paramGetters.forEach(function(pg, index){
-			bindings[paramNames[index]] = pg(params[index], startingEditId)
+			bindings[paramNames[index]] = pg(params[index], startingEditId, topLevel)
 		})
-		console.log('created bindings for params: ' + JSON.stringify(params) + '->' + JSON.stringify(bindings))
+		//console.log('created bindings for params: ' + JSON.stringify(params) + '->' + JSON.stringify(bindings))
 		return bindings;
 	}
 }

@@ -60,18 +60,15 @@ MapHandle.prototype.each = function(cb){
 		}else if(this.schema.type.value.members.type === 'object'){
 			Object.keys(this.obj).forEach(function(key){
 				var value = local.obj[key];
-				//console.log('d: ' + JSON.stringify(local.obj))
-				//if(value !== undefined){
-					for(var i=0;i<value.length;++i){
-						var id = value[i]
-						_.assertInt(id)
-						var a// = local.apiCache[idOrValue];
-						if(a === undefined) a = local.getObjectApi(id);
-						a.prepare()
-						cb(key, a);
-						//cb(key, value[i]);
-					}
-				//}
+
+				for(var i=0;i<value.length;++i){
+					var id = value[i]
+					_.assertInt(id)
+					var a
+					if(a === undefined) a = local.getObjectApi(id);
+					a.prepare()
+					cb(key, a);
+				}
 			})
 		}else{
 			_.errout('TODO: ' + JSON.stringify(local.schema));
@@ -92,28 +89,28 @@ MapHandle.prototype.each = function(cb){
 }
 
 MapHandle.prototype.adjustPath = function adjustMapPath(key){
-	console.log('adjust map path ' + key)
+	this.log('adjust map path ' + key)
 	var remainingCurrentPath = this.parent.adjustPath(this.part)
 	if(remainingCurrentPath.length === 0){
-		console.log('zero')
+		this.log('zero')
 		this.persistEdit(this.keyOp, {key: key})
 		return []
 	}else if(remainingCurrentPath[0] !== key){
-		console.log('different')
+		this.log('different')
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
-				console.log('primitive ascending ' + remainingCurrentPath[0])
+				this.log('primitive ascending ' + remainingCurrentPath[0])
 				this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
 			}else{
 				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
 			}
 		}else{
-			console.log('reselecting')
+			this.log('reselecting')
 		}
 		this.persistEdit('re'+this.keyOp, {key: key})
 		return []
 	}else{
-		console.log('same')
+		this.log('same')
 		return remainingCurrentPath.slice(1)
 	}
 }
@@ -121,7 +118,6 @@ MapHandle.prototype.del = function(key){
 
 	this.adjustPath(key)
 	var e = {key: key};
-	//this.saveEdit('del', e)
 	this.persistEdit('del', {})
 	delete this.obj[key]
 		
@@ -134,7 +130,6 @@ MapHandle.prototype.put = function(newKey, newValue){
 
 	this.adjustPath(newKey)
 	var e = {value: newValue, key: newKey};
-	//this.saveEdit(this.putOp, e)
 	this.persistEdit(this.putOp, e)
 	this.obj[newKey] = newValue
 		
@@ -156,19 +151,17 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, external){
 		e,
 		this.getEditingId());
 
-	//if(this.obj === undefined) this.obj = {};
-	
 	if(external){
 		this.createNewExternalObject(type.code, temporaryId);
-		this.obj[newKey] = temporaryId//.push(temporaryId);
+		this.obj[newKey] = temporaryId
 	}else{
-		console.log('not external')
+		this.log('not external')
 		_.errout('TODO')
 		this.obj[newKey] = {meta: {id: temporaryId, typeCode: type.code}};
 	}
 		
 	this.refresh()();
-	//console.log('finished refresh after addNew');
+	//this.log('finished refresh after addNew');
 
 	var res = this.getObjectApi(temporaryId, this);
 	res.prepare();
@@ -284,15 +277,7 @@ MapHandle.prototype.changeListener = function(op, edit, syncId){
 		return stub;//TODO deal with local/global priority
 	}
 
-	/*if(op === 'put'){
-		this.obj[edit.key] = edit.value;
-		return this.emit(edit, 'put')
-	}else if(op === 'del'){
-		delete this.obj[edit.key]
-		return this.emit(edit, 'del')
-	}else{*/
-		_.errout('-TODO implement op: ' + JSON.stringify(edit));
-	//}
+	_.errout('-TODO implement op: ' + JSON.stringify(edit));
 }
 MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId){
 
@@ -308,11 +293,11 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId){
 	}else if(op.indexOf('putAdd') === 0){
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.value)
-		console.log('key: ' + key)
+		this.log('key: ' + key)
 		return this.emit(edit, 'put')
 	}else if(op.indexOf('put') === 0){
 		this.obj[key] = edit.value;
-		console.log('key: ' + key)
+		this.log('key: ' + key)
 		return this.emit(edit, 'put')
 	}else if(op === 'del'){
 		delete this.obj[key]

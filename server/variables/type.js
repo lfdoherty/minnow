@@ -7,7 +7,7 @@ var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
 
-var object = require('./object')
+//var object = require('./object')
 
 var fixedObject = require('./../fixed/object')
 
@@ -34,10 +34,17 @@ function typeMaker(s, self, rel){
 	var fixedObjGetter = fixedObject.make(s)
 	var nf = svgGeneralType.bind(undefined, s, cache, typeCode)
 	//nf.implName = 'type'
-	nf.wrapAsSet= function(id, editId){
+	nf.wrapAsSet = function(id, editId, context){
 		_.assertInt(editId)
-		return fixedObjGetter(id, editId)
+		return fixedObjGetter(id, editId, context)
 	}
+	/*nf.getDescender = function(){
+		//_.errout('TODO')
+		return function(id, propertyCode, editId, cb){
+			s.objectState.streamProperty(id, propertyCode, editId, cb)
+		}
+	}*/
+
 	return nf
 }
 
@@ -52,14 +59,15 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 	var idList
 	
 	var handle = {
+		name: 'type-general',
 		attach: function(listener, editId){
 			_.assertInt(editId)
-			_.assertFunction(listener.shouldHaveObject)
+			//_.assertFunction(listener.shouldHaveObject)
 			_.assertFunction(listener.add)
 			_.assertFunction(listener.remove)
 			listeners.add(listener)
-			console.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
-			console.log(new Error().stack)
+			s.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
+			s.log(new Error().stack)
 			if(idList){
 				idList.forEach(function(id){
 					listener.add(id, editId)
@@ -85,27 +93,33 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			}
 		},
 		key: key,
-		isType: true
+		isType: true,
+		descend: function(path, editId, cb, continueListening){
+			_.assertFunction(cb)
+			_.assertInt(path[0])
+			_.assertInt(path[1])
+			s.objectState.streamProperty(path, editId, cb, continueListening)
+		}
 	}
 
 	s.objectState.getAllIdsOfType(typeCode, function(ids){
 		
 		idList = [].concat(ids)
-		console.log('TYPE got all ids: ' + JSON.stringify(ids))
+		s.log('TYPE got all ids: ' + JSON.stringify(ids))
 		
 		function listenCreated(typeCode, id, editId){
 			idList.push(id)
-			console.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
+			s.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
 			
 			//process.exit(0)
 			//listeners.emitObjectChange(typeCode, id, typeCode, id, [], 'made', {typeCode: typeCode}, -1, editId)
-			listeners.emitShould(id, true, editId)
+			//listeners.emitShould(id, true, editId)
 			listeners.emitAdd(id, editId)
 		}
 		function listenDeleted(typeCode, id, editId){
 			idList.splice(idList.indexOf(id), 1)
 			listeners.emitRemove(id, editId)
-			listeners.emitShould(id, false, editId)
+			//listeners.emitShould(id, false, editId)
 		}
 		s.broadcaster.listenForNew(typeCode, listenCreated)
 		s.broadcaster.listenForDeleted(typeCode, listenDeleted)
@@ -121,7 +135,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		var currentEditId = handle.oldest()
 
 		idList.forEach(function(id){
-			listeners.emitShould(id, true, currentEditId)
+			//listeners.emitShould(id, true, currentEditId)
 			listeners.emitAdd(id, currentEditId)
 		})
 	})

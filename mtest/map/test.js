@@ -27,9 +27,9 @@ exports.put = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(v){
-						console.log(''+v.setPropertyToNew)
+						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
-						v.setProperty('s', obj)
+						v.s.set(obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.put('testKey', 'testValue')
@@ -60,7 +60,7 @@ exports.del = function(config, done){
 					otherClient.view('general', function(v){
 						console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
-						v.setProperty('s', obj)
+						v.s.set(obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.put('testKey', 'testValue')

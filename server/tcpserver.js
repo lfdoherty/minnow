@@ -1,6 +1,11 @@
 "use strict";
 
 var net = require('net')
+var fs = require('fs')
+
+var quicklog = require('quicklog')
+
+var log = quicklog.make('tcp.server')
 
 var _ = require('underscorem')
 var baleen = require('baleen')
@@ -8,7 +13,6 @@ var shared = require('./tcp_shared');
 var bin = require('./../util/bin')
 var server = require('./server');
 var fparse = require('fparse')
-var fs = require('fs')
 
 var pathupdater = require('./pathupdater')
 
@@ -54,13 +58,7 @@ function serializeAllSnapshots(snapshots){
 	for(var i=0;i<snapshots[0].length;++i){
 		str += ' ' + snapshots[0][i]
 	}
-	/*console.log(str)
-	console.log('all snapshots buffer: ')
-	var str = ''
-	for(var i=0;i<buf.length;++i){
-		str += ' ' + buf[i]
-	}
-	console.log(str)*/
+
 	return buf
 }
 
@@ -86,7 +84,7 @@ var pathControlEdits = [
 	'ascend', 'ascend1', 'ascend2', 'ascend3', 'ascend4', 'ascend5']
 	
 function createTcpServer(appSchema, port, exes, s, readyCb){
-	//console.log('making tcp server')
+	log('making tcp server')
 	var connections = []
 	
 	var fp = fparse.makeFromSchema(shared.editSchema)
@@ -102,10 +100,6 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		function temporaryGenerator(){
 			var nt = nextTemporary
 			--nextTemporary
-			//ws.write('(' + syncId + ') generating temporary: ' + nt+'\n')
-			//ws.write(new Error().stack+'\n')
-			//console.log('(' + syncId + ') generating temporary: ' + nt+'\n')
-			//console.log(new Error().stack+'\n')
 			return nt
 		}
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
@@ -113,10 +107,9 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 	
 	var tcpServer = net.createServer(function(c){
 	
-		var ws = fs.createWriteStream('tcp server->client.' + (++logCounter) + '.log')
+		var ws = quicklog.make('tcp server->client.' + (++logCounter))
 	
-		console.log('tcp server got connection')
-		console.log(new Error().stack)
+		log('tcp server got connection')
 		
 		connections.push(c)
 
@@ -167,16 +160,18 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		
 		var viewHandles = []
 		
-		var pathUpdaters = {}
+		//this is the outgoing path state
+		var pathUpdaters = {}//TODO these should be indexed by syncId as well as id
 		
-		var alreadySentEdit = {}
+		var alreadySentEdit = {}//TODO deprecate or index by syncId as well
 		
-		var pathsFromClientById = {}
+		//these are the *incoming* edit's path state
+		var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
 		
 		function sendObject(e, ob){
 			_.assertBuffer(ob.edits)
-			ws.write('sending object: ' + ob.id+'\n')
-			console.log('sending object: ' + ob.id)
+			ws('sending object: ' + ob.id)
+			//log('sending object: ' + ob.id)
 			ob.destinationSyncId = e.syncId
 			w.updateObject(ob);
 		}
@@ -190,7 +185,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 			_.assertLength(arguments, 2)
 			_.assertInt(up.typeCode)
 			
-			ws.write('sending update: ' + JSON.stringify(up)+'\n')
+			log('sending update: ' + JSON.stringify(up))
 			//console.log(new Error().stack)
 			//if(_.isInt(up.id)) _.assert(up.id >= 0)
 			if(w === undefined){
@@ -199,12 +194,12 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 
 			var editKey = up.id+'|'+up.editId+up.op+JSON.stringify(up.path)
 
-			if(alreadySentEdit[editKey]){
-				ws.write('already sent edit: ' + editKey + '\n')
+			if(alreadySentEdit[syncId+':'+editKey]){
+				log('already sent edit: ' + editKey)
 				return
 			}
 			
-			alreadySentEdit[editKey] = true
+			alreadySentEdit[syncId+':'+editKey] = true
 			
 			if(this.currentSyncId !== up.syncId){
 				this.currentSyncId = up.syncId
@@ -225,16 +220,16 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 				
 				_.assertDefined(up.id)
 				
-				var pathUpdater = pathUpdaters[up.id]
-				if(pathUpdater === undefined) pathUpdater = pathUpdaters[up.id] = shared.makePathStateUpdater(appSchema, up.typeCode)
+				var pathUpdater = pathUpdaters[syncId+':'+up.id]
+				if(pathUpdater === undefined) pathUpdater = pathUpdaters[syncId+':'+up.id] = shared.makePathStateUpdater(appSchema, up.typeCode)
 			
-				console.log('updating to path ' + JSON.stringify(up.path))
+				log('updating to path ' + JSON.stringify(up.path))
 				pathUpdater(up.path, function(op, edit){
-					console.log('sending update: ' + JSON.stringify([op, edit]))
+					log('sending update: ' + JSON.stringify([op, edit]))
 					sendUpdate(op, edit, -1, up.editId, e.syncId)					
 				}, up)
-				console.log('...done updating to path ' + JSON.stringify(up.path))
-				console.log('sending actual: ' + JSON.stringify([up.op, up.edit]))
+				log('...done updating to path ' + JSON.stringify(up.path))
+				log('sending actual: ' + JSON.stringify([up.op, up.edit]))
 			}
 			
 			
@@ -243,7 +238,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		}
 		function sendUpdate(op, edit, syncId, editId, destinationSyncId){
 			_.assertLength(arguments, 5)
-			ws.write('writing edit: ' + op + ' ' + JSON.stringify(edit) + ' ' + syncId + ' ' + editId + ' ' + destinationSyncId+'\n')
+			log('writing edit: ' + op + ' ' + JSON.stringify(edit) + ' ' + syncId + ' ' + editId + ' ' + destinationSyncId)
 			var binaryEdit = binEdit(op, edit)
 			if(syncId === undefined) syncId = -1
 			_.assertInt(editId)
@@ -258,7 +253,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		}
 		function sendReady(e, updatePacket){
 			_.assertArray(updatePacket)
-			//console.log('sending ready')
+			log('sending ready')
 			w.ready({requestId: e.requestId, updatePacket: JSON.stringify(updatePacket)})
 			w.flush();
 		}
@@ -270,13 +265,10 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 				var syncId = s.beginSync(updater, objectUpdater);
 				e.syncId = syncId
 				updaters[syncId] = updater
-				//console.log('writing new sync id: ' + syncId + ' }}}}}}}}}}}}}}}}}}}}')
 				w.newSyncId({requestId: e.requestId, syncId: syncId});
 				w.flush();
 			},
 			beginView: function(e){
-				//e.params = JSON.parse(e.params)
-				//console.log('e.params: ' + JSON.stringify(e.params))
 				var viewHandle = s.beginView(e, sendReady.bind(undefined, e));
 				_.assertObject(viewHandle)
 				viewHandles.push(viewHandle)
@@ -284,7 +276,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 			endView: function(e){
 			},
 			endSync: function(e){
-				console.log('tcpserver got client request endSync: ' + JSON.stringify(e))
+				log('tcpserver got client request endSync: ' + JSON.stringify(e))
 				//TODO
 			},
 			persistEdit: function(e){
@@ -294,8 +286,8 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 				var syncId = e.syncId
 				
 				var op = e.op
-				ws.write('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300)+'\n')
-				console.log('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300)+'\n')
+				//ws.write('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300)+'\n')
+				ws('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300))
 				if(op === 'selectTopObject'){
 					currentId = e.edit.id
 					_.assertInt(currentId)
@@ -306,15 +298,15 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 					return
 				}
 				
-				console.log('current id (tcpserver-client): ' + currentId)
+				log('current id (tcpserver-client): ' + currentId)
 
-				var pu = pathsFromClientById[currentId]
-				if(pu === undefined) pu = pathsFromClientById[currentId] = pathupdater.make([])
+				var pu = pathsFromClientById[syncId+':'+currentId]
+				if(pu === undefined) pu = pathsFromClientById[syncId+':'+currentId] = pathupdater.make([])
 				var wasPathUpdate = pu.update(e)
 				
 				if(wasPathUpdate){
-					console.log('processed path update: ' + JSON.stringify(e))
-					console.log('path now: ' + JSON.stringify(pu.getPath()))
+					log('processed path update: ' + JSON.stringify(e))
+					log('path now: ' + JSON.stringify(pu.getPath()))
 					return
 				}
 				
@@ -326,13 +318,13 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 				s.persistEdit(currentId, e.op, pu.getPath(), e.edit, syncId, tg, function(result){
 					if(op === 'make'){
 						//if(pathsFromClientById[result.temporary]){
-						pathsFromClientById[result.temporary] = pathsFromClientById[result.id] = pathupdater.make([])
+						pathsFromClientById[syncId+':'+result.temporary] = pathsFromClientById[syncId+':'+result.id] = pathupdater.make([])
 						//}
 						currentId = result.id//this works because make can be executed synchronously
 						
 						_.assertInt(result.id);
 						w.objectMade({requestId: e.requestId, id: result.id, temporary: result.temporary});
-						console.log('wrote objectMade')
+						//console.log('wrote objectMade')
 						//w.flush();
 					}
 				});
@@ -366,7 +358,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		}
 
 		c.on('end', function() {
-			console.log('client disconnected')
+			log('client disconnected')
 			ws.end()
 			viewHandles.forEach(function(sh){
 				sh.end()
@@ -393,25 +385,25 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 	});
 
 	tcpServer.on('close', function(){
-		console.log('TCP SERVER CLOSED')
+		log('TCP SERVER CLOSED')
 	})
 	var serverHandle = {
 		close: function(cb){
 			var cdl = _.latch(2, function(){
-				console.log('all closed')
+				log('all closed')
 				cb()
 			})
 			tcpServer.on('close', function(){
-				console.log('tcp server closed')
+				log('tcp server closed')
 				cdl()
 			})
-			console.log('closing tcp server: ' + tcpServer.connections)
+			log('closing tcp server: ' + tcpServer.connections)
 			//apparently you cannot close a server until you've destroyed all its connections
 			//even if those connections were closed remotely???
 			connections.forEach(function(c){c.destroy();})
 			tcpServer.close()
 			s.close(function(){
-				console.log('closed rest')
+				log('closed rest')
 				cdl()
 			})
 		}

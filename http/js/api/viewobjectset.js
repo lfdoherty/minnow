@@ -41,6 +41,8 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 		console.log('WARNING: ignored redundant add on viewobjectset')
 	}else{
 		this.obj.push(objHandle);
+		if(this.wasAdded === undefined) this.wasAdded = []
+		this.wasAdded.push(objHandle)
 
 		this.emit(undefined, 'add', objHandle)()
 	}
@@ -48,25 +50,17 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 
 //TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
 //if it doesn't that's a client error
-ViewObjectSetHandle.prototype.changeListener = function(/*path,*/ op, edit, syncId, editId){
-	//_.assertLength(arguments, 5);
+ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertString(op)
 
-	//console.log('view object set handle changeListener')
-/*
-	if(path.length > 0){	
-		var a = this.get(path[0]);
-		_.assertObject(a);	
-		return a.changeListener(path.slice(1), op, edit, syncId);
-	}*/
-	
 	if(op === 'addExistingViewObject' || op === 'addExisting'){
 		//_.assertString(edit.id)
 		var addedObjHandle = this.getObjectApi(edit.id);
 		//console.log('got obj handle: ' + addedObjHandle.id())
 		//console.log(_.map(this.obj, function(v){return v.id();}))
 		if(this.obj.indexOf(addedObjHandle) !== -1){
-			_.errout('already have obj handle')
+			//_.errout('already have obj handle: ' + syncId + ' ' + this.getEditingId())
+			_.assert(this.wasAdded.indexOf(addedObjHandle) !== -1)
 		}else{
 			//console.log('view adding: ' + JSON.stringify(addedObjHandle.id()))
 			this.obj.push(addedObjHandle)

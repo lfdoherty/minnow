@@ -12,6 +12,8 @@ var indexingStub = {
 	updateIndexingOnProperty: stub
 }
 
+var log = require('quicklog').make('ap')
+
 var pathControlEdits = [
 	'reset', 
 	'selectProperty', 'reselectProperty', 
@@ -36,7 +38,7 @@ function make(schema, ol){
 		return syncId;
 	}
 	
-	var ws = fs.createWriteStream('ap.log')
+	//var ws = fs.createWriteStream('ap.log')
 	
 	var broadcaster
 	
@@ -103,15 +105,14 @@ function make(schema, ol){
 		
 		if(currentId !== id && id !== -1){
 			ap.selectTopObject({id: id})
-			console.log('wrote selectTopObject(' + id + ')')
-			ws.write('wrote selectTopObject(' + id + ')\n')
+			log('wrote selectTopObject(' + id + ')')
 			currentId = id
 		}
 		
 		ap[op](e)
 
 		var n = ol.persist(id, op, e, syncId)
-		ws.write(n.editId + ' ' + id + ' ' + op + ' ' + JSON.stringify(e)+' ' + syncId + '\n')
+		log(n.editId + ' ' + id + ' ' + op + ' ' + JSON.stringify(e)+' ' + syncId)
 	}
 	var currentId
 	
@@ -235,7 +236,7 @@ function make(schema, ol){
 		}else if(currentId !== id && id !== -1){
 			ap.selectTopObject({id: id})
 			console.log('wrote selectTopObject(' + id + ')')
-			ws.write('wrote selectTopObject(' + id + ')\n')
+			log('wrote selectTopObject(' + id + ')')
 			currentId = id
 		}
 		
@@ -259,8 +260,7 @@ function make(schema, ol){
 			e.id = newId
 		}
 			
-		ws.write(editId + ' ' + id + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit)+' ' + syncId + '\n')
-		console.log(editId + ' ' + id + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit)+' ' + syncId + '\n')
+		log(editId + ' ' + id + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit)+' ' + syncId)
 		
 		ap[op](e)
 	
@@ -274,7 +274,7 @@ function make(schema, ol){
 			cb({editId: editId, id: newId, temporary: temporary});
 			_.assert(newId >= 0)
 			//es.objectCreated(edit.typeCode, newId, editId)
-			console.log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId)
+			log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId)
 			broadcaster.input.objectCreated(e.typeCode, newId, editId)
 			return;
 		}

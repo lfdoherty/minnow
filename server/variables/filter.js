@@ -25,6 +25,7 @@ function filterMaker(s, self, rel, typeBindings){
 	//console.log(JSON.stringify(rel.params[0]))
 	_.assertFunction(inputGetter.wrapAsSet)
 	f.wrapAsSet = inputGetter.wrapAsSet
+	//f.getDescender = inputGetter.getDescender
 	return f
 }
 
@@ -54,53 +55,25 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		return Math.min(inputValue.oldest(), passedValue.oldest())
 	}
 	
-	var shouldVotes = {}
-	
 	inputValue.attach({
 		set: function(v, oldV, editId){
 			value = v
-			console.log('set ' + v + ', passed: ' + passed)
+			s.log('set ' + v + ', passed: ' + passed)
 			if(passed){
 				listeners.emitSet(value, oldV, editId)
 			}else{
-			}
-		},
-		shouldHaveObject: function(id, flag, editId){
-			if(passed){
-				if(!!shouldVotes[id] !== flag){
-					if(flag){
-						listeners.emitShould(id, true, editId)
-					}else{
-						if(shouldVotes[id]){
-							listeners.emitShould(id, false, editId)
-						}
-					}
-				}
-			}
-			if(flag){
-				shouldVotes[id] = id
-			}else{
-				delete shouldVotes[id]
 			}
 		}
 	}, editId)
 	
 	passedValue.attach({set: function(newPassed, oldPassed, editId){
 		_.assertBoolean(newPassed)
-		console.log('*passed: ' + newPassed)
+		s.log('*passed: ' + newPassed)
 		if(value){
 			if(newPassed){
-				Object.keys(shouldVotes).forEach(function(key){
-					var id = shouldVotes[key]
-					listeners.emitShould(id, true, editId)
-				})
 				listeners.emitSet(value, undefined, editId)
 			}else{
 				if(passed){
-					Object.keys(shouldVotes).forEach(function(key){
-						var id = shouldVotes[key]
-						listeners.emitShould(id, false, editId)
-					})
 					listeners.emitSet(undefined, value, editId)
 				}
 			}
@@ -109,6 +82,7 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 	}})
 	
 	var handle = {
+		name: 'filter',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			if(passed) listener.set(value, undefined, editId)
@@ -120,7 +94,8 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: inputValue.descend
 	}
 		
 	return cache.store(key, handle)

@@ -11,8 +11,8 @@ var _ = require('underscorem')
 function multimapType(rel, ch){
 	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
 	var singleInputType = inputType.members
-	//console.log('singleInputType: ' + JSON.stringify(singleInputType))
-	//console.log('inputType: ' + JSON.stringify(inputType))
+	//s.log('singleInputType: ' + JSON.stringify(singleInputType))
+	//s.log('inputType: ' + JSON.stringify(inputType))
 	_.assertDefined(singleInputType)
 	
 	var implicits1 = rel.params[1].implicits
@@ -57,18 +57,8 @@ function multimapMaker(s, self, rel, typeBindings){
 	newTypeBindingsKey[keyImplicit] = contextGetter
 	newTypeBindingsValue[valueImplicit] = contextGetter
 
-	//var keyGetter = self(rel.params[1], typeBindings)
-	//var valueGetter = self(rel.params[2], typeBindings)
 	var keyGetter = self(rel.params[1], newTypeBindingsKey)
 	var valueGetter = self(rel.params[2], newTypeBindingsValue)
-	//var reduceGetter;
-	/*if(rel.params.length > 3){
-		_.assert(rel.params[3].type === 'macro')
-		var newTypeBindingsReduce = _.extend({}, typeBindings)
-		//newTypeBindingsReduce[reduceImplicitFirst] = keyGetter
-		//newTypeBindingsReduce[reduceImplicitSecond] = valueGetter
-		//reduceGetter = self(rel.params[3], newTypeBindingsReduce)
-	}*/
 
 	var cache = new Cache()
 	
@@ -116,7 +106,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 	var allSets = {}
 	function oldest(){
 		var oldestEditId = elements.oldest()
-		//console.log('*map: ' + oldestEditId)
+		//s.log('*map: ' + oldestEditId)
 		Object.keys(allSets).forEach(function(key){
 			var v = allSets[key]
 			var old = v.key.oldest()
@@ -124,7 +114,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			old = v.value.oldest()
 			if(old < oldestEditId) oldestEditId = old
 		})
-		//console.log('map: ' + oldestEditId)
+		//s.log('map: ' + oldestEditId)
 		return oldestEditId
 	}
 	
@@ -138,11 +128,11 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 	elements.attach({
 		add: function(v, editId){
-			//console.log('ADDED: ' + v)
+			//s.log('ADDED: ' + v)
 			
 			var newBindingsKey = copyBindings(bindings)
 			var newBindingsValue = copyBindings(bindings)
-			newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId)
+			newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId, elements)
 			var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 			var newValueVariable = cValueGetter(newBindingsValue, editId)
 			
@@ -151,7 +141,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 			function addKey(k, editId){
 				keys.push(k)
-				console.log('ADD KEY: ' + k + ' ' + value)
+				s.log('ADD KEY: ' + k + ' ' + value)
 				if(value !== undefined){
 					var kvk = k+':'+value
 					if(multiCounts[kvk] === undefined){
@@ -175,7 +165,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			function valueListener(v, oldValue, editId){
 				_.assertInt(editId)
 				value = v
-				console.log('GOT VALUE: ' + v)
+				s.log('GOT VALUE: ' + v)
 				if(oldValue !== undefined){
 					for(var i=0;i<keys.length;++i){
 						var k = keys[i]
@@ -219,22 +209,15 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			r.key.detach(r.keyListener, editId)
 			r.value.detach(r.valueListener, editId)
 		},
-		shouldHaveObject: function(id, flag, editId){
-			/*if(flag){
-				should[id] = id
-			}else{
-				delete should[id]
-			}*/
-			//_.errout('TODO')
-			/*if(hasObjectValues){
-				_.errout('TODO')
-			}*/
-		},
+		/*shouldHaveObject: function(id, flag, editId){
+
+		},*/
 		objectChange: stub
 	}, editId)
 
 	
 	var handle = {
+		name: 'multimap',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){

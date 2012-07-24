@@ -5,6 +5,10 @@ TODO implement transparent reconnect?
 */
 
 var net = require('net');
+var fs = require('fs')
+
+var log = require('quicklog').make('tcp.client')
+
 
 var _ = require('underscorem')
 var baleen = require('baleen')
@@ -28,7 +32,7 @@ function deserializeAllSnapshots(readers, names, snapshots){
 	var r = fparse.makeSingleReader(snapshots)
 	var manySnaps = r.readByte()//readInt()
 	var snaps = []
-	console.log('many snaps: ' + manySnaps)
+	log('many snaps: ' + manySnaps)
 	for(var i=0;i<manySnaps;++i){
 		var objects = deserializeSnapshotInternal(readers, names, r)
 		snaps.push(objects)
@@ -192,7 +196,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 				var edit = fp.readers[op](r)
 				edits.push({op: op, edit: edit, editId: editId})
 			}
-			console.log(JSON.stringify([e.id, edits]))
+			log(JSON.stringify([e.id, edits]))
 			cb.object(e.id, edits)
 		},
 		ready: function(e){
@@ -216,7 +220,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 			cb(e);
 		},
 		objectMade: function(e){
-			console.log('GOT BACK OBJECT MADE EVENT')
+			//console.log('GOT BACK OBJECT MADE EVENT')
 			var cb = getRequestCallback(e);
 			cb(e);
 		}
@@ -225,7 +229,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 	var deser;
 	var client = net.connect(port, host, function(){
 		//readyCb(handle);
-		console.log('tcp client waiting for setup message');
+		log('tcp client waiting for setup message');
 	});
 	
 	var defaultSyncHandle;
@@ -258,7 +262,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 			buf = buf.slice(8)
 			firstBuf = false;
 		}
-		console.log('got buf ' + buf.length + ' ' + needed)
+		//console.log('got buf ' + buf.length + ' ' + needed)
 		if(needed <= buf.length){
 			firstBufs.push(buf.slice(0, needed))
 			var schemaStr = mergeBuffers(firstBufs).toString('utf8')
@@ -276,7 +280,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 	}
 	
 	function setupBasedOnSchema(schema){
-		console.log('setting up')
+		log('setting up')
 		
 		handle.schema = schema
 		exes = shared.makeExes(schema);
@@ -300,7 +304,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 		deser(data);
 	});
 	client.on('end', function() {
-		console.log('client disconnected');
+		log('client disconnected');
 	});
 	
 	var flushIntervalHandle
@@ -319,7 +323,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 
 				makeRequestId(e);
 				syncReadyCallbacks[e.requestId] = cb;
-				console.log('tcpclient e.params: ' + JSON.stringify(e.params))
+				log('tcpclient e.params: ' + JSON.stringify(e.params))
 
 				w.beginView(e);
 				//w.flush()
@@ -337,7 +341,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 				//e.edit = {type: e.op, object: e.edit}
 				var e = {op: op}
 				var nw = fparse.makeSingleBufferWriter()
-				console.log('op: ' + op)
+				log('op: ' + op)
 				fp.writers[op](nw, edit)
 				e.edit = nw.finish()
 				e.syncId = sourceSyncId
@@ -374,7 +378,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 			var e = {};
 			applyRequestId(e, wrapper);
 
-			console.log('BEGAN SYNC CLIENT  @#$#$(#@*$WER:LKWERW:LERK')
+			log('BEGAN SYNC CLIENT')
 
 			w.beginSync(e);
 			//w.flush();
@@ -395,7 +399,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 				cb(res)
 			});
 			w.getSnapshots(e);
-			console.log('tcpclient: getSnapshots: ' + JSON.stringify(e))
+			log('tcpclient: getSnapshots: ' + JSON.stringify(e))
 			//w.flush()
 		},
 		getAllSnapshots: function(e, cb){
@@ -410,13 +414,13 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 			}
 			e.snapshotVersionIds = svb
 			applyRequestId(e, function(res){
-				console.log('got request reply: ' + res.requestId)
+				log('got request reply: ' + res.requestId)
 				res.snapshots = deserializeAllSnapshots(fp.readers, fp.names, res.snapshots)
-				console.log('deserialized: ' + JSON.stringify(res).slice(0,500))
+				log('deserialized: ' + JSON.stringify(res).slice(0,500))
 				cb(res)
 			});
 			w.getAllSnapshots(e);
-			console.log('tcpclient: getSnapshots')
+			log('tcpclient: getSnapshots')
 			//w.flush()
 		},
 		getSnapshot: function(e, cb){
@@ -426,14 +430,14 @@ function make(host, port, defaultChangeListener, defaultObjectListener, readyCb)
 				cb(res)
 			});
 			w.getSnapshot(e);
-			console.log('tcpclient: getSnapshots')
+			log('tcpclient: getSnapshots')
 			//w.flush()
 		},
 		close: function(cb){
 			w.flush()
 			clearInterval(flushIntervalHandle)
 			client.on('end', function(){
-				console.log('tcp client closed')
+				log('tcp client closed')
 				cb()
 			})
 			client.end()

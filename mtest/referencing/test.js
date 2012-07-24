@@ -23,7 +23,7 @@ exports.includeReference = function(config, done){
 
 						var e = v.make('entity')
 						var second = v.make('secondary', {name: 'test name'})
-						e.setProperty('ref', second)
+						e.ref.set(second)
 					})
 				})
 				

@@ -11,13 +11,18 @@ exports.make = function(s, self, setExpr, typeBindings){
 	f.wrapAsSet = function(idToWrap){
 		_.errout('TODO')
 	}
+	/*f.getDescender = function(){
+		return function(id, propertyCode, editId, cb){
+			s.objectState.streamProperty(id, propertyCode, editId, cb)
+		}
+	}*/
 	return f
 }
 
 function sfgObject(s, idExpr, bindings, editId){
 	
 	var idVariable = idExpr(bindings, editId)
-	console.log(JSON.stringify(Object.keys(idVariable))+' %%%%%%%%')
+	//console.log(JSON.stringify(Object.keys(idVariable))+' %%%%%%%%')
 	
 	var key = idVariable.key
 	
@@ -28,14 +33,15 @@ function sfgObject(s, idExpr, bindings, editId){
 		set: function(newId, oldId, editId){
 			id = newId
 			//TODO listen to changes to the object
-			console.log('got id')
-			console.log(new Error().stack)
+			//s.log('got id')
+			//s.log(new Error().stack)
 			listeners.emitSet(id)
 		}
 	})
-	console.log('TODO LISTEN FOR CHANGES %%%%%%%%%%%%%%%%%5: ' + id)
+	//console.log('TODO LISTEN FOR CHANGES %%%%%%%%%%%%%%%%%5: ' + id)
 	
 	var handle = {
+		name: 'object-ref',
 		attach: function(listener, editId){
 			_.assertInt(editId)
 			listeners.add(listener)
@@ -48,7 +54,10 @@ function sfgObject(s, idExpr, bindings, editId){
 			}
 		},
 		oldest: s.objectState.getCurrentEditId,
-		key: key
+		key: key,
+		descend: function(path, editId, cb){
+			s.objectState.streamProperty(path, editId, cb)
+		}
 	}
 	return handle
 }

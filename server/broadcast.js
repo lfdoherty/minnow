@@ -8,6 +8,7 @@ TODO: broadcast syncIds of edits
 
 */
 
+var log = require('quicklog').make('minnow-broadcast')
 
 function lazyObj(obj, prop){
 	if(obj[prop] === undefined) return obj[prop] = {};
@@ -59,7 +60,6 @@ exports.make = function(inv){
 		if(realObjKey[editId] !== undefined && realObjKey[editId] !== key) _.errout('db code error: ' + realObjKey[editId] + ' ' + key + ' ' + editId);
 		realObjKey[editId] = key;
 		
-		
 		var t = byType[subjTypeCode];
 		if(t !== undefined){
 			//console.log('notifying ' + t.length + ' type listeners ' + typeCode + ' ' + id);
@@ -102,14 +102,14 @@ exports.make = function(inv){
 		//TODO: what about cyclic dependencies?
 		already[destId] = true
 		inv.getInverse(destId, function(invArr){
-			console.log('inverse: ' + invArr.length)
+			//console.log('inverse: ' + invArr.length)
 			for(var i=0;i<invArr.length;++i){
 				var e = invArr[i];
 				if(already[e[1]]){
-					console.log('already notified: ' + e[1])
+					//console.log('already notified: ' + e[1])
 					continue;
 				}
-				console.log('inv e: ' + JSON.stringify(e));
+				//console.log('inv e: ' + JSON.stringify(e));
 				_.assertInt(e[0]);
 				_.assertInt(e[1])
 				internalObjectChanged(e[0], e[1], typeCode, id, path, op, edit, syncId, editId, already);
@@ -127,7 +127,7 @@ exports.make = function(inv){
 				_.assertInt(typeCode)
 				_.assert(id > 0)
 				
-				console.log('broadcasting: ' + JSON.stringify(path))
+				//console.log('broadcasting: ' + JSON.stringify(path))
 				for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
 				
 				all.forEach(function(listener){
@@ -147,7 +147,7 @@ exports.make = function(inv){
 				_.assertLength(arguments, 3);
 				_.assertInt(typeCode)
 				var c = createdByType[typeCode];
-				console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
+				//console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
 				if(c !== undefined){
 					for(var i=0;i<c.length;++i){
 						c[i](typeCode, id, editId);

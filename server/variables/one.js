@@ -23,7 +23,9 @@ schema.addFunction('one', {
 function oneMaker(s, self, rel, typeBindings){
 	var elementsGetter = self(rel.params[0], typeBindings)
 	var cache = new Cache()
-	return svgGeneralOne.bind(undefined, s, cache, elementsGetter)
+	var f = svgGeneralOne.bind(undefined, s, cache, elementsGetter)
+	//f.getDescender = elementsGetter.getDescender
+	return f
 }
 
 function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
@@ -39,6 +41,7 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 	var all = []
 	
 	var handle = {
+		name: 'one',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			_.assertInt(editId)
@@ -55,7 +58,9 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 			}
 		},
 		oldest: elements.oldest,
-		key: key/*,
+		key: key,
+		descend: elements.descend
+		/*,
 		getId: function(){
 			return value
 		}*/
@@ -84,9 +89,9 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 				listeners.emitSet(value, v, editId)
 			}
 		},
-		shouldHaveObject: function(id, flag, editId){
+		/*shouldHaveObject: function(id, flag, editId){
 			listeners.emitShould(id, flag, editId)
-		},
+		},*/
 		objectChange: listeners.emitObjectChange//Unfortunately, there's no easy way to optimize this
 
 	}, editId)

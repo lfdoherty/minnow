@@ -26,6 +26,7 @@ ObjectSetHandle.prototype.eachJson = function(cb, endCb){
 	if(endCb) endCb();
 }
 ObjectSetHandle.prototype.contains = function(desiredHandle){
+	//console.log('obj: ' + JSON.stringify(this.obj))
 	return this.obj.indexOf(desiredHandle) !== -1
 }
 ObjectSetHandle.prototype.has = ObjectSetHandle.prototype.contains
@@ -55,7 +56,7 @@ ObjectSetHandle.prototype.remove = function(objHandle){
 	//if(objHandle.isInner()){
 		var index = this.obj.indexOf(objHandle)
 		if(index === -1){
-			console.log('WARNING: ignoring remove of object not in set')
+			this.log('WARNING: ignoring remove of object not in set')
 			return;
 		}
 
@@ -89,7 +90,7 @@ function stub(){}
 ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 	//if(path.length > 0) _.errout('TODO implement');
-	console.log('object set handle changeListener')
+	this.log('object set handle changeListener')
 	_.assertString(op)
 /*
 	if(path.length === 1 && op === 'remove'){
@@ -150,7 +151,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		if(this.getEditingId() === syncId){
 			var objHandle = this.get(temporary);
 			if(objHandle === undefined){
-				console.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
+				this.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
 				return;
 			}
 			objHandle.reify(id)
@@ -171,7 +172,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		var i = this.obj.indexOf(removedObj)
 		_.assert(i >= 0)
 		this.obj.splice(i, 1);
-		console.log('new length: ' + this.obj.length)
+		this.log('new length: ' + this.obj.length)
 		return this.emit(edit, 'remove', removedObj)		
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
@@ -198,13 +199,17 @@ ObjectSetHandle.prototype.types = u.genericCollectionTypes
 ObjectSetHandle.prototype.add = function(objHandle){
 	_.assertObject(objHandle)
 	
+	if(objHandle.isReadonlyAndEmpty){
+		_.errout('cannot add placeholder empty object to a collection')
+	}
+	
 	if(this.obj.indexOf(objHandle) !== -1){
-		console.log('WARNING: ignoring redundant add: object already in object set')
+		this.log('WARNING: ignoring redundant add: object already in object set')
 		return;
 	}
 	
 	var id = objHandle._internalId()
-	console.log('id: ' + id)
+	//this.log('id: ' + id)
 	_.assertInt(id)
 	_.assert(id > 0 || id < -1)
 	var ee = {id: id, typeCode: objHandle.typeSchema.code}

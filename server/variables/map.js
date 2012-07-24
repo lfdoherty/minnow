@@ -23,8 +23,8 @@ function mapType(rel, ch){
 	var binding2 = {}
 	binding2[implicits2[0]] = singleInputType
 	
-	//console.log('map bound key ' + implicits1[1])
-	//console.log('map bound value ' + implicits1[1])
+	//s.log('map bound key ' + implicits1[1])
+	//s.log('map bound value ' + implicits1[1])
 	
 	var keyType = ch.computeMacroType(rel.params[1], ch.bindingTypes, binding1)
 	var valueType = ch.computeMacroType(rel.params[2], ch.bindingTypes, binding2)
@@ -46,6 +46,27 @@ schema.addFunction('map', {
 	callSyntax: 'map(collection,key-macro,value-macro[,reduce-macro])'
 })
 
+function makeKeyParser(kt){
+	var keyParser;
+	if(kt.type === 'object'){
+		keyParser = function(key){return parseInt(key);}
+	}else if(kt.type === 'primitive'){
+		if(kt.primitive === 'int'){
+			keyParser = function(key){return parseInt(key);}
+		}else if(kt.primitive === 'string'){
+			keyParser = function(key){return key;}
+		}else if(kt.primitive === 'long'){
+			keyParser = function(key){return Number(key);}
+		}else{
+			_.errout('TODO: ' + JSON.stringify(kt))
+		}
+	}else{
+		_.errout('TODO: ' + JSON.stringify(kt))
+	}
+	return keyParser
+}
+exports.makeKeyParser = makeKeyParser
+
 function mapMaker(s, self, rel, typeBindings){
 	var contextGetter = self(rel.params[0], typeBindings)
 
@@ -66,8 +87,6 @@ function mapMaker(s, self, rel, typeBindings){
 	newTypeBindingsKey[keyImplicit] = contextGetter
 	newTypeBindingsValue[valueImplicit] = contextGetter
 
-	//var keyGetter = self(rel.params[1], typeBindings)
-	//var valueGetter = self(rel.params[2], typeBindings)
 	var keyGetter = self(rel.params[1], newTypeBindingsKey)
 	var valueGetter = self(rel.params[2], newTypeBindingsValue)
 	var reduceGetter;
@@ -83,6 +102,9 @@ function mapMaker(s, self, rel, typeBindings){
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
+	
+	var keyParser = makeKeyParser(kt)
+	
 	if(t.type === 'set' || t.type === 'list'){//if the result of the values macro is a set
 		if(reduceGetter === undefined) throw new Error('a reduce-macro is required for map(collection,key-macro,value-macro,reduce-macro) when the result of the value macro has multiple values.')
 		//return svgMapMultiple.bind(undefined, s, cache, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
@@ -90,26 +112,8 @@ function mapMaker(s, self, rel, typeBindings){
 	}else{//if the result of the values macro is a single value
 		var hasObjectValues = t.type === 'object'
 		if(kt.type === 'set' || kt.type === 'list'){
-			return svgMapKeyMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
+			return svgMapKeyMultiple.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
 		}else{
-		
-			var keyParser;
-			if(kt.type === 'object'){
-				keyParser = function(key){return parseInt(key);}
-			}else if(kt.type === 'primitive'){
-				if(kt.primitive === 'int'){
-					keyParser = function(key){return parseInt(key);}
-				}else if(kt.primitive === 'string'){
-					keyParser = function(key){return key;}
-				}else if(kt.primitive === 'long'){
-					keyParser = function(key){return Number(key);}
-				}else{
-					_.errout('TODO: ' + JSON.stringify(kt))
-				}
-			}else{
-				_.errout('TODO: ' + JSON.stringify(kt))
-			}
-		
 			return svgMapSingle.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
 		}
 	}
@@ -223,7 +227,7 @@ function reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cRe
 			var newBindingsReduce = copyBindings(bindings)
 			newBindingsReduce[reduceImplicitFirst] = valueGetter.wrapAsSet(cur)
 			newBindingsReduce[reduceImplicitSecond] = valueGetter.wrapAsSet(nv)
-			//console.log(''+valueGetter.wrapAsSet)
+			//s.log(''+valueGetter.wrapAsSet)
 			_.assertObject(newBindingsReduce[reduceImplicitFirst])
 			_.assertObject(newBindingsReduce[reduceImplicitSecond])
 			var newMerge = cReduceGetter(newBindingsReduce, editId)					
@@ -265,7 +269,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 	var allSets = {}
 	function oldest(){
 		var oldestEditId = elements.oldest()
-		//console.log('*map: ' + oldestEditId)
+		//s.log('*map: ' + oldestEditId)
 		Object.keys(allSets).forEach(function(key){
 			var v = allSets[key]
 			var old = v.key.oldest()
@@ -273,7 +277,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			old = v.value.oldest()
 			if(old < oldestEditId) oldestEditId = old
 		})
-		//console.log('map: ' + oldestEditId)
+		//s.log('map: ' + oldestEditId)
 		return oldestEditId
 	}
 	
@@ -300,11 +304,11 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				
 				var newBindingsKey = copyBindings(bindings)
 				var newBindingsValue = copyBindings(bindings)
-				newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId)
+				newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId, elements)
 				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 				var newValueVariable = cValueGetter(newBindingsValue, editId)
 				
-				//console.log('map add: ' + v)
+				//s.log('map add: ' + v)
 				var kv = {}
 							
 				function keyListener(value, oldValue, editId){
@@ -313,7 +317,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 						arr.splice(arr.indexOf(kv), 1)
 						listeners.emitDelete(oldValue, editId)
 					}
-					//console.log('map key: ' + value)
+					//s.log('map key: ' + value)
 					kv.key = value	
 					if(kv.value !== undefined){				
 						var oldValue = kv.value
@@ -327,13 +331,13 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				function valueListener(value, oldValue, editId){
 					_.assertInt(editId)
 					kv.value = value
-					//console.log('map value: ' + kv.key + '->'+value)
+					//s.log('map value: ' + kv.key + '->'+value)
 					if(kv.key !== undefined){
 						if(multiState[kv.key] === undefined) multiState[kv.key] = []
 						multiState[kv.key].push(kv)
 						//reduceState(kv.key)
 						reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, multiState, state, listeners, bindings, kv.key, editId)
-						//console.log('emitting put')
+						//s.log('emitting put')
 						//listeners.emitPut(kv.key, kv.value, oldValue, editId)
 					}
 				}
@@ -348,22 +352,22 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			shouldHaveObject: function(id, flag, editId){
+			/*shouldHaveObject: function(id, flag, editId){
 				if(hasObjectValues){
 					_.errout('TODO')
 				}
-			},
+			},*/
 			objectChange: stub
 		}, editId)
 	}else{
 		elements.attach({
 			add: function(v, editId){
 
-				console.log('map add: ' + v)
+				s.log('map add: ' + v)
 				
 				var newBindingsKey = copyBindings(bindings)
 				var newBindingsValue = copyBindings(bindings)
-				newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId)
+				newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId, elements)
 				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 				var newValueVariable = cValueGetter(newBindingsValue, editId)
 				
@@ -374,7 +378,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 						delete state[oldValue]
 						listeners.emitDelete(oldValue, editId)
 					}
-					console.log('map key: ' + value + ' ' + typeof(value))
+					s.log('map key: ' + value + ' ' + typeof(value))
 					kv.key = value	
 					if(kv.value !== undefined){				
 						var oldValue = kv.value
@@ -386,10 +390,10 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				function valueListener(value, oldValue, editId){
 					_.assertInt(editId)
 					kv.value = value
-					console.log('map value: ' + kv.key + '->'+value)
+					s.log('map value: ' + kv.key + '->'+value)
 					if(kv.key !== undefined){
 						state[kv.key] = kv.value
-						//console.log('emitting put')
+						//s.log('emitting put')
 						_.assertPrimitive(kv.value)
 						listeners.emitPut(kv.key, kv.value, oldValue, editId)
 					}
@@ -411,16 +415,17 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			shouldHaveObject: function(id, flag, editId){
+			/*shouldHaveObject: function(id, flag, editId){
 				if(hasObjectValues){
 					_.errout('TODO')
 				}
-			},
+			},*/
 			objectChange: stub
 		}, editId)
 	}
 	
 	var handle = {
+		name: 'map-single',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
@@ -444,7 +449,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 	return cache.store(key, handle)
 }
 
-function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond, bindings, editId){
+function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond, bindings, editId){
 	var elements = contextGetter(bindings, editId)
 
 	var cKeyGetter = keyGetter(bindings, editId)
@@ -464,7 +469,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 	var allSets = {}
 	function oldest(){
 		var oldestEditId = elements.oldest()
-		//console.log('*map: ' + oldestEditId)
+		//s.log('*map: ' + oldestEditId)
 		Object.keys(allSets).forEach(function(key){
 			var v = allSets[key]
 			var old = v.key.oldest()
@@ -472,7 +477,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			old = v.value.oldest()
 			if(old < oldestEditId) oldestEditId = old
 		})
-		//console.log('map: ' + oldestEditId)
+		//s.log('map: ' + oldestEditId)
 		return oldestEditId
 	}
 	
@@ -501,7 +506,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 				var newValueVariable = cValueGetter(newBindingsValue, editId)
 				
-				//console.log('map add: ' + v)
+				//s.log('map add: ' + v)
 				var kvs = []
 				var value
 				/*function keyListener(value, oldValue, editId){
@@ -510,7 +515,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 						arr.splice(arr.indexOf(kv), 1)
 						listeners.emitDelete(oldValue, editId)
 					}
-					//console.log('map key: ' + value)
+					//s.log('map key: ' + value)
 					kv.key = value	
 					if(kv.value !== undefined){				
 						var oldValue = kv.value
@@ -546,7 +551,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 						arr.splice(arr.indexOf(kv), 1)
 						listeners.emitDelete(oldValue, editId)
 					}
-					//console.log('map key: ' + value)
+					//s.log('map key: ' + value)
 					kv.key = value	
 					if(kv.value !== undefined){				
 						var oldValue = kv.value
@@ -583,11 +588,11 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			shouldHaveObject: function(id, flag, editId){
+			/*shouldHaveObject: function(id, flag, editId){
 				if(hasObjectValues){
 					_.errout('TODO')
 				}
-			},
+			},*/
 			objectChange: stub
 		}, editId)
 	}else{
@@ -601,7 +606,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 				var newValueVariable = cValueGetter(newBindingsValue, editId)
 				
-				//console.log('map add: ' + v)
+				//s.log('map add: ' + v)
 				var kv = {}
 				
 				function keyListener(value, oldValue, editId){
@@ -656,11 +661,13 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 	}
 	
 	var handle = {
+		name: 'map-key-multiple',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
 				var value = state[key]
 				if(value !== undefined){
+					key = keyParser(key)
 					listener.put(key, value, undefined, editId)
 				}
 			})

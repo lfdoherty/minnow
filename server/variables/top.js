@@ -62,7 +62,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 	many.attach({set: function(value, oldValue, editId){
 		var oldMany = many
 		manyValue = value
-		console.log('many for top: ' + manyValue)
+		s.log('many for top: ' + manyValue)
 		//_.errout('TODO adjust size of top')
 		if(value > oldValue){
 			while(bottomHeap.size() > 0 && topHeap.size() < manyValue){
@@ -82,6 +82,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 	}})
 	
 	var handle = {
+		name: 'topByValues',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			_.assertFunction(listener.put)
@@ -108,14 +109,14 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			_.assertInt(editId)
 			_.assertPrimitive(value)
 			if(value === undefined) return
-			console.log('top got put: ' + key + ' ' + value)
+			s.log('top got put: ' + key + ' ' + value)
 			if(manyValue === undefined){
 				bottomHeap.add({key: key, value: value})
 				return
 			}
 			
 			if(top[key] !== undefined){
-				console.log('already got')
+				s.log('already got')
 				if(bottomHeap.size() > 0){
 					var b = bottomHeap.peek()
 					if(b.value > value){
@@ -135,7 +136,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				}
 			}else{
 				if(topHeap.size() === manyValue){
-					console.log('full: ' + topHeap.size() +'==='+ manyValue)
+					s.log('full: ' + topHeap.size() +'==='+ manyValue)
 					var t = topHeap.peek()
 					if(t.value < value){
 						var kv
@@ -154,14 +155,14 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 						listeners.emitPut(kv.key, kv.value, undefined, editId)
 						listeners.emitDel(rkv.key, editId)
 						bottomHeap.add(rkv)							
-						console.log('replaced ' + t.value + ' ' + rkv.value)
+						s.log('replaced ' + t.value + ' ' + rkv.value)
 					}else{
-						console.log('too small: ' + t.value + '>' + value)
+						s.log('too small: ' + t.value + '>' + value)
 					}
 				}else{
 					_.assertEqual(bottomHeap.size(), 0)
 					var kv = {key: key, value: value}
-					console.log('adding to top')
+					s.log('adding to top')
 					top[key] = value
 					topHeap.add(kv)
 					listeners.emitPut(kv.key, kv.value, undefined, editId)

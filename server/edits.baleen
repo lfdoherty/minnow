@@ -82,6 +82,12 @@ setViewObject 107
 	id string 1
 	
 setToNew 22
+	typeCode int 1 required
+	
+wasSetToNew
+	id int 1 required
+	temporary int 2 required
+	typeCode int 3 required
 	
 setData 23
 	data binary 1

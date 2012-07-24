@@ -5,17 +5,21 @@ var variables = require('./variables')
 var viewSequencer = require('./view_sequencer')
 var variableView = require('./variables/view')
 
-//var bin = require('./../util/bin')
+
+var log = require('quicklog').make('viewstate')
 
 exports.make = function(schema, globalMacros, broadcaster, objectState){
 	//var variableGetter = variables.makeGetter(schema, objectState, broadcaster)
 	_.assertFunction(broadcaster.output.listenForNew)
 	
-	var selfGetter = variables.makeGetter(schema, globalMacros, objectState, broadcaster.output)//variableGetter.bind(undefined, s)
+	var selfGetter = variables.makeGetter(schema, globalMacros, objectState, broadcaster.output, log)//variableGetter.bind(undefined, s)
 
 	//cache variable makers for each view type	
 	var viewGettersByTypeCode = {}
 	var s = {schema: schema, globalMacros: globalMacros, broadcaster: broadcaster.output, objectState: objectState}
+	s.log = log
+	_.assertFunction(s.log)
+	
 	var variableGetter = variableView.makeTopLevel.bind(undefined, s, selfGetter)//, setExpr)
 	Object.keys(schema._byCode).forEach(function(typeCodeStr){
 		var viewSchema = schema._byCode[typeCodeStr]
@@ -47,18 +51,18 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			//console.log('BEGINNING VIEW:' + JSON.stringify(e))
 			
 			function readyCb(){
-				console.log('GOT READY PACKET:' + JSON.stringify(readyPacket))
+				log('GOT READY PACKET:' + JSON.stringify(readyPacket))
 				readyPacketCb(readyPacket)
 				readyPacket = undefined
 			}
-			console.log('params: ' + e.params)
+			log('params: ' + e.params)
 			_.assertString(e.params)
 			var vg = viewGettersByTypeCode[e.typeCode]
 			
 			var parsedParams = JSON.parse(e.params)//e.params.split(';')
 			_.assertArray(parsedParams)
 			
-			console.log('beginning view after ' + e.latestSnapshotVersionId)
+			log('beginning view after ' + e.latestSnapshotVersionId)
 			
 			var bindings = vg.binder(parsedParams, e.latestSnapshotVersionId)
 			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId())
@@ -76,21 +80,21 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		getSnapshots: function(typeCode, params, cb){
 			var c = objectState.getCurrentEditId()
 			var realVersions = [c-1]//would be -1, except we want to keep the *previous* editId open for time-triggered appends
-			console.log('GOT SNAPSHOTS: ' + realVersions[0])
-			console.log(new Error().stack)
+			log('GOT SNAPSHOTS: ' + realVersions[0])
+			log(new Error().stack)
 			cb(realVersions)
 		},
 		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb){
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotIds[snapshotIds.length-1])
 			var curEditId = objectState.getCurrentEditId()-1
-			console.log('curEditId: ' + curEditId)
+			log('curEditId: ' + curEditId)
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, curEditId)
 
 			var list = [];
-			console.log('GETTING SNAPSHOT STATES: ' + JSON.stringify(snapshotIds))
+			log('GETTING SNAPSHOT STATES: ' + JSON.stringify(snapshotIds))
 			var cdl = _.latch(snapshotIds.length, function(){
-				console.log('GOT ALL SNAPSHOT STATES')
+				log('GOT ALL SNAPSHOT STATES')
 				cb({snapshots: list});
 			});
 			_.each(snapshotIds, function(snId, index){
@@ -101,7 +105,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				_.assert(snId === -1 || prevSnId <= snId)
 				//handle.getSnapshotState(typeCode, params, snId, prevSnId, function(snap){
 				viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, prevSnId, snId, _.assureOnce(function(snap){
-					console.log('GOT A SNAP')
+					log('GOT A SNAP')
 					_.assertBuffer(snap)
 					list[index] = snap;
 					cdl();

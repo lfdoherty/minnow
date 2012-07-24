@@ -1,5 +1,16 @@
 "use strict";
 
+var old = console.log
+console.log = function(msg){
+	msg += ''
+	if(msg.length > 10000){
+		throw new Error('too long')
+		process.exit(0)
+	}
+	old(msg)
+}
+
+
 var _ = require('underscorem');
 
 var schema = require('./../shared/schema');
@@ -15,9 +26,13 @@ var tcpclient = require('./tcpclient');
 
 var longpoll = require('./../http/longpoll')
 
-exports.name = 'minnow'
-exports.dir = __dirname
+//exports.name = 'minnow'
+//exports.dir = __dirname
 exports.module = module
+
+var log = require('quicklog').make('client')
+//var ws = require('fs').createWriteStream('client.log')
+//function log(msg){ws.write(msg+'\n');}
 
 //copied from browserclient.js
 function mergeSnapshots(snaps){
@@ -70,7 +85,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 			}
 		
 			//var snapshot = mergeSnapshots(snapshots);
-			console.log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
+			log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
 
 			//TODO: cache/reuse sync apis?
 			//TODO: they would need to have different syncIds though...
@@ -79,12 +94,12 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 			function readyCb(e){
 				//_.assertInt(e.syncId);
 				//cb()//.getRoot());
-				console.log('ready!!!!!!!!!!!!!!!!!!!!!!!1')
+				log('ready!!!!!!!!!!!!!!!!!!!!!!!1')
 				cb()
 			}
 			
 			snapshots.forEach(function(snapshot){
-				console.log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
+				log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
 				//process.exit(0)
 				api.addSnapshot(snapshot)
 			})
@@ -117,7 +132,11 @@ function translateParamObjects(s, params){
 			var id = params[i]
 			if(!_.isInt(id)){
 				//res.push(id)				
-				id = id.id()
+				if(_.isFunction(id.id)){
+					id = id.id()
+				}else{
+					throw new Error('invalid param value(' + i + '): ' + id)
+				}
 			}
 			//TODO check objectHandle type against param type
 			_.assert(id >= 0)
@@ -165,7 +184,7 @@ function makeClient(host, port, clientCb){
 				_.assert(response.id >= 0)
 				
 				//_.errout('TODO update temporaries, make callback')
-				console.log('response: ' + JSON.stringify(response))
+				log('response: ' + JSON.stringify(response))
 				api.reifyExternalObject(edit.temporary, response.id)
 				//api.changeListener(id, path, op, edit, syncId, edit.obj.object.meta.editId);
 			}else{
@@ -181,7 +200,7 @@ function makeClient(host, port, clientCb){
 	function changeListenerWrapper(e){
 		//_.assertInt(typeCode);
 		_.assertLength(arguments, 1);
-		console.log(listeningSyncId + ' tcpserver sent change: ' + JSON.stringify(e).slice(0,300))
+		//console.log(listeningSyncId + ' tcpserver sent change: ' + JSON.stringify(e).slice(0,300))
 		//console.log(new Error().stack)
 		//console.log(e.op)
 		//var id = e.id
@@ -211,7 +230,7 @@ function makeClient(host, port, clientCb){
 		
 		cc = serverHandle//clientConnection.make(serverHandle);
 
-		api = syncApi.make(dbSchema, wrapper/*, snapshot, st.code, key*/);
+		api = syncApi.make(dbSchema, wrapper, log);
 		api.setEditingId(syncId);
 	
 		_.assertFunction(api.changeListener);
@@ -232,10 +251,10 @@ function makeClient(host, port, clientCb){
 		
 		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
 			_.assertFunction(cb)
-			console.log(uid + ' getting view ' + type + JSON.stringify(params))
+			log(uid + ' getting view ' + type + JSON.stringify(params))
 			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(){
 				var viewId = st.code+':'+JSON.stringify(params)
-				console.log('calling back with view: ' + viewId + '+++++++++++++++++++++')
+				log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
 				cb(api.getView(viewId))
 			})
@@ -277,22 +296,16 @@ function makeClient(host, port, clientCb){
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
-			setupService: function(name, local, authenticator){
-				_.assertLength(arguments, 3)
-				_.assertFunction(authenticator)
+			setupService: function(name, local, identifier, viewSecuritySettings){
+				_.assertLength(arguments, 4)
+				_.assertFunction(identifier)
+				_.assertObject(viewSecuritySettings)
 				_.assertNot(serviceIsSetup);
 				serviceIsSetup = true;
-				//console.log('minnow-matterhorn service is running')
-				var lp = longpoll.load(name, dbSchema, authenticator, handle)
-				xhrService.make(name, dbSchema, local, handle, authenticator, lp);
-				return matterhornService.make(name, dbSchema, local, handle, authenticator, lp);
+				var lp = longpoll.load(local, name, dbSchema, identifier, viewSecuritySettings, handle)
+				xhrService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
+				return matterhornService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
 			},
-			/*setupXhrService: function(name, local, authenticator){
-				_.assertNot(xhrServiceIsSetup);
-				xhrServiceIsSetup = true;
-				//console.log('minnow-xhr service is running')
-				return xhrService.make(name, dbSchema, local, handle, authenticator);
-			},*/
 			view: function(type, params, cb){
 	
 				var st = dbSchema[type];

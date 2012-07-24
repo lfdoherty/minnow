@@ -11,7 +11,7 @@ exports.make = function(s, value){
 }
 
 function sfgPrimitive(s, value, bindings, editId){
-	console.log('value: ' + JSON.stringify(value))
+	s.log('value: ' + JSON.stringify(value))
 	var key = value+''
 	
 	var listeners = listenerSet()

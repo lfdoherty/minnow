@@ -8,7 +8,7 @@ function StringHandle(typeSchema, obj, part, parent){
 	this.parent = parent;
 	
 	this.rrr = Math.random()
-	console.log('made string handle ' + this.rrr)
+	//console.log('made string handle ' + this.rrr)
 	
 	if(obj === undefined){
 		_.each(typeSchema.tags, function(value, tag){

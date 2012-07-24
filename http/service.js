@@ -4,6 +4,8 @@ var querystring = require('querystring');
 
 var _ = require('underscorem');
 
+var log = require('quicklog').make('minnow-service')
+
 var crypto = require('crypto')
 function computeHash(str){
 	var hash = crypto.createHash('md5');
@@ -129,14 +131,14 @@ exports.make = function(schema, cc){
 			
 			var viewCode = s.code;
 			
-			console.log('getting snapshots: ' + JSON.stringify(params))
+			log('getting snapshots: ' + JSON.stringify(params))
 			var getMsg = {typeCode: viewCode, params: JSON.stringify(params)}
 			_.assert(getMsg.params != 'null')
 			cc.getSnapshots(getMsg, _.once(function(e){
 
 				var snapshotIds = e.snapshotVersionIds.concat([-1]);
 				var lastVersionId = snapshotIds[snapshotIds.length-2]//e.lastVersionId;
-				console.log(JSON.stringify(e))
+				//console.log(JSON.stringify(e))
 				_.assertInt(lastVersionId)
 
 				if(arguments.length === 0){

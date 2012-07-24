@@ -83,7 +83,7 @@ exports.complex = function(config, done){
 					otherClient.view('general', function(v){
 						var n = c.make('entity', {value: 'test'})
 						var obj = c.make('membrance', {value: 'test', other: n})
-						n.setProperty('other', obj)
+						n.other.set(obj)
 					})
 				})
 				

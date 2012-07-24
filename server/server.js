@@ -14,6 +14,8 @@ var exists = fs.exists ? fs.exists : path.exists
 
 var seedrandom = require('seedrandom')
 
+var log = require('quicklog').make('server')
+
 function openUid(dataDir, cb){
 	var fn = dataDir + '/minnow_data/server.uid'
 	exists(fn, function(exists){
@@ -53,13 +55,13 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 	
 	makeDirIfNecessary(function(){
 		require('./ol').make(dataDir, schema, _.assureOnce(function(ol){
-			console.log('got ol')
+			log('got ol')
 			require('./ap').make(dataDir, schema, ol, function(ap, broadcaster, apClose){
-				console.log('got ap')
+				log('got ap')
 				_.assertLength(arguments, 3);
 				openUid(dataDir, function(uid){
 					serverUid = uid
-					console.log('got uid')
+					log('got uid')
 					var objectState = require('./objectstate').make(schema, ap, broadcaster, ol);
 					//objectState.setIndexing(indexing)
 					load(ap, objectState, broadcaster, apClose, ol);
@@ -86,11 +88,11 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 			close: function(cb){
 				//m.close();
 				var cdl = _.latch(2, function(){
-					console.log('closed server')
+					log('closed server')
 					cb()
 				})
-				apClose(function(){console.log('closed ap');cdl()})
-				ol.close(function(){console.log('closed ol');cdl()})
+				apClose(function(){log('closed ap');cdl()})
+				ol.close(function(){log('closed ol');cdl()})
 			},
 		
 			beginView: function(e, readyCb){
@@ -100,7 +102,7 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 				
 				var listenerCb = listenerCbs[e.syncId]
 				_.assertFunction(listenerCb)
-				console.log('beginView: ' + JSON.stringify(e))
+				log('beginView: ' + JSON.stringify(e))
 				return viewState.beginView(e, listenerCb.seq, listenerCb, function(updatePacket){
 						readyCb(updatePacket);
 				})
@@ -114,7 +116,7 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 				_.assertInt(syncId);
 				_.assertFunction(cb)
 				
-				console.log('adding edit: ' + JSON.stringify([id, path, op, edit, syncId]).slice(0, 300))
+				log('adding edit: ' + JSON.stringify([id, path, op, edit, syncId]).slice(0, 300))
 				
 				if(op === 'make'){
 					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, function(res){
@@ -137,6 +139,8 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 				var syncId = ap.makeNewSyncId();
 				
 				var alreadySent = {}
+				//var alreadyListening = {}
+				
 				var sentBuffer = []
 				function advanceSentBuffer(){
 					while(true){
@@ -151,7 +155,7 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 								objectCb(e)
 							})
 							if(e.edits.length === 0){
-								console.log('0 objects actually sent')
+								log('0 objects actually sent')
 							}
 							sentBuffer.shift()
 							//advanceSentBuffer()
@@ -159,20 +163,43 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 							return;
 						}else{
 							_.assert(e.id === -1 || alreadySent[e.id])
-							console.log('sending edit: ' + JSON.stringify(e))
+							log('sending edit: ' + JSON.stringify(e))
 							listenerCb(e)
 							sentBuffer.shift()
 						}
 					}
 				}
+				/*function listenObjectCb(id, editId){
+					if(alreadyListening[id]){
+						console.log('already listening: ' + id)
+						return;
+					}else{
+						alreadyListening[id] = true
+						//TODO if the point at which we are instructed to listen is in the past (edits have occurred since)
+						//fill in the intervening edits
+						broadcaster.output.listenByObject(id, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+							//editBuffer.add({order: ++orderIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId})
+							sentBuffer.push({
+								typeCode: typeCode, 
+								id: id, 
+								path: path, 
+								op: op, 
+								edit: edit, 
+								syncId: syncId, 
+								editId: editId
+							})
+							advanceSentBuffer()
+						})
+					}
+				}*/
 				function includeObjectCb(id, editId){
 					_.assertInt(id)
 					_.assert(id >= 0)
 					if(alreadySent[id]){
-						console.log('already sent: ' + id)
+						log('already sent: ' + id)
 						return;
 					}else{
-						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
+						log(syncId + ' including object: ' + id + ' editId: ' + editId)
 						//TODO buffer for streaming all the edits for the object and any objects it depends on
 						var pointer = {got: false, edits: []}
 						sentBuffer.push(pointer)
@@ -184,19 +211,24 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 							alreadySent[id] = true
 							_.assertBuffer(objEditsBuffer)
 							pointer.edits.push({id: id, edits: objEditsBuffer})
-
+							
 						}, function(){
-							console.log('---- got')
+							log('---- got')
 							pointer.got = true
 							advanceSentBuffer()
+							
+							
 						})
 						return;
 					}				
 				}
+				function alreadyHasCb(id, editId){
+					alreadySent[id] = true
+				}
 				function listenerCbWrapper(e){//(typeCode, id, path, op, edit, syncId, editId){
 					_.assertLength(arguments, 1);
 					_.assertInt(e.typeCode)
-					console.log('e: ' + JSON.stringify(e))
+					log('e: ' + JSON.stringify(e))
 					//console.log(new Error().stack)
 					if(sentBuffer.length > 0){
 						sentBuffer.push(e)
@@ -207,7 +239,7 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 
 				listenerCbs[syncId] = listenerCbWrapper
 
-				var seq = viewSequencer.make(schema, objectState, broadcaster, includeObjectCb, listenerCbWrapper, syncId)
+				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, syncId)
 				listenerCbWrapper.seq = seq
 				
 				return syncId

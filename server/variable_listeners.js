@@ -42,7 +42,7 @@ function listenerSet(){
 		emitPut: function(key, value, oldValue, editId){
 			_.assertLength(arguments, 4)
 			_.assertInt(editId)
-			if(listeners.length === 0) console.log('no listeners')
+			//if(listeners.length === 0) console.log('no listeners')
 			for(var i=0;i<listeners.length;++i){
 				var listener = listeners[i]
 				listener.put(key, value, oldValue, editId)
@@ -51,7 +51,7 @@ function listenerSet(){
 		emitPutAdd: function(key, value, editId){
 			_.assertLength(arguments, 3)
 			_.assertInt(editId)
-			if(listeners.length === 0) console.log('no listeners')
+			//if(listeners.length === 0) console.log('no listeners')
 			for(var i=0;i<listeners.length;++i){
 				var listener = listeners[i]
 				listener.putAdd(key, value, editId)
@@ -66,13 +66,13 @@ function listenerSet(){
 				listener.del(key, editId)
 			}
 		},
-		emitShould: function(id, flag, editId){
+		/*emitShould: function(id, flag, editId){
 			_.assertLength(arguments, 3)
 			for(var i=0;i<listeners.length;++i){
 				var listener = listeners[i]
 				listener.shouldHaveObject(id, flag, editId)
 			}
-		},
+		},*/
 		emitObjectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			_.assertLength(arguments, 9)
 			for(var i=0;i<listeners.length;++i){
@@ -80,11 +80,12 @@ function listenerSet(){
 				listener.objectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
 			}
 		},
-		emitChanged: function(){
-			_.assertLength(arguments, 0)
+		emitChanged: function(editId){
+			_.assertLength(arguments, 1)
+			_.assertInt(editId)
 			for(var i=0;i<listeners.length;++i){
 				var listener = listeners[i]
-				listener.changed()
+				listener.changed(editId)
 			}
 		},
 		many: function(){return listeners.length;}

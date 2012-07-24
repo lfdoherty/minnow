@@ -55,8 +55,11 @@ function cont(){
 	var cdl = _.latch(dirs.length, function(){
 		//moreCont(function(){
 			//moreCont(function(){
-				moreCont(function(){
-					process.exit()
+				moreCont(function(report){
+					setTimeout(function(){
+						report()
+						process.exit()
+					},500)
 				})
 			//})
 		//})
@@ -94,7 +97,7 @@ function moreCont(doneCb){
 	
 	var failedList = []
 	//var dieCdl = _.latch(tests.length, function(){
-	function die(){
+	function report(){
 		console.log('all tests finished: ' + passedCount + '/' + (failedCount+passedCount));
 		console.log('took ' + (Date.now()-start)+'ms.')
 		if(failedList.length > 0){
@@ -104,7 +107,10 @@ function moreCont(doneCb){
 				console.log(f[1])
 			})
 		}
-		doneCb()
+	}
+	function die(){
+		
+		doneCb(report)
 	}
 	//})
 	
@@ -123,6 +129,8 @@ function moreCont(doneCb){
 			die()
 		}
 		var t = tests.shift()
+		if(!t) return
+		
 		currentTest = t
 		runTest(t, runNextTest)
 	}

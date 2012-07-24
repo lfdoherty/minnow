@@ -18,7 +18,8 @@
 		"socket.io": "*",
 		"structures": "git://github.com/lfdoherty/structures.git",
 		"underscorem": "git://github.com/lfdoherty/underscorem.git",
-		"fparse": "*"
+		"fparse": "*",
+		"quicklog": "*"
 	},
 	"devDependencies": {
 		"cover": ">=0.2.8"

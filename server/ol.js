@@ -46,13 +46,14 @@ function serializeEdits(fp, edits){
 	return w.finish()
 }
 
+var log = require('quicklog').make('ol')
+
 var MaxBufferSize = 200;
 var BufferFlushChunkSize = 100;
 exports.make = function(dataDir, schema, cb){
 	_.assertLength(arguments, 3)
 	_.assertFunction(cb)
 
-	var ws = fs.createWriteStream('ol.log')
 
 	//var ex = baleen.makeFromSchema(schema,undefined,true, true);
 
@@ -136,6 +137,7 @@ exports.make = function(dataDir, schema, cb){
 	}
 	//var isWriting = false;
 	function writeToDiskIfNecessary(){
+		return //TODO reimplement writing ol to disk
 		if(buffer.length >= MaxBufferSize/* && !isWriting*/){
 			//console.log('OL WRITING BUFFER TO DISK')
 			writeToDisk();
@@ -149,17 +151,17 @@ exports.make = function(dataDir, schema, cb){
 		if(waiting) return;
 		waiting = true;
 		manyToFlush = 1
-		console.log('begun sync')
+		log('begun sync')
 		dataWriter.sync(gotSync)
 	}
 	function gotSync(){
 		waiting = false
-		console.log('got sync, flushing ' + manyToFlush)
+		log('got sync, flushing ' + manyToFlush)
 		for(var i=0;i<manyToFlush;++i){
 			var sf = syncBuffer.shift()
 			sf()
 		}
-		console.log('syned: ' + syncBuffer.length)
+		log('synced: ' + syncBuffer.length)
 		if(syncBuffer.length > 0){
 			waiting = true
 			manyToFlush = syncBuffer.length
@@ -230,15 +232,15 @@ exports.make = function(dataDir, schema, cb){
 				try{
 					var json = objReader(buf);
 				}catch(e){
-					console.log('reading buf: ' + buf.length)
+					log('reading buf: ' + buf.length)
 					var typeCode = bin.readInt(buf, 0)
-					console.log('read typeCode: ' + typeCode)
+					log('read typeCode: ' + typeCode)
 					var str = '';
 					for(var i=0;i<buf.length;++i){
 						str += buf[i]+','
 					}
-					console.log('buf: ' + str)
-					console.log('pos: ' + JSON.stringify(pos))
+					log('buf: ' + str)
+					log('pos: ' + JSON.stringify(pos))
 					throw e;
 				}
 				_.assertObject(json)
@@ -258,12 +260,12 @@ exports.make = function(dataDir, schema, cb){
 	var currentId
 	var readers = {
 		make: function(e){
-			console.log('GOT MAKE $$$$$$$$$$4')
+			//log('GOT MAKE $$$$$$$$$$4')
 
 
 			var n = make(e)
 			currentId = n.id
-			ws.write('got make ' + e.typeCode + ' : ' + currentId+'\n')
+			log('got make ' + e.typeCode + ' : ' + currentId)
 		},
 		setSyncId: function(e){
 			currentSyncId = e.syncId
@@ -290,7 +292,7 @@ exports.make = function(dataDir, schema, cb){
 
 		//inverse.indexInverse(currentId, op, edit)
 		
-		ws.write(currentId + ' appending ' + op + ' ' + JSON.stringify(edit)+'\n')
+		log(currentId + ' appending ' + op + ' ' + JSON.stringify(edit))
 		
 		/*var bi = bufferIndex[currentId]
 		if(bi !== undefined){
@@ -325,7 +327,7 @@ exports.make = function(dataDir, schema, cb){
 		//console.log('writing...')
 		//var data = objWriter[typeCode](initialState);
 		//console.log('~~~wrote new object: ' + data.length + ' ' + JSON.stringify(initialState))
-		console.log('wrote object: ' + idCounter)
+		log('wrote object: ' + idCounter)
 		bufferIndex[idCounter] = buffer.length
 		var bi = {data: [
 			{op: 'setSyncId', edit: {syncId: syncId}, editId: editId},
@@ -369,7 +371,7 @@ exports.make = function(dataDir, schema, cb){
 	function deserializeEdits(edits){
 		var result = []
 		edits.forEach(function(e){
-			console.log('edit: ' + JSON.stringify(e.edit))
+			//console.log('edit: ' + JSON.stringify(e.edit))
 			var r = fparse.makeSingleReader(e.edit)
 			var edit = r.readers[e.op]()
 			result.push({op: e.op, edit: edit, editId: e.editId})
@@ -505,6 +507,10 @@ exports.make = function(dataDir, schema, cb){
 				})
 			}*/
 		},
+		isTopLevelObject: function(id){
+			var index = bufferIndex[id];
+			return index !== undefined//TODO also lookup disk index			
+		},
 		getLatest: function(id, cb){//TODO optimize away
 			_.assertLength(arguments, 2)
 			var index = bufferIndex[id];
@@ -561,13 +567,20 @@ exports.make = function(dataDir, schema, cb){
 					op = 'addedNew'
 					++idCounter
 					res.id = idCounter
-					edit = {id: res.id, typeCode: edit.typeCode}
+					//_.assertInt(edit.temporary)
+					edit = {id: res.id/*, temporary: edit.temporary*/, typeCode: edit.typeCode}
 				}else if(op === 'replaceInternalNew' || op === 'replaceExternalNew'){
 					//es.objectChanged(id, 'replacedNew', {typeCode: edit.typeCode, newId: newId, temporary: temporary, oldId: edit.id}, syncId, editId)
 					op = 'replacedNew'
 					++idCounter
 					res.id = idCounter
 					edit = {typeCode: edit.typeCode, newId: res.id, oldId: edit.id}
+				}else if(op === 'setToNew'){
+					op = 'wasSetToNew'
+					++idCounter
+					res.id = idCounter
+					//_.assertInt(edit.temporary)
+					edit = {typeCode: edit.typeCode, id: res.id/*, temporary: edit.temporary*/}
 				}
 				res.edit = edit
 				res.op = op
@@ -589,7 +602,7 @@ exports.make = function(dataDir, schema, cb){
 			_.assert(id >= 0)
 			
 			if(already[id]){
-				console.log('already got: ' + id)
+				log('already got: ' + id)
 				endCb()
 				return
 			}
@@ -782,7 +795,7 @@ exports.make = function(dataDir, schema, cb){
 	var indexReaders = {
 		entry: function(e, segmentIndex){
 			if(lastVersionId < e.versionId) lastVersionId = e.versionId;
-			console.log('read entry: ' + e.versionId)
+			log('read entry: ' + e.versionId)
 			e.objects.forEach(function(obj){			
 				_.assertUndefined(obj.serverId)//TODO
 				if(filePositions[obj.id] === undefined){
@@ -830,9 +843,9 @@ exports.make = function(dataDir, schema, cb){
 
 		cb(handle)
 	})*/
-	console.log('done ol')
+	log('done ol')
 	cb(handle)
-	console.log('done ol after cb')
+	log('done ol after cb')
 	
 	//var dataWriter
 }

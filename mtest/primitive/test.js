@@ -21,7 +21,7 @@ function makeWrapper(check, set){
 					minnow.makeClient(config.port, function(otherClient){
 						otherClient.view('general', function(v){
 							var obj = v.make('entity')
-							v.setProperty('v', obj)
+							v.v.set(obj)
 							set(obj)
 						})
 					})

@@ -8,7 +8,7 @@ function makePathUpdater(initialPath){
 	var syncId;
 	function update(e){
 		var op = e.op
-		console.log(JSON.stringify(e))
+		//console.log(JSON.stringify(e))
 		if(op === 'made'){
 			typeCode = e.edit.typeCode
 		}else if(op === 'setSyncId'){
@@ -28,13 +28,15 @@ function makePathUpdater(initialPath){
 			//_.assert(e.edit.id > 0)
 			path[path.length-1] = e.edit.id
 		}else if(op === 'selectStringKey' || op === 'selectLongKey' || op === 'selectIntKey' || op === 'selectBooleanKey'){
+			if(op === 'selectIntKey') _.assertInt(e.edit.key)
 			path.push(e.edit.key)
 		}else if(op === 'reselectStringKey' || op === 'reselectLongKey' || op === 'reselectIntKey' || op === 'reselectBooleanKey'){
+			if(op === 'reselectIntKey') _.assertInt(e.edit.key)
 			path[path.length-1] = e.edit.key
 		}else if(op === 'ascend'){
 			path = path.slice(0, path.length-e.edit.many)
 		}else if(op === 'ascend1'){
-			console.log('pu-sourced ascend1')
+			//console.log('pu-sourced ascend1')
 			path = path.slice(0, path.length-1)
 		}else if(op === 'ascend2'){
 			path = path.slice(0, path.length-2)

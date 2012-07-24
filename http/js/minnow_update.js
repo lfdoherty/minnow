@@ -43,7 +43,7 @@ function establishSocket(appName, schema, host, cb){
 			},
 			persistEdit: function(/*typeCode, id, path, */op, edit){
 				_.assertLength(arguments, 2)
-				console.log('got arguments: ' + JSON.stringify(arguments))
+				//console.log('got arguments: ' + JSON.stringify(arguments))
 				//_.assertInt(typeCode)
 				//_.assertInt(id)
 				//_.assertArray(path)
@@ -97,36 +97,62 @@ function establishSocket(appName, schema, host, cb){
 			//console.log('sending message: ' + msgStr);
 		}
 
+		var failedSendLast = false
+		var sending = true
 		function sendMessages(){
 		    if(sendFacade.editBuffer.length > 0){
-				sendMessage(syncId, sendFacade.editBuffer)
+		    	var sending = [].concat(sendFacade.editBuffer)
 				sendFacade.editBuffer = []
+				sendMessage(syncId, sending, function(){
+					failedSendLast = false
+			    	setTimeout(sendMessages, 500);	
+				}, function(){
+					sendFacade.editBuffer = sending.concat(sendFacade.editBuffer)
+					if(failedSendLast){
+				    	setTimeout(sendMessages, 5000);		    	
+					}else{
+				    	setTimeout(sendMessages, 500);		    	
+				    }
+					failedSendLast = true
+				})
 		    }else{
-		        setTimeout(sendMessages, 500);    
-		    }
+		        setTimeout(sendMessages, 500);
+			}
 		}	
-		function sendMessage(syncId, msg){
+		function sendMessage(syncId, msg, cb, errCb){
 			//TODO
 		    //throw new Error('TODO send message: ' + msgStr)
 		    console.log('sending messages: ' + msg.length)
 		    var sendUrl = '/mnw/xhr/update/' + appName + '/' + syncId
 		    postJson(host+sendUrl, msg, function(){
 		        console.log('got ok response from post messages')
-		    	setTimeout(sendMessages, 500);	
+		        cb()
+		    }, function(){
+		    	errCb()
 		    })
 		}
-		setTimeout(sendMessages, 500);	
+		//setTimeout(sendMessages, 500);	
+		console.log('setup sending messages to server via update')
 
 		sendMessages()
 
 		var wasAlreadyReady = false;
 
 		var pollUrl = '/mnw/xhr/longpoll/' + appName + '/' + syncId
+		var failedLast = false
 		function pollServer(){
 			getJson(host+pollUrl, function(msgs){
 				console.log('got messages: ' + JSON.stringify(msgs))
 				msgs.forEach(takeMessage)
+				failedLast = false
 				pollServer()
+			}, function(){
+				if(failedLast){
+					setTimeout(pollServer, 10*1000)
+				}else{
+					setTimeout(pollServer, 1000)
+				}
+				failedLast = true
 			})
 		}
 		pollServer()

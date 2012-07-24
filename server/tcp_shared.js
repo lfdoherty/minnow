@@ -58,11 +58,12 @@ function makeKeySelect(keyOp, isObject){
 }
 function makePropertyReactor(schema, objSchema, propertyCode, translateTemporary){
 	var propertySchema = objSchema.propertiesByCode[propertyCode]
+	//console.log('propertySchema(' + propertyCode + '): ' + JSON.stringify(propertySchema))
 	if((propertySchema.type.type === 'list' || propertySchema.type.type === 'set') && propertySchema.type.members.type === 'object'){
 		
 		var nextFunction = makeObjectReactor(schema, schema[propertySchema.type.members.object].code)
 		return function(reselect, id, sendUpdate){
-			console.log('id: ' + id)
+			//console.log('id: ' + id)
 			_.assert(id > 0)
 			//if(id < 0) id = translateTemporary(id)
 			sendUpdate(reselect?'reselectObject':'selectObject', {id: id})
@@ -70,7 +71,7 @@ function makePropertyReactor(schema, objSchema, propertyCode, translateTemporary
 		}
 	}else if(propertySchema.type.type === 'object'){
 
-		console.log('object: ' + propertySchema.type.object)
+		//console.log('object: ' + propertySchema.type.object)
 		var nextFunction = makeObjectReactor(schema, schema[propertySchema.type.object].code)
 		return function(reselect, id, sendUpdate){
 			_.assert(id > 0)
@@ -117,7 +118,7 @@ function makePropertyReactor(schema, objSchema, propertyCode, translateTemporary
 	}
 }
 function makeObjectReactor(schema, typeCode, translateTemporary){
-	console.log('typeCode: ' + typeCode)
+	//console.log('typeCode: ' + typeCode)
 	var objSchema = schema._byCode[typeCode]
 	return function(reselect, propertyCode, sendUpdate){
 		var propertySchema = objSchema.propertiesByCode[propertyCode]
@@ -140,7 +141,7 @@ exports.makePathStateUpdater = function(schema, typeCode, translateTemporary){
 	function f(path, sendUpdate){
 	
 		var difIndex = 0
-		console.log(JSON.stringify(currentResponsePath) + ' -> ' + JSON.stringify(path))
+		//console.log(JSON.stringify(currentResponsePath) + ' -> ' + JSON.stringify(path))
 		
 		var reselect = false
 		if(isNew){
@@ -156,7 +157,7 @@ exports.makePathStateUpdater = function(schema, typeCode, translateTemporary){
 					reselect = true
 				}else{
 					if(dist === 1){
-						console.log('dist-sourced ascend1')
+						//console.log('dist-sourced ascend1')
 						sendUpdate('ascend1', {})
 					}else if(dist === 2){
 						sendUpdate('ascend2', {})

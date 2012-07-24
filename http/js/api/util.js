@@ -5,6 +5,11 @@ var _ = require('underscorem')
 
 function stub(){}
 
+exports.genericObjectTypes = function types(){
+	var fullSchema = this.getFullSchema();
+	return recursivelyGetLeafTypes(this.typeSchema, fullSchema);
+}
+
 exports.genericCollectionTypes = function types(){
 	var fullSchema = this.getFullSchema();
 	var objectSchema = fullSchema[this.schema.type.members.object];
@@ -67,7 +72,7 @@ exports.primitiveChangeListener = function changeListener(op, edit, syncId, edit
 	
 	if(op.indexOf('set') === 0){
 		this.obj = edit.value;
-		console.log('set happened(' + this.getEditingId() + ')(' + syncId + '): ' + edit.value)
+		//console.log('set happened(' + this.getEditingId() + ')(' + syncId + '): ' + edit.value)
 		//this.parent.obj[this.part[0]] = edit.value
 		return this.emit(edit, 'set')
 	}else{

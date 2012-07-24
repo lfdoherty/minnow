@@ -49,10 +49,10 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 
 	var key = concreteDelayGetter.key
 	if(cache.has(key)){
-		console.log('already got now: ' + key)
+		s.log('already got now: ' + key)
 		return cache.get(key)
 	}else{
-		console.log('not already got: ' + key)
+		s.log('not already got: ' + key)
 	}
 	
 	var rr = Math.random()
@@ -68,7 +68,7 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 	
 	function updateNow(){
 		var newTime = Date.now()
-		console.log('(' + key + ')(' + rr + ') emitting time: ' + newTime)
+		s.log('(' + key + ')(' + rr + ') emitting time: ' + newTime)
 		oldEditId = s.objectState.syntheticEditId()
 		listeners.emitSet(newTime, oldTime, oldEditId);
 		oldTime = newTime
@@ -81,7 +81,7 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 		intervalHandle = setInterval(updateNow, delayValue)
 	}
 	function update(){
-		console.log('updating later')
+		s.log('updating later')
 		updateNow()
 		recomputeDelay()
 	}
@@ -95,17 +95,17 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 	}
 	var delayListener = {
 		set: function(value, oldValue, editId){
-			console.log('got delay set: ' + value)
+			s.log('got delay set: ' + value)
 			delayValue = value
 			var nextUpdateTime = oldTime + delayValue
 			if(timeoutHandle) clearTimeout(timeoutHandle)
 			var now = Date.now()
 			if(oldTime <= now){
 				updateNow()
-				console.log('immediate - set timeout to ' + (nextUpdateTime - now))
+				s.log('immediate - set timeout to ' + (nextUpdateTime - now))
 				timeoutHandle = setTimeout(update, nextUpdateTime - now)
 			}else{
-				console.log('later - set timeout to ' + delayValue)
+				s.log('later - set timeout to ' + delayValue)
 				timeoutHandle = setTimeout(update, delayValue)
 			}
 		}
@@ -114,6 +114,7 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 	recomputeDelay()
 
 	var handle = {
+		name: 'now',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			if(oldTime !== undefined){

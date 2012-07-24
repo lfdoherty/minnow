@@ -17,14 +17,15 @@ exports.make = function(s, self, rel, typeBindings){
 				fullKey += v.key+';'
 			}
 		})
-		console.log('macro key: ' + fullKey + ' ' + JSON.stringify(rel.bindingsUsed))
-		console.log('bindings: ' + JSON.stringify(bindings))
+		s.log('macro key: ' + fullKey + ' ' + JSON.stringify(rel.bindingsUsed))
+		s.log('bindings: ' + JSON.stringify(bindings))
 		return fullKey
 	}
 	var f = svgMacroCall.bind(undefined, s, computeKey, mGetter)
 	//_.assertFunction(mGetter.wrapAsSet)
 	f.wrapAsSet = mGetter.wrapAsSet
 	f.wrappers = mGetter.wrappers
+	f.getDescender = mGetter.getDescender
 	return f;
 }
 

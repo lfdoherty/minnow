@@ -16,10 +16,7 @@ var jsonutil = require('./jsonutil')
 function setPropertyValue(obj, code, value){
 	obj[code] = value;
 }
-/*
-function refresh(e){
-	return this.doRefresh({}, true, e);
-}*/
+
 function emit(e, eventName){
 	var afterCallbacks = []
 		
@@ -129,58 +126,20 @@ function listenForRefresh(listenerName, listener){
 }
 
 function addRefreshFunctions(classPrototype){
-	//if(classPrototype.refresh === undefined) classPrototype.refresh = refresh;
 	if(classPrototype.on === undefined) classPrototype.on = on;
 	if(classPrototype.once === undefined) classPrototype.once = once;
 	if(classPrototype.off === undefined) classPrototype.off = off;
 	if(classPrototype.emit === undefined) classPrototype.emit = emit;
-	/*if(classPrototype.doRefresh === undefined) classPrototype.doRefresh = u.doRefresh;
-	if(classPrototype.listenForRefresh === undefined){
-		classPrototype.listenForRefresh = listenForRefresh;
-		classPrototype.onChange = listenForRefresh;
-	}
-	if(classPrototype.removeListener === undefined) classPrototype.removeListener = removeListener;
-	*/
 }
 
 function removeParent(p){
 	_.assert(this.parent === p);
 	this.parent = undefined;
 }
-/*
-function addToApiCache(id, obj){
-	_.assertLength(arguments, 2);
-	
-	if(!(_.isInteger(id) || _.isString(id))){
-		_.errout('not an id: ' + id)
-	}
-	_.assertObject(obj);
-	this.apiCache[id] = obj;
-}
 
-function clearApiCache(id){
-	_.assertLength(arguments, 1);
-	_.assert(_.isInteger(id) || _.isString(id));
-	delete this.apiCache[id];
-}
-function getFromApiCache(id){
-	_.assertLength(arguments, 1);
-	if(!(_.isInteger(id) || _.isString(id))){
-		_.errout('not an id: ' + id)
-	}
-	//_.assert(_.isInteger(id) || _.isString(id));
-	return this.apiCache[id];
-}
-*/
-function propertyUidFunction(){
-	return this.parent.uid() + '-' + this.part[0];
-}
 function prepareStub(){
 }
-/*
-function getCurrentPath(){
-	return this.parent.getCurrentPath()
-}*/
+
 function persistEdit(op, edit){
 	_.assertLength(arguments, 2)
 	_.assertString(op)
@@ -189,7 +148,7 @@ function persistEdit(op, edit){
 }
 
 function saveEdit(op, edit){
-	var remaining = this.parent.adjustPath(this.part)
+	var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
 	if(remaining.length > 0){
 		if(remaining.length === 1){
 			this.persistEdit('ascend1', {})
@@ -207,14 +166,6 @@ function saveEdit(op, edit){
 	}
 	this.persistEdit(op, edit)
 }
-/*
-function ascendBy(many){
-	if(many <= 5){
-		this.persistEdit('ascend5', {})
-	}else{
-		this.persistEdit('ascend', {many: many})
-	}
-}*/
 
 function makeTemporaryId(){
 	return this.parent.makeTemporaryId()
@@ -242,32 +193,29 @@ function _makeAndSaveNew(json, type){
 	return n
 }
 
+function log(msg){
+	this.parent.log(msg)
+}
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
-	//if(classPrototype.getObjectTypeCode === undefined) classPrototype.getObjectTypeCode = getObjectTypeCode;
-	//if(classPrototype.getObjectId === undefined) classPrototype.getObjectId = getObjectId;
 	if(classPrototype.getObjectApi === undefined) classPrototype.getObjectApi = getObjectApi;
 	if(classPrototype.wrapObject === undefined) classPrototype.wrapObject = wrapObject;
 	if(classPrototype.getFullSchema === undefined) classPrototype.getFullSchema = getFullSchema;
-	//if(classPrototype.getPath === undefined) classPrototype.getPath = getPath;
-	//if(classPrototype.getSh === undefined) classPrototype.getSh = getSh;
 	if(classPrototype.removeParent === undefined) classPrototype.removeParent = removeParent;
 
 	if(classPrototype.createNewExternalObject === undefined) classPrototype.createNewExternalObject = createNewExternalObject;
 	if(classPrototype.reifyExternalObject === undefined) classPrototype.reifyExternalObject = reifyExternalObject;
 	
-	if(classPrototype.uid === undefined) classPrototype.uid = propertyUidFunction;
 	if(classPrototype.prepare === undefined) classPrototype.prepare = prepareStub;
 
-	//if(classPrototype.getCurrentPath === undefined) classPrototype.getCurrentPath = getCurrentPath;
 	if(classPrototype.persistEdit === undefined) classPrototype.persistEdit = persistEdit;
 	if(classPrototype.saveEdit === undefined) classPrototype.saveEdit = saveEdit;
-	//if(classPrototype.ascendBy === undefined) classPrototype.ascendBy = ascendBy;
-	//if(classPrototype._internalSaveEdit === undefined) classPrototype._internalSaveEdit = _internalSaveEdit;
+
 
 	if(classPrototype.makeTemporaryId === undefined) classPrototype.makeTemporaryId = makeTemporaryId;
 	if(classPrototype._makeAndSaveNew === undefined) classPrototype._makeAndSaveNew = _makeAndSaveNew;
+	if(classPrototype.log === undefined) classPrototype.log = log
 }
 
 
@@ -297,13 +245,12 @@ function reifyExternalObject(typeCode, temporaryId, realId){
 function getPath(){
 	return this.parent.getPath().concat(this.part);
 }
-/*
-function getSh(){
-	return this.parent.getSh();
-}*/
 
-function SyncApi(schema, sh){
+function SyncApi(schema, sh, logger){
 	_.assertObject(schema);
+	_.assertFunction(logger)
+	
+	this.log = logger;
 	
 	this.temporaryIdCounter = -1;
 
@@ -322,7 +269,7 @@ function SyncApi(schema, sh){
 	this.uid = Math.random()
 	
 	this.latestVersionId = -1
-	console.log('made SyncApi ' + this.uid)
+	this.log('made SyncApi ' + this.uid)
 	
 	this.editsHappened = []//for debugging
 }
@@ -355,38 +302,15 @@ SyncApi.prototype.objectListener = function(id, edits){
 	_.assertUndefined(this.objectApiCache[id])
 	var n = new TopObjectHandle(this.schema, t, edits, this, id);
 	this.objectApiCache[id] = n;
-	//this.currentTopObject = n
-	/*var currentSyncId
-	edits.forEach(function(e){
-		if(e.op === 'setSyncId'){
-			currentSyncId = e.edit.syncId
-		}else{
-			n.changeListener(e.op, e.edit, currentSyncId, e.editId)
-		}
-	})*/
-	//n.lastEditId = edits[0].editId + 1
 }
 SyncApi.prototype.addSnapshot = function(snap, typeCode, id){
-	//console.log(this.uid + ' adding snapshot: ' + JSON.stringify(snap))
 	var objs = snap.objects;
-	//_.assertArray(objs)
-	//for(var i=0;i<objs.length;++i){
 	var local = this
 	_.each(objs, function(obj, idStr){
-		//var obj = objs[i];
-		//var id = obj.object.meta.id
-		/*var cur = this.snap.objects[id]
-		if(cur && cur.meta.editId > obj.object.meta.editId){
-			continue
-		}else{
-			if(cur) console.log(cur.meta.editId + ' ' + obj.object.meta.editId)
-		}
-		this.snap.objects[id] = obj.object*/
 		
 		var cur = local.snap.objects[idStr]
 		if(cur){
 			if(cur.length >= obj.length){
-				//throw new Error('already got: ' + idStr)
 				return
 			}
 			local.snap.objects[idStr] = cur.concat(obj.slice(cur.length))
@@ -394,11 +318,10 @@ SyncApi.prototype.addSnapshot = function(snap, typeCode, id){
 			local.snap.objects[idStr] = obj
 		}
 	})
-	//console.log(JSON.stringify(this.snap))
 }
 
 SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
-	console.log('id: ' + id + ' for ' + op)
+	//console.log('id: ' + id + ' for ' + op)
 	if(this.currentObjectId !== id){
 		
 		this.currentObjectId = id
@@ -409,9 +332,6 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	this.sh.persistEdit(op, edit)
 }
 
-//SyncApi.prototype.getSh = function(){return this.sh;}
-
-
 SyncApi.prototype.onEdit = function(listener){
 	if(this.changeListeners === undefined) this.changeListeners = []
 	this.changeListeners.push(listener)
@@ -419,12 +339,9 @@ SyncApi.prototype.onEdit = function(listener){
 
 SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertLength(arguments, 3);
-	//_.assertInt(syncId);
 	_.assertString(op);
 	_.assertInt(editId);
-	//_.assert(_.isInt(id) || _.isString(id));
-	//_.assert(_.isInteger(syncId) || syncId === undefined);
-	
+
 
 	console.log(this.uid+' SyncApi changeListener: ' + op + ' ' + JSON.stringify(arguments).slice(0,1000))
 	//console.log(op + ':' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
@@ -464,12 +381,6 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	}
 	
 	if(op === 'madeViewObject'){
-		/*var t = this.schema._byCode[edit.typeCode];
-		_.assertObject(t)
-		var n = new TopObjectHandle(this.schema, t, [], this, edit.id);
-		_.assertUndefined(this.objectApiCache[edit.id])
-		this.objectApiCache[edit.id] = n;
-		this.currentTopObject = n*/
 		var n = makeViewObject(edit.typeCode, edit.id)
 		this.currentTopObject = n
 	}else if(op === 'selectTopObject'){
@@ -483,135 +394,11 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		try{
 			this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
 		}catch(e){
-			console.log(JSON.stringify(this.snap))
+			console.log(JSON.stringify(this.snap).slice(0,1000))
 			console.log(JSON.stringify(this.editsHappened, null, 2).slice(0,1000))
 			throw e
 		}
 	}
-	
-	/*if(this.changeListeners){
-		this.changeListeners.forEach(function(c){c(id, path, op, edit, syncId, editId);})
-	}*/
-	
-	/*
-	if(path.length === 0){
-		if(op === 'objectSnap'){
-			//_.assertDefined(edit.id);
-			//_.assertDefined(edit.value);
-			//
-			//console.log('edit: ' + JSON.stringify(edit))
-			var obj = edit.value.object
-			var realId = obj.meta.id
-			if(this.snap.objects[realId]){
-				//TODO replacing is an error except during setup
-				var cur = this.snap.objects[realId]
-				if(cur.meta.editId >= obj.meta.editId){
-					//console.log('already has and up to date: ' + realId + ' (' + cur.meta.editId + '>=' + obj.meta.editId + ')');
-					return function(){}
-				}else{
-					//console.log('already has ' + realId+', replacing');
-				}
-				//return function(){}
-			}else{
-				//console.log('got new object ' + realId);
-			}
-			_.assertDefined(obj)
-			this.snap.objects[realId] = obj
-		}else if(op === 'setObjectToJson'){
-		
-			if(this.snap.objects[id]){
-				//console.log('replacing ' + id);
-			}
-			
-			this.snap.objects[id] = edit.object;
-			_.assertDefined(this.snap.objects[id])
-			
-			var api = this.getObjectApi(id, this);
-			_.each(edit.object, function(value, pcStr){
-				var pc = parseInt(pcStr);
-				if(pc !== 0){
-					api.obj[pc] = value;
-				}
-			});
-			api.cachedProperties = {};
-			api.prepared = false;
-			var typeCode = api.getObjectTypeCode();
-			var objSchema = this.schema._byCode[typeCode];
-			_.each(objSchema.properties, function(p){
-				delete api[p.name]
-			});
-			
-		
-			api.prepare();
-			api.refresh()();
-		}else if(op === 'make'){
-			
-			if(edit.temporary){
-				var meta = edit.obj.object.meta
-				_.assert(meta.id >= 0)
-				this.reifyExternalObject(meta.typeCode, edit.temporary, meta.id);
-			}
-			
-			if(this.objectCreationCallbacks && this.objectCreationCallbacks[edit.uid]){
-				var cbb = this.objectCreationCallbacks[edit.uid]
-				if(cbb){
-					//console.log('edit: ' + JSON.stringify(edit))
-					cbb(edit.obj.object.meta.id);
-				}
-			}
-		}else if(op === 'makeViewObject'){
-			//console.log('created view object: ' + edit.id)
-			if(this.snap.objects[edit.id] === undefined){
-				this.snap.objects[edit.id] = {meta: {id: edit.id, typeCode: edit.typeCode, editId: editId}}
-			}
-		}else{
-			_.errout('TODO implement top-level op: ' + JSON.stringify(edit));
-		}
-		return function(){}
-	}else{
-		//console.log(path);
-		_.assertInt(path[0]);
-		
-		if(this.snap.objects[id] === undefined){
-			console.log(JSON.stringify(Object.keys(this.snap.objects)))
-			console.log('ignoring edit for object not known to view: ' + id + ' ' + this.snap.objects[id])
-			return function(){}
-		}
-		
-		var objApi = this.getObjectApi(id, this);
-		
-		var typeCode = objApi.getObjectTypeCode();
-		var st = this.schema._byCode[typeCode];
-		//if(st.isView) st = st.schema;
-		if(st.propertiesByCode[path[0]] === undefined){
-			_.errout('type ' + st.name + ' has no property with code ' + path[0]);
-		}
-		var propertyName = st.propertiesByCode[path[0]].name;
-		_.assertString(propertyName);
-		
-		if(op === 'setObject' && path.length === 1){
-			setPropertyValue(objApi.obj, path[0], edit.id);
-			delete objApi.cachedProperties[propertyName]
-			delete objApi[propertyName];
-			objApi[propertyName] = objApi.property(propertyName);
-			//console.log('set object!!!!!!!!!!!!1');
-			//if(this.root){
-			//	return this.root.refresh(edit);
-			//}
-			//return this.refresh(edit);
-			return this.emit(edit, 'setProperty', propertyName)
-		}else{
-			var v = objApi.property(propertyName);
-			_.assertObject(v);
-			_.assertString(op)
-			//console.log(JSON.stringify(objApi.toJson()))
-			//console.log('descending into top-level object(' + id + '): ' + JSON.stringify(path) + ' ' + JSON.stringify(edit))
-			//console.log(v)
-			var res = v.changeListener(path.slice(1), op, edit, syncId, editId);	
-			//console.log(JSON.stringify(objApi.toJson()))
-			return res
-		}
-	}*/
 }
 function getFullSchema(){ return this.parent.getFullSchema();}
 SyncApi.prototype.getFullSchema = function(){return this.schema;}
@@ -645,16 +432,8 @@ SyncApi.prototype.createNewExternalObject = function(typeCode, temporaryId, obj,
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
 	console.log('reifying id ' + temporaryId + ' -> ' + realId)
-	//console.log(JSON.stringify(this.snap.objects))
-	//var obj = this.getObjectApi(temporaryId)
-	
-	
+
 	_.assert(temporaryId < 0)
-	//
-	//var typeList = this.snap.objects
-	//typeList[realId] = typeList[temporaryId];
-	//delete typeList[temporaryId];
-	//_.assertDefined(typeList[realId])
 	
 	var oldCacheKey = temporaryId;
 	var newCacheKey = realId;
@@ -662,24 +441,18 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		var objApi = this.objectApiCache[newCacheKey] = this.objectApiCache[oldCacheKey];
 		delete this.objectApiCache[oldCacheKey];
 		objApi.objectId = realId;
-		//objApi.obj.meta.id = realId;
-		//console.log('emitted reify')
 		objApi.emit({}, 'reify', realId, temporaryId)()
 	}
 	
 	if(this.objectCreationCallbacks && this.objectCreationCallbacks[temporaryId]){
 		var cbb = this.objectCreationCallbacks[temporaryId]
 		if(cbb){
-			//console.log('edit: ' + JSON.stringify(edit))
 			cbb(realId);
 		}
 	}
 }
 
-SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, sourceParent){
-
-	//_.assertInt(typeCode);
-	//_.assertDefined(sourceParent);	
+SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 
 	var n = this.objectApiCache[idOrViewKey];
 	if(n !== undefined){
@@ -687,12 +460,12 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, sourcePa
 	}
 	var obj = this.snap.objects[idOrViewKey];
 	if(obj === undefined){
-		console.log('snap: ' + JSON.stringify(this.snap))//JSON.stringify(typeList))
+		console.log('snap: ' + JSON.stringify(this.snap).slice(0,500))
 		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
 		_.errout(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
 	}
-	console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
+	this.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
 
 	var typeCode = obj[0].op === 'madeViewObject' ? obj[0].edit.typeCode : obj[1].edit.typeCode//first edit is a made op
@@ -704,46 +477,17 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, sourcePa
 	this.objectApiCache[idOrViewKey] = n;
 
 	return n
-	/*if(n){
-		return n;
-	}
-
-	var typeList = this.snap.objects//[typeCode];
-
-	//console.log('snap: ' + JSON.stringify(this.snap))
-	
-	if(typeList === undefined) _.errout('looking for a type of object the snapshot has none of: ' + typeCode);
-	var obj = typeList[idOrViewKey];
-	//console.log('snap: ' + JSON.stringify(typeList))
-	if(obj === undefined){
-		console.log('snap: ' + JSON.stringify(typeList))
-		_.errout('no object in snapshot with id: ' + idOrViewKey);
-	}
-
-	var typeCode = obj.meta.typeCode
-	var t = this.schema._byCode[typeCode];
-
-	if(t === undefined) _.errout('cannot find object type: ' + typeCode);
-
-	n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey);
-	this.objectApiCache[idOrViewKey] = n;
-	
-	//if(!t.superTypes.invariant) n.registerSourceParent(sourceParent);
-	
-	return n;*/
 }
 SyncApi.prototype.wrapObject = function(id, typeCode, part, sourceParent){
 	_.assertLength(arguments, 4);
 	_.assertInt(id)
-	_.assertArray(part);
 	_.assertInt(typeCode)
-
 	_.assertFunction(sourceParent.adjustPath)
 	
 	var t = this.schema._byCode[typeCode];
-	console.log('typeCode: ' + typeCode)
+	//console.log('typeCode: ' + typeCode)
 	_.assertDefined(t)
-	return new ObjectHandle(t, {}, id, part, sourceParent);
+	return new ObjectHandle(t, [], id, part, sourceParent);
 }
 SyncApi.prototype.getEditingId = function(){
 	_.assertInt(this.editingId);
@@ -763,8 +507,8 @@ function getObjectId(){
 	return id;
 }
 
-function wrapObject(id, obj, part, sourceParent){
-	return this.parent.wrapObject(id, obj, part, sourceParent);
+function wrapObject(id, typeCode, part, sourceParent){
+	return this.parent.wrapObject(id, typeCode, part, sourceParent);
 }
 
 var PrimitiveListHandle = require('./api/primitivelist')
@@ -812,9 +556,7 @@ addCommonFunctions(TopObjectHandle.prototype);
 function getClassForType(type, isView){
 	_.assertLength(arguments, 2)
 	_.assertNot(_.isObject(type.type))
-	//var type = typeSchema.type;
-	//console.log(type);
-	//console.log(typeSchema);
+
 	if(type.type === 'primitive'){
 		if(type.primitive === 'string') return StringHandle;
 		else if(type.primitive === 'int') return IntHandle;
@@ -842,7 +584,6 @@ function getClassForType(type, isView){
 				return ObjectSetHandle;
 			}
 		}
-		//return SetHandle;
 	}else if(type.type === 'object'){
 		return ObjectHandle;
 	}else if(type.type === 'map'){
@@ -860,12 +601,12 @@ function stub(){}
 
 addCommonFunctions(SyncApi.prototype);
 
-exports.make = function(typeSchema, sh/*, snap, typeCode, id*/){
-	_.assertLength(arguments, 2);
+exports.make = function(typeSchema, sh, logger){
+	_.assertLength(arguments, 3);
 	_.assertObject(typeSchema);
 	_.assertObject(sh);
-	//_.assertObject(snap);
+	_.assertFunction(logger);
 
-	return new SyncApi(typeSchema, sh/*, snap, typeCode, id*/);
+	return new SyncApi(typeSchema, sh, logger);
 }
 

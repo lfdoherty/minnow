@@ -125,18 +125,18 @@ function isView(expr, name){return expr.type === 'view' && expr.view === name;}
 function divFunction(a, b){return a/b}
 function mulFunction(a, b){return a*b}
 function addFunction(a, b){return a+b}
-function subFunction(a, b){console.log(a + '-' + b + ' = ' + (a-b));return a-b}
+function subFunction(a, b){return a-b}
 function andFunction(a, b){return a&&b}
 function orFunction(a, b){return a||b}
-function eqFunction(a, b){console.log(a + ' === ' + b);return a===b}
+function eqFunction(a, b){return a===b}
 function logFunction(base, value){return Math.log(value)/Math.log(base)}
 
 function eitherFunction(a, b){
 	if(a){
-		console.log('either a: ' + a)
+		//console.log('either a: ' + a)
 		return a
 	}else{
-		console.log('either b: ' + b)
+		//console.log('either b: ' + b)
 		return b
 	}
 }
@@ -200,7 +200,7 @@ function svgBinary(s, cache, func, aExprGetter, bExprGetter, bindings, editId){
 			//console.log('setting: ' + result + ' <- ' + oldResult)
 			listeners.emitSet(result, oldResult, editId)
 		}else{
-			console.log('same: ' + result)
+			s.log('same: ' + result)
 		}
 	}
 	
@@ -231,6 +231,7 @@ function svgBinary(s, cache, func, aExprGetter, bExprGetter, bindings, editId){
 	}
 	
 	var handle = {
+		name: 'binaryop',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			if(result !== undefined){

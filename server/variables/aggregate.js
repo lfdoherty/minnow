@@ -115,6 +115,7 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 	}
 	
 	var handle = {
+		name: 'aggregation',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			if(root !== undefined){

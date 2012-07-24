@@ -4,8 +4,8 @@ var XMLHttpRequest = require('xhr').XMLHttpRequest
 exports.getJson = getJson
 exports.postJson = postJson
 
-function getJson(url, cb){
-	if(arguments.length !== 2) throw new Error('getJson(url,cb) should not be called with ' + arguments.length + ' arguments')
+function getJson(url, cb, errCb){
+	//if(arguments.length !== 2) throw new Error('getJson(url,cb) should not be called with ' + arguments.length + ' arguments')
     var xhr = new XMLHttpRequest();  
     
   	if(typeof(url) !== 'string') throw new Error('url must be a string: ' + url + ' ' + typeof(url))
@@ -29,14 +29,15 @@ function getJson(url, cb){
 				cb(json)
 			} else {  
 				console.log("Error", xhr.statusText, url);  
+				errCb(xhr.status)
 			}  
 		}  
 	};  
 	xhr.send(null); 
 }
 
-function postJson(url, content, cb){
-	if(arguments.length !== 3) throw new Error('postJson(url,content,cb) should not be called with ' + arguments.length + ' arguments')
+function postJson(url, content, cb, errCb){
+	//if(arguments.length !== 3) throw new Error('postJson(url,content,cb) should not be called with ' + arguments.length + ' arguments')
 
     var xhr = new XMLHttpRequest();  
     
@@ -50,6 +51,7 @@ function postJson(url, content, cb){
 				cb()
 			} else {  
 				console.log("Error", xhr.statusText, url);  
+				errCb(xhr.status)
 			}  
 		}  
 	};  

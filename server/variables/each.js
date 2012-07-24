@@ -61,6 +61,8 @@ function eachMaker(s, self, rel, typeBindings){
 	//console.log('extended type bindings with each param: ' + JSON.stringify(newTypeBindings))
 	var exprGetter = self(rel.params[1], newTypeBindings)//typeBindings)
 	//console.log(JSON.stringify(rel.params[1]))
+	
+	if(exprGetter.wrapAsSet === undefined) _.errout('missing wrapAsSet: ' + JSON.stringify(rel.params[1]))
 	_.assertFunction(exprGetter.wrapAsSet)
 	//console.log(JSON.stringify(rel.params[0]))
 	_.assertFunction(contextGetter.wrapAsSet)
@@ -87,8 +89,8 @@ function eachMaker(s, self, rel, typeBindings){
 				_.assertObject(exprGetter.wrappers)
 			}
 			res.wrappers = exprGetter.wrappers
-			res.wrapAsSet = function(v, editId){
-				return exprGetter.wrapAsSet(v, editId)
+			res.wrapAsSet = function(v, editId, context){
+				return exprGetter.wrapAsSet(v, editId, context)
 			}
 			return res
 		}
@@ -127,8 +129,8 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 	
 	var cachedObjectChanges = []
 	
-	var should = {}
-	var shouldCounts = {}
+	//var should = {}
+	//var shouldCounts = {}
 	
 	var resultSetListener = {
 		add: function(value, editId){
@@ -150,7 +152,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 				--counts[value]
 			}
 		},
-		shouldHaveObject: function(id, flag, editId){
+		/*shouldHaveObject: function(id, flag, editId){
 			if(flag){
 				if(shouldCounts[id] === undefined) shouldCounts[id] = 0
 				should[id] = id
@@ -166,8 +168,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 					listeners.emitShould(id, false, editId)
 				}
 			}
-		},
-		
+		},*/
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//console.log('each passing on objectChange to ' + listeners.many())
 			var e = [subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]
@@ -189,7 +190,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 	elements.attach({
 		add: function(v, editId){
 			var newBindings = copyBindings(bindings)
-			var ss = contextExprGetter.wrapAsSet(v, editId)
+			var ss = contextExprGetter.wrapAsSet(v, editId, elements)
 			if(ss.isType) _.errout('isType')
 			newBindings[implicits[0]] = ss
 			var newSet = concreteGetter(newBindings, editId)
@@ -201,25 +202,26 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			var removedSet = allSets[v]
 			removedSet.detach(resultSetListener, editId)
 		},
-		shouldHaveObject: function(){
+		/*shouldHaveObject: function(){
 			//_.errout('TODO')
-		},
+		},*/
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//_.errout('TODO')
 		}
 	}, editId)
 	
 	var handle = {
+		name: 'each-multiple',
 		attach: function(listener, editId){
 			_.assertFunction(listener.objectChange)
 			
 			listeners.add(listener)
 			//console.log('multiple: ' + new Error().stack)
 			//console.log(JSON.stringify(s.outputType))
-			Object.keys(should).forEach(function(key){
+			/*Object.keys(should).forEach(function(key){
 				var id = should[key]
 				listener.shouldHaveObject(id, true, editId)
-			})
+			})*/
 			values.forEach(function(v){listener.add(v, editId)})
 			cachedObjectChanges.forEach(function(v){
 				listener.objectChange.apply(undefined, v)
@@ -228,10 +230,10 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		detach: function(listener, editId){
 			listeners.remove(listener)
 			if(editId){
-				Object.keys(should).forEach(function(key){
+				/*Object.keys(should).forEach(function(key){
 					var id = should[key]
 					listener.shouldHaveObject(id, false, editId)
-				})
+				})*/
 				values.forEach(function(v){listener.remove(v, editId)})
 			}
 		},
@@ -259,8 +261,8 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 	
 	var cachedObjectChanges = []
 
-	var should = {}
-	var shouldCounts = {}
+	//var should = {}
+	//var shouldCounts = {}
 	
 	var resultSetListener = {
 		set: function(value, oldValue, editId){
@@ -284,26 +286,9 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 				}
 			}
 		},
-		shouldHaveObject: function(id, flag, editId){
-			if(flag){
-				if(shouldCounts[id] === undefined) shouldCounts[id] = 0
-				should[id] = id
-				++shouldCounts[id]
-				if(shouldCounts[id] === 1){
-					listeners.emitShould(id, true, editId)
-				}
-			}else{
-				--shouldCounts[id]
-				if(shouldCounts[id] === 0){
-					delete should[id]
-					delete shouldCounts[id]
-					listeners.emitShould(id, false, editId)
-				}
-			}
-		},
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-			console.log('each passing on objectChange to ' + listeners.many())
-			console.log(new Error().stack)
+			//console.log('each passing on objectChange to ' + listeners.many())
+			//console.log(new Error().stack)
 			var e = [subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]
 			cachedObjectChanges.push(e)
 			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
@@ -326,9 +311,9 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 		add: function(v, editId){
 			var newBindings = copyBindings(bindings)
 			//console.log(JSON.stringify(Object.keys(elements)))
-			console.log('key: ' + elements.key + ' ' + v + ' ' + editId)
+			s.log('key: ' + elements.key + ' ' + v + ' ' + editId)
 			//console.log('attach: ' + elements.attach)
-			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId)
+			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId, elements)
 			if(ss.isType) throw new Error('is type')
 			var newSet = concreteGetter(newBindings, editId)
 			newSet.attach(resultSetListener, editId)
@@ -338,26 +323,16 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 			var removedSet = allSets[v]
 			removedSet.detach(resultSetListener, editId)
 		},
-		shouldHaveObject: function(id, flag, editId){
-			//_.errout('TODO: ' + JSON.stringify(arguments))
-			//console.log('TODO?: ' + JSON.stringify([id, flag, editId]))
-			_.assertInt(id)
-		},
 		objectChange: stub//ignore object changes - that's the result set listener's job
 	}, editId)
 	
 	var handle = {
+		name: 'each-single',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log('attached to each: ' + JSON.stringify(s.outputType))
-			_.assertFunction(listener.shouldHaveObject)
+			//_.assertFunction(listener.shouldHaveObject)
 			_.assertFunction(listener.objectChange)
-			//console.log('each key: ' + key + ' ' + values.length)
-
-			Object.keys(should).forEach(function(key){
-				var id = should[key]
-				listener.shouldHaveObject(id, true, editId)
-			})
 
 			cachedObjectChanges.forEach(function(v){
 				listener.objectChange.apply(undefined, v)
@@ -370,13 +345,10 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 			listeners.remove(listener)
 			
 			if(editId){
-				Object.keys(should).forEach(function(key){
-					var id = should[key]
-					listener.shouldHaveObject(id, false, editId)
-				})
 				values.forEach(function(v){listener.remove(v, editId)})
 			}
 		},
+		descend: elements.descend,//TODO this is not necessarily right
 		oldest: oldest,
 		key: key
 	}

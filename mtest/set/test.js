@@ -21,7 +21,7 @@ exports.append = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(v){
 						var obj = v.make('entity')
-						v.setProperty('s', obj)
+						v.s.set(obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')

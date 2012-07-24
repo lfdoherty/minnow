@@ -1,7 +1,13 @@
-running tests in dirs: ["/home/liam/Dropbox/me/dev/minnow/mtest/list"]
+running tests in dirs: ["/home/liam/Dropbox/me/dev/minnow/mtest/inner"]
 callling
-loading all schemas in dir: /home/liam/Dropbox/me/dev/minnow/mtest/list
+loading all schemas in dir: /home/liam/Dropbox/me/dev/minnow/mtest/inner
+computing schema for wrapper
+computing schema for simplerWrapper
+computing schema for simple
+computing schema for simpleOther
+computing schema for simpleOther2
 computing schema for general
+computing schema for empty
 done load cb
 done...
 done ol
@@ -10,26 +16,76 @@ done ol after cb
 done loading 0 commands in 1ms
 got ap
 got uid
-making for rel: primitiveList 1
+making for rel: s 1
+callExpr.view: wrapper
+here: {"type":"param","name":"p1_0.06700616213493049","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","implName"]
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","wrappers"]
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","wrappers"]
+{"type":"set","members":{"type":"view","view":"wrapper"}}
+making for rel: wrappedValue 41
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: [object Object]
+type binding: ["type","object"]
+making for rel: wrappedOtherValue 42
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: [object Object]
+type binding: ["type","object"]
+making for rel: s 1
+callExpr.view: wrapper
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["implName"]
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["implName"]
+making for rel: s 10
+callExpr.view: wrapper
+here: {"type":"param","name":"p1_0.34697098354808986","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","implName"]
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","wrappers"]
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","wrappers"]
+making for rel: s 19
+callExpr.view: simplerWrapper
+here: {"type":"param","name":"p1_0.8096933239139616","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","implName"]
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: function () { [native code] }
+type binding: ["wrapAsSet","wrappers"]
+making for rel: wrappedOtherValue 46
+here: {"type":"param","name":"entity","schemaType":{"type":"object","object":"entity"}}
+type binding: [object Object]
+type binding: ["type","object"]
 tcp client waiting for setup message
 tcp server got connection
 Error
     at Server.<anonymous> (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:119:15)
     at Server.EventEmitter.emit (events.js:88:17)
     at TCP.onconnection (net.js:1043:8)
-got buf 3146 3114
+got buf 23091 23091
 setting up
-made SyncApi 0.4904178308788687
-0.9584607214201242 getting view general[]
+made SyncApi 0.2574198869988322
+0.9284329884685576 getting view general[]
 tcpclient: getSnapshots: {"typeCode":100,"params":"[]","requestId":1}
 GOT SNAPSHOTS: 0
 Error
     at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/viewstate.js:80:16)
-    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:224:16)
-    at net.createServer.reader.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:341:7)
+    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:254:16)
+    at net.createServer.reader.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:343:7)
     at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
     at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
-    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:386:4)
+    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:388:4)
     at Socket.EventEmitter.emit (events.js:88:17)
     at TCP.onread (net.js:397:14)
 tcpclient: getSnapshots
@@ -37,20 +93,22 @@ created bindings for params: []->{}
 curEditId: 0
 *************VIEW KEY: 100:[] 0
 TYPE got all ids: []
+macro key:  {"p1_0.06700616213493049":true}
+bindings: {}
 attached to type ************ [] 1
 Error
-    at handle.attach (/home/liam/Dropbox/me/dev/minnow/server/variables/type.js:62:16)
+    at handle.attach (/home/liam/Dropbox/me/dev/minnow/server/variables/type.js:70:16)
     at Object.Cache.store.value.attach (/home/liam/Dropbox/me/dev/minnow/server/variable_cache.js:25:13)
-    at svgGeneralOne (/home/liam/Dropbox/me/dev/minnow/server/variables/one.js:64:11)
-    at /home/liam/Dropbox/me/dev/minnow/server/variables/view.js:403:41
+    at svgEachSingle (/home/liam/Dropbox/me/dev/minnow/server/variables/each.js:310:11)
+    at /home/liam/Dropbox/me/dev/minnow/server/variables/view.js:410:41
     at Array.forEach (native)
-    at internalView (/home/liam/Dropbox/me/dev/minnow/server/variables/view.js:401:29)
+    at internalView (/home/liam/Dropbox/me/dev/minnow/server/variables/view.js:408:29)
     at Object.exports.make.handle.getAllSnapshotStates (/home/liam/Dropbox/me/dev/minnow/server/viewstate.js:88:26)
-    at Object.exports.make.handle.getAllSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:238:16)
-    at net.createServer.reader.getAllSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:352:7)
+    at Object.exports.make.handle.getAllSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:268:16)
+    at net.createServer.reader.getAllSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:354:7)
     at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
     at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
-    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:386:4)
+    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:388:4)
     at Socket.EventEmitter.emit (events.js:88:17)
     at TCP.onread (net.js:397:14)
 GETTING SNAPSHOT STATES: [0]
@@ -65,7 +123,7 @@ deserialized: {"requestId":2,"snapshots":[{"startVersion":-1,"endVersion":0,"obj
 got snapshots: [{"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}]
 snapshot: {"startVersion":-1,"endVersion":0,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
 tcpclient e.params: "[]"
-0.681689835852012 writing: 8
+0.6470158542506397 writing: 8
 beginView: {"requestId":3,"syncId":1,"typeCode":100,"params":"[]","latestSnapshotVersionId":0}
 params: []
 beginning view after 0
@@ -77,27 +135,26 @@ calling back with view: 100:[]+++++++++++++++++++++
 100:[]: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
 100:[] preparing topobject with edits: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
 ignoring view object creation
-preparing: primitiveList
-made empty readonly object 1 undefined
+obj: undefined
 tcp client waiting for setup message
 tcp server got connection
 Error
     at Server.<anonymous> (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:119:15)
     at Server.EventEmitter.emit (events.js:88:17)
     at TCP.onconnection (net.js:1043:8)
-got buf 3146 3114
+got buf 23091 23091
 setting up
-made SyncApi 0.2073510349728167
-0.1479292819276452 getting view general[]
+made SyncApi 0.6532803813461214
+0.29141823831014335 getting view general[]
 tcpclient: getSnapshots: {"typeCode":100,"params":"[]","requestId":1}
 GOT SNAPSHOTS: 0
 Error
     at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/viewstate.js:80:16)
-    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:224:16)
-    at net.createServer.reader.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:341:7)
+    at Object.exports.make.handle.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/server.js:254:16)
+    at net.createServer.reader.getSnapshots (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:343:7)
     at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
     at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
-    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:386:4)
+    at Socket.net.createServer.w.setup.serverInstanceUid (/home/liam/Dropbox/me/dev/minnow/server/tcpserver.js:388:4)
     at Socket.EventEmitter.emit (events.js:88:17)
     at TCP.onread (net.js:397:14)
 tcpclient: getSnapshots
@@ -127,265 +184,389 @@ calling back with view: 100:[]+++++++++++++++++++++
 100:[]: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
 100:[] preparing topobject with edits: [{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]
 ignoring view object creation
-preparing: primitiveList
-made empty readonly object 1 undefined
+obj: undefined
+json property ascend1
 op: make
--2 preparing topobject with edits: []
-preparing: data
-setting up primitive list: undefined
-is view, just setting
-adjust top path: [] -> 1
-id: -2 for selectProperty
 op: selectProperty
-here: addString
-id: -2 for addString
-op: addString
-(undefined) tcpserver got client(2) request persistEdit: {"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":2}
+op: setString
+op: ascend1
+-2 preparing topobject with edits: [{"op":"selectProperty","edit":{"typeCode":21},"editId":-2},{"op":"setString","edit":{"value":"test"},"editId":-2},{"op":"ascend1","edit":{},"editId":-2}]
+made empty readonly object 11 undefined
+adjust top path: [] -> 11
+op: selectProperty
+adjust top path: [11] -> 11
+op: setToNew
+json property ascend1
+json property ascend1
+adjust top path: [11] -> 11
+adjusting path: [] -> +-3
+op: selectObject
+op: selectProperty
+op: setObject
+op: ascend1
+op: selectProperty
+op: setString
+op: ascend1
+(undefined) tcpserver got client(1) request persistEdit: {"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":1}
 
 current id (tcpserver-client): undefined
-{"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":2}
-adding edit: [-1,[],"make",{"typeCode":1,"forget":false},2]
+{"requestId":4,"op":"make","edit":{"typeCode":1,"forget":false},"syncId":1}
+adding edit: [-1,[],"make",{"typeCode":1,"forget":false},1]
 wrote object: 1
-1 -1 [] make {"typeCode":1,"forget":false} 2
+1 -1 [] make {"typeCode":1,"forget":false} 1
 
+1 including object: 1 editId: -1
+---- got
+sending object: 1
 wrote objectMade
 object created: 1 1 1
 object created: 1(tc: 1, id: 1)
 type emitting created: 1 1 1
-1 including object: 1 editId: 1
----- got
-0 objects actually sent
-2 including object: 1 editId: 1
----- got
-0 objects actually sent
-view translating set id to setObject
-0.31805133121088147 (0) 100:[] view got change: setObject {"id":1} -1 1
-view translating set id to setObject
-0.6686470734421164 (0) 100:[] view got change: setObject {"id":1} -1 1
-(1) tcpserver got client(2) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
+key: 1 1 1
+*************VIEW KEY: 101:,1 1
+GETTING(1) PBOJECR: 21
+undefined: [object Object]
+["attach","detach","oldest","key","wrapAsSet","descend"]
+context: type-general
+streamProperty got 2 edits
+0 -depth- 2
+false [1,21] <- {"op":"setSyncId","edit":{"syncId":1},"editId":1}
+1 -depth- 2
+false [1,21] <- {"op":"made","edit":{"typeCode":1,"id":1},"editId":1}
+streaming [1,21]: undefined
+GETTING(1) PBOJECR: 11
+undefined: [object Object]
+["attach","detach","oldest","key","wrapAsSet","descend"]
+context: type-general
+streamProperty got 2 edits
+0 -depth- 2
+false [1,11] <- {"op":"setSyncId","edit":{"syncId":1},"editId":1}
+1 -depth- 2
+false [1,11] <- {"op":"made","edit":{"typeCode":1,"id":1},"editId":1}
+streaming [1,11]: undefined
+0.6699382497463375 (0) 100:[] view got change: addExistingViewObject {"id":"101:,1"} -1 1
+filtering: addExistingViewObject {"id":"101:,1"}
+0.9775761165656149 (0) 100:[] view got change: addExistingViewObject {"id":"101:,1"} -1 1
+filtering: addExistingViewObject {"id":"101:,1"}
+(1) tcpserver got client(1) request persistEdit: {"requestId":5,"op":"selectProperty","edit":{"typeCode":21},"syncId":1}
 
 current id (tcpserver-client): 1
-{"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
-processed path update: {"requestId":5,"op":"selectProperty","edit":{"typeCode":1},"syncId":2}
-path now: [1]
+{"requestId":5,"op":"selectProperty","edit":{"typeCode":21},"syncId":1}
+processed path update: {"requestId":5,"op":"selectProperty","edit":{"typeCode":21},"syncId":1}
+path now: [21]
 emitting all: 1
-0.31805133121088147 sync sequencer emitting(2): {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
-intercepted setObject *************: 1
-function includeObjectCb(id, editId){
-					_.assertInt(id)
-					_.assert(id >= 0)
-					if(alreadySent[id]){
-						console.log('already sent: ' + id)
-						return;
-					}else{
-						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
-						//TODO buffer for streaming all the edits for the object and any objects it depends on
-						var pointer = {got: false, edits: []}
-						sentBuffer.push(pointer)
-						_.assertInt(editId)
-						_.assertInt(id)
-						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
-							if(alreadySent[id]) return
-							
-							alreadySent[id] = true
-							_.assertBuffer(objEditsBuffer)
-							pointer.edits.push({id: id, edits: objEditsBuffer})
-
-						}, function(){
-							console.log('---- got')
-							pointer.got = true
-							advanceSentBuffer()
-						})
-						return;
-					}				
-				}
-already sent: 1
-e: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+0.6699382497463375 sync sequencer emitting(2): {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"addExistingViewObject","edit":{"id":"101:,1"},"syncId":-1,"editId":1}
+e: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"addExistingViewObject","edit":{"id":"101:,1"},"syncId":-1,"editId":1}
 typeCode: 100
 updating to path [1]
 [] -> [1]
 sending update: ["reset",{}]
 sending update: ["selectProperty",{"typeCode":1}]
-object: stringList
-typeCode: 1
+propertySchema(1): {"name":"s","type":{"type":"set","members":{"type":"view","view":"wrapper"}},"code":1,"tags":{}}
 ...done updating to path [1]
-sending actual: ["setObject",{"id":1}]
+sending actual: ["addExistingViewObject",{"id":"101:,1"}]
 emitting all: 1
-0.6686470734421164 sync sequencer emitting(2): {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
-intercepted setObject *************: 1
-function includeObjectCb(id, editId){
-					_.assertInt(id)
-					_.assert(id >= 0)
-					if(alreadySent[id]){
-						console.log('already sent: ' + id)
-						return;
-					}else{
-						console.log(syncId + ' including object: ' + id + ' editId: ' + editId)
-						//TODO buffer for streaming all the edits for the object and any objects it depends on
-						var pointer = {got: false, edits: []}
-						sentBuffer.push(pointer)
-						_.assertInt(editId)
-						_.assertInt(id)
-						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
-							if(alreadySent[id]) return
-							
-							alreadySent[id] = true
-							_.assertBuffer(objEditsBuffer)
-							pointer.edits.push({id: id, edits: objEditsBuffer})
-
-						}, function(){
-							console.log('---- got')
-							pointer.got = true
-							advanceSentBuffer()
-						})
-						return;
-					}				
-				}
-already sent: 1
-e: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"setObject","edit":{"id":1},"syncId":-1,"editId":1}
+0.9775761165656149 sync sequencer emitting(2): {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"addExistingViewObject","edit":{"id":"101:,1"},"syncId":-1,"editId":1}
+e: {"order":2,"typeCode":100,"id":"100:[]","path":[1],"op":"addExistingViewObject","edit":{"id":"101:,1"},"syncId":-1,"editId":1}
 typeCode: 100
 updating to path [1]
 [] -> [1]
 sending update: ["reset",{}]
 sending update: ["selectProperty",{"typeCode":1}]
-object: stringList
-typeCode: 1
+propertySchema(1): {"name":"s","type":{"type":"set","members":{"type":"view","view":"wrapper"}},"code":1,"tags":{}}
 ...done updating to path [1]
-sending actual: ["setObject",{"id":1}]
-1 tcpserver sent change: {"editId":1,"op":"setSyncId","edit":{"syncId":-1},"destinationSyncId":1}
-0.4904178308788687 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":-1},"2":1}
+sending actual: ["addExistingViewObject",{"id":"101:,1"}]
+[1,[{"op":"setSyncId","edit":{"syncId":1},"editId":1},{"op":"made","edit":{"id":1,"typeCode":1},"editId":1}]]
+working: 1 [{"op":"setSyncId","edit":{"syncId":1},"editId":1},{"op":"made","edit":{"id":1,"typeCode":1},"editId":1}]
 GOT BACK OBJECT MADE EVENT
 response: {"requestId":4,"id":1,"temporary":-2}
 reifying id -2 -> 1
-1 tcpserver sent change: {"editId":1,"op":"selectTopViewObject","edit":{"id":"100:[]"},"destinationSyncId":1}
-0.4904178308788687 SyncApi changeListener: selectTopViewObject {"0":"selectTopViewObject","1":{"id":"100:[]"},"2":1}
-1 tcpserver sent change: {"editId":1,"op":"reset","edit":{},"destinationSyncId":1}
-0.4904178308788687 SyncApi changeListener: reset {"0":"reset","1":{},"2":1}
-1 tcpserver sent change: {"editId":1,"op":"selectProperty","edit":{"typeCode":1},"destinationSyncId":1}
-0.4904178308788687 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":1},"2":1}
-1 tcpserver sent change: {"editId":1,"op":"setObject","edit":{"id":1},"destinationSyncId":1}
-0.4904178308788687 SyncApi changeListener: setObject {"0":"setObject","1":{"id":1},"2":1}
-set to: 1 1 100:[] primitiveList
-snap: {"latestVersionId":-1,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
-edits: [
-  {
-    "op": "setSyncId",
-    "edit": {
-      "syncId": -1
-    },
-    "editId": 1
-  },
-  {
-    "op": "selectTopViewObject",
-    "edit": {
-      "id": "100:[]"
-    },
-    "editId": 1
-  },
-  {
-    "op": "reset",
-    "edit": {},
-    "editId": 1
-  },
-  {
-    "op": "selectProperty",
-    "edit": {
-      "typeCode": 1
-    },
-    "editId": 1
-  },
-  {
-    "op": "setObject",
-    "edit": {
-      "id": 1
-    },
-    "editId": 1
-  }
-]
-cache: ["100:[]"]
-1 no object in snapshot with id: 1
-Error
-    at Object.more.errout (/home/liam/Dropbox/me/dev/underscorem/underscorem.js:82:16)
-    at SyncApi.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:693:5)
-    at TopObjectHandle.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:283:21)
-    at TopObjectHandle.ObjectHandle.changeListenerElevated (/home/liam/Dropbox/me/dev/minnow/http/js/api/object.js:210:22)
-    at TopObjectHandle.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/api/topobject.js:347:7)
-    at SyncApi.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:484:26)
-    at Object.changeListenerWrapper [as edit] (/home/liam/Dropbox/me/dev/minnow/client/client.js:196:7)
-    at reader.update (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:180:7)
-    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
-    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
-    at Socket.<anonymous> (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:300:3)
-    at Socket.EventEmitter.emit (events.js:88:17)
-    at TCP.onread (net.js:397:14)
-{"latestVersionId":-1,"objects":{"100:[]":[{"op":"madeViewObject","edit":{"id":"100:[]","typeCode":100},"editId":-1}]}}
-[
-  {
-    "op": "setSyncId",
-    "edit": {
-      "syncId": -1
-    },
-    "editId": 1
-  },
-  {
-    "op": "selectTopViewObject",
-    "edit": {
-      "id": "100:[]"
-    },
-    "editId": 1
-  },
-  {
-    "op": "reset",
-    "edit": {},
-    "editId": 1
-  },
-  {
-    "op": "selectProperty",
-    "edit": {
-      "typeCode": 1
-    },
-    "editId": 1
-  },
-  {
-    "op": "setObject",
-    "edit": {
-      "id": 1
-    },
-    "editId": 1
-  }
-]
-got uncaught exception
-test failed: list.append
+0.2574198869988322 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":-1},"2":1}
+(1) tcpserver got client(1) request persistEdit: {"requestId":6,"op":"setString","edit":{"value":"test"},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":6,"op":"setString","edit":{"value":"test"},"syncId":1}
+adding edit: [1,[21],"setString",{"value":"test"},1]
+{"op":"setSyncId","edit":{"syncId":1},"editId":1}
+{"op":"made","edit":{"typeCode":1,"id":1},"editId":1}
+GOT OBJECT METADATA: [1,[]]
+typeCode: 1
+[] -> []
+[] -> [21]
+propertySchema(21): {"name":"value","type":{"type":"primitive","primitive":"string"},"code":21,"tags":{},"properties":{},"propertiesByCode":{}}
+path: [21]
+real: [21]
+4 1 [21] setString {"value":"test"} 1
+
+broadcasting: [21]
+filtering: setString {"value":"test"}
+broadcaster provided edit matching property filter: [1,21] : [1,21]
+setString {"value":"test"}
+here: [101,"101:,1",101,"101:,1",[41],"set",{"value":"test"},-1,4]
+0.6699382497463375 (0) 101:,1 view got change: setString {"value":"test"} -1 4
+filtering: setString {"value":"test"}
+0.9775761165656149 (0) 101:,1 view got change: setString {"value":"test"} -1 4
+filtering: setString {"value":"test"}
+edit does not match: [1,21] [1,11]
+inverse: 0
+(1) tcpserver got client(1) request persistEdit: {"requestId":7,"op":"ascend1","edit":{},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":7,"op":"ascend1","edit":{},"syncId":1}
+pu-sourced ascend1
+processed path update: {"requestId":7,"op":"ascend1","edit":{},"syncId":1}
+path now: []
+(1) tcpserver got client(1) request persistEdit: {"requestId":8,"op":"selectProperty","edit":{"typeCode":11},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":8,"op":"selectProperty","edit":{"typeCode":11},"syncId":1}
+processed path update: {"requestId":8,"op":"selectProperty","edit":{"typeCode":11},"syncId":1}
+path now: [11]
+(1) tcpserver got client(1) request persistEdit: {"requestId":9,"op":"setToNew","edit":{"typeCode":2},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":9,"op":"setToNew","edit":{"typeCode":2},"syncId":1}
+adding edit: [1,[11],"setToNew",{"typeCode":2},1]
+{"op":"setSyncId","edit":{"syncId":1},"editId":1}
+{"op":"made","edit":{"typeCode":1,"id":1},"editId":1}
+{"op":"setSyncId","edit":{"syncId":1},"editId":2}
+{"op":"selectProperty","edit":{"typeCode":21},"editId":3}
+{"op":"setString","edit":{"value":"test"},"editId":4}
+GOT OBJECT METADATA: [1,[21]]
+typeCode: 1
+[] -> [21]
+propertySchema(21): {"name":"value","type":{"type":"primitive","primitive":"string"},"code":21,"tags":{},"properties":{},"propertiesByCode":{}}
+[21] -> [11]
+propertySchema(11): {"name":"other","type":{"type":"object","object":"membrance"},"code":11,"tags":{},"properties":{},"propertiesByCode":{}}
+object: membrance
+typeCode: 2
+path: [11]
+real: [11]
+6 1 [11] setToNew {"typeCode":2,"id":2} 1
+
+broadcasting: [11]
+filtering: wasSetToNew {"typeCode":2,"id":2}
+edit does not match: [1,11] [1,21]
+broadcaster provided edit matching property filter: [1,11] : [1,11]
+wasSetToNew {"typeCode":2,"id":2}
+inverse: 0
+(1) tcpserver got client(1) request persistEdit: {"requestId":10,"op":"selectObject","edit":{"id":-3},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":10,"op":"selectObject","edit":{"id":-3},"syncId":1}
+processed path update: {"requestId":10,"op":"selectObject","edit":{"id":-3},"syncId":1}
+path now: [11,-3]
+(1) tcpserver got client(1) request persistEdit: {"requestId":11,"op":"selectProperty","edit":{"typeCode":81},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":11,"op":"selectProperty","edit":{"typeCode":81},"syncId":1}
+processed path update: {"requestId":11,"op":"selectProperty","edit":{"typeCode":81},"syncId":1}
+path now: [11,-3,81]
+(1) tcpserver got client(1) request persistEdit: {"requestId":12,"op":"setObject","edit":{"id":-2},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":12,"op":"setObject","edit":{"id":-2},"syncId":1}
+adding edit: [1,[11,-3,81],"setObject",{"id":-2},1]
+{"op":"setSyncId","edit":{"syncId":1},"editId":1}
+{"op":"made","edit":{"typeCode":1,"id":1},"editId":1}
+{"op":"setSyncId","edit":{"syncId":1},"editId":2}
+{"op":"selectProperty","edit":{"typeCode":21},"editId":3}
+{"op":"setString","edit":{"value":"test"},"editId":4}
+{"op":"reselectProperty","edit":{"typeCode":11},"editId":5}
+{"op":"wasSetToNew","edit":{"typeCode":2,"id":2},"editId":6}
+GOT OBJECT METADATA: [1,[11]]
+typeCode: 1
+[] -> [11]
+propertySchema(11): {"name":"other","type":{"type":"object","object":"membrance"},"code":11,"tags":{},"properties":{},"propertiesByCode":{}}
+object: membrance
+typeCode: 2
+[11] -> [11,-3,81]
+translating -3 -> 2 (1)
+{"mappedIds":{"1":true,"2":true},"temporaryIds":{"-2":1,"-3":2}}
+propertySchema(81): {"name":"other","type":{"type":"object","object":"entity"},"code":81,"tags":{},"properties":{},"propertiesByCode":{}}
+object: entity
+typeCode: 1
+path: [11,-3,81]
+real: [11,2,81]
+translating -2 -> 1 (1)
+{"mappedIds":{"1":true,"2":true},"temporaryIds":{"-2":1,"-3":2}}
+9 1 [11,2,81] setObject {"id":1} 1
+
+broadcasting: [11,2,81]
+filtering: setObject {"id":1}
+intercepted setObject *************: 1
+already sent: 1
+already listening: 1
+edit does not match: [1,11,2,81] [1,21]
+edit does not match: [1,11,2,81] [1,11]
+inverse: 0
+(1) tcpserver got client(1) request persistEdit: {"requestId":13,"op":"ascend1","edit":{},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":13,"op":"ascend1","edit":{},"syncId":1}
+pu-sourced ascend1
+processed path update: {"requestId":13,"op":"ascend1","edit":{},"syncId":1}
+path now: [11,-3]
+(1) tcpserver got client(1) request persistEdit: {"requestId":14,"op":"selectProperty","edit":{"typeCode":82},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":14,"op":"selectProperty","edit":{"typeCode":82},"syncId":1}
+processed path update: {"requestId":14,"op":"selectProperty","edit":{"typeCode":82},"syncId":1}
+path now: [11,-3,82]
+emitting all: 4
+0.6699382497463375 sync sequencer emitting(10): {"order":3,"typeCode":1,"id":1,"path":[21],"op":"setString","edit":{"value":"test"},"syncId":1,"editId":4}
+e: {"order":3,"typeCode":1,"id":1,"path":[21],"op":"setString","edit":{"value":"test"},"syncId":1,"editId":4}
+typeCode: 1
+updating to path [21]
+[] -> [21]
+sending update: ["reset",{}]
+sending update: ["selectProperty",{"typeCode":21}]
+propertySchema(21): {"name":"value","type":{"type":"primitive","primitive":"string"},"code":21,"tags":{},"properties":{},"propertiesByCode":{}}
+...done updating to path [21]
+sending actual: ["setString",{"value":"test"}]
+0.6699382497463375 sync sequencer emitting(10): {"order":4,"typeCode":101,"id":"101:,1","path":[41],"op":"setString","edit":{"value":"test"},"syncId":-1,"editId":4}
+e: {"order":4,"typeCode":101,"id":"101:,1","path":[41],"op":"setString","edit":{"value":"test"},"syncId":-1,"editId":4}
+typeCode: 101
+updating to path [41]
+[] -> [41]
+sending update: ["reset",{}]
+sending update: ["selectProperty",{"typeCode":41}]
+propertySchema(41): {"name":"wrappedValue","type":{"type":"primitive","primitive":"string"},"code":41,"tags":{}}
+...done updating to path [41]
+sending actual: ["setString",{"value":"test"}]
+0.6699382497463375 sync sequencer emitting(10): {"order":5,"typeCode":1,"id":1,"path":[11],"op":"wasSetToNew","edit":{"typeCode":2,"id":2},"syncId":1,"editId":6}
+e: {"order":5,"typeCode":1,"id":1,"path":[11],"op":"wasSetToNew","edit":{"typeCode":2,"id":2},"syncId":1,"editId":6}
+updating to path [11]
+[21] -> [11]
+sending update: ["reselectProperty",{"typeCode":11}]
+propertySchema(11): {"name":"other","type":{"type":"object","object":"membrance"},"code":11,"tags":{},"properties":{},"propertiesByCode":{}}
+object: membrance
+typeCode: 2
+...done updating to path [11]
+sending actual: ["wasSetToNew",{"typeCode":2,"id":2}]
+0.6699382497463375 sync sequencer emitting(10): {"order":6,"typeCode":1,"id":1,"path":[11,2,81],"op":"setObject","edit":{"id":1},"syncId":1,"editId":9}
+e: {"order":6,"typeCode":1,"id":1,"path":[11,2,81],"op":"setObject","edit":{"id":1},"syncId":1,"editId":9}
+updating to path [11,2,81]
+[11] -> [11,2,81]
+sending update: ["selectObject",{"id":2}]
+sending update: ["selectProperty",{"typeCode":81}]
+propertySchema(81): {"name":"other","type":{"type":"object","object":"entity"},"code":81,"tags":{},"properties":{},"propertiesByCode":{}}
+object: entity
+typeCode: 1
+...done updating to path [11,2,81]
+sending actual: ["setObject",{"id":1}]
+emitting all: 1
+0.9775761165656149 sync sequencer emitting(10): {"order":3,"typeCode":101,"id":"101:,1","path":[41],"op":"setString","edit":{"value":"test"},"syncId":-1,"editId":4}
+e: {"order":3,"typeCode":101,"id":"101:,1","path":[41],"op":"setString","edit":{"value":"test"},"syncId":-1,"editId":4}
+typeCode: 101
+updating to path [41]
+[] -> [41]
+sending update: ["reset",{}]
+sending update: ["selectProperty",{"typeCode":41}]
+propertySchema(41): {"name":"wrappedValue","type":{"type":"primitive","primitive":"string"},"code":41,"tags":{}}
+...done updating to path [41]
+sending actual: ["setString",{"value":"test"}]
+0.6532803813461214 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":-1},"2":1}
+0.6532803813461214 SyncApi changeListener: selectTopViewObject {"0":"selectTopViewObject","1":{"id":"100:[]"},"2":1}
+0.6532803813461214 SyncApi changeListener: reset {"0":"reset","1":{},"2":1}
+0.6532803813461214 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":1},"2":1}
+0.6532803813461214 SyncApi changeListener: addExistingViewObject {"0":"addExistingViewObject","1":{"id":"101:,1"},"2":1}
+101:,1 preparing topobject with edits: []
+0.2574198869988322 SyncApi changeListener: selectTopViewObject {"0":"selectTopViewObject","1":{"id":"100:[]"},"2":1}
+0.2574198869988322 SyncApi changeListener: reset {"0":"reset","1":{},"2":1}
+0.2574198869988322 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":1},"2":1}
+0.2574198869988322 SyncApi changeListener: addExistingViewObject {"0":"addExistingViewObject","1":{"id":"101:,1"},"2":1}
+101:,1 preparing topobject with edits: []
+0.2574198869988322 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":1},"2":4}
+0.2574198869988322 SyncApi changeListener: selectTopObject {"0":"selectTopObject","1":{"id":1},"2":4}
+0.2574198869988322 SyncApi changeListener: reset {"0":"reset","1":{},"2":4}
+0.2574198869988322 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":21},"2":4}
+0.2574198869988322 SyncApi changeListener: setString {"0":"setString","1":{"value":"test"},"2":4}
+ignoring change by same user
+0.2574198869988322 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":-1},"2":4}
+0.2574198869988322 SyncApi changeListener: selectTopViewObject {"0":"selectTopViewObject","1":{"id":"101:,1"},"2":4}
+0.2574198869988322 SyncApi changeListener: reset {"0":"reset","1":{},"2":4}
+0.2574198869988322 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":41},"2":4}
+0.2574198869988322 SyncApi changeListener: setString {"0":"setString","1":{"value":"test"},"2":4}
+0.2574198869988322 SyncApi changeListener: setSyncId {"0":"setSyncId","1":{"syncId":1},"2":6}
+0.2574198869988322 SyncApi changeListener: selectTopObject {"0":"selectTopObject","1":{"id":1},"2":6}
+0.2574198869988322 SyncApi changeListener: reselectProperty {"0":"reselectProperty","1":{"typeCode":11},"2":6}
+0.2574198869988322 SyncApi changeListener: wasSetToNew {"0":"wasSetToNew","1":{"id":2,"temporary":0,"typeCode":2},"2":6}
+0.2574198869988322 SyncApi changeListener: selectObject {"0":"selectObject","1":{"id":2},"2":9}
+0.2574198869988322 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":81},"2":9}
+(1) tcpserver got client(1) request persistEdit: {"requestId":15,"op":"setString","edit":{"value":"test2"},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":15,"op":"setString","edit":{"value":"test2"},"syncId":1}
+adding edit: [1,[11,-3,82],"setString",{"value":"test2"},1]
+{"op":"setSyncId","edit":{"syncId":1},"editId":1}
+{"op":"made","edit":{"typeCode":1,"id":1},"editId":1}
+{"op":"setSyncId","edit":{"syncId":1},"editId":2}
+{"op":"selectProperty","edit":{"typeCode":21},"editId":3}
+{"op":"setString","edit":{"value":"test"},"editId":4}
+{"op":"reselectProperty","edit":{"typeCode":11},"editId":5}
+{"op":"wasSetToNew","edit":{"typeCode":2,"id":2},"editId":6}
+{"op":"selectObject","edit":{"id":2},"editId":7}
+{"op":"selectProperty","edit":{"typeCode":81},"editId":8}
+{"op":"setObject","edit":{"id":1},"editId":9}
+GOT OBJECT METADATA: [1,[11,2,81]]
+typeCode: 1
+[] -> [11,2,81]
+propertySchema(11): {"name":"other","type":{"type":"object","object":"membrance"},"code":11,"tags":{},"properties":{},"propertiesByCode":{}}
+object: membrance
+typeCode: 2
+propertySchema(81): {"name":"other","type":{"type":"object","object":"entity"},"code":81,"tags":{},"properties":{},"propertiesByCode":{}}
+object: entity
+typeCode: 1
+[11,2,81] -> [11,-3,82]
+translating -3 -> 2 (1)
+{"mappedIds":{"1":true,"2":true},"temporaryIds":{"-2":1,"-3":2}}
+propertySchema(82): {"name":"value","type":{"type":"primitive","primitive":"string"},"code":82,"tags":{},"properties":{},"propertiesByCode":{}}
+path: [11,-3,82]
+real: [11,2,82]
+13 1 [11,2,82] setString {"value":"test2"} 1
+
+broadcasting: [11,2,82]
+filtering: setString {"value":"test2"}
+edit does not match: [1,11,2,82] [1,21]
+edit does not match: [1,11,2,82] [1,11]
+inverse: 0
+(1) tcpserver got client(1) request persistEdit: {"requestId":16,"op":"ascend1","edit":{},"syncId":1}
+
+current id (tcpserver-client): 1
+{"requestId":16,"op":"ascend1","edit":{},"syncId":1}
+pu-sourced ascend1
+processed path update: {"requestId":16,"op":"ascend1","edit":{},"syncId":1}
+path now: [11,-3]
+emitting all: 1
+0.6699382497463375 sync sequencer emitting(14): {"order":7,"typeCode":1,"id":1,"path":[11,2,82],"op":"setString","edit":{"value":"test2"},"syncId":1,"editId":13}
+e: {"order":7,"typeCode":1,"id":1,"path":[11,2,82],"op":"setString","edit":{"value":"test2"},"syncId":1,"editId":13}
+updating to path [11,2,82]
+[11,2,81] -> [11,2,82]
+sending update: ["reselectProperty",{"typeCode":82}]
+propertySchema(82): {"name":"value","type":{"type":"primitive","primitive":"string"},"code":82,"tags":{},"properties":{},"propertiesByCode":{}}
+...done updating to path [11,2,82]
+sending actual: ["setString",{"value":"test2"}]
+0.6532803813461214 SyncApi changeListener: selectTopViewObject {"0":"selectTopViewObject","1":{"id":"101:,1"},"2":4}
+0.6532803813461214 SyncApi changeListener: reset {"0":"reset","1":{},"2":4}
+0.6532803813461214 SyncApi changeListener: selectProperty {"0":"selectProperty","1":{"typeCode":41},"2":4}
+0.6532803813461214 SyncApi changeListener: setString {"0":"setString","1":{"value":"test"},"2":4}
+0.2574198869988322 SyncApi changeListener: setObject {"0":"setObject","1":{"id":1},"2":9}
+calling elevated change listener 81 setObject {"id":1}
+set to: 1 81 2 other
+0.2574198869988322 SyncApi changeListener: reselectProperty {"0":"reselectProperty","1":{"typeCode":82},"2":13}
+0.2574198869988322 SyncApi changeListener: setString {"0":"setString","1":{"value":"test2"},"2":13}
+ignoring change by same user
+0.6470158542506397 writing: 223
+test failed: inner.inner
 affe
-Error: 1 no object in snapshot with id: 1
-    at Object.more.errout (/home/liam/Dropbox/me/dev/underscorem/underscorem.js:83:10)
-    at SyncApi.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:693:5)
-    at TopObjectHandle.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:283:21)
-    at TopObjectHandle.ObjectHandle.changeListenerElevated (/home/liam/Dropbox/me/dev/minnow/http/js/api/object.js:210:22)
-    at TopObjectHandle.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/api/topobject.js:347:7)
-    at SyncApi.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:484:26)
-    at Object.changeListenerWrapper [as edit] (/home/liam/Dropbox/me/dev/minnow/client/client.js:196:7)
-    at reader.update (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:180:7)
-    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
-    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
-    at Socket.<anonymous> (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:300:3)
-    at Socket.EventEmitter.emit (events.js:88:17)
-    at TCP.onread (net.js:397:14)
+Error: test timed out
+    at Object._onTimeout (/home/liam/Dropbox/me/dev/minnow/mtest/runtests.js:171:9)
+    at Timer.list.ontimeout (timers.js:101:19)
 all tests finished: 0/1
-took 466ms.
+took 4752ms.
 failed: 
-list.append failed
-Error: 1 no object in snapshot with id: 1
-    at Object.more.errout (/home/liam/Dropbox/me/dev/underscorem/underscorem.js:83:10)
-    at SyncApi.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:693:5)
-    at TopObjectHandle.getObjectApi (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:283:21)
-    at TopObjectHandle.ObjectHandle.changeListenerElevated (/home/liam/Dropbox/me/dev/minnow/http/js/api/object.js:210:22)
-    at TopObjectHandle.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/api/topobject.js:347:7)
-    at SyncApi.changeListener (/home/liam/Dropbox/me/dev/minnow/http/js/sync_api.js:484:26)
-    at Object.changeListenerWrapper [as edit] (/home/liam/Dropbox/me/dev/minnow/client/client.js:196:7)
-    at reader.update (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:180:7)
-    at selector (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:147:6)
-    at input (/home/liam/Dropbox/me/dev/parsicle/binarystream.js:73:18)
-    at Socket.<anonymous> (/home/liam/Dropbox/me/dev/minnow/client/tcpclient.js:300:3)
-    at Socket.EventEmitter.emit (events.js:88:17)
-    at TCP.onread (net.js:397:14)
+inner.inner failed
+Error: test timed out
+    at Object._onTimeout (/home/liam/Dropbox/me/dev/minnow/mtest/runtests.js:171:9)
+    at Timer.list.ontimeout (timers.js:101:19)

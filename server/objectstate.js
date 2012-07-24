@@ -20,6 +20,12 @@ function couldHaveForeignKey(objSchema){
 	});
 }
 
+/*
+var fs = require('fs')
+var ws = fs.createWriteStream('objectstate.log')
+var log = ws.write.bind(ws)
+*/
+var log = require('quicklog').make('objectstate')
 
 function makeSelectByMultiplePropertyConstraints(indexing, handle){
 
@@ -45,7 +51,7 @@ function makeSelectByMultiplePropertyConstraints(indexing, handle){
 			if(!failed){
 				cb(matchedList);
 			}else{
-				console.log('going slow, failed');
+				log('going slow, failed');
 				handle.getAllObjects(typeCode, function(objs){
 		
 					var matchedList = [];
@@ -61,7 +67,7 @@ function makeSelectByMultiplePropertyConstraints(indexing, handle){
 							}
 						});
 						matchedList.push(matched);
-						console.log('slow result ' + k + ': ' + matched.size() + ' - ' + typeCode + ' ' + JSON.stringify(descentPath));
+						log('slow result ' + k + ': ' + matched.size() + ' - ' + typeCode + ' ' + JSON.stringify(descentPath));
 					}
 						
 					cb(matchedList);
@@ -113,6 +119,185 @@ function makeGetForeignKeys(objSchema){
 
 function errorStub(){_.errout('this should never be called');}
 
+function makePathTracker(path){
+	
+	var matchingDepth = 0
+	var depth = 0
+	
+	return function(e){
+		var op = e.op
+		if(op === 'selectProperty'){
+			if(matchingDepth === depth && path.length > depth){
+				if(e.edit.typeCode === path[depth]){
+					++matchingDepth
+				}
+			}
+			++depth
+		}else if(op === 'reselectProperty'){
+			if(matchingDepth >= depth-1){
+				log('reselecting: ' + JSON.stringify(path) + ' ' + e.edit.typeCode + ' ' + depth)
+				if(path[depth-1] === e.edit.typeCode){
+					matchingDepth = depth
+				}else{
+					matchingDepth = depth-1
+				}
+			}
+		}else if(op === 'selectObject' || op === 'made'){
+			if(matchingDepth === depth && path[depth] === e.edit.id){
+				++matchingDepth
+			}
+			++depth
+		}else if(op === 'reselectObject'){
+			if(matchingDepth >= depth-1){
+				if(path[depth-1] === e.edit.id){
+					matchingDepth = depth
+				}else{
+					matchingDepth = depth-1
+				}
+			}
+		}else if(op === 'ascend1'){
+			depth -= 1
+		}else if(op === 'ascend2'){
+			depth -= 2
+		}else if(op === 'ascend3'){
+			depth -= 3
+		}else if(op === 'ascend4'){
+			depth -= 4
+		}else if(op === 'ascend5'){
+			depth -= 5
+		}
+		
+		if(matchingDepth > depth) matchingDepth = depth
+		log(matchingDepth + ' -(' + depth + ')- ' + path.length)
+		return depth === matchingDepth && matchingDepth === path.length
+	}
+}
+
+//note that the path must not descend into a top-level object for this function
+function makePropertyStream(broadcaster, path, edits, editId, cb, continueListening){
+
+	//if(path.length !== 2) _.errout('TODO: ' + JSON.stringify(path))	
+
+	var objId = path[0]
+	var propertyCode = path[1]
+
+	var prop;
+
+	log('streamProperty got ' + edits.length + ' edits')
+	
+	var tracker = makePathTracker(path)
+	
+	edits.forEach(function(e){
+		
+		var op = e.op
+		var matching = tracker(e)
+
+		log(matching + ' ' + JSON.stringify(path) + ' <- ' + JSON.stringify(e))
+
+		if(!matching) return
+		
+		if(op.indexOf('set') === 0){
+			if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+				if(e.edit.value !== prop){
+					prop = e.edit.value
+				}
+			}else if(op === 'setExisting' || op === 'setObject'){
+				if(e.edit.id !== prop){
+					prop = e.edit.id
+				}
+			}else if(op === 'setSyncId'){
+			}else{
+				_.errout('TODO: ' + op)
+			}
+		}else if(op.indexOf('add') === 0){
+			if(prop === undefined) prop = []
+			if(op === 'addString' || op === 'addLong' || op === 'addInt'){
+				if(prop.indexOf(e.edit.value) === -1){
+					prop.push(e.edit.value)
+				}
+			}else if(op === 'addExisting' || op === 'addedNew'){
+				if(prop.indexOf(e.edit.id) === -1){
+					prop.push(e.edit.id)
+				}
+			}else{
+				_.errout('TODO: ' + JSON.stringify(e))
+			}
+		}else if(op.indexOf('remove') === 0){
+			if(op === 'remove'){
+				if(prop.indexOf(e.edit.id) !== -1){
+					prop.splice(e.edit.id, 1)
+				}								
+			}else{
+				_.errout('TODO: ' + op)
+			}
+		}
+	})
+	log('streaming ' + JSON.stringify(path) + ': ' + JSON.stringify(prop))
+	cb(prop, editId)
+	
+	broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, editPath, op, edit, syncId, editId){
+		//if(path.length > 1) return
+		var fullPath = [id].concat(editPath)//[id].concat(path)
+		
+		var matched = false
+
+		if(JSON.stringify(fullPath) !== JSON.stringify(path)){
+			log('edit does not match: ' + JSON.stringify([id].concat(editPath)) + ' ' + JSON.stringify(path))
+			return//id ===objId && path.length === 1 && path[0] === propertyCode){
+		}
+		
+		log('broadcaster provided edit matching property filter: ' + JSON.stringify(path) + ' : ' + JSON.stringify(fullPath))
+		log(op + ' ' + JSON.stringify(edit))
+	
+		if(op.indexOf('set') === 0){
+			if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+				if(edit.value !== prop){
+					prop = edit.value
+					cb(prop, editId)
+				}
+			}else if(op === 'setObject'){
+				if(edit.id !== prop){
+					prop = edit.id
+					cb(prop, editId)
+				}
+			}else{
+				_.errout('TODO: ' + op)
+			}
+		}else if(op === 'wasSetToNew'){
+			//_.errout('TODO')
+			if(edit.id !== prop){
+				prop = edit.id
+				cb(prop, editId)
+			}
+		}else if(op.indexOf('add') === 0){
+			//_.errout('TODO: ' + op)
+			if(op === 'addString' || op === 'addInt' || op === 'addLong' || op === 'addBoolean'){
+				if(prop === undefined) prop = []
+				if(prop.indexOf(edit.value) === -1){
+					prop.push(edit.value)
+					cb(prop, editId)
+				}
+			}else if(op === 'addExisting' || op === 'addedNew'){
+				if(prop === undefined) prop = []
+				if(prop.indexOf(edit.id) === -1){
+					prop.push(edit.id)
+					cb(prop, editId)
+				}
+			}else{
+				_.errout('TODO: ' + op)
+			}
+		}else if(op.indexOf('remove') === 0){
+			if(op === 'remove'){
+				if(prop.indexOf(edit.id) !== -1){
+					prop.splice(edit.id, 1)
+					cb(prop, editId)
+				}								
+			}else{
+				_.errout('TODO: ' + op)
+			}
+		}
+	})
+}
 exports.make = function(schema, ap, broadcaster, ol){
 	_.assertLength(arguments, 4);
 	
@@ -245,24 +430,6 @@ exports.make = function(schema, ap, broadcaster, ol){
 			_.assertString(op)
 			//TODO support merge models
 			
-			//TODO merge path updates with actual edit stream
-			
-			/*
-			ap.persistEdit(id, op, edit, syncId, computeTemporary, function(e){
-				var editId = e.editId
-				_.assertInt(editId)
-				var subs = subscriptions[id]
-				//console.log('ooking for subs: ' + id + ' ' + JSON.stringify(Object.keys(subscriptions)))
-				if(subs){
-					subs.forEach(function(s){
-						console.log('sending to subscription')
-						//s(typeCode, id, path, op, edit, syncId, editId)
-						s({typeCode: typeCode, id: id, op: op, edit: edit, syncId: syncId, editId: editId})
-					})
-				}
-				cb(e)				
-			});
-			*/
 			if(op === 'make'){
 				ap.persistEdit(-1, -1, [], op, edit, syncId, computeTemporary, function(e){
 					var editId = e.editId
@@ -271,7 +438,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 					//console.log('ooking for subs: ' + id + ' ' + JSON.stringify(Object.keys(subscriptions)))
 					if(subs){
 						subs.forEach(function(s){
-							console.log('sending to subscription')
+							log('sending to subscription')
 							//s(typeCode, id, path, op, edit, syncId, editId)
 							s({typeCode: typeCode, id: id, op: op, edit: edit, syncId: syncId, editId: editId})
 						})
@@ -290,7 +457,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 					//console.log('ooking for subs: ' + id + ' ' + JSON.stringify(Object.keys(subscriptions)))
 					if(subs){
 						subs.forEach(function(s){
-							console.log('sending to subscription')
+							log('sending to subscription')
 							//s(typeCode, id, path, op, edit, syncId, editId)
 							s({typeCode: typeCode, id: id, op: op, edit: edit, syncId: syncId, editId: editId})
 						})
@@ -310,146 +477,37 @@ exports.make = function(schema, ap, broadcaster, ol){
 			return ap.syntheticEditId()
 		},
 	
-		//TODO upgrade to streamPath?
 		//TODO add specialize methods for streaming collection properties vs single-value properties?
-		streamProperty: function(objId, propertyCode, editId, cb){
+		streamProperty: function(path, editId, cb, continueListening){
+			_.assert(arguments.length >= 3)
+			_.assert(arguments.length <= 4)
+			_.assertArray(path)
+			_.assertInt(editId)
+			_.assertFunction(cb)
+
+			_.assert(path.length >= 2)
+
+			var realPath = path			
+			var index = path.length-2
+			while(index > 0){
+				var id = path[index]
+				if(ol.isTopLevelObject(id)){
+					realPath = path.slice(index)
+					break;
+				}
+				index -= 2
+			}
+			
+			var objId = realPath[0]
+
 			ol.get(objId, -1, editId, function(edits){
-				//_.errout('TODO: ' + JSON.stringify(edits))
-				var prop;
-				var currentPropertyCode;
-				console.log('streamProperty got ' + edits.length + ' edits')
-				console.log(JSON.stringify(edits))
-				var depth = 0
-				edits.forEach(function(e){
-					
-					var op = e.op
-					if(op === 'selectProperty'){
-						if(depth === 0){
-							currentPropertyCode = e.edit.typeCode
-						}
-						++depth
-					}else if(op === 'reselectProperty'){
-						if(depth === 1){
-							currentPropertyCode = e.edit.typeCode
-						}
-					}else if(op === 'selectObject'){
-						++depth
-					}else if(op === 'reselectObject'){
-					}else if(op === 'ascend1'){
-						depth -= 1
-					}else if(op === 'ascend2'){
-						depth -= 2
-					}else if(op === 'ascend3'){
-						depth -= 3
-					}else if(op === 'ascend4'){
-						depth -= 4
-					}else if(op === 'ascend5'){
-						depth -= 5
-					}
-
-					console.log(JSON.stringify(e))
-
-					if(currentPropertyCode !== propertyCode || depth !== 1) return
-					
-					console.log('in current property code: ' + propertyCode)
-					
-					if(op.indexOf('set') === 0){
-						if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
-							if(e.edit.value !== prop){
-								prop = e.edit.value
-								//cb(prop, e.editId)
-							}
-						}else if(op === 'setExisting' || op === 'setObject'){
-							if(e.edit.id !== prop){
-								prop = e.edit.id
-								//cb(prop, e.editId)
-							}
-						}else if(op === 'setSyncId'){
-						}else{
-							_.errout('TODO: ' + op)
-						}
-					}else if(op.indexOf('add') === 0){
-						if(prop === undefined) prop = []
-						if(op === 'addString' || op === 'addLong' || op === 'addInt'){
-							if(prop.indexOf(e.edit.value) === -1){
-								prop.push(e.edit.value)
-								//cb(prop, e.editId)
-							}
-						}else if(op === 'addExisting' || op === 'addedNew'){
-							if(prop.indexOf(e.edit.id) === -1){
-								prop.push(e.edit.id)
-							}
-						}else{
-							_.errout('TODO: ' + JSON.stringify(e))
-						}
-					}else if(op.indexOf('remove') === 0){
-					//	_.errout('TODO: ' + op)
-						if(op === 'remove'){
-							if(prop.indexOf(e.edit.id) !== -1){
-								prop.splice(e.edit.id, 1)
-							}								
-						}else{
-							_.errout('TODO: ' + op)
-						}
-					}
-				})
-				console.log('streaming ' + propertyCode + ' for ' + objId + ': ' + JSON.stringify(prop))
-				cb(prop, editId)
-				
-				//TODO standardize this stuff by schema (require typeCode in call?)
-				
-				broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-					if(path.length > 1) return
-					if(id ===objId && path.length === 1 && path[0] === propertyCode){
-						if(op.indexOf('set') === 0){
-							if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
-								if(edit.value !== prop){
-									prop = edit.value
-									cb(prop, editId)
-								}
-							}else if(op === 'setObject'){
-								if(edit.id !== prop){
-									prop = edit.id
-									cb(prop, editId)
-								}
-							}else{
-								_.errout('TODO: ' + op)
-							}
-						}else if(op.indexOf('add') === 0){
-							//_.errout('TODO: ' + op)
-							if(op === 'addString' || op === 'addInt' || op === 'addLong' || op === 'addBoolean'){
-								if(prop === undefined) prop = []
-								if(prop.indexOf(edit.value) === -1){
-									prop.push(edit.value)
-									cb(prop, editId)
-								}
-							}else if(op === 'addExisting'){
-								if(prop === undefined) prop = []
-								if(prop.indexOf(edit.id) === -1){
-									prop.push(edit.id)
-									cb(prop, editId)
-								}
-							}else{
-								_.errout('TODO: ' + op)
-							}
-						}else if(op.indexOf('remove') === 0){
-							if(op === 'remove'){
-								if(prop.indexOf(edit.id) !== -1){
-									prop.splice(edit.id, 1)
-									cb(prop, editId)
-								}								
-							}else{
-								_.errout('TODO: ' + op)
-							}
-						}
-					}
-				})
+				makePropertyStream(broadcaster, realPath, edits, editId, cb, continueListening)
 			})
 		},
 		getObjectProperty: function(id, propertyCode, editId, cb){
 			_.assertLength(arguments, 4)
 			
-			console.log('getting object property: ' + id + ' ' + propertyCode + ' ' + editId)
+			log('getting object property: ' + id + ' ' + propertyCode + ' ' + editId)
 			//_.errout('TODO')
 			ol.get(id, -1, editId, function(edits){
 				//_.errout('TODO: ' + JSON.stringify(edits))
@@ -515,6 +573,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 					_.errout('TODO')
 				})
 				broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+					log('broadcaster got listenByObject: ' + JSON.stringify([objId, subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]))
 					cb(typeCode, id, path, op, edit, syncId, editId)
 				})
 			})

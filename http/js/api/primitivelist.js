@@ -22,7 +22,7 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 		this.shift = readonlyError;
 	}
 	this.latestVersionId = -1
-	console.log('setting up primitive list: ' + JSON.stringify(obj))
+	this.log('setting up primitive list: ' + JSON.stringify(obj))
 	
 	this.addOp = u.getAddOperator(typeSchema)
 	this.removeOp = u.getRemoveOperator(typeSchema)
@@ -93,15 +93,11 @@ PrimitiveListHandle.prototype.each = function(cb, endCb){
 PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 
-	//if(!this.schema.isView) _.assert(syncId >= 0)
-	
 	if(this.latestVersionId < editId) this.latestVersionId = editId
-	//if(editId < this.latestVersionId) throw new Error('out of order edits(' + this.latestVersionId + ' > ' + editId + '): ' + JSON.stringify(arguments))
-	//if(path.length > 0) _.errout('invalid path, cannot descend into primitive list: ' + JSON.stringify(path))
 		
 	if(op.indexOf('add') === 0){
 		if(this.getEditingId() !== syncId){
-			console.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
+			this.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
 			this.obj.push(edit.value);
 			
 			return this.emit(edit, 'add')
@@ -123,7 +119,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 		if(this.getEditingId() !== syncId){
 			var index = this.obj.indexOf(edit.value);
 			if(index === -1){
-				console.log('ignoring invalid remove: ' + edit.value);
+				this.log('ignoring invalid remove: ' + edit.value);
 			}else{
 				this.obj.splice(index, 1);
 				

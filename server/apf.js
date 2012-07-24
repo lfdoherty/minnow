@@ -5,6 +5,7 @@ var path = require('path')
 var keratin = require('keratin');
 var baleen = require('baleen');
 var _ = require('underscorem');
+var fparse = require('fparse')
 
 var sf = require('segmentedfile')
 
@@ -13,43 +14,74 @@ var bin = require('./../util/bin')
 var editSchemaStr = fs.readFileSync(__dirname + '/edits.baleen', 'utf8');//TODO async
 var editSchema = keratin.parse(editSchemaStr, baleen.reservedTypeNames);
 
+var log = require('quicklog').make('apf')
 
 var MaxDesiredSegmentSize = 1024*1024;
 
 function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	_.assertLength(arguments, 5);
 	
-	//var objEx = baleen.makeFromSchema(objectSchema,undefined,true);
-	var ex = baleen.makeFromSchema(editSchema)//, objEx);
+	//var ex = baleen.makeFromSchema(editSchema)
+	var ex = fparse.makeFromSchema(editSchema)
+
+	var count = 0;
 	
 	var exReader = {}
 	Object.keys(reader).forEach(function(key){
 		var rf = reader[key];
 		exReader[key] = function(e){
 			++count;
-			//console.log(olLatestVersionId + ' reading: ' + key)
-			//console.log(rf)
 			if(count >= olLatestVersionId){
 				rf(e, count)
 			}else{
-				console.log('skipping: ' + count)
+				log('skipping: ' + count)
 			}
 		}
 	})
 	
-	var deser = ex.binary.stream.makeReader(exReader);
+	//var deser = ex.binary.stream.makeReader(exReader);
+	var bufs = []
+	function deser(){
+		if(bufs.length > 1){
+			bufs = [Buffer.concat(bufs)]
+		}
+		while(bufs[0].length >= 4){
+			var buf = bufs[0]
+		
+			var len = bin.readInt(buf, 0)
+			if(buf.length < 4 + len) return
+			var frame = buf.slice(4, 4+len)
+			//console.log('frame: ' + len)
+			deserFrame(frame)
+			bufs[0] = buf.slice(4+len)
+		}
+	}
+	var rs = fparse.makeRs()
+	function deserFrame(frame){
+		var off = 0
+		while(off < frame.length){
+			var typeCode = frame[off];++off;
+			var name = ex.names[typeCode]//TODO optimize fparse
+			rs.put(frame.slice(off))//TODO optimize - let fparse take non-zero initial off
+			var e = ex.readers[name](rs.s)
+			//console.log('typeCode: ' + typeCode)
+			//console.log('name: ' + name)
+			//console.log('e: ' + JSON.stringify(e))
+			//console.log(''+ex.readers[name])
+			exReader[name](e)
+			off += rs.getOffset()
+		}
+	}
 	
 	var dir = dataDir + '/minnow_data';
 	_.assertString(dir);
 	
 	var fullName = dir+'/ap'
 
-	var count = 0;//for compatibility with ol, we don't start from 0
 	
 	var manyDesered = 0;
 	
 	var beginningSegment = true;
-	
 	
 	
 	function readCb(buf){
@@ -58,7 +90,8 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			buf = buf.slice(8)
 			beginningSegment = false;
 		}
-		deser(buf);
+		bufs.push(buf)
+		deser();
 	}
 	function segmentCb(wasDiscarded){
 		//TODO
@@ -71,7 +104,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	
 		var end = Date.now()
 
-		count +=  deser.manyRead;
+		//count +=  deser.manyRead;
 		
 		function writeCount(){
 			var b = new Buffer(8)
@@ -79,7 +112,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			sfw.write(b);
 		}
 		
-		console.log('done loading ' + deser.manyRead + ' commands in ' + (end-start) + 'ms');
+		log('done loading ' + deser.manyRead + ' commands in ' + (end-start) + 'ms');
 
 		//write the count for the initial segment
 		if(count === 0){
@@ -90,16 +123,13 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 		
 		handle.close = function(cb){
 			clearInterval(flushHandle)
-			//w.flush()
 			var cdl = _.latch(2, function(){
-				//console.log('closed apf')
 				cb()
 			})
 			w.flush()
 			w.end(cdl)
 			sfw.end()
 			sfw.sync(function(){
-				//console.log('apf segment file synced')
 				cdl()
 			})
 		}
@@ -128,18 +158,36 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 		var w;
 
 		var flushHandle = setInterval(function(){
+			writeBufferedEdits()
 			w.flush();
 		}, 1000);
+		
+		var bufferedEditsForWriting = []
+		function writeBufferedEdits(){
+			if(bufferedEditsForWriting.length === 0) return
+			w.startLength()
+			bufferedEditsForWriting.forEach(function(e){
+				w.putByte(ex.codes[e.name])
+				//console.log('writing json: ' + JSON.stringify(e))
+				ex.writers[e.name](w, e.json)
+			})
+			w.endLength()
+			bufferedEditsForWriting = []
+		}
 
 		function initWriter(){
-			w = deser.makeWriter(write, function(cb){
+			/*w = deser.makeWriter(write, function(cb){
 				if(cb) cb()
-			});
-			_.each(w, function(writer, name){
+			});*/
+			w = fparse.makeWriter({write: write})
+			
+			_.each(ex.writers, function(writer, name){
 				handle[name] = function(json){
-					//console.log('wrote object to apf')
 					++count;
-					writer(json);
+					//buffer(name, json)
+					bufferedEditsForWriting.push({name: name, json: json})
+					//writer(json);
+					//TODO buffer edits for block writing
 					return count;
 				}
 			});

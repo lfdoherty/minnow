@@ -43,6 +43,7 @@ function svgOrderBy(s, cache, elementsGetter, ordinalGetter, bindings, editId){
 	var all = []
 	
 	var handle = {
+		name: 'order-by',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			_.assertInt(editId)

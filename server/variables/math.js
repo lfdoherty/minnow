@@ -55,6 +55,7 @@ function svgUnary(s, cache, func, getter, bindings, editId){
 	}, editId)
 	
 	var handle = {
+		name: 'unary-math',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			if(result !== undefined){

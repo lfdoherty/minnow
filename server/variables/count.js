@@ -57,6 +57,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 	var currentCount = 0;
 	
 	var handle = {
+		name: 'general-count',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			listener.set(currentCount, 0, editId)
@@ -73,7 +74,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 	var currentOldest = elements.oldest()
 	function oldest(){
 		if(will){
-			console.log('count returning oldest: ' + currentOldest)
+			s.log('count returning oldest: ' + currentOldest)
 			return currentOldest
 		}
 		else return elements.oldest()
@@ -92,7 +93,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 		//var oldOldest = currentOldest
 		currentOldest = elements.oldest()-1
 		if(currentCount !== count){
-			console.log('reporting count change ' + currentCount + ' -> ' + count)
+			s.log('reporting count change ' + currentCount + ' -> ' + count)
 			var oldCount = currentCount
 			currentCount = count
 			listeners.emitSet(count, oldCount, currentOldest)
@@ -102,18 +103,18 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 	elements.attach({
 		add: function(value, editId){
 			++count
-			console.log('count increased: ' + count)
+			s.log('count increased: ' + count)
 			reportCountChangeEventually(editId)
 			//listeners.emitSet(count, count-1, editId)
 		},
 		remove: function(value, editId){
 			--count
-			console.log('count decreased: ' + count)
+			s.log('count decreased: ' + count)
 			reportCountChangeEventually(editId)
 			//listeners.emitSet(count, count+1, editId)
 		},
-		objectChange: stub,
-		shouldHaveObject: stub
+		objectChange: stub/*,
+		shouldHaveObject: stub*/
 	}, editId)
 	
 	return cache.store(key, handle)
@@ -148,7 +149,7 @@ function svgTypeCount(s, cache, typeCode, bindings, editId){
 	
 	function listenCreated(){
 		++count
-		console.log('created ##############################33')
+		//s.log('created ##############################33')
 		//listeners.emitSet(count,count-1, s.objectState.getCurrentEditId())
 		reportCountChangeEventually(editId)
 	}
@@ -162,6 +163,7 @@ function svgTypeCount(s, cache, typeCode, bindings, editId){
 	
 	var currentOldest = s.objectState.getCurrentEditId()
 	var handle = {
+		name: 'type-count',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			listener.set(count, 0, editId)
