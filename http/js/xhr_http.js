@@ -13,7 +13,7 @@ function getJson(url, cb, errCb){
     console.log('getJson: ' + url)
     
     xhr.open("GET", url, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
+    //xhr.setRequestHeader('Content-Type', 'application/json');
 	xhr.onreadystatechange = function (oEvent) {  
 		if (xhr.readyState === 4) {  
 			if (xhr.status === 200) {  

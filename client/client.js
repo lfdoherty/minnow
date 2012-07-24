@@ -1,5 +1,5 @@
 "use strict";
-
+/*
 var old = console.log
 console.log = function(msg){
 	msg += ''
@@ -9,7 +9,7 @@ console.log = function(msg){
 	}
 	old(msg)
 }
-
+*/
 
 var _ = require('underscorem');
 
