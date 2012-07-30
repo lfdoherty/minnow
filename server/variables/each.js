@@ -202,9 +202,6 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			var removedSet = allSets[v]
 			removedSet.detach(resultSetListener, editId)
 		},
-		/*shouldHaveObject: function(){
-			//_.errout('TODO')
-		},*/
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//_.errout('TODO')
 		}
@@ -238,7 +235,10 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: function(){
+			_.errout('TODO')
+		}
 	}
 		
 	return cache.store(key, handle)
@@ -261,6 +261,9 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 	
 	var cachedObjectChanges = []
 
+	//console.log('name: ' + elements.name)
+	//_.assertFunction(elements.descend)
+	
 	//var should = {}
 	//var shouldCounts = {}
 	
@@ -323,7 +326,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 			var removedSet = allSets[v]
 			removedSet.detach(resultSetListener, editId)
 		},
-		objectChange: stub//ignore object changes - that's the result set listener's job
+		objectChange: stub//ignore object changes - that's the result set listener's job?
 	}, editId)
 	
 	var handle = {
@@ -332,7 +335,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, bindings,
 			listeners.add(listener)
 			//console.log('attached to each: ' + JSON.stringify(s.outputType))
 			//_.assertFunction(listener.shouldHaveObject)
-			_.assertFunction(listener.objectChange)
+			if(cachedObjectChanges.length > 0) _.assertFunction(listener.objectChange)
 
 			cachedObjectChanges.forEach(function(v){
 				listener.objectChange.apply(undefined, v)

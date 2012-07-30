@@ -7,7 +7,7 @@ function StringHandle(typeSchema, obj, part, parent){
 	this.part = part;
 	this.parent = parent;
 	
-	this.rrr = Math.random()
+	//this.rrr = Math.random()
 	//console.log('made string handle ' + this.rrr)
 	
 	if(obj === undefined){
@@ -28,7 +28,7 @@ StringHandle.prototype.set = function(str){
 	this.obj = str;
 	
 	//console.log('path: ' + JSON.stringify(this.getPath()));
-	console.log(this.rrr + ' string set: ' + str)
+	//console.log(this.rrr + ' string set: ' + str)
 	
 	var e = {value: this.obj}
 

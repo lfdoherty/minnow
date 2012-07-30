@@ -6,7 +6,7 @@ exports.getSpecificView = function(config, done){
 		minnow.makeClient(config.port, function(c){
 			c.view('general', [], function(handle){
 				handle.make('entity', {name: 'test name'}, function(id){
-					console.log('GOT ID')
+					//console.log('GOT ID')
 					c.view('specific', [id], function(handle){
 						if(handle.object.name.value() === 'test name'){
 							done()
@@ -41,7 +41,7 @@ exports.changeObjectGotten = function(config, done){
 		minnow.makeClient(config.port, function(c){
 			c.view('general', [], function(handle){
 				var obj = handle.make('entity', {name: 'test name'}, function(id){
-					console.log('GOT ID')
+					//console.log('GOT ID')
 					c.view('specific', [id], function(handle){
 					
 						//this is sort of weird, but it's for timing purposes

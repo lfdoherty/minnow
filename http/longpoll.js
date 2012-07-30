@@ -8,7 +8,7 @@ exports.module = module
 
 var fs = require('fs')
 
-var log = require('quicklog').make('longpoll')
+var log = require('quicklog').make('minnow/longpoll')
 
 exports.load = function(app, appName, schema, identifier, viewSecuritySettings, minnowClient){
 	_.assertFunction(identifier)
@@ -90,12 +90,14 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 			
 			if(securitySetting === undefined){
 				log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
+				console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 				return
 			}
 			//var params = serviceModule.parseParams(msg.params, viewSchema)
 			securitySetting(function(passed){
 				if(!passed){
 					log('security policy denied access to view: ' + viewName);
+					console.log('WARNING: security policy denied access to view: ' + viewName);
 					return
 				}
 			
@@ -116,6 +118,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 		if(syncHandle === undefined) _.errout('no known sync handle for syncId: ' + syncId)
 		if(syncHandle.owningUserId !== req.user.id){
 			log('user(' + req.user.id + ') attempted to access sync handle of user(' + syncHandle.owningUser + ') - access denied')
+			console.log('WARNING: user(' + req.user.id + ') attempted to access sync handle of user(' + syncHandle.owningUser + ') - access denied')
 			res.send(403)
 			return
 		}

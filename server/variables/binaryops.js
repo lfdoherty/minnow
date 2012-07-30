@@ -144,7 +144,7 @@ function eitherFunction(a, b){
 function greaterThanFunction(a, b){
 	_.assertNumber(a);
 	_.assertNumber(b);
-	console.log(a+' > '+b);
+	//console.log(a+' > '+b);
 	return a>b
 }
 function lessThanFunction(a, b){return a<b}

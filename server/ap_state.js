@@ -12,7 +12,7 @@ var indexingStub = {
 	updateIndexingOnProperty: stub
 }
 
-var log = require('quicklog').make('ap')
+var log = require('quicklog').make('minnow/ap')
 
 var pathControlEdits = [
 	'reset', 
@@ -72,8 +72,8 @@ function make(schema, ol){
 		_.assertInt(syncId)
 		_.assert(temp < -1)
 		var real = temporaryIdsBySync[syncId].temporaryIds[temp];
-		console.log('translating ' + temp + ' -> ' + real + ' (' + syncId + ')')
-		console.log(JSON.stringify(temporaryIdsBySync[syncId]))
+		//console.log('translating ' + temp + ' -> ' + real + ' (' + syncId + ')')
+		//console.log(JSON.stringify(temporaryIdsBySync[syncId]))
 		_.assertInt(real)
 		return real;
 	}
@@ -105,7 +105,7 @@ function make(schema, ol){
 		
 		if(currentId !== id && id !== -1){
 			ap.selectTopObject({id: id})
-			log('wrote selectTopObject(' + id + ')')
+			//log('wrote selectTopObject(' + id + ')')
 			currentId = id
 		}
 		
@@ -214,6 +214,7 @@ function make(schema, ol){
 		}else if(op === 'ascend5'){
 		}else if(op === 'ascend'){
 		}else if(op === 'make'){
+		}else if(op === 'destroy'){
 		}else{
 			_.errout('TODO implement op: ' + op);
 		}
@@ -221,7 +222,7 @@ function make(schema, ol){
 		if(op !== 'make' && id < -1){//note that -1 is not a valid temporary id - that is reserved
 			_.assertInt(id)
 			var newId = translateTemporary(id, syncId);
-			console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
+			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
 			id = newId;
 		}
 				
@@ -235,7 +236,7 @@ function make(schema, ol){
 			currentId = newId
 		}else if(currentId !== id && id !== -1){
 			ap.selectTopObject({id: id})
-			console.log('wrote selectTopObject(' + id + ')')
+			//console.log('wrote selectTopObject(' + id + ')')
 			log('wrote selectTopObject(' + id + ')')
 			currentId = id
 		}

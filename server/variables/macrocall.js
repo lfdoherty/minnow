@@ -34,7 +34,13 @@ function svgMacroCall(s, computeKey, mGetter, bindings, editId){
 	var f = function(newBindings, editId){//note that the only new bindings possible are those injected via '&' and '$'
 
 		var allBindings = _.extend({}, bindings, newBindings)
+		_.each(allBindings, function(b, key){
+			//console.log('key: ' + key)
+			_.assertDefined(b)
+			_.assertString(b.name)
+		})
 		var internal = mGetter(allBindings, editId)
+		_.assertString(internal.name)
 		//console.log('from original bindings: ' + JSON.stringify(bindings))
 		//console.log('extending macro with more bindings: ' + JSON.stringify(newBindings))
 		_.assertDefined(internal)
@@ -43,6 +49,7 @@ function svgMacroCall(s, computeKey, mGetter, bindings, editId){
 	
 	//TODO use only the keys of bindings that are referred to within the macro
 	f.key = computeKey(bindings)
+	
 	/*''
 	_.each(bindings, function(v, key){
 		f.key += v.key+';'

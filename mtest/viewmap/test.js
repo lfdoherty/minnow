@@ -12,7 +12,7 @@ exports.update = function(config, done){
 			
 				poll(function(){
 					if(c.s.size() === 1){
-						console.log(JSON.stringify(c.s.toJson()))
+						//console.log(JSON.stringify(c.s.toJson()))
 						_.assertEqual(c.s.keys()[0], 'blah');
 						_.assertEqual(c.s.value('blah'), 'vblah')
 						done()
@@ -38,7 +38,7 @@ exports.topByValues = function(config, done){
 				var expected = JSON.stringify([21, 22, 28])
 				poll(function(){
 					if(c.threeOldest.size() === 3){
-						console.log(JSON.stringify(c.threeOldest.toJson()))
+						//console.log(JSON.stringify(c.threeOldest.toJson()))
 						var data = c.threeOldest.toJson()
 						var ages = _.map(Object.keys(data), function(key){return data[key];})
 						ages.sort()
@@ -46,10 +46,10 @@ exports.topByValues = function(config, done){
 							done()
 							return true
 						}else{
-							console.log('value: ' + JSON.stringify(ages))
+							//console.log('value: ' + JSON.stringify(ages))
 						}
 					}else{
-						console.log('many: ' + c.threeOldest.size())
+						//console.log('many: ' + c.threeOldest.size())
 					}
 				})
 
@@ -86,7 +86,7 @@ exports.mapReduce = function(config, done){
 							return true
 						}
 					}else{
-						console.log('many: ' + c.oldestWithKey.size())
+						//console.log('many: ' + c.oldestWithKey.size())
 					}
 				})
 

@@ -251,7 +251,15 @@ function reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cRe
 
 function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond, bindings, editId){
 	var elements = contextGetter(bindings, editId)
-
+	
+	_.assertString(elements.name)
+	
+	//_.assertFunction(elements.descend)
+	
+	if(!_.isFunction(elements.descend)){
+		_.errout('no descend defined for: ' + elements.name)
+	}
+	
 	var cKeyGetter = keyGetter(bindings, editId)
 	var cValueGetter = valueGetter(bindings, editId)
 	var cReduceGetter;
@@ -368,6 +376,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				var newBindingsKey = copyBindings(bindings)
 				var newBindingsValue = copyBindings(bindings)
 				newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId, elements)
+				_.assertDefined(newBindingsKey[keyImplicit])
 				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 				var newValueVariable = cValueGetter(newBindingsValue, editId)
 				

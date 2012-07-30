@@ -14,7 +14,7 @@ var exists = fs.exists ? fs.exists : path.exists
 
 var seedrandom = require('seedrandom')
 
-var log = require('quicklog').make('server')
+var log = require('quicklog').make('minnow/server')
 
 function openUid(dataDir, cb){
 	var fn = dataDir + '/minnow_data/server.uid'

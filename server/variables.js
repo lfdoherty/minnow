@@ -36,7 +36,7 @@ var listenerSet = require('./variable_listeners').makeListenerSet
 var variableProperty = require('./variables/property')
 var variableCount = require('./variables/count')
 var variableAggregate = require('./variables/aggregate')
-var variableType = require('./variables/type')
+require('./variables/typeset')
 var variableView = require('./variables/view')
 var variableOne = require('./variables/one')
 var variableParam = require('./variables/param')
@@ -49,15 +49,20 @@ require('./variables/multimap')
 require('./variables/top')
 //require('./variables/merge')
 require('./variables/math')
+require('./variables/switch')
+require('./variables/type')
+require('./variables/cast')
 
 var fixedPrimitive = require('./fixed/primitive')
 var fixedObject = require('./fixed/object')
 
 var macroCall = require('./variables/macrocall')
-
+//
 var schema = require('./../shared/schema')
 
 var syncplugins = require('./variables/syncplugins')
+
+//var specialization = require('./variables/specialization')
 
 function isView(expr, name){return expr.type === 'view' && expr.view === name;}
 
@@ -78,6 +83,11 @@ function variableGetter(s, setExpr, typeBindings){
 		return fixedPrimitive.make(s, setExpr.value)
 	}else if(setExpr.type === 'int'){
 		return fixedPrimitive.make(s, setExpr.value)
+	}else if(setExpr.type === 'concrete-specialization'){
+		//return specialization.make(s, self, setExpr, typeBindings)
+		_.errout('TODO?')
+	}else if(setExpr.type === 'switch'){
+		var impl = schema.getImplementation('switch')
 	}else{
 		//console.log('did not find macro type for: ' + setExpr.view)
 		//console.log(JSON.stringify(typeBindings))
@@ -142,6 +152,7 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 	})
 	
 	var topLevel = {
+		name: 'top-level',
 		descend: function(path, editId, cb){
 			s.objectState.streamProperty(path, editId, cb)
 		}
@@ -150,7 +161,9 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 		_.assertArray(params)
 		var bindings = {}
 		paramGetters.forEach(function(pg, index){
-			bindings[paramNames[index]] = pg(params[index], startingEditId, topLevel)
+			var pgv = pg(params[index], startingEditId, topLevel)
+			_.assertString(pgv.name)
+			bindings[paramNames[index]] = pgv
 		})
 		//console.log('created bindings for params: ' + JSON.stringify(params) + '->' + JSON.stringify(bindings))
 		return bindings;

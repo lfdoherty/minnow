@@ -19,7 +19,9 @@ function setPropertyValue(obj, code, value){
 
 function emit(e, eventName){
 	var afterCallbacks = []
-		
+	
+	//console.log('emitting ' + eventName)
+	
 	var args = Array.prototype.slice.call(arguments, 2)
 	
 	function callListener(listener){
@@ -70,7 +72,7 @@ function once(eventName, cb){
 function on(eventName, cb){
 	if(arguments.length === 1){
 		cb = eventName
-		eventName = ''
+		eventName = 'any'
 	}
 	_.assertString(eventName)
 	_.assertFunction(cb)
@@ -86,7 +88,7 @@ function off(eventName, cb){
 		this.onListeners[eventName] = undefined
 	}else{
 		if(this.onListeners === undefined){
-			console.log('WARNING: off called for eventName: ' + eventName + ', but no listeners have ever been added.')
+			this.log('WARNING: off called for eventName: ' + eventName + ', but no listeners have ever been added.')
 			return
 		}
 		var listeners = this.onListeners[eventName]
@@ -94,7 +96,7 @@ function off(eventName, cb){
 		if(ii !== -1){
 			listeners.splice(cb, 1)
 		}else{
-			console.log('WARNING: off called for eventName: ' + eventName + ', but listener function not found.')
+			this.log('WARNING: off called for eventName: ' + eventName + ', but listener function not found.')
 		}
 	}
 }
@@ -102,7 +104,7 @@ function off(eventName, cb){
 function removeListener(listenerName){
 
 	if(this.refreshListeners === undefined || this.refreshListeners[listenerName] === undefined){
-		console.log('WARNING: no refresh listener by name: ' + listenerName);
+		this.log('WARNING: no refresh listener by name: ' + listenerName);
 	}else{
 		delete this.refreshListeners[listenerName];
 	}
@@ -196,6 +198,12 @@ function _makeAndSaveNew(json, type){
 function log(msg){
 	this.parent.log(msg)
 }
+
+function isView(){
+	if(this.objectId && _.isString(this.objectId)) return true
+	return this.parent.isView()
+}
+
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
@@ -216,6 +224,7 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.makeTemporaryId === undefined) classPrototype.makeTemporaryId = makeTemporaryId;
 	if(classPrototype._makeAndSaveNew === undefined) classPrototype._makeAndSaveNew = _makeAndSaveNew;
 	if(classPrototype.log === undefined) classPrototype.log = log
+	if(classPrototype.isView === undefined) classPrototype.isView = isView
 }
 
 
@@ -286,7 +295,7 @@ SyncApi.prototype.getView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
-	console.log('working: ' + id + ' ' + JSON.stringify(edits))
+	//console.log('working: ' + id + ' ' + JSON.stringify(edits))
 	if(this.objectApiCache[id] !== undefined){
 		return
 		//_.errout('TODO:')
@@ -337,13 +346,30 @@ SyncApi.prototype.onEdit = function(listener){
 	this.changeListeners.push(listener)
 }
 
+var DESTROYED_LOCALLY = {}
+var DESTROYED_REMOTELY = {}
+SyncApi.prototype._destroyed = function(objHandle){
+	var id = objHandle.id()
+	delete this.objectApiCache[id]
+	delete this.snap.objects[id]
+	this.currentTopObject = DESTROYED_LOCALLY
+}
+
 SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertLength(arguments, 3);
 	_.assertString(op);
 	_.assertInt(editId);
 
+	if(this.currentTopObject){
+		if(this.currentTopObject === DESTROYED_REMOTELY){
+			_.errout('could not execute edit, server error, object already destroyed removely: ' + op + ' ' + JSON.stringify(edit) + ' ' + this.currentSyncId + ' ' + editId)
+		}else if(this.currentTopObject === DESTROYED_LOCALLY){
+			this.log('WARNING: could not execute edit, object already destroyed locally: ' + op + ' ' + JSON.stringify(edit) + ' ' + this.currentSyncId + ' ' + editId)
+			return
+		}
+	}
 
-	console.log(this.uid+' SyncApi changeListener: ' + op + ' ' + JSON.stringify(arguments).slice(0,1000))
+	this.log(this.uid+' SyncApi changeListener: ' + op + ' ' + JSON.stringify(arguments).slice(0,1000))
 	//console.log(op + ':' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
 
 	var hereKey = op+editId
@@ -389,6 +415,13 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		this.currentTopObject = this.getObjectApi(edit.id)
 	}else if(op === 'setSyncId'){
 		this.currentSyncId = edit.syncId
+	}else if(op === 'destroy'){
+		var id = this.currentTopObject.id()
+		delete this.objectApiCache[id]
+		delete this.snap.objects[id]
+		this.currentTopObject._destroy()
+		this.currentTopObject = DESTROYED_REMOTELY
+		//console.log('destroyed current object')
 	}else{
 		_.assertInt(this.currentSyncId)
 		try{
@@ -431,7 +464,7 @@ SyncApi.prototype.createNewExternalObject = function(typeCode, temporaryId, obj,
 }
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
-	console.log('reifying id ' + temporaryId + ' -> ' + realId)
+	//this.log('reifying id ' + temporaryId + ' -> ' + realId)
 
 	_.assert(temporaryId < 0)
 	
@@ -465,7 +498,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
 		_.errout(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
 	}
-	this.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
+	//this.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
 
 	var typeCode = obj[0].op === 'madeViewObject' ? obj[0].edit.typeCode : obj[1].edit.typeCode//first edit is a made op

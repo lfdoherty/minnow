@@ -5,7 +5,7 @@ var tcpShared = require('./tcp_shared')
 
 function stub(){}
 
-var log = require('quicklog').make('minnow-pathmerger')
+var log = require('quicklog').make('minnow/pathmerger')
 
 //saveAp is for saving path-changing edits,
 //otherwise we use callAp

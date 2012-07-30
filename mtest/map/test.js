@@ -18,10 +18,10 @@ exports.put = function(config, done){
 								return true
 							}
 						}else{
-							console.log('here: ' + c.s.data.size())
+							//console.log('here: ' + c.s.data.size())
 						}
 					}else{
-						console.log('no s')
+						//console.log('no s')
 					}
 				})
 
@@ -58,7 +58,7 @@ exports.del = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(v){
-						console.log(''+v.setPropertyToNew)
+						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
 						v.s.set(obj)
 						_.assertDefined(obj)

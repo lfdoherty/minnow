@@ -8,27 +8,31 @@ var jsonutil = require('./../jsonutil')
 
 var topObject = require('./topobject')
 
-function ObjectHandle(typeSchema, obj, objId, part, parent, isReadonlyIfEmpty){
+function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty){
 	_.assertFunction(parent.adjustPath)
 	
-	if(obj !== undefined) _.assertArray(obj)
+	_.assertNot(objId !== -1 && parent.isView())
+	/*
+	if(edits !== undefined) _.assertArray(edits)
 	_.assertObject(parent);
 	_.assert(_.isInteger(objId) || _.isString(objId));
 	
 	_.assert(objId !== 0)
 	
 	if(_.isInteger(objId) && objId === -1){
-		_.assert(obj === undefined && isReadonlyIfEmpty)
+		_.assert(edits === undefined && isReadonlyIfEmpty)
+	}else{
+		_.assertArray(edits)
 	}
 	
 	_.assertDefined(typeSchema)
 	_.assertDefined(typeSchema.properties);
-	 
+	 */
 	if(!typeSchema.isView){
 		_.assertInt(objId);
 	}
 	
-	this.edits = obj
+	this.edits = edits
 	this.part = part;//TODO make part a single value rather than a list?
 	this.typeSchema = typeSchema;
 	this.obj = {};
@@ -36,11 +40,12 @@ function ObjectHandle(typeSchema, obj, objId, part, parent, isReadonlyIfEmpty){
 	
 	this.objectId = objId;
 	
-	if(isReadonlyIfEmpty && obj === undefined){
+	if(isReadonlyIfEmpty && edits === undefined){
 		this.isReadonlyAndEmpty = true;
 		this.property = emptyReadonlyObject
 		this.setProperty = emptyReadonlyObject
 		this.add = emptyReadonlyObject
+		this.del = emptyReadonlyObject
 	}else{
 		//this.log('not readonlyandempty')
 	}
@@ -252,7 +257,10 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 		var ps = this.typeSchema.propertiesByCode[descentCode];
 		_.assertObject(ps)
 		if(op === 'setObject'){
-			_.assertEqual(ps.type.type, 'object')
+			if(ps.type.type !== 'object'){
+				_.errout('setObject called on non object type, type is: ' + JSON.stringify(ps))
+			}
+			//_.assertEqual(ps.type.type, 'object')
 		}
 		var pv = this[ps.name]//.cachedProperties[ps.name]
 		if(pv && pv.objectId === edit.id){
@@ -632,6 +640,10 @@ ObjectHandle.prototype.uid = function(){
 	return res;
 }*/
 
+ObjectHandle.prototype.del = function(){
+	if(this.isView()) _.errout('cannot delete view object')
+	this.saveEdit('destroy', {})
+}
 
 module.exports = ObjectHandle
 

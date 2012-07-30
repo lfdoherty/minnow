@@ -8,7 +8,7 @@ TODO: broadcast syncIds of edits
 
 */
 
-var log = require('quicklog').make('minnow-broadcast')
+var log = require('quicklog').make('minnow/broadcast')
 
 function lazyObj(obj, prop){
 	if(obj[prop] === undefined) return obj[prop] = {};

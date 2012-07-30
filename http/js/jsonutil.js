@@ -93,7 +93,7 @@ function convertJsonToEdits(dbSchema, type, json){
 							next = 'reselect'+ts+'Key'
 						}
 					});
-					console.log('json map ascend1')
+					//console.log('json map ascend1')
 					edits.push({op: 'ascend1', edit: {}})
 				}
 			}else if(p.type.type === 'set'){
@@ -141,7 +141,7 @@ function convertJsonToEdits(dbSchema, type, json){
 			}else{
 				_.errout('TODO: ' + p.type.type + ' (' + name + ')');
 			}
-			console.log('json property ascend1')
+			//console.log('json property ascend1')
 			edits.push({op: 'ascend1', edit: {}})
 		}
 	});

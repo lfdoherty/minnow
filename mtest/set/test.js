@@ -11,7 +11,7 @@ exports.append = function(config, done){
 			client.view('general', function(c){
 			
 				poll(function(){
-					console.log(c.has('s'))
+				//	console.log(c.has('s'))
 					if(c.has('s') && c.s.data.size() === 1){
 						done()
 						return true

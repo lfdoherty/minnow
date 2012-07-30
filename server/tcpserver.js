@@ -5,7 +5,7 @@ var fs = require('fs')
 
 var quicklog = require('quicklog')
 
-var log = quicklog.make('tcp.server')
+var log = quicklog.make('minnow/tcp.server')
 
 var _ = require('underscorem')
 var baleen = require('baleen')
@@ -107,7 +107,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 	
 	var tcpServer = net.createServer(function(c){
 	
-		var ws = quicklog.make('tcp server->client.' + (++logCounter))
+		var ws = quicklog.make('minnow/tcp server->client.' + (++logCounter))
 	
 		log('tcp server got connection')
 		
@@ -359,7 +359,7 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 
 		c.on('end', function() {
 			log('client disconnected')
-			ws.end()
+			//ws.end()
 			viewHandles.forEach(function(sh){
 				sh.end()
 			})

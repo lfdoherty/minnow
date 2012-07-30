@@ -25,7 +25,7 @@ var fs = require('fs')
 var ws = fs.createWriteStream('objectstate.log')
 var log = ws.write.bind(ws)
 */
-var log = require('quicklog').make('objectstate')
+var log = require('quicklog').make('minnow/objectstate')
 
 function makeSelectByMultiplePropertyConstraints(indexing, handle){
 
@@ -652,6 +652,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 				cb(ids);
 			});
 		},
+		getObjectType: function(id, cb){
+			ol.getObjectType(id, cb)
+		}
 	};
 	
 	return handle;

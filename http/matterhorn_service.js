@@ -13,10 +13,10 @@ var zlib = require('zlib');
 
 var _ = require('underscorem');
 
-exports.name = 'minnow-service';
-exports.dir = __dirname;
+//exports.name = 'minnow-service';
+//exports.dir = __dirname;
 exports.module = module
-exports.requirements = ['matterhorn-standard', 'minnow-service-core'];
+//exports.requirements = ['matterhorn-standard', 'minnow-service-core'];
 
 require('matterhorn-standard');
 
@@ -58,12 +58,14 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		var securitySetting = viewSecuritySettings[viewName]
 		if(securitySetting === undefined){
 			log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
+			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 			return
 		}		
 		var params = serviceModule.parseParams(req.params.params, viewSchema)
 		securitySetting(function(passed){
 			if(!passed){
 				log('security policy denied access to view: ' + viewName);
+				console.log('WARNING: security policy denied access to view: ' + viewName);
 				return
 			}
 			var snapshotId = parseInt(req.params.snapshotId);

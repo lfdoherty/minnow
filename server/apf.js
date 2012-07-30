@@ -14,7 +14,7 @@ var bin = require('./../util/bin')
 var editSchemaStr = fs.readFileSync(__dirname + '/edits.baleen', 'utf8');//TODO async
 var editSchema = keratin.parse(editSchemaStr, baleen.reservedTypeNames);
 
-var log = require('quicklog').make('apf')
+var log = require('quicklog').make('minnow/apf')
 
 var MaxDesiredSegmentSize = 1024*1024;
 
@@ -126,8 +126,9 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			var cdl = _.latch(2, function(){
 				cb()
 			})
-			w.flush()
-			w.end(cdl)
+			//w.flush()
+			doFlush()
+			w.close(cdl)
 			sfw.end()
 			sfw.sync(function(){
 				cdl()
@@ -157,10 +158,11 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 
 		var w;
 
-		var flushHandle = setInterval(function(){
+		function doFlush(){
 			writeBufferedEdits()
 			w.flush();
-		}, 1000);
+		}
+		var flushHandle = setInterval(doFlush, 1000);
 		
 		var bufferedEditsForWriting = []
 		function writeBufferedEdits(){
@@ -179,7 +181,10 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			/*w = deser.makeWriter(write, function(cb){
 				if(cb) cb()
 			});*/
-			w = fparse.makeWriter({write: write})
+			function end(cb){
+				if(cb) cb()
+			}
+			w = fparse.makeWriter({write: write, end: end})
 			
 			_.each(ex.writers, function(writer, name){
 				handle[name] = function(json){

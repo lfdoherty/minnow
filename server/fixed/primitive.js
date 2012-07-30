@@ -17,6 +17,7 @@ function sfgPrimitive(s, value, bindings, editId){
 	var listeners = listenerSet()
 	
 	var handle = {
+		name: 'primitive',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			listener.set(value, undefined, editId)

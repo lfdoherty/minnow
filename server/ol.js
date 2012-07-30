@@ -46,7 +46,7 @@ function serializeEdits(fp, edits){
 	return w.finish()
 }
 
-var log = require('quicklog').make('ol')
+var log = require('quicklog').make('minnow/ol')
 
 var MaxBufferSize = 200;
 var BufferFlushChunkSize = 100;
@@ -131,7 +131,9 @@ exports.make = function(dataDir, schema, cb){
 	//var editCounter = 0//TODO update with load properly
 
 	function addByType(typeCode, id){
-		if(idsByType[typeCode] === undefined) idsByType[typeCode] = []
+		if(idsByType[typeCode] === undefined){
+			idsByType[typeCode] = []
+		}
 		//++many[typeCode];
 		idsByType[typeCode].push(id)
 	}
@@ -320,7 +322,7 @@ exports.make = function(dataDir, schema, cb){
 		++lastVersionId
 		//initialState.meta = {id: idCounter,typeCode: typeCode, editId: editId}
 
-		//console.log('making to ' + editId)
+		//console.log('making ' + edit.typeCode)
 
 		//Object.freeze(initialState.meta)
 	
@@ -340,6 +342,7 @@ exports.make = function(dataDir, schema, cb){
 		//writeToDiskIfNecessary()
 	
 		addByType(edit.typeCode, idCounter);
+		//console.log('added by type')
 		currentId = idCounter
 		return {id: idCounter, editId: editId}
 	}
@@ -641,6 +644,18 @@ exports.make = function(dataDir, schema, cb){
 			})
 			cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
 		},
+		getObjectType: function(id, cb){
+			handle.get(id, -1, -1, function(edits){
+				for(var i=0;i<edits.length;++i){
+					var e = edits[i]
+					if(e.op === 'made'){
+						cb(e.edit.typeCode)
+						return;
+					}
+				}
+				_.errout('invalid object has no "made" event?');
+			})
+		},
 		//calls-back with the json representation, and saves it once the callback returns
 		//must be in buffer or cache
 		/*
@@ -762,6 +777,7 @@ exports.make = function(dataDir, schema, cb){
 		getAllIdsOfType: function(typeCode, cb){//gets a read-only copy of all objects of that type
 			_.assertLength(arguments, 2)
 			var ids = idsByType[typeCode] || [];
+			//console.log('ol getting ids(' + typeCode + '): ' + JSON.stringify(ids))
 			cb(ids)
 		},
 		getAllOfType: function(typeCode, cb){//gets a read-only copy of all objects of that type

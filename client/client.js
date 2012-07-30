@@ -30,7 +30,7 @@ var longpoll = require('./../http/longpoll')
 //exports.dir = __dirname
 exports.module = module
 
-var log = require('quicklog').make('client')
+var log = require('quicklog').make('minnow/client')
 //var ws = require('fs').createWriteStream('client.log')
 //function log(msg){ws.write(msg+'\n');}
 

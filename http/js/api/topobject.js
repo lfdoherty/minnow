@@ -5,8 +5,9 @@ var jsonutil = require('./../jsonutil')
 
 var ObjectHandle = require('./object')
 
-function TopObjectHandle(schema, typeSchema, obj, parent, id){
-	_.assertObject(obj);
+function TopObjectHandle(schema, typeSchema, edits, parent, id){
+	_.assertInt(edits.length)
+	_.assertObject(parent)
 	
 	if(!typeSchema.isView){
 		_.assertInt(id)
@@ -18,21 +19,25 @@ function TopObjectHandle(schema, typeSchema, obj, parent, id){
 	this.typeSchema = typeSchema;
 
 	this.obj = {}
-	this.edits = obj
+	this.edits = edits
 	
 	this.parent = parent;
 	
 	this.objectId = id;
 	this.objectTypeCode = typeSchema.code;
 
-	this.currentHandle = this
-	_.assertObject(this.currentHandle)
+	//this.currentHandle = this
+	//_.assertObject(this.currentHandle)
 	
 	this.lastEditId = -1
 	
 	this.edits.forEach(function(e){
 		_.assertInt(e.editId)
 	})
+}
+
+function destroyedWarning(){
+	_.errout('this object has been destroyed, it is an error to still have a reference to it')
 }
 
 TopObjectHandle.prototype.replaceObjectHandle = ObjectHandle.prototype.replaceObjectHandle
@@ -44,13 +49,17 @@ TopObjectHandle.prototype.isDefined = function(){return true;}
 TopObjectHandle.prototype.getTopObject = function(){return this;}
 
 TopObjectHandle.prototype.prepare = function prepare(){
+	if(this.isReadonlyAndEmpty) return
 	if(this.prepared) return;
+	if(this._destroyed){
+		_.errout('cannot prepare destroyed object - internal error')
+	}
 	this.prepared = true;
 	var s = this;
 
 	//apply edits
 	var currentSyncId=-1
-	this.log(this.objectId + ' preparing topobject with edits: ' + JSON.stringify(this.edits).slice(0,5000))
+	this.log(this.objectId + ' preparing topobject with edits: ' + (JSON.stringify(this.edits) || 'no edits').slice(0,5000))
 	this.edits.forEach(function(e){
 		//_.assertInt(e.editId)
 		if(e.op === 'setSyncId'){
@@ -320,7 +329,7 @@ function maintainPath(local, op, edit, syncId, editId){
 		var code = local.path[0]
 		var property = local.typeSchema.propertiesByCode[code]
 		var objSchema = local.schema[property.type.object]
-		_.assertInt(this._internalId())
+		//_.assertInt(this._internalId())
 		local[property.name] = new ObjectHandle(objSchema, [], edit.id, [code], local);
 	}else{
 		if(op === 'setObject' || op === 'setViewObject' || op.indexOf('put') === 0 || op === 'removeExisting' || op === 'del'){
@@ -375,13 +384,13 @@ function descend(start, pathEdits){
 			if(ch.get){//map descent
 				ch = ch.get(pe.edit.id)
 				if(ch === undefined){
-					this.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}else{
 				//we don't actually do anything except check that the object property's object hasn't changed
 				if(ch.objectId !== pe.edit.id){
-					this.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}
@@ -394,6 +403,32 @@ function descend(start, pathEdits){
 		}
 	}
 	return ch
+}
+
+TopObjectHandle.prototype.del = function(){
+	ObjectHandle.prototype.del.apply(this)
+	this._destroy()
+}
+
+TopObjectHandle.prototype._destroy = function(){
+	this.parent._destroyed(this)
+	var local = this
+	Object.keys(this).forEach(function(key){
+		var v = local[key]
+		if(_.isFunction(v)){
+			local[key] = destroyedWarning
+		}else{
+			local[key] = undefined
+		}
+	})
+	Object.keys(TopObjectHandle.prototype).forEach(function(key){
+		local[key] = destroyedWarning
+	})
+	this._destroyed = true
+}
+
+TopObjectHandle.prototype.isView = function(){
+	return _.isString(this.objectId)
 }
 
 module.exports = TopObjectHandle

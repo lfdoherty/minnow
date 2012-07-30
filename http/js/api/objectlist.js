@@ -285,7 +285,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	}else if(op === 'addExisting' || op === 'addExistingViewObject'){
 		if(this.getEditingId() !== syncId){
 			//_.errout('^TODO implement op: ' + JSON.stringify(edit));
-			console.log('addExistingEdit: ' + JSON.stringify(edit))
+		//	console.log('addExistingEdit: ' + JSON.stringify(edit))
 			var addedObj = this.getObjectApi(edit.id)
 			this.obj.push(addedObj)
 			addedObj.prepare()
@@ -363,7 +363,7 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 
 	var e = {typeCode: type.code, id: id}
 	
-	console.log('doing replaceNew')
+	//console.log('doing replaceNew')
 	if(objHandle.isInner()){
 		this.saveEdit('replaceInternalNew', e)
 	}else{

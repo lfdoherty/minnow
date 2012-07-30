@@ -135,7 +135,7 @@ exports.eachFiltered = function(config, done){
 				poll(function(){
 					//console.log('adults: ' + c.adults.size())
 					if(c.adults.size() === 1){
-						console.log('adults: ' + JSON.stringify(c.adults.toJson()))
+						//console.log('adults: ' + JSON.stringify(c.adults.toJson()))
 						if(c.adults.toJson()[0].age === 22){
 							done()
 							return true
@@ -186,7 +186,7 @@ function testAgeThreshold(minnow, port, done){
 	return function(c){
 			
 		poll(function(){
-			console.log('adults: ' + c.oldEnough.size())
+			//console.log('adults: ' + c.oldEnough.size())
 			if(c.oldEnough.size() === 2){
 				var ages = _.map(c.oldEnough.toJson(), function(a){return a.age;})
 				if(ages.indexOf(22) !== -1 && ages.indexOf(15) !== -1){
@@ -253,11 +253,11 @@ exports.nowTest = function(config, done){
 			//console.log('getting view')
 			client.view('nowTest', [], function(v){
 				var va = v.beat.value()
-				console.log('got view: ' + va)
+				//console.log('got view: ' + va)
 				setTimeout(function(){
-					console.log('timed out ########################3')
+					//console.log('timed out ########################3')
 					var vb = v.beat.value()
-					console.log('values: ' + JSON.stringify([va, vb]))
+					//console.log('values: ' + JSON.stringify([va, vb]))
 					_.assert(va !== vb)
 					done()
 				}, 1400)
@@ -446,7 +446,7 @@ exports.crazyPartials = function(config, done){
 						done()
 						return true
 					}else{
-						console.log(JSON.stringify([JSON.stringify(c.crazy.toJson().sort()) , JSON.stringify(lookingFor)]))
+						//console.log(JSON.stringify([JSON.stringify(c.crazy.toJson().sort()) , JSON.stringify(lookingFor)]))
 					}
 				})
 

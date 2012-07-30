@@ -84,7 +84,7 @@ setViewObject 107
 setToNew 22
 	typeCode int 1 required
 	
-wasSetToNew
+wasSetToNew 32
 	id int 1 required
 	temporary int 2 required
 	typeCode int 3 required
@@ -189,3 +189,4 @@ putExisting 30
 	
 shift 20
 
+destroy 108

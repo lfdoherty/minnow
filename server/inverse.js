@@ -72,7 +72,7 @@ exports.make = function(broadcaster){
 					m = map[edit.id] = []
 					h = has[edit.id] = {}
 				}
-				console.log('mapping inverse ' + edit.id + ' -> ' + id)
+				//console.log('mapping inverse ' + edit.id + ' -> ' + id)
 				m.push([typeCode, id])
 				h[id] = true
 			}

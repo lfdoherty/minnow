@@ -60,7 +60,7 @@ function listenerSet(){
 		emitDel: function(key, editId){
 			_.assertLength(arguments, 2)
 			_.assertInt(editId)
-			if(listeners.length === 0) console.log('no listeners')
+			//if(listeners.length === 0) console.log('no listeners')
 			for(var i=0;i<listeners.length;++i){
 				var listener = listeners[i]
 				listener.del(key, editId)

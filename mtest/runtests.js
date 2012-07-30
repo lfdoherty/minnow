@@ -145,7 +145,6 @@ function moreCont(doneCb){
 		var donePassed
 		function done(){
 			log('test passed: ' + t.dirName + '.' + t.name)
-			console.log('asse')
 			donePassed = true
 			++passedCount
 			finish()
@@ -153,7 +152,6 @@ function moreCont(doneCb){
 		function fail(e){
 			if(donePassed) return
 			log('test failed: ' + t.dirName + '.' + t.name)
-			console.log('affe')
 			++failedCount
 			//console.log(e)
 			failedList.push([t.dirName+'.'+t.name, e.stack])
@@ -190,7 +188,7 @@ function moreCont(doneCb){
 		function doTest(){
 			try{
 				var config = {schemaDir: t.dir, dataDir: testDir, port: port}
-				console.log('callling')
+				//console.log('callling')
 				t.test(config, done)
 			}catch(e){
 				fail(e)

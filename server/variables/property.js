@@ -12,6 +12,7 @@ var fixedObject = require('./../fixed/object')
 function propertyType(rel, ch){
 
 	_.assertLength(rel.params, 2)
+	if(rel.params[1].schemaType === undefined) _.errout(JSON.stringify(rel))
 	_.assertObject(rel.params[1].schemaType)
 	
 	var st = rel.params[1].schemaType
@@ -25,6 +26,7 @@ function propertyType(rel, ch){
 			return {type: 'primitive', primitive: 'int'}
 		}else{
 			var objSchema = ch.schema[st.object]
+			if(objSchema === undefined) _.errout('cannot find object type: ' + st.object)
 			var p = objSchema.properties[propertyName]
 			if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
 			return p.type
@@ -129,6 +131,7 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 			},
 			}, editId)
 			var handle = {
+				name: 'object-property-handle?',
 				attach: function(listener, editId){
 					listeners.add(listener)
 					if(value !== undefined) listener.set(value, -1, editId)
@@ -218,9 +221,18 @@ function objectSetPropertyMaker(s, self, rel, typeBindings){
 		isObjectProperty = property.type.members.type === 'object'
 	}else{
 		c = svgObjectSetSingleValue
-		isObjectProperty = property.type === 'object'
+		isObjectProperty = property.type.type === 'object'
 	}	
-	return c.bind(undefined, s, cache, contextGetter, isObjectProperty, propertyCode)
+	var f = c.bind(undefined, s, cache, contextGetter, isObjectProperty, propertyCode)
+	
+	var fo = fixedObject.make(s)
+	f.wrapAsSet = function(v, editId, context){
+		var r = fo(v, editId, context)
+		_.assertString(r.name)
+		return r
+	}
+	
+	return f
 }
 
 var ccc = 0
@@ -266,7 +278,8 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: function(){_.errout('TODO?')}
 	}
 
 	if(isObjectProperty){
@@ -348,7 +361,8 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: function(){_.errout('TODO?')}
 	}
 	//TODO listen for changes
 	
@@ -442,6 +456,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 	}
 	
 	var handle = {
+		name: 'object-set-single-value-property',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^6')
@@ -455,7 +470,10 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: function(){
+			_.errout('TODO?')
+		}
 	}
 	
 	if(isObjectProperty){
@@ -583,7 +601,8 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: function(){_.errout('TODO?')}
 	}
 	
 	if(isObjectProperty){

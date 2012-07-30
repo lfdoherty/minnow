@@ -5,7 +5,7 @@ var _ = require('underscorem')
 
 var listenerSet = require('./../variable_listeners')
 
-var log = require('quicklog').make('view-variable')
+var log = require('quicklog').make('minnow/view-variable')
 
 //TODO in principle, the call site of a view shouldn't affect its caching - they should all share
 //right now, we have a different cache for each call site (including the top-level call site.)

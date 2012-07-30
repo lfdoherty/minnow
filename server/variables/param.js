@@ -71,6 +71,7 @@ function svgParam(s, paramName, bindings, editId){
 	}else{
 		//console.log('resolving binding: ' + paramName + '->'+JSON.stringify(bindings[paramName]))
 	}
+	_.assertString(bindings[paramName].name)
 	//console.log('param(' + paramName + ') returning binding: ' + require('util').inspect(bindings[paramName]))
 	return bindings[paramName]
 }

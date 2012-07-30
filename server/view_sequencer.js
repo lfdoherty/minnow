@@ -23,7 +23,7 @@ function orderEditsByEditIdAndOrder(a,b){
 	}
 }
 
-var log = require('quicklog').make('viewsequencer')
+var log = require('quicklog').make('minnow/viewsequencer')
 
 // The structure of a snapshot is just an edit stream, with selectTopObject and selectTopViewObject edits added
 

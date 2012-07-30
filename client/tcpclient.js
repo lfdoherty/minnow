@@ -7,7 +7,7 @@ TODO implement transparent reconnect?
 var net = require('net');
 var fs = require('fs')
 
-var log = require('quicklog').make('tcp.client')
+var log = require('quicklog').make('minnow/tcp.client')
 
 
 var _ = require('underscorem')

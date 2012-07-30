@@ -15,7 +15,7 @@ var util = require('util');
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
 	'is', 'and', 'or', 'id',
 	'div', 'add', 'sub', 'mul'];
-
+	
 var builtinFunctions = {}
 exports.addFunction = function(name, def){
 	builtinFunctions[name] = def
@@ -41,7 +41,7 @@ require('./../server/variables/each')
 require('./../server/variables/subset')
 require('./../server/variables/binaryops')
 
-var log = require('quicklog').make('schema')
+var log = require('quicklog').make('minnow/schema')
 
 function loadViews(schemaDir, str, schema, synchronousPlugins, cb){
 
@@ -136,6 +136,21 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 				})
 				var res = replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
 				return res
+			}else if(gm.type === 'specialization'){
+				var concreteCases = []
+				gm.cases.forEach(function(c, index){
+					var cm = viewMap[c]
+					var newBindings = {}
+					//var signature = {}
+					cm.params.forEach(function(p, index){
+						newBindings[p.name] = newParams[index]
+						//signature[p.name] = p.type
+					})
+					var res = replaceReferencesToParams(cm.expr, viewMap, newBindings, implicits)					
+					concreteCases.push({expr: res, signature: cm.params})
+				})
+				return {type: 'concrete-specialization', cases: concreteCases, name: gm.name}
+				
 			}else if(gm.type === 'partial-application'){
 				var newBindings = {}
 				var pa = gm
@@ -251,6 +266,13 @@ function computeBindingsUsed(expr){
 	}else if(expr.type === 'value' || expr.type === 'int'){
 		//ignore
 		return Object.create(null)
+	}else if(expr.type === 'concrete-specialization'){
+		var all = {}
+		_.each(expr.cases, function(c){
+			var used = computeBindingsUsed(c.expr)
+			Object.keys(used).forEach(function(u){all[u] = true;})
+		})
+		return all
 	}else{
 		_.errout('TODO: ' + JSON.stringify(expr))
 	}
@@ -481,7 +503,7 @@ function parseViewExpr(expr){
 			typeName = expr.substring(expr.indexOf('*')+1, typeNameEndIndex);
 			expr = expr.substr(typeNameEndIndex);
 			
-			path.push({type: 'view', view: 'type', params: [{type: 'value', value: typeName}]});
+			path.push({type: 'view', view: 'typeset', params: [{type: 'value', value: typeName}]});
 			
 		}else if(fc === '.'){
 			var end = expr.indexOf('[');
@@ -558,6 +580,12 @@ function parseViewExpr(expr){
 				if(parseInt(expr)+'' === expr){
 					path.push({type: 'int', value: parseInt(expr)})
 					break;
+				}else if(expr.indexOf(':') !== -1){
+					var typeName = expr.substr(0, expr.indexOf(':')).trim()
+					expr = expr.substr(expr.indexOf(':')+1)
+					var strExpr = {type: 'value', value: typeName}
+					path.push({type: 'view', view: 'cast', params: [strExpr, parseViewExpr(expr)]})
+					break;
 				}else{
 					checkAlphanumericOnly(expr, 'parameter name must contain only alphanumeric characters, or be & or $ (' + expr + ')');
 					path.push({type: 'param', name: expr});
@@ -581,6 +609,7 @@ function invertViewExpression(arr){
 	}else{
 		var last = arr[arr.length-1];
 		var rest = arr.slice(0, arr.length-1);
+		//console.log('LAST: ' + JSON.stringify(last))
 		_.assertArray(last.params)
 		last.params.push(invertViewExpression(rest))
 		e = last;
@@ -703,6 +732,15 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		}
 		return rel.schemaType = computePathResultType(rel.path.slice(1), initialType, v, schema, viewMap);
 	}else if(rel.type === 'view'){
+	
+		if(rel.view === 'cast'){
+			//_.assertString(rel.typeName)
+			return rel.schemaType = {type: 'object', object: rel.params[0].value}
+		}
+		if(rel.view === 'case'){
+			return rel.schemaType = computeTypeWrapper(rel.params[1], bindingTypes, implicits)
+		}
+		
 		var v = viewMap[rel.view];
 
 		var ch = {
@@ -757,7 +795,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		_.assertObject(res)
 		return rel.schemaType = res;
 		
-	}else if(rel.type === 'type'){
+	}else if(rel.type === 'typeset'){
 		var t = schema[rel.name];
 		if(t === undefined){
 			_.errout('unknown type: ' + rel.name);
@@ -777,9 +815,51 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		}
 	}else if(rel.type === 'macro'){//macro is the inline form (alternate types: global-macro, bound-macro)
 		_.errout('never happens')
-		return rel.schemaType = computeType(rel.expr, v, schema, viewMap, bindingTypes)
+		//return rel.schemaType = computeType(rel.expr, v, schema, viewMap, bindingTypes)
 	}else if(rel.type === 'partial-application'){
 		_.errout('Cannot compute type of partial-application directly')
+	}else if(rel.type === 'concrete-specialization'){
+		_.errout('TODO?')
+		/*
+		//TODO compute base union of return types of all cases
+		var types = []
+		//TODO specialize binding types depending on the original global-macro signature
+		rel.cases.forEach(function(c){
+			var newBindingTypes = {}
+
+			_.each(bindingTypes, function(t, key){
+				newBindingTypes[key] = t
+				if(c.signature[key]){
+					newBindingTypes[key] = c.signature[key]
+					console.log('specialization mapped type ' + JSON.stringify(t) + ' to ' + JSON.stringify(c.signature[key]));
+				}
+				console.log('signature(' + key + '): ' + JSON.stringify(c.signature))
+			})
+			
+			implicits.forEach(function(impKey, index){
+				var t = bindingTypes[impKey];
+				if(t !== undefined){
+					newBindingTypes[impKey] = t
+					if(c.signature.length > index){
+						newBindingTypes[impKey] = c.signature[index].type;
+					}
+				}
+			})
+
+			console.log('binding types: ' + JSON.stringify(newBindingTypes))
+			console.log('implicits: ' + JSON.stringify(implicits))
+			var st = computeTypeWrapper(c.expr, newBindingTypes, implicits)
+			types.push(st)
+		})
+		console.log(JSON.stringify(types))
+		var temp = JSON.stringify(types[0])
+		for(var i=1;i<types.length;++i){
+			var t = JSON.stringify(types[i])
+			if(temp !== t){
+				_.errout('TODO implement type base computation')
+			}
+		}
+		return types[0]*/
 	}else if(rel.type === 'int'){
 		return rel.schemaType = {type: 'primitive', primitive: 'int'}
 	}else{
@@ -816,6 +896,9 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 
 function isMacro(v){
 	return findOuterChar(v.tokens[0], '{') !== -1
+}
+function isSpecialization(v){
+	return v.string.indexOf(':=') !== -1;
 }
 function parseParams(paramsStr){
 	var paramStrings;
@@ -854,7 +937,17 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 	var result = {};
 	
 	function processView(v, viewName){
-		if(isMacro(v)){
+		if(isSpecialization(v)){
+			//_.errout('TODO')
+			var name = v.string.substr(0, v.string.indexOf(':='))
+			name = name.trim()
+			var casesStr = v.string.substr(v.string.indexOf(':=')+2)
+			var caseNames = casesStr.split(',')
+			for(var i=0;i<caseNames.length;++i){
+				caseNames[i] = caseNames[i].trim()
+			}
+			result[name] = {type: 'specialization', cases: caseNames, name: name};
+		}else if(isMacro(v)){
 			var expr = v.tokens[0]
 			_.assertString(expr)
 			expr = expr.replace(/\n/gi, '')

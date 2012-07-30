@@ -6,140 +6,82 @@ var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
+var _ = require('underscorem')
 
-//var object = require('./object')
-
-var fixedObject = require('./../fixed/object')
-
-
-function typeType(rel, computeType){
-	return {type: 'set', members: {type: 'object', object: rel.params[0].value}};
+function typeType(rel){
+	return {type: 'primitive', primitive: 'string'}//type: 'object', object: rel.params[0].schemaType.value}
 }
-
 schema.addFunction('type', {
 	schemaType: typeType,
-	implementation: typeMaker,
+	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'type(typename)'
+	callSyntax: 'type(object)'
 })
 
-function typeMaker(s, self, rel){
-	var cache = new Cache()
-	var typeName = rel.params[0].value
-	var typeCode = s.schema[typeName].code
-	
-	//object.make(s, self, s.schema[typeName])
-	
-	var fixedObjGetter = fixedObject.make(s)
-	var nf = svgGeneralType.bind(undefined, s, cache, typeCode)
-	//nf.implName = 'type'
-	nf.wrapAsSet = function(id, editId, context){
-		_.assertInt(editId)
-		return fixedObjGetter(id, editId, context)
-	}
-	/*nf.getDescender = function(){
-		//_.errout('TODO')
-		return function(id, propertyCode, editId, cb){
-			s.objectState.streamProperty(id, propertyCode, editId, cb)
-		}
-	}*/
 
-	return nf
+function maker(s, self, rel, typeBindings){
+	var elementGetter = self(rel.params[0], typeBindings)
+	var cache = new Cache()
+	var f = svgGeneral.bind(undefined, s, cache, elementGetter)
+	return f
 }
 
-function svgGeneralType(s, cache, typeCode, bindings, editId){
+function svgGeneral(s, cache, elementGetter, bindings, editId){
 
-	_.assertFunction(s.broadcaster.listenForNew)
-	
-	var key = typeCode
+	var element = elementGetter(bindings, editId)
+	var key = element.key
 	if(cache.has(key)) return cache.get(key)
-
+	
 	var listeners = listenerSet()
-	var idList
 	
 	var handle = {
-		name: 'type-general',
+		name: 'type',
 		attach: function(listener, editId){
-			_.assertInt(editId)
-			//_.assertFunction(listener.shouldHaveObject)
-			_.assertFunction(listener.add)
-			_.assertFunction(listener.remove)
 			listeners.add(listener)
-			s.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
-			s.log(new Error().stack)
-			if(idList){
-				idList.forEach(function(id){
-					listener.add(id, editId)
-				})
+			_.assertInt(editId)
+			if(oldName !== undefined){
+				listener.set(oldName, undefined, editId)
 			}
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
-			if(editId !== undefined){
-				if(idList){
-					idList.forEach(function(id){
-						listener.remove(id, editId)
-					})
+			if(editId){
+				if(oldName !== undefined){
+					listener.set(undefined, oldName, editId)
 				}
 			}
 		},
-		oldest: function(){
-			if(idList){
-				//console.log('id list ' + s.objectState.getCurrentEditId())
-				return s.objectState.getCurrentEditId();
-			}else{
-				return -1;//until we've got the ids, we're just not ready at all
-			}
-		},
-		key: key,
-		isType: true,
-		descend: function(path, editId, cb, continueListening){
-			_.assertFunction(cb)
-			_.assertInt(path[0])
-			_.assertInt(path[1])
-			s.objectState.streamProperty(path, editId, cb, continueListening)
-		}
+		oldest: oldest,
+		key: key
 	}
-
-	s.objectState.getAllIdsOfType(typeCode, function(ids){
-		
-		idList = [].concat(ids)
-		s.log('TYPE got all ids: ' + JSON.stringify(ids))
-		
-		function listenCreated(typeCode, id, editId){
-			idList.push(id)
-			s.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
-			
-			//process.exit(0)
-			//listeners.emitObjectChange(typeCode, id, typeCode, id, [], 'made', {typeCode: typeCode}, -1, editId)
-			//listeners.emitShould(id, true, editId)
-			listeners.emitAdd(id, editId)
-		}
-		function listenDeleted(typeCode, id, editId){
-			idList.splice(idList.indexOf(id), 1)
-			listeners.emitRemove(id, editId)
-			//listeners.emitShould(id, false, editId)
-		}
-		s.broadcaster.listenForNew(typeCode, listenCreated)
-		s.broadcaster.listenForDeleted(typeCode, listenDeleted)
-		
-		/*s.broadcaster.listenByType(typeCode, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-			//console.log('type emitting change ' + op + ' ' + editId)
-			//process.exit(0)
-			//for(var i=0;i<path.length;++i){_.assert(path[i] > 0);}
-
-			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
-		})*/
-		
-		var currentEditId = handle.oldest()
-
-		idList.forEach(function(id){
-			//listeners.emitShould(id, true, currentEditId)
-			listeners.emitAdd(id, currentEditId)
-		})
-	})
 	
+	var ongoingEditId;
+	function oldest(){
+		var oldestEditId = element.oldest()
+		//console.log('p(' + propertyCode + ') oldest ' + oldestEditId + ' ' + ongoingEditId)
+		if(ongoingEditId !== undefined) return Math.min(oldestEditId, ongoingEditId)
+		else return oldestEditId
+	}
+	
+	var oldName;
+	element.attach({
+		set: function(v, oldV, editId){
+			if(v !== undefined){
+				ongoingEditId = editId
+				s.objectState.getObjectType(v, function(typeCode){
+					if(ongoingEditId > editId) return
+					ongoingEditId = undefined
+					
+					var name = s.schema._byCode[typeCode].name;
+					if(name !== oldName){
+						listeners.emitSet(name, oldName, editId)
+						oldName = name
+					}
+				})
+			}
+		}
+	}, editId)
 	return cache.store(key, handle)
 }
 

@@ -4,9 +4,9 @@ var pathModule = require('path')
 
 var _ = require('underscorem');
 
-exports.name = 'minnow-xhr-service';
+//exports.name = 'minnow-xhr-service';
 exports.module = module
-exports.requirements = ['matterhorn-standard', 'minnow-service-core'];
+//exports.requirements = ['matterhorn-standard', 'minnow/service-core'];
 
 require('matterhorn-standard');
 
@@ -24,7 +24,7 @@ function sendData(res, data){
 	res.send(data);
 }
 
-var log = require('quicklog').make('minnow-xhr')
+var log = require('quicklog').make('minnow/xhr')
 
 exports.make = function(appName, schema, local, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
 
@@ -70,11 +70,13 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		var securitySetting = viewSecuritySettings[viewName]
 		if(securitySetting === undefined){
 			log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
+			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 			return
 		}
 		securitySetting(function(passed){
 			if(!passed){
 				log('security policy denied access to view: ' + viewName);
+				console.log('WARNING: security policy denied access to view: ' + viewName);
 				return
 			}
 			service.getViewFiles(viewName, params, function(snapshotIds, paths, lastSeenVersionId){

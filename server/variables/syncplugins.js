@@ -6,6 +6,9 @@ var Cache = require('./../variable_cache')
 //var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
 
+var fixedPrimitive = require('./../fixed/primitive')
+var fixedObject = require('./../fixed/object')
+
 var makeKeyParser = require('./map').makeKeyParser
 
 function stub(){}
@@ -32,6 +35,7 @@ function wrapParam(v, schemaType, s){
 				shouldHaveObject: stub*/
 			}, editId)
 			return {
+				name: 'syncplugin-primitive-wrapper',
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
@@ -43,7 +47,7 @@ function wrapParam(v, schemaType, s){
 			}
 		}
 	}else if(schemaType.type === 'set'){
-		if(schemaType.members.type === 'primitive'){
+		//if(schemaType.members.type === 'primitive'){
 			return function(bindings, editId){
 				var listeners = listenerSet()
 
@@ -53,6 +57,7 @@ function wrapParam(v, schemaType, s){
 				s.log('attaching ' + re + ' ' + t.attach)
 
 				t.attach({
+					name: 'syncplugin-set-primitive-wrapper',
 					add: function(v, editId){
 						//console.log(re + ' cachedValues: ' + JSON.stringify(cachedValues))
 						//console.log('adding: ' + v)
@@ -75,9 +80,9 @@ function wrapParam(v, schemaType, s){
 					oldest: t.oldest
 				}
 			}
-		}else{
-			_.errout('TODO')
-		}
+		//}else{
+		//	_.errout('TODO')
+		//}
 	}else if(schemaType.type === 'list'){
 		if(schemaType.members.type === 'primitive'){
 			return function(bindings, editId){
@@ -104,6 +109,7 @@ function wrapParam(v, schemaType, s){
 					}
 				}, editId)
 				return {
+					name: 'syncplugin-list-primitive-wrapper',
 					attach: function(listener, editId){
 						listeners.add(listener)
 						if(cachedValues.length > 0){
@@ -142,6 +148,7 @@ function wrapParam(v, schemaType, s){
 					}
 				}, editId)
 				return {
+					name: 'syncplugin-map-primitive-wrapper',
 					attach: function(listener, editId){
 						listeners.add(listener)
 						if(_.size(cachedValues) > 0){
@@ -160,12 +167,12 @@ function wrapParam(v, schemaType, s){
 	}
 }
 
-function setupOutputHandler(schemaType){
+function setupOutputHandler(schemaType, s){
 
 
 	if(schemaType.type === 'primitive'){
 		//_.errout('TODO')
-		return function(oldest){
+		var f= function(oldest){
 
 			var listeners = listenerSet()
 			
@@ -194,9 +201,13 @@ function setupOutputHandler(schemaType){
 				key: Math.random()
 			}
 		}
+		f.wrapAsSet = function(){
+			_.errout('TODO')
+		}
+		return f
 	}else if(schemaType.type === 'set'){
-		if(schemaType.members.type === 'primitive'){
-			return function(oldest){
+		//if(schemaType.members.type === 'primitive'){
+			var f = function(oldest){
 
 				var listeners = listenerSet()
 
@@ -205,8 +216,8 @@ function setupOutputHandler(schemaType){
 				var list = []
 				var r = Math.random()
 				var updating = false
-				return {
-					name: 'syncplugin-set:primitive',
+				var handle = {
+					name: 'syncplugin-set',
 					update: function(result, editId){
 						if(list.length === 0 && result.length === 0) return
 						
@@ -255,15 +266,35 @@ function setupOutputHandler(schemaType){
 					oldest: oldest,
 					key: Math.random()
 				}
+				if(schemaType.members.type !== 'primitive'){
+					handle.descend = function(path, editId, cb, continueListening){
+						_.assertFunction(cb)
+						_.assertInt(path[0])
+						_.assertInt(path[1])
+						s.objectState.streamProperty(path, editId, cb, continueListening)
+					}
+				}
+				return handle;
 			}
-		}else{
-			_.errout('TODO')
-		}
+			if(schemaType.members.type === 'primitive'){
+				f.wrapAsSet = function(v, editId, context){
+					return fixedPrimitive.make(s)(v, {}, editId);
+				}
+			}else{
+				var fo = fixedObject.make(s)
+				f.wrapAsSet = function(v, editId, context){
+					return fo(v, editId, context)
+				}
+			}
+			return f
+		//}else{
+		//	_.errout('TODO')
+		//}
 	}else if(schemaType.type === 'map'){
 		var keyParser = makeKeyParser(schemaType.key)
 		if(schemaType.value.type === 'primitive'){
 
-			return function(oldest){
+			var f = function(oldest){
 
 				var listeners = listenerSet()
 
@@ -315,6 +346,10 @@ function setupOutputHandler(schemaType){
 					key: Math.random()
 				}
 			}
+			f.wrapAsSet = function(){
+				_.errout('TODO')
+			}
+			return f
 		}else{
 			_.errout('TODO')
 		}
@@ -345,12 +380,13 @@ exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 	_.assert(paramSets.length >= plugin.minParams)
 	_.assert(paramSets.length <= plugin.maxParams)
 
-	var makeOutputHandle = setupOutputHandler(plugin.schemaType(callExpr))
+	var makeOutputHandle = setupOutputHandler(plugin.schemaType(callExpr), s)
 
 	var f = svgSyncPlugin.bind(undefined, s, cache, paramSets, plugin, makeOutputHandle)
 	
-	f.wrapAsSet = function(){
-		_.errout('TODO')
+	f.wrapAsSet = function(v, editId, context){
+		//_.errout('TODO')
+		return makeOutputHandle.wrapAsSet(v, editId, context)
 	}
 	f.getDescender = function(){
 		_.errout('TODO')

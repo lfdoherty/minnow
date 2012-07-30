@@ -4,7 +4,7 @@ var querystring = require('querystring');
 
 var _ = require('underscorem');
 
-var log = require('quicklog').make('minnow-service')
+var log = require('quicklog').make('minnow/service')
 
 var crypto = require('crypto')
 function computeHash(str){

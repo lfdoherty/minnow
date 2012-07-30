@@ -6,7 +6,7 @@ var viewSequencer = require('./view_sequencer')
 var variableView = require('./variables/view')
 
 
-var log = require('quicklog').make('viewstate')
+var log = require('quicklog').make('minnow/viewstate')
 
 exports.make = function(schema, globalMacros, broadcaster, objectState){
 	//var variableGetter = variables.makeGetter(schema, objectState, broadcaster)
@@ -81,7 +81,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var c = objectState.getCurrentEditId()
 			var realVersions = [c-1]//would be -1, except we want to keep the *previous* editId open for time-triggered appends
 			log('GOT SNAPSHOTS: ' + realVersions[0])
-			log(new Error().stack)
+			//log(new Error().stack)
 			cb(realVersions)
 		},
 		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb){

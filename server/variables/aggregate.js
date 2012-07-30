@@ -83,7 +83,7 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 		elements.attach({
 			add: function(v, editId){
 				_.assertDefined(v)
-				console.log('adding to aggregate: ' + v)
+				//console.log('adding to aggregate: ' + v)
 				//process.exit(0)
 				heap.add(v)
 				updateRoot(editId)
@@ -110,7 +110,7 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 			var v = e.oldest()
 			if(v < old) old = v;
 		})
-		console.log('aggregate oldest: ' + old)
+		//console.log('aggregate oldest: ' + old)
 		return old
 	}
 	
