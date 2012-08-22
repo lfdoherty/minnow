@@ -109,8 +109,8 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 	});
 
 	
-	local.serveJavascriptFile(exports, 
-		__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
+	//local.serveJavascriptFile(exports, 
+	//	__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
 	
 	return {
 		getViewTags: function(viewName, params, vars, cb){
