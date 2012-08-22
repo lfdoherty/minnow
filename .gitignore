@@ -7,5 +7,9 @@ views_plan
 *.schema.generated
 save
 */minnow_data
-mtest/*/
+mtest/*/*/
 *.log
+bench/*/*/
+*.txt
+.coverage_data
+minnow_data
