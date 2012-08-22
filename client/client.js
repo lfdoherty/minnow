@@ -26,6 +26,9 @@ var tcpclient = require('./tcpclient');
 
 var longpoll = require('./../http/longpoll')
 
+var jsonutil = require('./../http/js/jsonutil')
+
+
 //exports.name = 'minnow'
 //exports.dir = __dirname
 exports.module = module
@@ -167,59 +170,63 @@ function makeClient(host, port, clientCb){
 
 	var api;
 	var cc;
-	//TODO should the client maintain the current typeCode,id,path
-	//via edits, rather than passing them with the persistEdit call
-	wrapper.persistEdit = function(op, edit){
-		_.assertLength(arguments, 2)
+
+	wrapper.persistEdit = function(op, edit, temporaryId){
+		//.assertLength(arguments, 2)
+		_.assertString(op)
+		_.assertObject(edit)
 		
-	//	console.log('client persisting: ' + op + ' ' + JSON.stringify(edit))
-	//	console.log(new Error().stack)
-		
-		cc.getDefaultSyncHandle().persistEdit(op, edit, listeningSyncId, function(response){
-			if(op === 'make'){
-				//this is a special case since we are the originating party
-				//edit.obj.object.meta.id = response.id;
-				//console.log('calling change listener specially: ' + JSON.stringify([id, path, op, edit, syncId, edit.obj.object.meta.editId]));
-				//_.assert(id >= 0)
-				_.assert(response.id >= 0)
-				
-				//_.errout('TODO update temporaries, make callback')
-				log('response: ' + JSON.stringify(response))
-				api.reifyExternalObject(edit.temporary, response.id)
-				//api.changeListener(id, path, op, edit, syncId, edit.obj.object.meta.editId);
-			}else{
-				_.errout('why?')
-			}
-		});
-		//console.log('op: ' + op);
+		var requestId = cc.getDefaultSyncHandle().persistEdit(op, edit, listeningSyncId);
+
+		if(op === 'make' && !edit.forget){
+			_.assertInt(temporaryId)
+			_.assert(temporaryId < -1)
+			makeCbsWaiting[requestId] = {temporary: temporaryId}
+		}
+	}
+	wrapper.forgetLastTemporary = function(){
+		//_.errout('TODO');
+		cc.getDefaultSyncHandle().forgetLastTemporary(listeningSyncId)
 	}
 	
 	var rrr = Math.random()
 	//console.log('made client ' + rrr)
 	
 	function changeListenerWrapper(e){
-		//_.assertInt(typeCode);
 		_.assertLength(arguments, 1);
-		//console.log(listeningSyncId + ' tcpserver sent change: ' + JSON.stringify(e).slice(0,300))
-		//console.log(new Error().stack)
-		//console.log(e.op)
-		//var id = e.id
-		//var path = JSON.parse(e.path)
-		var op = e.op//edit.type;
-		var edit = e.edit//.object;
-		//var syncId = e.syncId;
+		var op = e.op
+		var edit = e.edit
 		var editId = e.editId;
 		_.assertString(op);
-		//_.assert(_.isString(id) || _.isInt(id));
-		//console.log('(' + rrr + ') ' + listeningSyncId + ' got edit ' + op + ' from syncId ' + syncId + ', editId: ' + editId)
 		api.changeListener(op, edit, editId);
-		//console.log('... ' + listeningSyncId + ' done.')
 	}
 	function objectListenerWrapper(id, edits){
 		//console.log(JSON.stringify(e))
 		api.objectListener(id, edits);
 	}
-	tcpclient.make(host, port, changeListenerWrapper, objectListenerWrapper, function(serverHandle, syncId){
+	
+	var makeCbsWaiting = {}
+	function defaultMakeListener(id, requestId){
+		_.assertInt(id)
+		_.assertInt(requestId)
+		
+		//console.log('getting cb: ' + id + ' ' + requestId)
+		var cb = makeCbsWaiting[requestId]
+		if(cb){
+			if(cb.temporary !== -1){
+				api.reifyExternalObject(cb.temporary, id)
+			}
+			if(cb.cb){
+				var objHandle = api.getTopObject(id)
+				cb.cb(objHandle)
+			}
+			delete makeCbsWaiting[requestId]
+		}else{
+			console.log('WARNING: no cb')
+		}
+	}
+	
+	tcpclient.make(host, port, changeListenerWrapper, objectListenerWrapper, defaultMakeListener, function(serverHandle, syncId){
 		_.assertInt(syncId)
 		
 		listeningSyncId = syncId
@@ -228,7 +235,7 @@ function makeClient(host, port, clientCb){
 		//if(console.log !== ooo) ooo('*got inmem')
 		//console.log('making tcp client')
 		
-		cc = serverHandle//clientConnection.make(serverHandle);
+		cc = serverHandle
 
 		api = syncApi.make(dbSchema, wrapper, log);
 		api.setEditingId(syncId);
@@ -240,14 +247,7 @@ function makeClient(host, port, clientCb){
 		
 		var uid = Math.random()
 		
-		//9999999999999999999999999999
-		
 		_.extend(wrapper, cc);
-
-		
-		
-		
-		//9999999999999999999999999999
 		
 		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
 			_.assertFunction(cb)
@@ -268,25 +268,23 @@ function makeClient(host, port, clientCb){
 		
 		syncHandles[syncId] = cc.getDefaultSyncHandle()
 
-		/*var longPollersByAppName = {}
-		function setupLongPollerIfNeeded(appName){
-			var lp = longPollersByAppName[appName]
-			if(lp === undefined){
-				longPollersByAppName[appName] = longpoll.load(exports, appName, dbSchema, authenticator, minnowClient)
-			}
-		}*/
-		
 		var handle = {
 			//begins the creation process for an externally-accessible object of the given type
 			schema: dbSchema,
 			//schemaName: dbName,
 			internalClient: cc,
-			beginSync: function(listenerCb, objectCb, cb){
-				_.assertLength(arguments, 3)
+			beginSync: function(listenerCb, objectCb, makeCb, cb){
+				_.assertLength(arguments, 4)
 				_.assertFunction(listenerCb)
 				_.assertFunction(objectCb)
+				_.assertFunction(makeCb)
 				_.assertFunction(cb)
-				cc.beginSync(listenerCb, objectCb, function(syncId, syncHandle){
+				function makeCbWrapper(id, requestId){
+					var temporary = makeCbsWaiting[requestId].temporary
+					delete makeCbsWaiting[requestId]
+					makeCb(id, temporary)
+				}
+				cc.beginSync(listenerCb, objectCb, makeCbWrapper, function(syncId, syncHandle){
 					_.assertLength(arguments, 2)
 					_.assertInt(syncId)
 					_.assertObject(syncHandle)
@@ -330,6 +328,31 @@ function makeClient(host, port, clientCb){
 				_.assertArray(params)
 				viewGetter(type, params, st, syncId, syncHandle, cb)
 			},
+			make: function(type, json, cb){
+				_.assertString(type)
+				if(_.isFunction(json)){
+					cb = json
+					json = {}
+				}
+				var st = dbSchema[type];
+				var edits = jsonutil.convertJsonToEdits(dbSchema, type, json)
+				
+				var dsh = cc.getDefaultSyncHandle()
+				var requestId = dsh.persistEdit('make', {typeCode: st.code, forget: !cb}, listeningSyncId)
+				if(cb){
+					_.assertInt(requestId)
+					_.assertFunction(cb)
+					//console.log('setting cb: ' + requestId)
+					
+					makeCbsWaiting[requestId] = {temporary: -1, cb: cb}
+				}
+				edits.forEach(function(e){
+					dsh.persistEdit(e.op, e.edit, listeningSyncId);
+				})
+				if(!cb){
+					dsh.forgetLastTemporary(listeningSyncId)
+				}
+			},
 			
 			getDefaultSyncId: function(){
 				return syncId
@@ -348,10 +371,12 @@ function makeClient(host, port, clientCb){
 }
 
 
-function makeServer(dbSchema, globalMacros, dataDir, port, synchronousPlugins, cb){
-	tcpserver.make(dbSchema, globalMacros, dataDir, port, synchronousPlugins, cb)
+function makeServer(dbSchema, globalMacros, dataDir, port, cb){
+	tcpserver.make(dbSchema, globalMacros, dataDir, port, cb)
 }
 
+
+var sync = require('./../server/variables/sync/index')
 
 exports.makeServer = function(config, cb){
 	_.assertLength(arguments, 2)
@@ -359,10 +384,12 @@ exports.makeServer = function(config, cb){
 	//_.assertString(config.dataDir)
 	_.assertInt(config.port)
 	if(config.synchronousPlugins !== undefined) _.assertObject(config.synchronousPlugins)
-	//if(arguments.length < 3) throw new Error('makeServer(schemaDir, dataDir, port[, cb]) only got ' + arguments.length + ' arguments.')
-	//if(arguments.length > 4) throw new Error('makeServer(schemaDir, dataDir, port[, cb]) got ' + arguments.length + ' arguments.')
-	schema.load(config.schemaDir, config.synchronousPlugins, function(dbSchema, globalMacros){
-		makeServer(dbSchema, globalMacros, config.dataDir||'.', config.port, config.synchronousPlugins||{}, cb||function(){})
+	
+	var syncPlugins = {}
+	_.extend(syncPlugins, config.synchronousPlugins||{}, sync.plugins)
+	
+	schema.load(config.schemaDir, syncPlugins, function(dbSchema, globalMacros){
+		makeServer(dbSchema, globalMacros, config.dataDir||'.', config.port, cb||function(){})
 	})
 }
 exports.makeClient = function(port, host, cb){

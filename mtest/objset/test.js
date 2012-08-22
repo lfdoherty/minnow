@@ -59,9 +59,10 @@ exports.backandforth = function(config, done){
 						
 						poll(function(){
 							if(obj.data.size() === 1){
-								var d;
-								obj.data.each(function(dd){d = dd;})
-								d.value.set('something')
+								//var d;
+								//obj.data.each(function(dd){d = dd;})
+								//d.value.set('something')
+								newObj.value.set('something')
 								return true
 							}
 						})

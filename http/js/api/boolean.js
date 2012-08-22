@@ -27,4 +27,12 @@ BooleanHandle.prototype.set = function(v){
 	this.emit(e, 'set', v)()
 }
 
+BooleanHandle.prototype.toggle = function(){
+	this.set(!this.value())
+}
+
+BooleanHandle.prototype.toJson = function(){
+	return !!this.obj;
+}
+
 module.exports = BooleanHandle

@@ -67,7 +67,8 @@ function convertJsonToEdits(dbSchema, type, json){
 	getProperties(t)
 	
 	var taken = {};
-	_.each(allProperties, function(p){
+	//_.each(allProperties, function(p){
+	allProperties.forEach(function(p){
 		var name = p.name;
 		var pv = json[name];
 		taken[name] = true;
@@ -86,7 +87,9 @@ function convertJsonToEdits(dbSchema, type, json){
 				if(_.size(pv) > 0){
 					var ts = getTypeSuffix(p.type.key)
 					var next = 'select'+ts+'Key'
-					_.each(pv, function(value, key){
+					//_.each(pv, function(value, key){
+					Object.keys(pv).forEach(function(key){
+						var value = pv[key]
 						if(value != undefined){
 							edits.push({op: next, edit: {key: primitiveCast(key,p.type.key)}})
 							edits.push({op: 'put'+ts, edit: {value: value}})
@@ -98,7 +101,8 @@ function convertJsonToEdits(dbSchema, type, json){
 				}
 			}else if(p.type.type === 'set'){
 				if(p.type.members.type === 'primitive'){
-					_.each(pv, function(value){
+					//_.each(pv, function(value){
+					pv.forEach(function(value){
 						var v = valueOrId(value);
 						assertPrimitiveType(v,p.type.members.primitive);
 						var ts = getTypeSuffix(p.type.members.primitive)
@@ -109,13 +113,15 @@ function convertJsonToEdits(dbSchema, type, json){
 					if(types.length !== 1) _.errout('TODO support type polymorphism in JSON'); 
 					var actualType = dbSchema[types[0]];*/
 					
-					_.each(pv, function(value){
+					//_.each(pv, function(value){
+					pv.forEach(function(value){
 						edits.push({op: 'addExisting', edit: {id: valueOrId(value)}})
 					});
 				}
 			}else if(p.type.type === 'list'){
 				if(p.type.members.type === 'primitive'){
-					_.each(pv, function(value){
+					//_.each(pv, function(value){
+					pv.forEach(function(value){
 						if(value === undefined) _.errout('invalid data for property ' + p.name + ': ' + JSON.stringify(pv));
 						var v = valueOrId(value);
 						assertPrimitiveType(v,p.type.members.primitive);
@@ -127,7 +133,8 @@ function convertJsonToEdits(dbSchema, type, json){
 					//if(types.length !== 1) _.errout('TODO support type polymorphism in JSON'); 
 					//var actualType = dbSchema[types[0]];
 				
-					_.each(pv, function(value){
+					//_.each(pv, function(value){
+					pv.forEach(function(value){
 						edits.push({op: 'addExisting', edit: {id: valueOrId(value)}})
 					});
 				}
@@ -135,8 +142,12 @@ function convertJsonToEdits(dbSchema, type, json){
 				if(_.isInteger(pv)){
 					edits.push({op: 'setObject', edit: {id: pv}})
 				}else{
-					var typeCode = dbSchema[p.type.object].code;
-					edits.push({op: 'setObject', edit: {id: pv._internalId()}})
+					//if(pv._internalId){
+						edits.push({op: 'setObject', edit: {id: pv._internalId()}})
+					/*}else{
+						var typeCode = dbSchema[p.type.object].code;//TODO assert uniqueness of type
+						edits.push({op: 'setToNew', edit: {typeCode: typeCode}})
+					}*/
 				}
 			}else{
 				_.errout('TODO: ' + p.type.type + ' (' + name + ')');
@@ -146,9 +157,10 @@ function convertJsonToEdits(dbSchema, type, json){
 		}
 	});
 
-	_.each(json, function(value, attr){
+	//_.each(json, function(value, attr){
+	Object.keys(json).forEach(function(attr){
 		if(!taken[attr]){
-			_.errout('unprocessed json attribute: ' + attr + '(' + value + ')');
+			_.errout('unprocessed json attribute: ' + attr + '(' + json[attr] + ')');
 		}
 	});
 	

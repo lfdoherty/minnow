@@ -26,11 +26,22 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 	
 	this.addOp = u.getAddOperator(typeSchema)
 	this.removeOp = u.getRemoveOperator(typeSchema)
+	
+	////this.obj.forEach(function(r){
+	//	_.assert(r != null)
+	//})
 }
 PrimitiveListHandle.prototype.prepare = stub
 
 
-PrimitiveListHandle.prototype.toJson = function(){return [].concat(this.obj);}
+PrimitiveListHandle.prototype.toJson = function(){
+	_.assertDefined(this.obj)
+	var res = [].concat(this.obj);
+	//res.forEach(function(r){
+	//	_.assert(r != null)
+	//})
+	return res
+}
 PrimitiveListHandle.prototype.count = function(){return this.obj.length;}
 PrimitiveListHandle.prototype.size = PrimitiveListHandle.prototype.count
 
@@ -40,7 +51,8 @@ PrimitiveListHandle.prototype.add = function(value){
 	if(this.obj.indexOf(value) !== -1){
 		_.errout('already has value (lists may not contain duplicates): ' + value)
 	}
-		
+	
+	_.assertPrimitive(value)//TODO test based on actual specific type
 	this.obj.push(value);
 	
 	var e = {value: value}
@@ -98,6 +110,9 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 	if(op.indexOf('add') === 0){
 		if(this.getEditingId() !== syncId){
 			this.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
+			//console.log(JSON.stringify([op, edit, syncId, editId]))
+			_.assertPrimitive(edit.value)
+			_.assert(edit.value != null)
 			this.obj.push(edit.value);
 			
 			return this.emit(edit, 'add')

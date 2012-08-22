@@ -27,6 +27,7 @@ Cache.prototype.store = function(key, value){
 		return res
 	}
 	value.detach = function(listener, editId){
+		//console.log('here: ' + oldDetach)
 		oldDetach(listener, editId)
 		--count
 		if(count === 0){//TODO wait a bit, see if anyone uses it?

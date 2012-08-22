@@ -79,6 +79,11 @@ PrimitiveSetHandle.prototype.changeListener = function(op, edit, syncId, editId)
 		arr.push(edit.value);
 
 		return this.emit(edit, 'add')
+	}else if(op.indexOf('remove') === 0){
+		var i = this.obj.indexOf(edit.value)
+		this.obj.splice(i, 1)
+
+		return this.emit(edit, 'remove', edit.value)
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}

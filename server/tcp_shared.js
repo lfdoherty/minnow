@@ -1,38 +1,37 @@
-"use strict";
+//"use strict";
+
+var fparse = require('fparse')
+
 
 var fs = require('fs')
 
 var _ = require('underscorem')
 
 var keratin = require('keratin')
-var baleen = require('baleen')
+
+var reservedTypeNames = ['type']
 
 var editSchemaStr = fs.readFileSync(__dirname + '/edits.baleen', 'utf8')
-var editSchema = keratin.parse(editSchemaStr, baleen.reservedTypeNames)
+var editSchema = keratin.parse(editSchemaStr, reservedTypeNames)
 var clientSchemaStr = fs.readFileSync(__dirname + '/client.baleen', 'utf8')
-var clientSchema = keratin.parse(clientSchemaStr, baleen.reservedTypeNames)
+var clientSchema = keratin.parse(clientSchemaStr, reservedTypeNames)
 var responsesSchemaStr = fs.readFileSync(__dirname + '/responses.baleen', 'utf8')
-var responsesSchema = keratin.parse(responsesSchemaStr, baleen.reservedTypeNames)
+var responsesSchema = keratin.parse(responsesSchemaStr, reservedTypeNames)
 
-function makeExes(appSchema){
+var fparse = require('fparse')
 
-	//var appEx = baleen.makeFromSchema(appSchema, undefined, true, true);
-	var editEx = baleen.makeFromSchema(editSchema);
-	var clientEx = baleen.makeFromSchema(clientSchema, editEx);
-	var responsesEx = baleen.makeFromSchema(responsesSchema, editEx);
-	
-	//console.log('clientEx: ' + clientSchemaStr)
-	return {
-		//app: appEx,
-		edit: editEx,
-		client: clientEx,
-		responses: responsesEx,
-		editSchema: editSchema
-	}
-}
+var editFp = fparse.makeFromSchema(editSchema)
+
+var log = require('quicklog').make('minnow/tcp_shared')
+
+exports.clientSchema = clientSchema
+exports.responsesSchema = responsesSchema
 exports.editSchema = editSchema
-exports.makeExes = makeExes;
+exports.editFp = editFp
 
+exports.clientRequests = fparse.makeFromSchema(clientSchema)
+exports.serverResponses = fparse.makeFromSchema(responsesSchema)
+/*
 function findDifferenceIndex(cp, p){
 	var m = Math.min(cp.length, p.length)
 	for(var i=0;i<m;++i){
@@ -46,7 +45,7 @@ function primitiveMapNextFunction(reselect, key, sendUpdate){
 }
 
 function makeKeySelect(keyOp, isObject){
-	return function(reselect, key, sendUpdate){
+	function keySelector(reselect, key, sendUpdate){
 		//console.log('sending key update')
 		sendUpdate((reselect?'reselect':'select')+keyOp, {key: key})
 		function f(reselect, key, sendUpdate){
@@ -55,30 +54,38 @@ function makeKeySelect(keyOp, isObject){
 		f.isKeyAnObject = isObject
 		return f
 	}
+	keySelector.type = 'key'
+	return keySelector
 }
 function makePropertyReactor(schema, objSchema, propertyCode, translateTemporary){
 	var propertySchema = objSchema.propertiesByCode[propertyCode]
+	if(propertySchema === undefined) _.errout('internal error: ' + propertyCode + ' (' + objSchema.name + ')')
+	_.assertDefined(propertySchema)
 	//console.log('propertySchema(' + propertyCode + '): ' + JSON.stringify(propertySchema))
 	if((propertySchema.type.type === 'list' || propertySchema.type.type === 'set') && propertySchema.type.members.type === 'object'){
 		
 		var nextFunction = makeObjectReactor(schema, schema[propertySchema.type.members.object].code)
-		return function(reselect, id, sendUpdate){
+		function objectCollectionSelector(reselect, id, sendUpdate){
 			//console.log('id: ' + id)
 			_.assert(id > 0)
 			//if(id < 0) id = translateTemporary(id)
 			sendUpdate(reselect?'reselectObject':'selectObject', {id: id})
 			return nextFunction
 		}
+		objectCollectionSelector.type = 'object'
+		return objectCollectionSelector
 	}else if(propertySchema.type.type === 'object'){
 
 		//console.log('object: ' + propertySchema.type.object)
 		var nextFunction = makeObjectReactor(schema, schema[propertySchema.type.object].code)
-		return function(reselect, id, sendUpdate){
+		function objectPropertySelector(reselect, id, sendUpdate){
 			_.assert(id > 0)
 			//if(id < 0) id = translateTemporary(id)
 			sendUpdate(reselect?'reselectObject':'selectObject', {id: id})
 			return nextFunction			
 		}
+		objectPropertySelector.type = 'object'
+		return objectPropertySelector
 	}else if(propertySchema.type.type === 'map'){
 		if(propertySchema.type.value.type === 'object'){
 			//var nextFunction = makeObjectReactor(schema, schema[propertySchema.type.object].code)
@@ -120,17 +127,21 @@ function makePropertyReactor(schema, objSchema, propertyCode, translateTemporary
 function makeObjectReactor(schema, typeCode, translateTemporary){
 	//console.log('typeCode: ' + typeCode)
 	var objSchema = schema._byCode[typeCode]
-	return function(reselect, propertyCode, sendUpdate){
+	function propertySelector(reselect, propertyCode, sendUpdate){
 		var propertySchema = objSchema.propertiesByCode[propertyCode]
 		_.assert(propertyCode > 0)
 		sendUpdate(reselect?'reselectProperty':'selectProperty', {typeCode: propertyCode})
 		return makePropertyReactor(schema, objSchema, propertyCode, translateTemporary)
 	}
-}
-
+	propertySelector.type = 'property'
+	return propertySelector
+}*/
+/*
 //TODO make this schema-based
 exports.makePathStateUpdater = function(schema, typeCode, translateTemporary){
 	//_.assertLength(arguments, 2)
+	_.errout('DEPRECATED')
+	
 	_.assertInt(typeCode)
 
 	var currentResponsePath = []
@@ -138,10 +149,10 @@ exports.makePathStateUpdater = function(schema, typeCode, translateTemporary){
 	
 	var reactorStack = [makeObjectReactor(schema, typeCode, translateTemporary)]
 	
-	function f(path, sendUpdate){
+	function topSelector(path, sendUpdate){
 	
 		var difIndex = 0
-		//console.log(JSON.stringify(currentResponsePath) + ' -> ' + JSON.stringify(path))
+		log(JSON.stringify(currentResponsePath) + ' -> ' + JSON.stringify(path))
 		
 		var reselect = false
 		if(isNew){
@@ -180,8 +191,11 @@ exports.makePathStateUpdater = function(schema, typeCode, translateTemporary){
 		var r = reactorStack[reactorStack.length-1]
 		for(var i=difIndex;i<path.length;++i){
 			var p = path[i]
+			console.log('descending: ' + p)
 			if(_.isInt(p) && p < 0){
+				if(p === -1) _.errout('bad path: ' + JSON.stringify(path))
 				p = translateTemporary(p)
+				_.assertEqual(r.type, 'object')
 			}
 			currentResponsePath.push(p)
 			r = r(reselect, p, sendUpdate)
@@ -190,12 +204,13 @@ exports.makePathStateUpdater = function(schema, typeCode, translateTemporary){
 		}
 		//currentResponsePath = path
 	}
-	f.getCurrentPath = function(){return [].concat(currentResponsePath);}
-	f.isKeyAnObject = function(){
+	topSelector.getCurrentPath = function(){return [].concat(currentResponsePath);}
+	topSelector.isKeyAnObject = function(){
 		return reactorStack[reactorStack.length-1].isKeyAnObject
 	}
-	f.getKey = function(){
+	topSelector.getKey = function(){
 		return currentResponsePath[currentResponsePath.length-1];
 	}
-	return f
-}
+	topSelector.type = 'top'
+	return topSelector
+}*/

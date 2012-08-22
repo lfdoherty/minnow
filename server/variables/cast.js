@@ -8,6 +8,9 @@ var schema = require('./../../shared/schema')
 var fixedObject = require('./../fixed/object')
 
 function type(rel){
+
+	_.assertDefined(rel.params[0].schemaType)
+	
 	_.assertString(rel.params[0].value)
 	return {type: 'object', object: rel.params[0].value}
 }

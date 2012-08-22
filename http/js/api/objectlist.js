@@ -31,6 +31,7 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 		this.addNew = readonlyError;
 		this.addNewExternal = readonlyError;
 	}
+	this.log = this.parent.log
 }
 
 ObjectListHandle.prototype.prepare = stub

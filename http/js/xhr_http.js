@@ -26,10 +26,10 @@ function getJson(url, cb, errCb){
 		            throw new Error('cannot parse getJson response: ' + xhr.responseText + ' ' + url)
 	            }
                 if(json === undefined) throw new Error('cannot parse getJson response')
-				cb(json)
+				if(cb) cb(json)
 			} else {  
 				console.log("Error", xhr.statusText, url);  
-				errCb(xhr.status)
+				if(errCb) errCb(xhr.status)
 			}  
 		}  
 	};  

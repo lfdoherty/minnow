@@ -15,10 +15,10 @@ exports.make = function(dataDir, schema, ol, cb){
 	
 	apState = require('./ap_state').make(schema, ol);
 
-	var inv = require('./inverse').make();
+	//var inv = require('./inverse').make();
 	
-	var broadcaster = require('./broadcast').make(inv);
-	inv.setBroadcaster(broadcaster)
+	var broadcaster = require('./broadcast').make();
+	//inv.setBroadcaster(broadcaster)
 	
 	apState.external.setBroadcaster(broadcaster)
 	

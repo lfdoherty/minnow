@@ -271,9 +271,11 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 				listener.set(value, undefined, editId)
 			}
 		},
-		detach: function(listener, editId){
+		detach: function singleObjectPropertyValue(listener, editId){
 			listeners.remove(listener)
 			if(editId){
+				//console.log(new Error().stack)
+				console.log('d: ' + listener.set)
 				listener.set(undefined, value, editId)
 			}
 		},
@@ -285,7 +287,11 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			elements.descend([innerLookup[path[0]], propertyCode].concat(path), editId, cb)
+			_.assertInt(path[0].edit.id)
+			var id = innerLookup[path[0].edit.id]
+			_.assertInt(id)
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
 		}
 	}
 	
@@ -301,7 +307,8 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			s.log(elements.name + ': '+elements)
 			s.log(JSON.stringify(Object.keys(elements)))
 			_.assertInt(id)
-			elements.descend([id, propertyCode], editId, function(pv, editId){
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+				editId, function(pv, editId){
 				if(pv !== value){
 					if(isObjectProperty){
 						innerLookup[pv] = id;
@@ -362,21 +369,31 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		getType: function(v){
+			//_.errout('TODO')
+			if(!isObjectProperty) _.errout('internal error')
+			return oldTypeGetter(v)
+		}
 	}
 	//TODO listen for changes
 	
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			var id = innerLookup[path[0]]
+			_.assertEqual(path[0].op, 'selectObject')
+			var id = innerLookup[path[0].edit.id]
 			if(id === undefined){
 				s.log(JSON.stringify(innerLookup))
-				_.errout('tried to descend into unknown id: ' + path[0])
+				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descend([id, propertyCode].concat(path), editId, cb)
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
 		}
 	}
+	
+	var oldPv
+	var oldTypeGetter
 	
 	var previousStreamListener
 	elements.attach({
@@ -387,9 +404,30 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			_.assertInt(editId)
 
 			//TODO stop streaming previous
-			if(previousStreamListener) s.objectState.stopStreamingProperty(id, propertyCode, previousStreamListener)
+			if(previousStreamListener){
+				//s.objectState.stopStreamingProperty(id, propertyCode, previousStreamListener)
+				_.errout('TODO')
+			}
 			function streamListener(pv, editId){
 				ongoingEditId = undefined
+				
+				//console.log('streaming object property: ' + JSON.stringify(pv))
+
+				if(oldPv){
+					//console.log('cleaning up oldPv ' + JSON.stringify(oldPv) + ' -> ' + JSON.stringify(pv))
+					//console.log('counts: ' + JSON.stringify(counts))
+					oldPv.forEach(function(v){
+						if(pv.indexOf(v) === -1){
+							--counts[v]
+							if(counts[v] === 0){
+								//console.log('emitting remove')
+								listeners.emitRemove(v, editId)
+							}
+						}
+					})
+				}
+				oldPv = [].concat(pv)
+
 				if(isObjectProperty && pv){
 					//_.assertInt(pv)
 					pv.forEach(function(v){
@@ -397,6 +435,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 					})
 				}
 				s.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
+				//console.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
 				//var pv = obj[propertyCode]
 				if(pv !== undefined){
 					pv.forEach(function(v){
@@ -404,16 +443,26 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 							counts[v] = 1
 							values.push(v)
 							s.log('emitting add: ' + v)
+							//console.log('emitting add')
 							listeners.emitAdd(v, editId)
-						}else{
+						}else if(oldPv.indexOf(v) === -1){
 							++counts[v]
 						}
 					})
 				}
 			}
 			previousStreamListener = streamListener
+
+			if(isObjectProperty){
+				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+					oldTypeGetter = typeGetter
+				}, true)
+			}
+			
 			//s.objectState.streamProperty(id, propertyCode, editId, streamListener)
-			elements.descend([id, propertyCode], editId, streamListener)
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
+				editId, streamListener)
+			
 		},
 		//shouldHaveObject: stub,
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
@@ -479,8 +528,11 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			var id = innerLookup[path[0]]
-			elements.descend([id, propertyCode].concat(path), editId, cb)
+			_.assertEqual(path[0].op, 'selectObject')
+			var id = innerLookup[path[0].edit.id]
+			_.assertInt(id)
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
 		}
 	}
 	
@@ -492,7 +544,8 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			var cur;
 			var first = true
 			//s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
-			elements.descend([id, propertyCode], editId, function(pv, editId){
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+				editId, function(pv, editId){
 				//console.log('GOT PROPERTY VALUE: ' + pv + ' ' + editId)
 				if(pv !== undefined){
 				
@@ -533,7 +586,9 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 				}
 				resume(editId)
 			})*/
-			elements.descend([id, propertyCode], editId, function(pv, editId){//TODO stop listening after first get
+			//console.log('in remove')
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+				editId, function(pv, editId){//TODO stop listening after first get
 				if(pvCounts[pv] === 1){
 					delete pvCounts[pv]
 					propertyValues.splice(propertyValues.indexOf(pv), 1)
@@ -608,8 +663,10 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			var id = innerLookup[path[0]]
-			elements.descend([id, propertyCode].concat(path), editId, cb)
+			_.assertEqual(path[0].op, 'selectObject')
+			var id = innerLookup[path[0].edit.id]
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
 		}
 	}
 	
@@ -619,7 +676,8 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 			s.log('got add $$$$$$$$$$$$$$$$$$$$$$: ' + id + ' ' + editId + ' ' + propertyCode)
 			//TODO listen for changes to object
 			var first = true
-			elements.descend([id, propertyCode], editId, function(v, editId){
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
+				editId, function(v, editId){
 				if(isObjectProperty){
 					innerLookup[v] = id
 				}
@@ -644,11 +702,14 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		},
 		remove: function(id, editId){
 			wait(editId)
-			elements.descend([id, propertyCode], editId, function(v, editId){
+			//console.log('remov..')
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+				editId, function(v, editId){
 				if(v === undefined){
 					resume(editId)
 					return
 				}
+				//console.log('remov..')
 				v.forEach(function(pv){
 					if(pvCounts[pv] === 1){
 						delete pvCounts[pv]

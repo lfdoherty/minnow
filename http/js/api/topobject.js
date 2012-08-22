@@ -34,6 +34,7 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id){
 	this.edits.forEach(function(e){
 		_.assertInt(e.editId)
 	})
+	this.log = this.parent.log
 }
 
 function destroyedWarning(){
@@ -57,11 +58,23 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	this.prepared = true;
 	var s = this;
 
+	//first we apply reversions
+	var realEdits = []//edits without reverts or reverted
+	for(var i=this.edits.length-1;i>=0;--i){//note how we go backwards to ensure that we can revert reversions as well.
+		var e = this.edits[i]
+		if(e.op === 'revert'){
+			while(i > 0 && this.edits[i].editId !== e.edit.version){ --i }
+			++i
+		}else{
+			realEdits.push(e)
+		}
+	}
+	realEdits.reverse()
+	
 	//apply edits
 	var currentSyncId=-1
-	this.log(this.objectId + ' preparing topobject with edits: ' + (JSON.stringify(this.edits) || 'no edits').slice(0,5000))
-	this.edits.forEach(function(e){
-		//_.assertInt(e.editId)
+	this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
+	realEdits.forEach(function(e){
 		if(e.op === 'setSyncId'){
 			currentSyncId = e.edit.syncId
 		}else if(e.op === 'madeViewObject'){
@@ -83,6 +96,21 @@ TopObjectHandle.prototype.prepare = function prepare(){
 		s[name] = v;
 		
 	});
+}
+
+TopObjectHandle.prototype._rebuild = function(){
+	if(this.isReadonlyAndEmpty) _.errout('error')
+	if(!this.prepared) return
+	if(this._destroyed) _.errout('cannot rebuild destroyed object')
+	
+	var s = this
+	var keys = Object.keys(s.typeSchema.properties);
+	keys.forEach(function(name){
+		var p = s.typeSchema.properties[name];
+		s[name] = undefined
+	})
+	this.prepared = false
+	this.prepare()
 }
 
 TopObjectHandle.prototype.isInner = function(){return false;}
@@ -128,6 +156,7 @@ TopObjectHandle.prototype.adjustPath = function(source){
 	_.assert(source > 0)
 	
 	var currentPath = this.currentPath
+	//console.log('adjustPath: ' + JSON.stringify(currentPath))
 	if(currentPath === undefined) currentPath = this.currentPath = []
 	this.log('adjust top path: ' + JSON.stringify(currentPath) + ' -> ' + source)
 	
@@ -214,7 +243,7 @@ TopObjectHandle.prototype.doRefresh = function(already, sourceOfRefresh, e){
 	}
 }
 
-TopObjectHandle.prototype.setObjectToJson = function(typeName, id, json){
+/*TopObjectHandle.prototype.setObjectToJson = function(typeName, id, json){
 
 	var obj = jsonutil.convertJsonToObject(this.schema, typeName, json);
 	
@@ -226,7 +255,7 @@ TopObjectHandle.prototype.setObjectToJson = function(typeName, id, json){
 		'setObjectToJson',
 		edit,
 		this.getEditingId());
-}
+}*/
 
 //TODO provide handle with temporary id for objects created this way
 TopObjectHandle.prototype.make = function(typeName, json,cb){
@@ -251,12 +280,13 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
     if(objSchema  === undefined) throw new Error('unknown type: ' + typeName)
 	var typeCode = objSchema.code;
 	var objEdits = jsonutil.convertJsonToEdits(this.schema, typeName, json);
+
 	
 	if(forget){
-		this.createNewExternalObject(typeCode, temporary, objEdits, forget)
+		this.createNewExternalObject(typeCode, -1, objEdits, forget)
 	}else{
-		var temporary = this.makeTemporaryId()//TODO should be unique to the sync handle for parallelism with the server-side handle
 
+		var temporary = this.makeTemporaryId()//TODO should be unique to the sync handle for parallelism with the server-side handle
 
 		var res = this.createNewExternalObject(typeCode, temporary, objEdits, forget)
 	
@@ -270,9 +300,14 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
 		return res;
 	}
 }
+
 TopObjectHandle.prototype.changeListenerElevated = ObjectHandle.prototype.changeListenerElevated
 
 function maintainPath(local, op, edit, syncId, editId){
+
+	local.log.info('current path:', local.pathEdits)
+	//console.log('current path: ' + JSON.stringify(local.pathEdits))
+	//console.log(JSON.stringify([op, edit, syncId, editId]))
 
 	if(local.lastEditId !== undefined && editId < local.lastEditId && editId >= 0){
 		_.errout('invalid old edit received: ' + editId + ' < ' + local.lastEditId)
@@ -280,71 +315,97 @@ function maintainPath(local, op, edit, syncId, editId){
 
 	local.lastEditId = editId
 	
-	if(local.path === undefined){
-		local.path = []
+	if(local.pathEdits === undefined){
+		//local.path = []
 		local.pathEdits = []
 	}
 	
 	if(op === 'reset'){
-		local.path = []
+		//local.path = []
 		local.pathEdits = []
 	}else if(op === 'selectProperty'){
-		local.path.push(edit.typeCode)
+		//local.path.push(edit.typeCode)
 		local.pathEdits.push({op: op, edit: edit})
 	}else if(op === 'reselectProperty'){
-		_.assert(local.path.length > 0)
-		local.path[local.path.length-1] = edit.typeCode
-		local.pathEdits[local.path.length-1] = {op: op, edit: edit}
+		_.assert(local.pathEdits.length > 0)
+		//local.path[local.path.length-1] = edit.typeCode
+		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(op === 'selectObject'){
-		local.path.push(edit.id)
+		//local.path.push(edit.id)
 		local.pathEdits.push({op: op, edit: edit})
 	}else if(op === 'reselectObject'){
 		_.assert(local.path.length > 0)
-		local.path[local.path.length-1] = edit.id
-		local.pathEdits[local.path.length-1] = {op: op, edit: edit}
+		//local.path[local.path.length-1] = edit.id
+		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
-		local.path.push(edit.key)
+		//local.path.push(edit.key)
 		local.pathEdits.push({op: op, edit: edit})		
 	}else if(op.indexOf('reselect') === 0 && op.indexOf('Key') === op.length-3){
-		local.path[local.path.length-1] = edit.key
-		local.pathEdits[local.path.length-1] = {op: op, edit: edit}
+		//local.path[local.path.length-1] = edit.key
+		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(op === 'ascend1'){
-		local.path.pop()
+		//local.path.pop()
 		local.pathEdits.pop()
 	}else if(op === 'ascend2'){
-		local.path = local.path.slice(0, local.path.length-2)
+		//local.path = local.path.slice(0, local.path.length-2)
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-2)
 	}else if(op === 'ascend3'){
-		local.path = local.path.slice(0, local.path.length-3)
+		//local.path = local.path.slice(0, local.path.length-3)
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-3)
 	}else if(op === 'ascend4'){
-		local.path = local.path.slice(0, local.path.length-4)
+		//local.path = local.path.slice(0, local.path.length-4)
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-4)
 	}else if(op === 'ascend5'){
-		local.path = local.path.slice(0, local.path.length-5)
+		//local.path = local.path.slice(0, local.path.length-5)
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-5)
+	}else if(op === 'ascend'){
+		//local.path = local.path.slice(0, local.path.length-edit.many)
+		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-edit.many)
 	}else if(op === 'made'){
-	}else if(op === 'wasSetToNew' && local.path.length === 1){
-		//_.errout('TODO')
-		var code = local.path[0]
+	}else if(op === 'wasSetToNew' && local.pathEdits.length === 1){
+
+		var code = local.pathEdits[0].edit.typeCode
 		var property = local.typeSchema.propertiesByCode[code]
+
+		if(local.getEditingId() === syncId){
+			//console.log('NOT: ' + local[property.name].rere)
+			local[property.name].objectId = edit.id
+			return
+		}
+		
 		var objSchema = local.schema[property.type.object]
-		//_.assertInt(this._internalId())
-		local[property.name] = new ObjectHandle(objSchema, [], edit.id, [code], local);
+		var n = local[property.name] = new ObjectHandle(objSchema, [], edit.id, [code], local);
+		n.prepare()
+		
 	}else{
-		if(op === 'setObject' || op === 'setViewObject' || op.indexOf('put') === 0 || op === 'removeExisting' || op === 'del'){
-			_.assert(local.path.length > 0)
-			var lastCode = local.path[local.path.length-1]
+		if(op === 'setObject' || op === 'setViewObject' || op.indexOf('put') === 0 || op === 'removeExisting' || op === 'del' || op === 'didPutNew'){
+			_.assert(local.pathEdits.length > 0)
+			var lastCode
+			var lastEdit = local.pathEdits[local.pathEdits.length-1]
+			if(lastEdit.op === 'selectProperty'){
+				lastCode = lastEdit.edit.typeCode
+			}else if(lastEdit.op === 'selectObject'){
+				lastCode = lastEdit.edit.id
+			}else if(lastEdit.op.indexOf('Key') !== -1){
+				lastCode = lastEdit.edit.key
+			}else{
+				_.errout('TODO: ' + JSON.stringify(lastEdit))
+			}
 			//this.log('here: ' + local.currentHandle.constructor)
 			var ch = descend(local, local.pathEdits.slice(0, local.pathEdits.length-1))
 			
-			//this.log(JSON.stringify(local.pathEdits))
-			local.log('calling elevated change listener ' + lastCode + ' ' + op + ' ' + JSON.stringify(edit))
-			ch.changeListenerElevated(lastCode, op, edit, syncId, editId)
+			if(ch !== undefined){
+				//this.log(JSON.stringify(local.pathEdits))
+				local.log.info('calling elevated change listener ' + lastCode + ' ' + op + ' ', edit)
+				//console.log('calling elevated change listener ' + lastCode + ' ' + op + ' ' + JSON.stringify(edit))
+				ch.changeListenerElevated(lastCode, op, edit, syncId, editId)
+			}else{
+				local.log.info('cannot execute edit, descent failed: ' + op + ' ', edit)
+			}
 		}else{
 			var currentHandle = descend(local, local.pathEdits)
 			if(currentHandle === undefined){
-				local.log('WARNING: cannot complete edit: ' + op + ' ' + JSON.stringify(edit))
+				local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
 				return
 			}
 			if(currentHandle === local){
@@ -356,10 +417,15 @@ function maintainPath(local, op, edit, syncId, editId){
 			}
 		}
 	}
-	local.log(local.objectId + ' maintained: ' + JSON.stringify([op, edit, syncId, editId]))
-	local.log('new path: ' + JSON.stringify(local.pathEdits))
+	local.log.info(local.objectId + ' maintained: ', [op, edit, syncId, editId])
+	//local.log('new path: ' + JSON.stringify(local.pathEdits))
+
+	//console.log(local.objectId + ' maintained: ' + JSON.stringify([op, edit, syncId, editId]))
+	//console.log('new path: ' + JSON.stringify(local.pathEdits))
+
 }
 exports.maintainPath = maintainPath
+
 
 TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertString(op)
@@ -368,29 +434,44 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertInt(editId)
 
 	this.prepare()//TODO optimize by appending edit if not prepared, applying if prepared?
+
+	this.edits.push({op: op, edit: edit, editId: editId})
 	
-	maintainPath(this, op, edit, syncId, editId)
+	if(op === 'revert'){
+		this._rebuild()
+	}else if(op === 'undo'){
+		this._rebuild()
+	}else if(op === 'redo'){
+		this._rebuild()
+	}else{
+		maintainPath(this, op, edit, syncId, editId)
+	}
 }
 TopObjectHandle.prototype.propertyByCode = ObjectHandle.prototype.propertyByCode
 function descend(start, pathEdits){
 	var ch = start
-	//this.log(JSON.stringify(pathEdits))
+	//start.log(JSON.stringify(pathEdits))
 	for(var i=0;i<pathEdits.length;++i){
 		var pe = pathEdits[i]
 		if(pe.op === 'selectProperty' || pe.op === 'reselectProperty'){
+			var oldCh = ch
 			ch = ch.propertyByCode(pe.edit.typeCode)
+			//console.log('selecting property: ' + pe.edit.typeCode + ' ' + ch.rere + ' ' + ch.objectId + ' ' + JSON.stringify(pathEdits))
+			//console.log('ch: ' + oldCh.objectId)
 		}else if(pe.op === 'selectObject' || pe.op === 'reselectObject'){
 			_.assert(pe.edit.id > 0)
 			if(ch.get){//map descent
 				ch = ch.get(pe.edit.id)
 				if(ch === undefined){
 					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					console.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}else{
 				//we don't actually do anything except check that the object property's object hasn't changed
 				if(ch.objectId !== pe.edit.id){
 					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					console.log('*WARNING: might be ok, but cannot descend into path due to id not found(' + ch.objectId + ' !=- ' + pe.edit.id+'): ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}
@@ -407,6 +488,9 @@ function descend(start, pathEdits){
 
 TopObjectHandle.prototype.del = function(){
 	ObjectHandle.prototype.del.apply(this)
+
+	this.emit({}, 'del')
+
 	this._destroy()
 }
 
@@ -429,6 +513,49 @@ TopObjectHandle.prototype._destroy = function(){
 
 TopObjectHandle.prototype.isView = function(){
 	return _.isString(this.objectId)
+}
+
+//produces a non-editable copy of this object for the given version number
+TopObjectHandle.prototype.version = function(editId){
+	var edits = []
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		if(e.editId > editId){
+			break;
+		}
+		edits.push(e)
+	}
+	var n = new TopObjectHandle(this.schema, this.typeSchema, edits, undefined, this.objectId)
+	return n
+}
+//produces an array of versions (editIds).
+//note that this array will include versions which were reverted later.
+TopObjectHandle.prototype.versions = function(){
+	var versions = []
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		versions.push(e.editId)
+	}
+	return versions
+}
+//given a version or array of versions (editIds), retrieves the timestamps for those versions asynchronously
+//the retrieval is async because by default we do not transmit timestamps for each edit (because they are usually not needed
+//and take up considerable storage/bandwidth.)
+TopObjectHandle.prototype.versionTimestamps = function(versions, cb){
+}
+//given a version number (editId), reverts the object to that version
+TopObjectHandle.prototype.revert = function(editId){
+	this.edits.push({op: 'revert', edit: {version: editId}})
+	this.persistEdit('revert', {version: editId})
+}
+
+TopObjectHandle.prototype.undo = function(){
+	//this.edits.push({op: 'undo', edit: {})
+	this.persistEdit('undo', {})
+}
+TopObjectHandle.prototype.redo = function(){
+	//this.edits.push({op: 'redo', edit: {})
+	this.persistEdit('redo', {})
 }
 
 module.exports = TopObjectHandle

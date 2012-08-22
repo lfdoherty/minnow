@@ -11,16 +11,19 @@ function MapHandle(typeSchema, obj, part, parent){
 	this.parent = parent;
 	this.schema = typeSchema;
 	
+	this.log = this.parent.log
+
+	this.keyOp = u.getKeyOperator(this.schema)
+	
 	if(this.schema.type.value.type === 'primitive'){
 		this.putOp = u.getPutOperator(this.schema)
-		this.keyOp = u.getKeyOperator(this.schema)
 	}
 }
 
 MapHandle.prototype.types = function(){
 	var fullSchema = this.getFullSchema();
 	var objectSchema = fullSchema[this.schema.type.value.object];
-	return recursivelyGetLeafTypes(objectSchema, fullSchema);
+	return u.recursivelyGetLeafTypes(objectSchema, fullSchema);
 }
 
 MapHandle.prototype.keys = function(){
@@ -81,7 +84,8 @@ MapHandle.prototype.each = function(cb){
 				if(a === undefined) a = local.getObjectApi(id);
 				cb(key, a);
 			}else{
-				_.errout('TODO: ' + JSON.stringify(local.schema));
+				//_.errout('TODO: ' + JSON.stringify(local.schema));
+				cb(key, idOrValue)
 			}
 		})
 		
@@ -90,13 +94,17 @@ MapHandle.prototype.each = function(cb){
 
 MapHandle.prototype.adjustPath = function adjustMapPath(key){
 	this.log('adjust map path ' + key)
+	console.log('adjust map path ' + key)
+	_.assertDefined(key)
 	var remainingCurrentPath = this.parent.adjustPath(this.part)
 	if(remainingCurrentPath.length === 0){
 		this.log('zero')
+		console.log('zero')
 		this.persistEdit(this.keyOp, {key: key})
 		return []
 	}else if(remainingCurrentPath[0] !== key){
 		this.log('different')
+		console.log('different')
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
 				this.log('primitive ascending ' + remainingCurrentPath[0])
@@ -106,6 +114,7 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 			}
 		}else{
 			this.log('reselecting')
+			console.log('reselecting')
 		}
 		this.persistEdit('re'+this.keyOp, {key: key})
 		return []
@@ -136,38 +145,29 @@ MapHandle.prototype.put = function(newKey, newValue){
 	this.emit(e, 'put', newKey, newValue)()
 }
 
-MapHandle.prototype.putNew = function(newKey, newTypeName, external){
+MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	if(this.schema.type.value.type !== 'object') _.errout('cannot putNew - values are not objects');
 
-	var type = getOnlyPossibleType(this, newTypeName);
-	
-	var temporaryId = u.makeTemporaryId();
-	
-	var e = {newType: type.code, key: newKey, external: external, temporary: temporaryId};
-	this.getSh().persistEdit(
-		this.getObjectId(), 
-		this.getPath(),
-		'putNew',
-		e,
-		this.getEditingId());
-
-	if(external){
-		this.createNewExternalObject(type.code, temporaryId);
-		this.obj[newKey] = temporaryId
-	}else{
-		this.log('not external')
-		_.errout('TODO')
-		this.obj[newKey] = {meta: {id: temporaryId, typeCode: type.code}};
+	if(arguments.length === 2){
+		if(_.isObject(newTypeName)){
+			json = newTypeName
+			newTypeName = undefined
+		}
 	}
-		
-	this.refresh()();
-	//this.log('finished refresh after addNew');
-
-	var res = this.getObjectApi(temporaryId, this);
-	res.prepare();
-	return res;	
+	json = json || {}
 	
+	var type = u.getOnlyPossibleType(this, newTypeName);
+	
+	this.adjustPath(newKey)
+	var e = {typeCode: type.code};
+	this.persistEdit('putNew', e)
+
+	var n = this._makeAndSaveNew(json, type)
+	this.obj[newKey] = n
+		
+	this.emit(e, 'put', newKey, n)()
 }
+
 MapHandle.prototype.has = function(desiredKey){
 	_.assertLength(arguments, 1);
 	if(this.obj === undefined) return false;
@@ -187,9 +187,11 @@ MapHandle.prototype.get = function(desiredKey){
 			var a = this.getObjectApi(idOrValue, this);
 			return a;
 		}else{
-			_.assertDefined(idOrValue)
-			var a = this.wrapObject(idOrValue, [], this);
-			return a;
+			//_.assertDefined(idOrValue)
+			//var a = this.wrapObject(idOrValue, [], this);
+			//return a;
+			idOrValue.prepare()
+			return idOrValue
 		}
 	}else if(this.schema.type.value.type === 'primitive'){
 		//TODO should provide a handler with operations like 'set'
@@ -295,6 +297,29 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId){
 		this.obj[key].push(edit.value)
 		this.log('key: ' + key)
 		return this.emit(edit, 'put')
+	}else if(op === 'didPutNew'){
+		/*this.obj[key] = edit.value;
+		this.log('key: ' + key)
+		return this.emit(edit, 'put')*/
+		//_.errout('TODO')
+		var id = edit.id//edit.obj.object.meta.id
+		//var temporary = edit.temporary
+		if(this.getEditingId() === syncId){
+			var objHandle = this.get(key);
+			if(objHandle === undefined){
+				this.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
+				return;
+			}
+			objHandle.reify(id)
+			return
+		}else{
+			_.assertInt(id)
+
+			var res = this.wrapObject(id, edit.typeCode, [key], this)
+			this.obj[key] = res
+			res.prepare()
+			return this.emit(edit, 'put')
+		}
 	}else if(op.indexOf('put') === 0){
 		this.obj[key] = edit.value;
 		this.log('key: ' + key)

@@ -24,8 +24,9 @@ function emit(e, eventName){
 	
 	var args = Array.prototype.slice.call(arguments, 2)
 	
+	var t = this
 	function callListener(listener){
-		var af = listener.apply(undefined, args)
+		var af = listener.apply(t, args)
 		if(af) afterCallbacks.push(af)
 	}
 	
@@ -179,7 +180,9 @@ function _makeAndSaveNew(json, type){
 	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json);
 
 	if(edits.length > 0){
-		this.adjustPath(temporary)
+		//this.adjustPath(temporary)
+		this.parent.adjustPath(this.part)
+		this.persistEdit('selectObject', {id: temporary})
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
@@ -195,9 +198,19 @@ function _makeAndSaveNew(json, type){
 	return n
 }
 
-function log(msg){
-	this.parent.log(msg)
+function log(){
+	this.parent.log.apply(this.parent, arguments)
 }
+/*
+function info(){
+	this.parent.info.apply(this.parent, arguments)
+}
+function warn(){
+	this.parent.warn.apply(this.parent, arguments)
+}
+function err(){
+	this.parent.err.apply(this.parent, arguments)
+}*/
 
 function isView(){
 	if(this.objectId && _.isString(this.objectId)) return true
@@ -223,8 +236,12 @@ function addCommonFunctions(classPrototype){
 
 	if(classPrototype.makeTemporaryId === undefined) classPrototype.makeTemporaryId = makeTemporaryId;
 	if(classPrototype._makeAndSaveNew === undefined) classPrototype._makeAndSaveNew = _makeAndSaveNew;
-	if(classPrototype.log === undefined) classPrototype.log = log
 	if(classPrototype.isView === undefined) classPrototype.isView = isView
+
+	if(classPrototype.log === undefined) classPrototype.log = log
+	/*if(classPrototype.info === undefined) classPrototype.info = info
+	if(classPrototype.warn === undefined) classPrototype.warn = warn*
+	if(classPrototype.err === undefined) classPrototype.err = err*/
 }
 
 
@@ -280,12 +297,30 @@ function SyncApi(schema, sh, logger){
 	this.latestVersionId = -1
 	this.log('made SyncApi ' + this.uid)
 	
-	this.editsHappened = []//for debugging
+	//this.editsHappened = []//for debugging
 }
+/*
+SyncApi.prototype.info = function(){
+	this.log.info.apply(this, arguments)
+}
+SyncApi.prototype.warn = function(){
+	this.log.warn.apply(this, arguments)
+}
+SyncApi.prototype.err = function(){
+	this.log.err.apply(this, arguments)
+}*/
+
 
 SyncApi.prototype.makeTemporaryId = function(){
 	--this.temporaryIdCounter;
 	return this.temporaryIdCounter
+}
+
+SyncApi.prototype.getTopObject = function(id){
+	_.assertInt(id)
+	var handle = this.getObjectApi(id, this);
+	handle.prepare();
+	return handle;
 }
 
 SyncApi.prototype.getView = function(viewId){
@@ -311,6 +346,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 	_.assertUndefined(this.objectApiCache[id])
 	var n = new TopObjectHandle(this.schema, t, edits, this, id);
 	this.objectApiCache[id] = n;
+	//n.pathEdits = undefined
 }
 SyncApi.prototype.addSnapshot = function(snap, typeCode, id){
 	var objs = snap.objects;
@@ -331,9 +367,26 @@ SyncApi.prototype.addSnapshot = function(snap, typeCode, id){
 
 SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
+	//console.log(new Error().stack)
+	console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
 	if(this.currentObjectId !== id){
 		
+		if(this.currentObjectId !== undefined){
+			var handle = this.objectApiCache[this.currentObjectId]
+			 if(handle){
+				handle.currentPath = undefined
+				console.log('reset path: '+ this.currentObjectId)
+			}else{
+				console.log('no handle: ' + this.currentObjectId)
+			}
+		}
+		
 		this.currentObjectId = id
+
+		console.log('selecting top object: ' + id + ' ' + op)
+		//_.assert(this.objectApiCache[this.currentObjectId] === undefined)
+		console.log('current path: ' + JSON.stringify(this.objectApiCache[this.currentObjectId].currentPath))
+
 		_.assert(id !== 0)
 		_.assertInt(id)
 		this.sh.persistEdit('selectTopObject', {id: id})
@@ -360,21 +413,21 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertString(op);
 	_.assertInt(editId);
 
-	if(this.currentTopObject){
+	if(this.currentTopObject && op !== 'selectTopObject' && op !== 'selectTopViewObject' && op !== 'setSyncId'){
 		if(this.currentTopObject === DESTROYED_REMOTELY){
 			_.errout('could not execute edit, server error, object already destroyed removely: ' + op + ' ' + JSON.stringify(edit) + ' ' + this.currentSyncId + ' ' + editId)
 		}else if(this.currentTopObject === DESTROYED_LOCALLY){
-			this.log('WARNING: could not execute edit, object already destroyed locally: ' + op + ' ' + JSON.stringify(edit) + ' ' + this.currentSyncId + ' ' + editId)
+			this.log.warn('WARNING: could not execute edit, object already destroyed locally: ' + op, edit, this.currentSyncId, editId)
 			return
 		}
 	}
 
-	this.log(this.uid+' SyncApi changeListener: ' + op + ' ' + JSON.stringify(arguments).slice(0,1000))
-	//console.log(op + ':' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
+	this.log.info(this.uid+' SyncApi changeListener: ' + op + ' ', arguments)
+	//console.log('*** ' + op + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
 
 	var hereKey = op+editId
 	if(this.lastKey === hereKey){
-		throw new Error('repeat')
+		throw new Error('repeat: ' + hereKey)
 	}
 	this.lastKey = hereKey
 
@@ -383,7 +436,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		if(editId < this.latestVersionId) throw new Error('edits arriving out of order: ' + editId + ' < ' +  this.latestVersionId)
 	}
 	
-	this.editsHappened.push({op: op, edit: edit, editId: editId})
+	//this.editsHappened.push({op: op, edit: edit, editId: editId})
 
 	var local = this
 	function makeViewObject(typeCode, id){
@@ -395,27 +448,40 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		local.objectApiCache[id] = n;
 	}
 	
-	if(op === 'selectTopViewObject' && this.objectApiCache[edit.id] === undefined){
-		var typeCode = parseInt(edit.id.substr(0, edit.id.indexOf(':')))//TODO hacky!
-		makeViewObject(typeCode, edit.id)
-	} else if(op === 'addExistingViewObject' && this.objectApiCache[edit.id] === undefined){
-		var typeCode = parseInt(edit.id.substr(0, edit.id.indexOf(':')))//TODO hacky!
-		makeViewObject(typeCode, edit.id)
-	}else if(op === 'setViewObject'){
-		var typeCode = parseInt(edit.id.substr(0, edit.id.indexOf(':')))//TODO hacky!
-		makeViewObject(typeCode, edit.id)
-	}
-	
 	if(op === 'madeViewObject'){
+		if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		var n = makeViewObject(edit.typeCode, edit.id)
 		this.currentTopObject = n
+		return
 	}else if(op === 'selectTopObject'){
-		this.currentTopObject = this.getObjectApi(edit.id)
+		if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
+		try{
+			this.currentTopObject = this.getObjectApi(edit.id)
+			this.currentTopObject.pathEdits = undefined
+		}catch(e){
+			console.log('WARNING: might be ok if destroyed locally, but cannot find top object: ' + edit.id)
+			this.currentTopObject = undefined
+		}
+		return
 	}else if(op === 'selectTopViewObject'){
+		if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		this.currentTopObject = this.getObjectApi(edit.id)
+		this.currentTopObject.pathEdits = undefined
+		//console.log('pe: ' + JSON.stringify(this.currentTopObject.pathEdits))
+		//_.assertUndefined(this.currentTopObject.pathEdits)
+		//this.currentTopObject.pathEdits = undefined
+		return
 	}else if(op === 'setSyncId'){
 		this.currentSyncId = edit.syncId
-	}else if(op === 'destroy'){
+		return
+	}
+
+	if(this.currentTopObject === undefined){
+		this.log.warn('might be ok if destroyed locally, but could not find top object')
+		return
+	}
+	
+	if(op === 'destroy'){
 		var id = this.currentTopObject.id()
 		delete this.objectApiCache[id]
 		delete this.snap.objects[id]
@@ -424,13 +490,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		//console.log('destroyed current object')
 	}else{
 		_.assertInt(this.currentSyncId)
-		try{
-			this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
-		}catch(e){
-			console.log(JSON.stringify(this.snap).slice(0,1000))
-			console.log(JSON.stringify(this.editsHappened, null, 2).slice(0,1000))
-			throw e
-		}
+		this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
 	}
 }
 function getFullSchema(){ return this.parent.getFullSchema();}
@@ -443,24 +503,39 @@ SyncApi.prototype.createNewExternalObject = function(typeCode, temporaryId, obj,
 	//console.log('created external object ' + typeCode + ' ' + temporaryId)
 	//return this.snap.objects[temporaryId] = {meta: {id: temporaryId, typeCode: typeCode, editId: -1}};
 
-	this.sh.persistEdit('make', {typeCode: typeCode, forget: forget, temporary: temporaryId})
+	this.sh.persistEdit('make', {typeCode: typeCode, forget: forget}, temporaryId)//, temporary: temporaryId})
+
+	var oldHandle = this.objectApiCache[this.currentObjectId]
+	if(oldHandle){
+		//console.log('*reseting path: ' + this.currentObjectId)
+		oldHandle.currentPath = undefined
+	}else{
+		//console.log('handle not found********')
+	}
+	
 	this.currentObjectId = temporaryId
 
 	//_.errout('TODO: include all obj edits')
 	if(obj.length > 0){
 		//this.sh.persistEdit('selectTopObject', {id: temporaryId})//TODO is this implicit?
 		var sh = this.sh
-		obj.forEach(function(edit){
+		//obj.forEach(function(edit){
+		for(var i=0;i<obj.length;++i){
+			var edit = obj[i]
 			sh.persistEdit(edit.op, edit.edit)
-		})
+		}
 	}
 	
-	var t = this.schema._byCode[typeCode];
-	var n = new TopObjectHandle(this.schema, t, obj, this, temporaryId);
-	this.objectApiCache[temporaryId] = n;
+	if(!forget){
+		var t = this.schema._byCode[typeCode];
+		var n = new TopObjectHandle(this.schema, t, obj, this, temporaryId);
+		this.objectApiCache[temporaryId] = n;
 
-	return n
+		return n
+	}else{
 
+		this.sh.forgetLastTemporary()
+	}
 }
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
@@ -481,6 +556,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		var cbb = this.objectCreationCallbacks[temporaryId]
 		if(cbb){
 			cbb(realId);
+			delete this.objectCreationCallbacks[temporaryId]
 		}
 	}
 }
@@ -493,8 +569,19 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 	}
 	var obj = this.snap.objects[idOrViewKey];
 	if(obj === undefined){
+
+		if(_.isString(idOrViewKey)){
+			if(idOrViewKey === '') _.errout('cannot get the null view id')
+			var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
+			var t = this.schema._byCode[typeCode];
+			_.assertObject(t)
+			var n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
+			this.objectApiCache[idOrViewKey] = n;
+			return n
+		}
+
 		console.log('snap: ' + JSON.stringify(this.snap).slice(0,500))
-		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
+		//console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
 		_.errout(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
 	}
@@ -639,7 +726,10 @@ exports.make = function(typeSchema, sh, logger){
 	_.assertObject(typeSchema);
 	_.assertObject(sh);
 	_.assertFunction(logger);
-
+	_.assertFunction(logger.info)
+	_.assertFunction(logger.warn)
+	_.assertFunction(logger.err)
+	
 	return new SyncApi(typeSchema, sh, logger);
 }
 

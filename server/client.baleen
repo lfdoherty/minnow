@@ -14,10 +14,10 @@ beginView 7
 	
 persistEdit 3
 	requestId int 1
-	op string 2
+	op byte 2
 	edit binary 3
 	syncId int 4
-	
+
 getSnapshots 4
 	requestId int 1
 	typeCode int 2
@@ -35,3 +35,6 @@ getSnapshot 6
 	params string 3
 	previousVersionId int 4
 	latestVersionId int 5
+
+forgetLastTemporary 8
+	syncId int 1

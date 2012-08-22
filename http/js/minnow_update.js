@@ -25,7 +25,7 @@ function establishSocket(appName, schema, host, cb){
 	var closed = false
 	var connected = false
 
-	var syncUrl = host+'/mnw/sync/'+appName;
+	var syncUrl = host+'/mnw/sync/'+appName+'/'+(Math.random()+'').substr(2);
 	getJson(syncUrl, function(json){    
 
 		var syncId = json.syncId
@@ -37,21 +37,17 @@ function establishSocket(appName, schema, host, cb){
 		var sendFacade = {
 			editBuffer: [],
 			sendSetupMessage: function(e, cb){
+				_.assertFunction(cb)
 				var uid = Math.random()+''
 				viewsBeingSetup[uid] = cb
 				e.uid = uid
-				//console.log('sent setup message')
+				console.log(syncId + ' sent setup message for uid: ' + uid)
 				sendFacade.editBuffer.push(e)//{type: 'setup view', snapshotVersion: snapshotVersion, uid: uid})
 			},
-			persistEdit: function(/*typeCode, id, path, */op, edit){
-				_.assertLength(arguments, 2)
-				//console.log('got arguments: ' + JSON.stringify(arguments))
-				//_.assertInt(typeCode)
-				//_.assertInt(id)
-				//_.assertArray(path)
+			persistEdit: function(op, edit, temporaryId){
 				_.assertString(op)
 				_.assertObject(edit)
-				sendFacade.editBuffer.push({data: {/*typeCode: typeCode, id: id, path: path, */op: op, edit: edit}});
+				sendFacade.editBuffer.push({data: {op: op, edit: edit}});
 			},
 			addEditListener: function(listener){
 				editListeners.push(listener)
@@ -60,6 +56,12 @@ function establishSocket(appName, schema, host, cb){
 
 		function log(msg){
 			//console.log(msg)
+		}
+		log.info = function(){
+		}
+		log.warn = function(){
+		}
+		log.err = function(){
 		}
 		var api = syncApi.make(schema, sendFacade, log);
 		api.setEditingId(syncId);
@@ -147,6 +149,9 @@ function establishSocket(appName, schema, host, cb){
 
 		function takeMessage(data){
 			if(data.type === 'ready'){
+				if(viewsBeingSetup[data.uid] === undefined){
+					_.errout('unknown view uid: ' + data.uid + ', known: ' + JSON.stringify(Object.keys(viewsBeingSetup)))
+				}
 				viewsBeingSetup[data.uid](data.data)
 			}else{
 				editListeners.forEach(function(listener){

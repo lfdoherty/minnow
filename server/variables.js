@@ -12,19 +12,13 @@ edit are less than or equal to the result of calling oldest() on the variable.
 
 var _ = require('underscorem')
 
-//var schemaModule = require('schema')
-/*
-var old = console.log
-console.log = function(msg){
-	msg = msg + ''
-	if(msg.length > 1000) _.errout('too long: ' + msg.slice(0, 500))
-	old(msg)
-}*/
+var viewstate = require('./viewstate')
 
 function makeGetter(schema, globalMacros, objectState, broadcaster, log){
 	_.assertFunction(log)
 	
 	var s = {schema: schema, globalMacros:globalMacros, objectState: objectState, broadcaster: broadcaster}
+	s.getAllSubtypes = viewstate.makeGetAllSubtypes(schema)
 	s.log = log
 	var f = variableGetter.bind(undefined, s);
 	return f;
@@ -47,22 +41,16 @@ require('./variables/time')
 require('./variables/map')
 require('./variables/multimap')
 require('./variables/top')
-//require('./variables/merge')
-require('./variables/math')
 require('./variables/switch')
 require('./variables/type')
 require('./variables/cast')
 
 var fixedPrimitive = require('./fixed/primitive')
 var fixedObject = require('./fixed/object')
-
+var fixedSet = require('./fixed/set')
 var macroCall = require('./variables/macrocall')
-//
 var schema = require('./../shared/schema')
-
 var syncplugins = require('./variables/syncplugins')
-
-//var specialization = require('./variables/specialization')
 
 function isView(expr, name){return expr.type === 'view' && expr.view === name;}
 
@@ -86,8 +74,8 @@ function variableGetter(s, setExpr, typeBindings){
 	}else if(setExpr.type === 'concrete-specialization'){
 		//return specialization.make(s, self, setExpr, typeBindings)
 		_.errout('TODO?')
-	}else if(setExpr.type === 'switch'){
-		var impl = schema.getImplementation('switch')
+	}else if(setExpr.type === 'array'){
+		return fixedSet.make(s, setExpr.value)
 	}else{
 		//console.log('did not find macro type for: ' + setExpr.view)
 		//console.log(JSON.stringify(typeBindings))
@@ -112,15 +100,16 @@ function variableGetter(s, setExpr, typeBindings){
 			if(impl.maxParams === 0 && setExpr.params.length !== 0){
 				throw new Error(setExpr.params.length + ' is too many parameters for ' + viewName + '()');
 			}else{
-				if(setExpr.params.length < impl.minParams) throw new Error(setExpr.params.length + ' is too few params for ' + callSyntax)
+				if(setExpr.params.length < impl.minParams) throw new Error(setExpr.params.length + ' is too few params for ' + impl.callSyntax)
 				if(impl.maxParams !== -1){
-					if(setExpr.params.length > impl.maxParams) throw new Error(setExpr.params.length + ' is too many params for ' + callSyntax)
+					if(setExpr.params.length > impl.maxParams) throw new Error(setExpr.params.length + ' is too many params for ' + impl.callSyntax)
 				}
 			}
 			if(impl.isSynchronousPlugin){
 				//_.errout('TODO')
 				return syncplugins.wrap(s, self, setExpr, typeBindings, impl)
 			}else{
+				//console.log('setExpr: ' + JSON.stringify(setExpr))
 				var implFunc = impl.implementation(s, self, setExpr, typeBindings)
 				_.assertFunction(implFunc)
 				implFunc.implName = viewName
@@ -139,32 +128,39 @@ function variableGetter(s, setExpr, typeBindings){
 exports.makeBindingsForViewGetter = function(s, viewSchema){
 	var paramGetters = []
 	var paramNames = []
-	viewSchema.params.forEach(function(param, index){
-		paramNames[index] = param.name
+	//viewSchema.params.forEach(function(param, index){
+	for(var i=0;i<viewSchema.params.length;++i){
+		var param = viewSchema.params[i]
+		paramNames[i] = param.name
 		if(param.type.type === 'primitive'){
-			paramGetters[index] = fixedPrimitive.make(s)
+			paramGetters[i] = fixedPrimitive.make(s)
 		}else if(param.type.type === 'object'){
-			paramGetters[index] = fixedObject.make(s)
+			paramGetters[i] = fixedObject.make(s)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(param))
 		}
 		//variableGetter(
-	})
+	}
 	
 	var topLevel = {
 		name: 'top-level',
 		descend: function(path, editId, cb){
 			s.objectState.streamProperty(path, editId, cb)
+		},
+		getType: function(id){
+			return s.objectState.getObjectType(id)
 		}
 	}
 	return function(params, startingEditId){
 		_.assertArray(params)
 		var bindings = {}
-		paramGetters.forEach(function(pg, index){
-			var pgv = pg(params[index], startingEditId, topLevel)
+		//paramGetters.forEach(function(pg, index){
+		for(var i=0;i<paramGetters.length;++i){
+			var pg = paramGetters[i]
+			var pgv = pg(params[i], startingEditId, topLevel)
 			_.assertString(pgv.name)
-			bindings[paramNames[index]] = pgv
-		})
+			bindings[paramNames[i]] = pgv
+		}
 		//console.log('created bindings for params: ' + JSON.stringify(params) + '->' + JSON.stringify(bindings))
 		return bindings;
 	}

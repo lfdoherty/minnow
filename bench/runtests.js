@@ -10,6 +10,22 @@ var rimraf = require('rimraf')
 
 var start = Date.now()
 
+var agent = require('webkit-devtools-agent');
+
+/*
+var jsCount = 0
+var old = JSON.stringify
+JSON.stringify = function(){
+	++jsCount
+	
+	if(jsCount > 1000){
+		_.errout('TODO')
+	}else{
+		return old.apply(undefined, arguments)
+	}
+}*/
+
+
 var includedTestDir
 var includedTest
 if(process.argv.length > 2){
@@ -172,14 +188,22 @@ function moreCont(doneCb){
 		}
 		
 		function doTest(){
+			console.log('doing test')
 			try{
-				t.test(t.dir, testDir, port, done)
+			
+				var config = {
+					schemaDir: t.dir, 
+					dataDir: testDir, 
+					port: port
+				}
+			
+				t.test(config, done)
 			}catch(e){
 				fail(e)
 			}
 		}
 		function makeDir(){
-			//log('making dir: ' + testDir)
+			console.log('making dir: ' + testDir)
 			fs.mkdir(testDir, function(err){
 				if(err){
 					if(err.code === 'EEXIST'){

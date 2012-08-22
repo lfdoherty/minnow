@@ -33,7 +33,7 @@ function countMaker(s, self, rel, typeBindings){
 	var elementsExpr = rel.params[0]
 	var cache = new Cache()	
 	
-	if(elementsExpr.type === 'view' && elementsExpr.view === 'type'){//optimization to avoid loading all the object ids into memory just to count them
+	if(elementsExpr.type === 'view' && elementsExpr.view === 'typeset'){//optimization to avoid loading all the object ids into memory just to count them
 		var typeName = elementsExpr.params[0].value
 		var typeCode = s.schema[typeName].code
 

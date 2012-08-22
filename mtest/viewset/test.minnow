@@ -1,6 +1,22 @@
 
 entity 1
 	value string 1
-	
+
+container 2
+	members set:entity 1
+		
 general() 100
 	s *entity 1
+
+wrapper(e entity) 101
+	value e.value 11
+
+wrapped() 102
+	s each(*entity,{wrapper(~)}) 1
+
+containerWrapper(c container) 103
+	members each(c.members,{wrapper(~)}) 1
+	
+contained() 104
+	c containerWrapper(one(*container)) 1
+	

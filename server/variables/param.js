@@ -22,10 +22,10 @@ exports.make = function(s, setExpr, typeBindings){
 			return typeBinding.wrapAsSet(v, editId, context)//typeBinding(v);
 		}
 		f.wrappers = typeBinding.wrappers
-		if(setExpr.schemaType.type === 'view'){
+		/*if(setExpr.schemaType.type === 'view'){
 			//console.log(''+typeBinding.wrapAsSet)
 			_.assertObject(f.wrappers)
-		}
+		}*/
 		/*if(setExpr.schemaType.type === 'object'){
 			//f.getDescender = typeBinding.getDescender
 			_.assertFunction(typeBinding.getDescender)

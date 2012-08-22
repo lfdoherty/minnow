@@ -3,7 +3,17 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+function poll(f){
+	var ci=setInterval(wf,10);
+	setTimeout(function(){
+		clearInterval(ci)
+	}, 1000)
+	function wf(){
+		if(f()){
+			clearInterval(ci)
+		}
+	}
+}
 
 exports.simplest = function(config, done){
 	minnow.makeServer(config, function(){
@@ -39,9 +49,9 @@ exports.simpleOther = function(config, done){
 			client.view('simpleOther2', function(c){
 			
 				poll(function(){
-					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s')){
 						var d = c.s
+						console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 						if(d.wrappedOtherValue.value() === 'test2'){
 							done()
 							return true

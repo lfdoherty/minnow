@@ -12,9 +12,20 @@ var fs = require('fs')
 var path = require('path')
 var exists = fs.exists ? fs.exists : path.exists
 
+var pathmerger = require('./pathmerger')
+
 var seedrandom = require('seedrandom')
 
 var log = require('quicklog').make('minnow/server')
+/*
+var old = Array.prototype.indexOf
+var ccc = 0
+Array.prototype.indexOf = function(v){
+	++ccc
+	if(ccc < 2000) return old.call(this, v)
+	
+	_.errout('TODO')	
+}*/
 
 function openUid(dataDir, cb){
 	var fn = dataDir + '/minnow_data/server.uid'
@@ -32,8 +43,8 @@ function openUid(dataDir, cb){
 	})
 }
 
-exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
-	_.assertLength(arguments, 5);
+exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */cb){
+	_.assertLength(arguments, 4);
 	
 	//schema.name = appName;
 
@@ -82,6 +93,8 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 		
 		var listenerCbs = {}
 		
+		var objectSubscribers = {}
+		
 		var handle = {
 			serverInstanceUid: function(){return serverUid;},
 
@@ -103,43 +116,78 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 				var listenerCb = listenerCbs[e.syncId]
 				_.assertFunction(listenerCb)
 				log('beginView: ' + JSON.stringify(e))
-				return viewState.beginView(e, listenerCb.seq, listenerCb, function(updatePacket){
-						readyCb(updatePacket);
-				})
+				return viewState.beginView(e, listenerCb.seq, listenerCb, readyCb)
 			},
 			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, cb){//(typeCode, id, path, op, edit, syncId, cb){
-				_.assertLength(arguments, 7);
+				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
 				_.assertInt(id)
 				_.assertString(op)				
 				_.assertArray(path)
 				_.assertInt(syncId);
-				_.assertFunction(cb)
+				//_.assertFunction(cb)
 				
-				log('adding edit: ' + JSON.stringify([id, path, op, edit, syncId]).slice(0, 300))
+				log.info('adding edit: ', [id, path, op, edit, syncId])
 				
 				if(op === 'make'){
-					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, function(res){
-						//console.log('args: ' + JSON.stringify(arguments))
-						//console.log('in MAKE CALLBACK #$%)@#$@#$)(#@$')
-						//console.log('subscribing for syncId ' + syncId)
-						var listenerCb = listenerCbs[syncId];						
-						listenerCb.seq.subscribeToObject(res.id)
-						cb(res)
-					});
+					var id = objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId)
+					if(!edit.forget){
+						//objectSubscribers[syncId](id)//, objectState.getCurrentEditId()-1)
+						listenerCbs[syncId].seq.subscribeToObject(id)
+					}
+					return id
 				}else{
-					//objectState.addEdit(typeCode, id, path, op, edit, syncId, cb);
-					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, cb);
+					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId);
 				}
 			},
-		
-			beginSync: function(listenerCb, objectCb){
+			forgetTemporary: function(temporary, syncId){
+				_.assertInt(syncId)
+				objectState.forgetTemporary(temporary, syncId)
+			},
+			makeSyncId: function(){
+				var syncId = ap.makeNewSyncId();
+				return syncId
+			},
+			beginSync: function(syncId, listenerCb, objectCb){
+				_.assertInt(syncId)
 				_.assertFunction(listenerCb)
 				_.assertFunction(objectCb)
-				var syncId = ap.makeNewSyncId();
 				
 				var alreadySent = {}
-				//var alreadyListening = {}
+				
+				var currentSyncId
+				var currentResponseId
+				var curPath = []
+				function sendEditUpdate(up){
+					_.assertInt(up.syncId)
+					if(currentSyncId !== up.syncId){
+						currentSyncId = up.syncId
+						listenerCb('setSyncId', {syncId: up.syncId}, up.editId)					
+					}
+					_.assertArray(up.path)
+
+
+					if(up.id !== -1){
+
+						if(currentResponseId !== up.id){
+							if(_.isString(up.id)){
+								listenerCb('selectTopViewObject', {id: up.id}, up.editId)					
+								curPath = []
+							}else{
+								listenerCb('selectTopObject', {id: up.id},  up.editId)					
+								curPath = []
+							}
+						}
+						currentResponseId = up.id
+		
+						var newPath = [].concat(up.path)
+						pathmerger.editToMatch(curPath, newPath, function(op, edit){
+							listenerCb(op, edit, up.editId)					
+						})
+						curPath = newPath
+					}
+					listenerCb(up.op, up.edit, up.editId)					
+				}
 				
 				var sentBuffer = []
 				function advanceSentBuffer(){
@@ -147,51 +195,25 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 						if(sentBuffer.length === 0) return
 						var e = sentBuffer[0]
 						if(e.got === true){
-							e.edits.forEach(function(e){
-								//listenerCb(e)
-								_.assertBuffer(e.edits)
-								//console.log('e: ' + JSON.stringify(e).slice(0,300))
-								//console.log('sending object: ' + JSON.stringify(e).slice(0,300))
-								objectCb(e)
-							})
+							for(var i=0;i<e.edits.length;++i){
+								var ek = e.edits[i]
+								objectCb(ek)
+							}
 							if(e.edits.length === 0){
 								log('0 objects actually sent')
 							}
 							sentBuffer.shift()
-							//advanceSentBuffer()
 						}else if(e.got === false){
 							return;
 						}else{
 							_.assert(e.id === -1 || alreadySent[e.id])
-							log('sending edit: ' + JSON.stringify(e))
-							listenerCb(e)
+							log('sending edit: ', e)
+							sendEditUpdate(e)
 							sentBuffer.shift()
 						}
 					}
 				}
-				/*function listenObjectCb(id, editId){
-					if(alreadyListening[id]){
-						console.log('already listening: ' + id)
-						return;
-					}else{
-						alreadyListening[id] = true
-						//TODO if the point at which we are instructed to listen is in the past (edits have occurred since)
-						//fill in the intervening edits
-						broadcaster.output.listenByObject(id, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-							//editBuffer.add({order: ++orderIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId})
-							sentBuffer.push({
-								typeCode: typeCode, 
-								id: id, 
-								path: path, 
-								op: op, 
-								edit: edit, 
-								syncId: syncId, 
-								editId: editId
-							})
-							advanceSentBuffer()
-						})
-					}
-				}*/
+				
 				function includeObjectCb(id, editId){
 					_.assertInt(id)
 					_.assert(id >= 0)
@@ -206,7 +228,6 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 						_.assertInt(editId)
 						_.assertInt(id)
 						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
-							//if(alreadySent[id]) return
 							
 							alreadySent[id] = true
 							_.assertBuffer(objEditsBuffer)
@@ -225,15 +246,15 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 				function alreadyHasCb(id, editId){
 					alreadySent[id] = true
 				}
-				function listenerCbWrapper(e){//(typeCode, id, path, op, edit, syncId, editId){
+				function listenerCbWrapper(e){
 					_.assertLength(arguments, 1);
 					_.assertInt(e.typeCode)
-					log('e: ' + JSON.stringify(e))
+					log('e: ', e)
 					//console.log(new Error().stack)
 					if(sentBuffer.length > 0){
 						sentBuffer.push(e)
 					}else{
-						listenerCb(e)
+						sendEditUpdate(e)
 					}
 				}
 
@@ -241,6 +262,10 @@ exports.make = function(schema, globalMacros, dataDir, synchronousPlugins, cb){
 
 				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, syncId)
 				listenerCbWrapper.seq = seq
+				
+				/*objectSubscribers[syncId] = function(id){
+					seq.subscribeToObject(id)
+				}*/
 				
 				return syncId
 			},

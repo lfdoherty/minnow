@@ -25,6 +25,8 @@ var matterhorn = require('matterhorn');
 var longpoll = require('./longpoll')
 var serviceModule = require('./service')
 
+var log = require('quicklog').make('minnow/matterhorn-service')
+
 function sendData(res, data){
 	res.setHeader('Content-Encoding', 'gzip');
 	res.setHeader('Content-Length', data.length);
@@ -59,6 +61,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		if(securitySetting === undefined){
 			log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
+			res.send(404)
 			return
 		}		
 		var params = serviceModule.parseParams(req.params.params, viewSchema)
@@ -66,6 +69,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 			if(!passed){
 				log('security policy denied access to view: ' + viewName);
 				console.log('WARNING: security policy denied access to view: ' + viewName);
+				res.send(404)
 				return
 			}
 			var snapshotId = parseInt(req.params.snapshotId);
@@ -112,7 +116,9 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		getViewTags: function(viewName, params, vars, cb){
 			_.assertLength(arguments, 4);
 			
-			var viewCode = minnowClient.schema[viewName].code
+			var viewSchema = minnowClient.schema[viewName]
+			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
+			var viewCode = viewSchema.code
 			service.getViewFiles(viewName, params, function(snapshotIds, paths, lastSeenVersionId){
 				
 				if(arguments.length === 0){

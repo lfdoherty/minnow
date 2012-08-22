@@ -1,3 +1,4 @@
+"use strict";
 
 var _ = require('underscorem')
 
@@ -21,7 +22,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 	
 	
 	//TODO dedup for multiple?
-	app.get(exports, '/mnw/sync/'+appName, identifier, function(req, httpRes){
+	app.get(exports, '/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
 		var theSyncId;
 		//var state = {{
 		function listenerCb(e){
@@ -32,7 +33,11 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 			//_.errout('TODO: ' + JSON.stringify(e))
 			objectListener(theSyncId, id, edits)
 		}
-		minnowClient.beginSync(listenerCb, objectCb, function(syncId, syncHandle){
+		function makeCb(id, temporary){
+			//_.errout('TODO')
+			sendToClient(theSyncId, ['reify', id, temporary])
+		}
+		minnowClient.beginSync(listenerCb, objectCb, makeCb, function(syncId, syncHandle){
 			theSyncId = syncId
 			syncHandle.owningUserId = req.user.id
 			syncHandles[syncId] = syncHandle
@@ -40,6 +45,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 			var data = JSON.stringify({syncId: syncId})
 			httpRes.setHeader('Content-Type', 'application/json');
 			httpRes.setHeader('Content-Length', data.length);
+			//httpRes.setHeader('Cache-Control', 'max-age=0');
 			httpRes.end(data)
 		})
 	})
@@ -51,7 +57,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 		
 		//_.assertString(e.op)
 		
-		log('sending socket.io message for sync ' + connectionSyncId)// + ', editId: ' + e.editId);
+		log('sending message for sync ' + connectionSyncId)// + ', editId: ' + e.editId);
 		_.assertInt(id)
 		_.assertArray(edits)
 		var msg = ['object', id, edits];
@@ -65,7 +71,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 		
 		_.assertString(e.op)
 		
-		log('sending socket.io message for sync ' + connectionSyncId + ', editId: ' + e.editId);
+		log('sending message for sync ' + connectionSyncId + ': ' + JSON.stringify(e));
 
 		var msg = ['edit', e.op, e.edit, e.editId];
 
@@ -108,7 +114,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 					latestSnapshotVersionId: msg.version//snapshotIds[snapshotIds.length-1]
 				}
 				syncHandles[syncId].beginView(viewReq, function(e){
-					log('BEGAN VIEW')
+					log(syncId + ' BEGAN VIEW(' + viewCode + ')' + msg.params + ': ' + msg.uid)
 					sendToClient(syncId, {type: 'ready', uid: msg.uid, data: JSON.parse(e.updatePacket)})
 				})
 			}, JSON.parse(msg.params), req)
@@ -132,13 +138,7 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 				msg = msg.data
 
 				log(syncId + ' longpoll persisting ' + msg.op + ' ' + JSON.stringify(msg.edit))
-				syncHandle.persistEdit(msg.op, msg.edit, syncId, function(response){
-					//TODO?
-					if(msg.op === 'make'){
-
-						sendToClient(syncId, ['reify', response.id, response.temporary])
-					}
-				});
+				syncHandle.persistEdit(msg.op, msg.edit, syncId)
 			}
 		})
 

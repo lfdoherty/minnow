@@ -17,13 +17,18 @@ function switchType(rel, ch){
 	//TODO specialize binding types depending on the original global-macro signature
 	rel.params.forEach(function(c, index){
 		if(index === 0) return
+		_.assertDefined(c.schemaType)
 		types.push(c.schemaType)
 	})
+	
+	//console.log('switchType: ' + JSON.stringify(rel))
+	
 	//console.log(JSON.stringify(types))
 	var temp = JSON.stringify(types[0])
 	for(var i=1;i<types.length;++i){
 		var t = JSON.stringify(types[i])
 		if(temp !== t){
+			console.log(JSON.stringify(types))
 			_.errout('TODO implement type base computation')
 		}
 	}
@@ -46,20 +51,31 @@ function maker(s, self, rel, typeBindings){
 		_.assertEqual(param.params[0].type, 'value')
 		var caseValue = param.params[0].value;
 		var caseGetter = self(param.params[1], typeBindings)
+	//	console.log('self: ' + caseValue)
+		//console.log('f: ' + JSON.stringify(param.params[1]))
+		_.assertFunction(caseGetter)
 		cases.push({value: caseValue.toString(), getter: caseGetter})
 	}
 	//var cache = new Cache()
 	var f = svgGeneralSwitch.bind(undefined, s, /*cache, */primGetter, cases)
-	//f.wrapAsSet = ?
+	f.wrapAsSet = function(){
+		_.errout('TODO')
+	}
 	return f
 }
 
 function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 
 	var primVariable = primGetter(bindings, editId)
+
+	for(var i=0;i<cases.length;++i){
+		_.assertFunction(cases[i].getter)
+	}
+
 	/*var key = elements.key
 	cases.forEach(function(c){
 	})
+
 	
 	if(cache.has(key)) return cache.get(key)*/
 	
@@ -80,6 +96,11 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 		var args = Array.prototype.slice.apply(arguments)
 		caseVariable.descend.apply(args)
 	}*/
+	
+	function getType(id){
+		_.errout('TODO')
+	}
+	
 	var handle = {
 		name: 'switch',
 		attach: function(listener, editId){
@@ -98,7 +119,8 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 		},
 		oldest: oldest,
 		key: Math.random(),
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		getType: getType
 	}
 	
 	function useCase(getter, editId){
@@ -119,6 +141,7 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 			for(var i=0;i<cases.length;++i){
 				var c = cases[i]
 				//console.log('trying: ' + c.value)
+				_.assertFunction(c.getter)
 				if(c.value === v.toString()){
 					useCase(c.getter, editId)
 					return

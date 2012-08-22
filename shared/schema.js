@@ -39,7 +39,7 @@ exports.getImplementation = function(name){
 require('./../server/variables/filter')
 require('./../server/variables/each')
 require('./../server/variables/subset')
-require('./../server/variables/binaryops')
+//require('./../server/variables/binaryops')
 
 var log = require('quicklog').make('minnow/schema')
 
@@ -71,7 +71,7 @@ function concretizeMacros(view){
 function concretizeMacrosForView(v, viewMap){
 	var bindings = {}
 	v.params.forEach(function(p){
-		
+		_.assertString(p.name)
 		bindings[p.name] = {type: 'param', name: p.name}
 	})
 	_.each(v.rels, function(rel, relName){
@@ -98,10 +98,13 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		}else{
 			if(expr.name.charAt(0) === '~'){
 				if(expr.name.length === 1){
+					if(implicits[0] === undefined) _.errout('tried to use ~ param outside of macro')
+					_.assertString(implicits[0])
 					return {type: 'param', name: implicits[0]}
 				}else{
 					var num = parseInt(expr.name.substr(1))
 					--num
+					_.assertString(implicits[num])
 					return {type: 'param', name: implicits[num]}
 				}
 			}
@@ -213,6 +216,8 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		return expr
 	}else if(expr.type === 'value' || expr.type === 'int'){
 		return expr
+	}else if(expr.type === 'array'){
+		return expr
 	}else if(expr.type === 'macro'){
 		var newImplicits
 		if(expr.implicits){
@@ -263,7 +268,7 @@ function computeBindingsUsed(expr){
 		var u = Object.create(null)
 		u[expr.name] = true
 		return u
-	}else if(expr.type === 'value' || expr.type === 'int'){
+	}else if(expr.type === 'value' || expr.type === 'int' || expr.type === 'array'){
 		//ignore
 		return Object.create(null)
 	}else if(expr.type === 'concrete-specialization'){
@@ -325,6 +330,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 				_.each(rel.params, function(p){
 					paramTypes.push(p.schemaType)
 				})
+				//console.log('parsing plugin: ' + pluginName)
 				return keratin.parseType(plugin.type(paramTypes))
 			},
 			implementation: plugin.compute,
@@ -488,7 +494,7 @@ function parseViewExpr(expr){
 
 		if(fc === "'"){
 			var str = expr.substring(1, expr.length-1);
-			path.push({type: 'value', value: str});
+			path.push({type: 'value', value: str, schemaType: {type: 'primitive', primitive: 'string'}});
 			break;
 		}else if(fc === '*'){
 			var filter;
@@ -567,6 +573,19 @@ function parseViewExpr(expr){
 			});
 			path.push({type: 'partial-application', macro: globalMacroName, params: bindingParams})
 			expr = expr.substr(closeAngle+1)
+		}else if(expr.indexOf(':') !== -1){
+			var typeName = expr.substr(0, expr.indexOf(':')).trim()
+			expr = expr.substr(expr.indexOf(':')+1)
+			var strExpr = {type: 'value', value: typeName, schemaType: {type: 'primitive', primitive: 'string'}}
+			var paramExpr = expr
+			if(paramExpr.indexOf('.') !== -1) paramExpr = paramExpr.substr(0, paramExpr.indexOf('.'))
+			expr = expr.substr(paramExpr.length)
+			var pve = parseViewExpr(paramExpr)
+			//_.assertDefined(typeName)
+			if(typeName === 'undefined') _.errout('here')
+			pve.schemaType = {type: 'object', object: typeName}
+			path.push({type: 'view', view: 'cast', params: [strExpr, pve]})
+			//break;
 		}else{
 			var dotIndex = findOuterChar(expr, '.')
 			if(dotIndex !== -1){
@@ -580,11 +599,18 @@ function parseViewExpr(expr){
 				if(parseInt(expr)+'' === expr){
 					path.push({type: 'int', value: parseInt(expr)})
 					break;
-				}else if(expr.indexOf(':') !== -1){
+				}/*else if(expr.indexOf(':') !== -1){
 					var typeName = expr.substr(0, expr.indexOf(':')).trim()
 					expr = expr.substr(expr.indexOf(':')+1)
-					var strExpr = {type: 'value', value: typeName}
-					path.push({type: 'view', view: 'cast', params: [strExpr, parseViewExpr(expr)]})
+					var strExpr = {type: 'value', value: typeName, schemaType: {type: 'primitive', primitive: 'string'}}
+					var pve = parseViewExpr(expr)
+					//_.assertDefined(typeName)
+					if(typeName === 'undefined') _.errout('here')
+					pve.schemaType = {type: 'object', object: typeName}
+					path.push({type: 'view', view: 'cast', params: [strExpr, pve]})
+					break;
+				}*/else if(expr === '[]'){
+					path.push({type: 'array', value: []})
 					break;
 				}else{
 					checkAlphanumericOnly(expr, 'parameter name must contain only alphanumeric characters, or be & or $ (' + expr + ')');
@@ -595,6 +621,7 @@ function parseViewExpr(expr){
 		}
 		expr = expr.trim()
 	}
+	//console.log('path: ' + JSON.stringify(path))
 	return invertViewExpression(path);
 }
 
@@ -699,12 +726,17 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 	
 	if(rel.type === 'param' && bindingTypes[rel.name] !== undefined){
 		if(bindingTypes[rel.name].type.type === 'object' && bindingTypes[rel.name].type.object === 'macro') throw new Error()
+		_.assertDefined(bindingTypes[rel.name])
 		return rel.schemaType = bindingTypes[rel.name]
 	}else if(rel.type === 'param'){
+		if(rel.name === undefined){
+			_.errout('error: ' + JSON.stringify(rel))
+		}
 		if(rel.name.charAt(0) === '~'){
 			
 			var num = rel.name.length > 1 ? parseInt(rel.name.substr(1)) : 1
 			--num
+			_.assertDefined(bindingTypes[implicits[num]])
 			return rel.schemaType = bindingTypes[implicits[num]]
 		}
 		
@@ -730,15 +762,24 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		if(initialType === undefined){
 			_.errout('object type not found: ' + JSON.stringify(initialTypeName));
 		}
-		return rel.schemaType = computePathResultType(rel.path.slice(1), initialType, v, schema, viewMap);
+		rel.schemaType = computePathResultType(rel.path.slice(1), initialType, v, schema, viewMap);
+		_.assertDefined(rel.schemaType)
+		return rel.schemaType
 	}else if(rel.type === 'view'){
 	
+		_.assertString(rel.view)
+		
 		if(rel.view === 'cast'){
 			//_.assertString(rel.typeName)
+			_.assertDefined(rel.params[0].value)
+			if(rel.params[0].value.name === 'undefined') _.errout('here')
 			return rel.schemaType = {type: 'object', object: rel.params[0].value}
 		}
 		if(rel.view === 'case'){
-			return rel.schemaType = computeTypeWrapper(rel.params[1], bindingTypes, implicits)
+			rel.schemaType = computeTypeWrapper(rel.params[1], bindingTypes, implicits)
+			_.assertDefined(rel.schemaType)
+
+			return rel.schemaType
 		}
 		
 		var v = viewMap[rel.view];
@@ -759,12 +800,15 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		if(bindingTypes[rel.view] !== undefined){//view is calling a macro in a parameter
 			_.assertLength(rel.params, 0)
 			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
-			return bindingTypes[rel.view].schemaType
+			return bindingTypes[rel.view].schemaType//TODO should be setting rel.schemaType here?
 		}
 		
 		if(schema[rel.view]){
 			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
-			return rel.schemaType = {type: 'object', object: rel.view, code: schema[rel.view].code};
+			if(rel.view === 'undefined') _.errout('here')
+			rel.schemaType = {type: 'object', object: rel.view, code: schema[rel.view].code};
+			_.assertDefined(rel.schemaType)
+			return rel.schemaType
 		}
 		
 		var def = builtinFunctions[rel.view]
@@ -805,6 +849,8 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		var res = computePathResultType(rel.path, t, v, schema, viewMap);
 		
 		_.assertObject(res);
+		_.assertString(res.name)
+		if(res.name === 'undefined') _.errout('here')
 		return rel.schemaType = {type:'set', members: {type: 'object', object: res.name, objectCode: res.code}};//code: res.code, hintName: res.name}};
 	}else if(rel.type === 'value'){
 		if(_.isString(rel.value)) return rel.schemaType = {type: 'primitive', primitive: 'string'}
@@ -862,6 +908,8 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		return types[0]*/
 	}else if(rel.type === 'int'){
 		return rel.schemaType = {type: 'primitive', primitive: 'int'}
+	}else if(rel.type === 'array'){
+		return rel.schemaType = {type: 'set', members: {type: 'primitive', primitive: 'string'}}
 	}else{
 		_.errout('TODO: support rel type: ' + rel.type);
 	}

@@ -359,7 +359,9 @@ exports.singlePairedFilterTest = function(config, done){
 						var lostTeenager = false
 						poll(function(){
 							var json = pc.adults.toJson()
-							//console.log('@ ' + JSON.stringify(json))
+							
+							//console.log(JSON.stringify(json))
+
 							if(_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
 								gotTeenager = true
 							}

@@ -19,6 +19,9 @@ function sfgObject(s, id, editId, context){
 	_.assertDefined(context)
 	_.assertString(context.name)
 	_.assertFunction(context.descend)
+
+	if(!_.isFunction(context.getType))_.errout('no getType: ' + context.name)
+	_.assertFunction(context.getType)
 	
 	var key = id+''
 	
@@ -49,7 +52,8 @@ function sfgObject(s, id, editId, context){
 			s.log('context: ' + context.name)
 			//console.log('context: ' + context.name)
 			context.descend(path, editId, cb)
-		}
+		},
+		getType: context.getType
 	}
 	return handle
 }

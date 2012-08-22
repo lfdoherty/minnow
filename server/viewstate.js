@@ -8,6 +8,27 @@ var variableView = require('./variables/view')
 
 var log = require('quicklog').make('minnow/viewstate')
 
+function makeGetAllSubtypes(schema){
+	function getAllSubtypes(typeCode){
+		var objSchema = schema._byCode[typeCode]
+		var result = {}
+		result[objSchema.code] = objSchema
+		Object.keys(objSchema.subTypes).forEach(function(stName){
+			var subs = getAllSubtypes(schema[stName].code)
+			subs.forEach(function(objSchema){
+				result[objSchema.code] = objSchema
+			})
+		})
+		var real = []
+		Object.keys(result).forEach(function(codeStr){
+			real.push(result[codeStr])
+		})
+		return real
+	}
+	return getAllSubtypes
+}
+exports.makeGetAllSubtypes = makeGetAllSubtypes
+	
 exports.make = function(schema, globalMacros, broadcaster, objectState){
 	//var variableGetter = variables.makeGetter(schema, objectState, broadcaster)
 	_.assertFunction(broadcaster.output.listenForNew)
@@ -19,6 +40,8 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 	var s = {schema: schema, globalMacros: globalMacros, broadcaster: broadcaster.output, objectState: objectState}
 	s.log = log
 	_.assertFunction(s.log)
+	
+	s.getAllSubtypes = makeGetAllSubtypes(schema)
 	
 	var variableGetter = variableView.makeTopLevel.bind(undefined, s, selfGetter)//, setExpr)
 	Object.keys(schema._byCode).forEach(function(typeCodeStr){
@@ -65,7 +88,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			log('beginning view after ' + e.latestSnapshotVersionId)
 			
 			var bindings = vg.binder(parsedParams, e.latestSnapshotVersionId)
-			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId())
+			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId()-1)
 			seq.addView(e.typeCode, viewVariable, e.latestSnapshotVersionId, readyCb)
 			
 			return {
@@ -122,7 +145,6 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			}
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, snapshotId)//TODO is snapshotId the right editId here?
 			viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, previousSnapshotId, snapshotId, cb)
-			//(schema, objectState, viewTypeCode, viewVariable, startEditId, endEditId, readyCb){
 		}
 	}
 	return handle;

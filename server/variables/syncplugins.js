@@ -31,11 +31,35 @@ function wrapParam(v, schemaType, s){
 				set: function(v, oldV, editId){
 					cachedValue = v
 					listeners.emitChanged(editId)
-				}/*,
-				shouldHaveObject: stub*/
+				}
 			}, editId)
 			return {
 				name: 'syncplugin-primitive-wrapper',
+				attach: function(listener, editId){
+					_.assertInt(editId)
+					listeners.add(listener)
+					if(cachedValue)
+					listener.changed(editId)
+				},
+				get: function(){return cachedValue;},
+				oldest: t.oldest
+			}
+		}
+	}else if(schemaType.type === 'object'){
+		return function(bindings, editId){
+
+			var listeners = listenerSet()
+
+			var t = v(bindings, editId)
+			var cachedValue
+			t.attach({
+				set: function(v, oldV, editId){
+					cachedValue = v
+					listeners.emitChanged(editId)
+				}
+			}, editId)
+			return {
+				name: 'syncplugin-object-wrapper',
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
@@ -201,8 +225,9 @@ function setupOutputHandler(schemaType, s){
 				key: Math.random()
 			}
 		}
-		f.wrapAsSet = function(){
-			_.errout('TODO')
+		f.wrapAsSet = function(v, editId){
+			//_.errout('TODO')
+			return fixedPrimitive.make(s)(v, {}, editId);
 		}
 		return f
 	}else if(schemaType.type === 'set'){
@@ -264,13 +289,17 @@ function setupOutputHandler(schemaType, s){
 						}
 					},
 					oldest: oldest,
-					key: Math.random()
+					key: Math.random(),
+					getType: function(id){//TODO? more complicated than this?
+						//_.errout('TODO')
+						return s.objectState.getObjectType(id)
+					}
 				}
 				if(schemaType.members.type !== 'primitive'){
 					handle.descend = function(path, editId, cb, continueListening){
 						_.assertFunction(cb)
-						_.assertInt(path[0])
-						_.assertInt(path[1])
+						//_.assertInt(path[0])
+						//_.assertInt(path[1])
 						s.objectState.streamProperty(path, editId, cb, continueListening)
 					}
 				}
@@ -358,6 +387,8 @@ function setupOutputHandler(schemaType, s){
 	}
 }
 
+exports.wrapParam = wrapParam
+
 exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 
 	/*
@@ -378,7 +409,7 @@ exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 	})
 	
 	_.assert(paramSets.length >= plugin.minParams)
-	_.assert(paramSets.length <= plugin.maxParams)
+	_.assert(plugin.maxParams === -1 || paramSets.length <= plugin.maxParams)
 
 	var makeOutputHandle = setupOutputHandler(plugin.schemaType(callExpr), s)
 
@@ -427,6 +458,7 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 	}
 	
 	function oldest(){
+		//console.log(new Error().stack)
 		var o = s.objectState.getCurrentEditId()
 		for(var i=0;i<params.length;++i){
 			var p = params[i]
@@ -441,7 +473,8 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 		var valueArray = []
 		for(var i=0;i<params.length;++i){
 			valueArray[i] = params[i].get()
-			_.assertDefined(valueArray[i])
+			//_.assertDefined(valueArray[i])
+			if(valueArray[i] === undefined && !plugin.nullsOk) return
 		}
 		//console.log('recomputing with: ' + JSON.stringify(valueArray))
 		var rr = plugin.implementation(valueArray)

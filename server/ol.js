@@ -1,44 +1,24 @@
 "use strict";
 
-var sf = require('segmentedfile')
-
-var indexFile = require('indexfilestream')
-
-var parsicle = require('parsicle')
-var baleen = require('baleen')
-var fparse = require('fparse')
-var shared = require('./tcp_shared')
-var pathupdater = require('./pathupdater')
-
 var fs = require('fs')
 
-var bin = require('./../util/bin')
-
 var _ = require('underscorem')
+var sf = require('segmentedfile')
+var indexFile = require('indexfilestream')
+var parsicle = require('parsicle')
+var fparse = require('fparse')
+var shared = require('./tcp_shared')
 
-var indexFormat = parsicle.make(function(parser){
-
-	parser('entry', 'object', function(p){
-		p.key('versionId').long();
-		var obj = p.key('objects').array().loop().object();
-		obj.key('id').long();
-		obj.key('typeCode').int()
-		obj.optionalKey('serverId').long();
-		obj.key('position').long();
-		obj.key('length').int();
-	})
-
-	parser('parser', 'object', function(p){
-		p.key('id').int();
-		p.key('data').binary();
-	})
-})
+var pathsplicer = require('./pathsplicer')
+var bin = require('./../util/bin')
+var olcache = require('./olcache')
 
 function serializeEdits(fp, edits){
 	var w = fparse.makeSingleBufferWriter()
 	w.putInt(edits.length)
 	edits.forEach(function(e){
 		//w.putString(e.op)
+		_.assertString(e.op)
 		w.putByte(fp.codes[e.op])
 		w.putInt(e.editId)
 		fp.writers[e.op](w, e.edit)
@@ -48,57 +28,393 @@ function serializeEdits(fp, edits){
 
 var log = require('quicklog').make('minnow/ol')
 
-var MaxBufferSize = 200;
-var BufferFlushChunkSize = 100;
+var fp = shared.editFp
+
+function OlReaders(ol){
+	this.ol = ol
+	this.currentId = -1
+	this.currentSyncId = -1
+	this.lastVersionId = 1
+	this.manySyncIdsMade = 0
+}
+OlReaders.prototype.make = function(e){
+	var n = this.ol._make(e)//TODO
+	this.currentId = n.id
+	log('got make', e.typeCode, ':', this.currentId)
+}
+OlReaders.prototype.setSyncId = function(e){
+	this.currentSyncId = e.syncId
+}
+OlReaders.prototype.selectTopObject = function(e){
+	this.currentId = e.id
+	_.assertInt(this.currentId)
+}
+OlReaders.prototype.selectTopViewObject = function(e){
+	_.errout('cannot save view object')
+},
+OlReaders.prototype.syntheticEdit = function(){
+	++this.lastVersionId
+},
+OlReaders.prototype.destroy = function(){
+	this.ol._destroy(this.currentId)//TODO
+	this.currentId = undefined	
+},
+OlReaders.prototype.madeSyncId = function(){
+	++this.manySyncIdsMade
+	log('made sync id')
+}
+
+_.each(shared.editSchema._byCode, function(objSchema){
+	var name = objSchema.name
+	/*if(readers[name] === undefined){
+		readers[name] = appendEdit.bind(undefined, name)
+	}*/
+	if(OlReaders.prototype[name] === undefined){
+		OlReaders.prototype[name] = function(edit){
+			//appendEdit(name, edit)
+			this.ol.persist(this.currentId, name, edit, this.currentSyncId)
+		}//appendEdit.bind(undefined, name)
+	}
+})
+
+function Ol(){
+	this.readers = new OlReaders(this)
+	this.olc = olcache.make()
+	this.objectCurrentSyncId = {}
+	this.idCounter = 0
+	
+	this.idsByType = {}
+	this.objectTypeCodes = {}
+	this.destroyed = {}//for better bug reporting
+	
+	this.stats = {
+		make: 0,
+		change: 0,
+		writeToDisk: 0,
+		reallyReadFromDisk: 0,
+		readFromDisk: 0,
+		readFromDiskCache: 0,
+		readFromBuffer: 0
+	}
+}
+Ol.prototype._make = function make(edit, syncId){
+
+	++this.stats.make
+		
+	++this.idCounter;
+	var editId = this.readers.lastVersionId
+	++this.readers.lastVersionId
+	
+	log('wrote object ', this.idCounter)
+	
+	var id = this.idCounter
+	this.olc.assertUnknown(id)
+	this.olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: editId})
+	this.olc.addEdit(id, {op: 'made', edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
+	//setObjectCurrentSyncId(id, syncId)
+	this.objectCurrentSyncId[id] = syncId
+	
+	if(this.idsByType[edit.typeCode] === undefined){
+		this.idsByType[edit.typeCode] = []
+	}
+	this.idsByType[edit.typeCode].push(this.idCounter)
+
+	
+	this.readers.currentId = this.idCounter
+	this.objectTypeCodes[this.idCounter] = edit.typeCode
+
+	return {id: this.idCounter, editId: editId}
+}
+Ol.prototype._destroy = function(id){
+
+	this.olc.destroy(id)
+	
+	//_.each(idsByType, function(arr, tcStr){
+	var keys = Object.keys(this.idsByType)
+	for(var i=0;i<keys.length;++i){
+		var arr = this.idsByType[keys[i]]
+		var i = arr.indexOf(id)
+		if(i !== -1){
+			arr.splice(i, 1)
+		}
+	}
+	
+	this.destroyed[id] = true
+}
+Ol.prototype._getForeignIds = function(id, editId, cb){
+	this.get(id, -1, editId, function(edits){
+		var de = edits//deserializeEdits(edits)
+		var ids = []
+		var has = {}
+		//console.log('getting foreign edits in: ' + JSON.stringify(edits))
+		for(var i=0;i<de.length;++i){
+			var e = de[i]
+			if(e.op === 'setExisting' || e.op === 'addExisting' || e.op === 'setObject'){
+				var id = e.edit.id
+				if(!has[id]){
+					ids.push(id)
+					has[id] = true
+				}
+			}
+		}
+		//console.log('got: ' + JSON.stringify(ids))
+		cb(ids)
+	})
+}
+
+//readers: readers,
+Ol.prototype.close = function(cb){//TODO wait for writing to sync
+	//function closed(){
+		console.log('closed indexWriter, maybe waiting for sync')
+		console.log('closed ol')
+		cb()
+	//}
+	//closed()
+}
+
+Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optimize away
+	_.assertLength(arguments, 4)
+	_.assertInt(startEditId)
+	_.assertInt(endEditId)
+	_.assertInt(id)
+	_.assert(id >= 0)
+
+	//_.errout('TODO')
+
+	/*this.get(id, startEditId, endEditId, function(actual){
+		if(actual.length > 0){
+			var buf = serializeEdits(fp, actual)
+			cb(buf)
+		}else{
+			cb()
+		}
+	})*/
+	
+	var w = fparse.makeSingleBufferWriter(100)
+	this.olc.serializeBinaryRange(id, startEditId, endEditId, w)
+	var buf = w.finish()
+	/*var str = ''
+	for(var i=0;i<buf.length;++i){
+		str += buf[i] + ' '
+	}
+	console.log('str(' + buf.length + '): ' + str)*/
+	cb(buf)
+	/*var actual = []
+	edits.forEach(function(e){
+		_.assertInt(e.editId)
+		if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+			actual.push(e)
+		}
+	})
+	cb(actual)*/
+
+}
+Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
+	_.assertLength(arguments, 4)
+	_.assertInt(startEditId)
+	_.assertInt(endEditId)
+	_.assertInt(id)
+	
+	var edits = this.olc.get(id)
+	var actual = []
+	edits.forEach(function(e){
+		_.assertInt(e.editId)
+		if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+			actual.push(e)
+		}
+	})
+	cb(actual)
+}
+Ol.prototype.isTopLevelObject = function(id){
+	//var index = bufferIndex[id];
+	//return index !== undefined//TODO also lookup disk index			
+	//_.errout('TODO')
+	return this.objectTypeCodes[id] !== undefined//this.olc.has(id)
+}
+Ol.prototype.getLatest = function(id, cb){//TODO optimize away
+	_.assertLength(arguments, 2)
+	_.errout('TODO')
+}
+Ol.prototype.has = function(id){
+	_.errout('TODO')
+}
+Ol.prototype.retrieve = function(id, cb){
+	_.errout('DEPRECATED, same as get?')
+}
+Ol.prototype.syntheticEditId = function(){
+	var editId = this.readers.lastVersionId
+	++this.readers.lastVersionId
+	return editId
+}
+Ol.prototype.persist = function(id, op, edit, syncId){
+	if(op === 'make'){
+		return this._make(edit, syncId)
+	}
+	//console.log('PERSISTING PERSISTING: ' + JSON.stringify(arguments))
+	_.assertInt(id)
+	_.assert(id > 0)
+	
+	var newEdits = []
+	
+	var objCurrentSyncId = this.objectCurrentSyncId[id]
+
+	if(objCurrentSyncId !== syncId){
+		this.olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
+		this.objectCurrentSyncId[id] = syncId
+		++this.readers.lastVersionId
+	}
+
+	var res = {editId: this.readers.lastVersionId}
+	++this.readers.lastVersionId
+
+	if(op === 'addNew'){
+		op = 'addedNew'
+		++this.idCounter
+		res.id = this.idCounter
+		edit = {id: res.id, typeCode: edit.typeCode}
+	}else if(op === 'replaceInternalNew' || op === 'replaceExternalNew'){
+		op = 'replacedNew'
+		++this.idCounter
+		res.id = this.idCounter
+		edit = {typeCode: edit.typeCode, newId: res.id, oldId: edit.id}
+	}else if(op === 'setToNew'){
+		op = 'wasSetToNew'
+		++this.idCounter
+		res.id = this.idCounter
+		edit = {typeCode: edit.typeCode, id: res.id}
+	}else if(op === 'putNew'){
+		op = 'didPutNew'
+		++this.idCounter
+		res.id = this.idCounter
+		_.assert(edit.typeCode > 0)
+		edit = {typeCode: edit.typeCode, id: res.id}
+	}else if(op === 'destroy'){
+		//_.errout('TODO')
+		this._destroy(id)
+	}
+	res.edit = edit
+	res.op = op
+
+	this.olc.addEdit(id, {op: op, edit: edit, editId: res.editId})
+	
+	return res
+
+}
+//streams the object and its dependencies
+Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, endCb){
+	_.assert(id >= 0)
+	
+	if(already[id]){
+		log('already got: ' + id)
+		endCb()
+		return
+	}
+	already[id] = true
+
+	var gCdl = _.latch(2, function(){
+		endCb()
+	})
+	
+	this.getAsBuffer(id, startEditId, endEditId, function(res){
+		cb(id, res)
+		gCdl()
+	})
+	
+	var local = this
+	this._getForeignIds(id, endEditId, function(ids){
+		
+		var cdl = _.latch(ids.length, gCdl)
+		
+		for(var i=0;i<ids.length;++i){
+
+			if(ids[i] === id){
+				cdl()
+				continue
+			}
+			
+			local.streamVersion(already, ids[i], startEditId, endEditId, cb, cdl)
+		}
+	})
+}
+Ol.prototype.getObjectMetadata = function(id, cb){
+	var pu = pathsplicer.make()
+	this.get(id, -1, -1, function(edits){
+		pu.updateAll(edits)
+		cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
+	})
+}
+Ol.prototype.getObjectType = function(id){
+	_.assertLength(arguments, 1)
+
+	var tc = this.objectTypeCodes[id]
+	if(tc === undefined) _.errout('unknown id: ' + id)
+	return tc
+}
+//ensures that the requested id will retrieve synchronously for the lifetime
+//of the cb call.
+//this is for change calls.
+/*cache: function(id, cb){
+	_.errout('TODO')
+},*/
+Ol.prototype.getLatestVersionId = function(){
+	return this.readers.lastVersionId;
+}
+Ol.prototype.getMany = function(typeCode){
+	return (this.idsByType[typeCode] || []).length
+}
+Ol.prototype.getAllIdsOfType = function(typeCode, cb){//gets a read-only copy of all objects of that type
+	_.assertLength(arguments, 2)
+	var ids = this.idsByType[typeCode] || [];
+	//console.log('ol getting ids(' + typeCode + '): ' + JSON.stringify(ids))
+	cb(ids)
+}
+Ol.prototype.getAllOfType = function(typeCode, cb){//gets a read-only copy of all objects of that type
+	_.assertLength(arguments, 2)
+	//_.errout('TODO')
+	var objs = []
+	var ids = this.idsByType[typeCode] || [];
+	var cdl = _.latch(ids.length, function(){
+		cb(objs)
+	})
+	function storeCb(obj){
+		_.assertObject(obj)
+		objs.push(obj)
+		cdl()
+	}
+	ids.forEach(function(id){handle.get(id, storeCb);})
+}
+Ol.prototype.getAllObjectsOfType = function(typeCode, cb, doneCb){
+	var ids = this.idsByType[typeCode] || [];
+	var cdl = _.latch(ids.length, function(){
+		doneCb()
+	})
+	for(var i=0;i<ids.length;++i){
+		var id = ids[i]
+		this.get(id, -1, -1, function(obj){
+			cb(id, obj)
+			cdl()
+		});
+	}
+}
+
+Ol.prototype.getInitialManySyncIdsMade = function(){
+	return this.readers.manySyncIdsMade
+}
+
+exports.make = function(dataDir, schema, cb){
+	var ol = new Ol()
+	//return ol
+	cb(ol)
+}
+
+/*
 exports.make = function(dataDir, schema, cb){
 	_.assertLength(arguments, 3)
 	_.assertFunction(cb)
 
-
-	//var ex = baleen.makeFromSchema(schema,undefined,true, true);
+	var olc = olcache.make()
 
 	var idCounter = 0;
-
-	var fp = fparse.makeFromSchema(shared.editSchema)
-	
-	var parsers = {}
-	var newParsers = [];
-
-	var filePositions = {}//by id, actually provides position, length, and parserId
-
-	//TODO construct buffer in chunks for fast discard and writing to disk?
-	var buffer = [];
-	var bufferIndex = {};//by id
-
-	//we double-buffer these for cheap discarding of old results
-	//TODO eventually this will be replaced or supplemented by full edit sequence saving
-	var recentVersionCacheFront = {}
-	var recentVersionCacheBack = {}
-	function getRecentVersion(id, editId){
-		//var key = id+':'+editId
-		var candidates = recentVersionCacheFront[id] || []
-		candidates = candidates.concat(recentVersionCacheBack[id] || [])
-		if(candidates.length === 0) return
-		var best = candidates[0];
-		//console.log('candidates: ' + JSON.stringify(_.map(candidates, function(c){return c.editId;})))
-		for(var i=1;i<candidates.length;++i){
-			var e = candidates[i]
-			if(e.editId > best.editId && e.editId <= editId){
-				best = e
-			}
-		}
-		if(best.editId > editId) return
-		//console.log('returning ' + best.editId)
-		return best.value;
-	}
-	function cacheVersion(id, editId, value){
-		if(recentVersionCacheFront[id] === undefined) recentVersionCacheFront[id] = []
-		recentVersionCacheFront[id].push({editId: editId, value: value})
-	}
-	/*setTimeout(function(){
-		recentVersionCacheBack = recentVersionCacheFront
-		recentVersionCacheFront = {}
-	}, 50000)*/
 
 	var stats = {
 		make: 0,
@@ -109,165 +425,36 @@ exports.make = function(dataDir, schema, cb){
 		readFromDiskCache: 0,
 		readFromBuffer: 0
 	}
-	/*
-	var statHandle = setInterval(function(){
-		var fullStats = _.extend({}, stats)
-		fullStats.cacheSize = _.size(cache)
-		fullStats.bufferSize = buffer.length
-		fullStats.recentVersionCacheSize = _.size(recentVersionCacheFront)+_.size(recentVersionCacheBack)
-		console.log('ol stats:\n' + JSON.stringify(fullStats, null, 2))
-	}, 2000)*/
 
-	var cache = {};	
-	
 	var idsByType = {}
 	
 	var lastVersionId = 1
 	
-	var segmentsForId = {}
+	var destroyed = {}//just for better error msgs
 	
-	//var currentSyncId;
+	var objectTypeCodes = {}
 
-	//var editCounter = 0//TODO update with load properly
-
+	var objectCurrentSyncId = {}
+	function getObjectCurrentSyncId(id){return objectCurrentSyncId[id];}
+	function setObjectCurrentSyncId(id, syncId){objectCurrentSyncId[id] = syncId;}
+	
 	function addByType(typeCode, id){
 		if(idsByType[typeCode] === undefined){
 			idsByType[typeCode] = []
 		}
-		//++many[typeCode];
 		idsByType[typeCode].push(id)
 	}
-	//var isWriting = false;
-	function writeToDiskIfNecessary(){
-		return //TODO reimplement writing ol to disk
-		if(buffer.length >= MaxBufferSize/* && !isWriting*/){
-			//console.log('OL WRITING BUFFER TO DISK')
-			writeToDisk();
-		}
-	}
-	
-	var syncBuffer = []
-	var waiting = false;
-	var manyToFlush;
-	function advanceSyncBuffer(){
-		if(waiting) return;
-		waiting = true;
-		manyToFlush = 1
-		log('begun sync')
-		dataWriter.sync(gotSync)
-	}
-	function gotSync(){
-		waiting = false
-		log('got sync, flushing ' + manyToFlush)
-		for(var i=0;i<manyToFlush;++i){
-			var sf = syncBuffer.shift()
-			sf()
-		}
-		log('synced: ' + syncBuffer.length)
-		if(syncBuffer.length > 0){
-			waiting = true
-			manyToFlush = syncBuffer.length
-			dataWriter.sync(gotSync)
-		}
-	}
-	function writeToDisk(){
-		//just write all new parsers, assume they'll get used
-		
-		//console.log('writing to disk, buffer length: ' + buffer.length)
-		
-		newParsers.forEach(function(parserId){
-			var parserBuf = parsers[parserId];
-			indexWriter.writer.parser({id: parserId, data: parserBuf}, 1)
-		})
-		newParsers = [];
-		
-		var writingBuffer = buffer.slice(0, BufferFlushChunkSize);
-		var indexObj = {versionId: -1, objects: []};
-		//TODO consolidate write into a single buffer for performance?
-		writingBuffer.forEach(function(b, index){
-			if(b.versionId > indexObj.versionId) indexObj.versionId = b.versionId;
-			
-			//var pos = dataWriter.getOffset();
-			var len = b.data.length;
-			var pos = dataWriter.write(b.data);
-			var fp = {id: b.id, position: pos, length: len, typeCode: b.typeCode};
-			//console.log(b.id + ' -> (' + pos + ',' + len + ') (' + b.typeCode + ')')
-			indexObj.objects.push(fp)
-			delete bufferIndex[b.id];
-			filePositions[b.id] = fp;
-		})
 
-		//console.log('syncing...')
-		//isWriting = true;
-
-		Object.keys(bufferIndex).forEach(function(key){
-			bufferIndex[key] -= BufferFlushChunkSize;
-		})
-		buffer = buffer.slice(BufferFlushChunkSize);
-		
-		//uses streaming-sync so that we can do further writes before sync returns
-		//console.log('pushing sync')
-		syncBuffer.push(function(){
-			//console.log('...synced')
-			var si = indexWriter.writer.entry(indexObj, indexObj.objects.length);
-			indexObj.objects.forEach(function(obj){
-				segmentsForId[obj.id] = si;
-			})
-			//console.log('...OL done writing to disk')
-		})
-		advanceSyncBuffer()
-		//isWriting = false;
-		writeToDiskIfNecessary()
-		//dataWriter.sync()
-	}
-
-	var objectReaderDedup = _.doOnce(
-		function(id){return id;},
-		function(id, cb){
-			var pos = filePositions[id];
-			if(pos === undefined){
-				throw new Error('unknown object: ' + id + ' is not on disk')
-			}
-			++stats.reallyReadFromDisk
-			dataWriter.readRange(pos.position, pos.length, function(buf){
-				_.assertEqual(buf.length, pos.length)
-				try{
-					var json = objReader(buf);
-				}catch(e){
-					log('reading buf: ' + buf.length)
-					var typeCode = bin.readInt(buf, 0)
-					log('read typeCode: ' + typeCode)
-					var str = '';
-					for(var i=0;i<buf.length;++i){
-						str += buf[i]+','
-					}
-					log('buf: ' + str)
-					log('pos: ' + JSON.stringify(pos))
-					throw e;
-				}
-				_.assertObject(json)
-				cache[id] = json
-				cb(json)				
-			});					
-		})
-
-	function readObject(id, cb){
-		++stats.readFromDisk
-		objectReaderDedup(id, cb)
-	}
-
-	var objReader, objWriter;
+	var manySyncIdsMade = 0
 	
 	var currentSyncId
 	var currentId
 	var readers = {
 		make: function(e){
-			//log('GOT MAKE $$$$$$$$$$4')
-
 
 			var n = make(e)
 			currentId = n.id
-			log('got make ' + e.typeCode + ' : ' + currentId)
+			log('got make', e.typeCode, ':', currentId)
 		},
 		setSyncId: function(e){
 			currentSyncId = e.syncId
@@ -282,28 +469,34 @@ exports.make = function(dataDir, schema, cb){
 		},
 		syntheticEdit: function(){
 			++lastVersionId
-		}/*,
-		addNew: function(e){
-			_.errout('TODO')
-		}*/
+		},
+		destroy: function(){
+			destroy(currentId)
+			currentId = undefined	
+		},
+		madeSyncId: function(){
+			++manySyncIdsMade
+			log('made sync id')
+		}
+	}
+	
+	function destroy(id){
+
+		olc.destroy(id)
+		
+		_.each(idsByType, function(arr, tcStr){
+			var i = arr.indexOf(id)
+			if(i !== -1){
+				arr.splice(i, 1)
+			}
+		})
+		
+		destroyed[id] = true
 	}
 	
 	function appendEdit(op, edit){
-		//console.log('here: '  + op + ' ' + JSON.stringify(edit))
 		_.assertDefined(currentId)
-
-		//inverse.indexInverse(currentId, op, edit)
-		
-		log(currentId + ' appending ' + op + ' ' + JSON.stringify(edit))
-		
-		/*var bi = bufferIndex[currentId]
-		if(bi !== undefined){
-			var e = buffer[bi];
-			e.data.push({op: op, edit: edit, editId: lastVersionId})
-			++lastVersionId
-		}else{
-			_.errout('TODO: ' + currentId + ' ' + JSON.stringify(bufferIndex))
-		}*/
+		log(currentId, 'appending', op, edit)
 		handle.persist(currentId, op, edit, currentSyncId)
 	}
 	_.each(shared.editSchema._byCode, function(objSchema){
@@ -320,30 +513,20 @@ exports.make = function(dataDir, schema, cb){
 		++idCounter;
 		var editId = lastVersionId
 		++lastVersionId
-		//initialState.meta = {id: idCounter,typeCode: typeCode, editId: editId}
-
-		//console.log('making ' + edit.typeCode)
-
-		//Object.freeze(initialState.meta)
-	
-		//console.log('writing...')
-		//var data = objWriter[typeCode](initialState);
-		//console.log('~~~wrote new object: ' + data.length + ' ' + JSON.stringify(initialState))
-		log('wrote object: ' + idCounter)
-		bufferIndex[idCounter] = buffer.length
-		var bi = {data: [
-			{op: 'setSyncId', edit: {syncId: syncId}, editId: editId},
-			{op: 'made', edit: {typeCode: edit.typeCode, id: idCounter}, editId: editId}], 
-			id: idCounter, typeCode: edit.typeCode, versionId: editId}
-		buffer.push(bi)
-		//cacheVersion(bi.id, editId, bi)
-	
-
-		//writeToDiskIfNecessary()
-	
+		
+		log('wrote object ', idCounter)
+		
+		var id = idCounter
+		olc.assertUnknown(id)
+		olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: editId})
+		olc.addEdit(id, {op: 'made', edit: {typeCode: edit.typeCode, id: idCounter}, editId: editId})
+		setObjectCurrentSyncId(id, syncId)
+		
 		addByType(edit.typeCode, idCounter);
-		//console.log('added by type')
+		
 		currentId = idCounter
+		objectTypeCodes[currentId] = edit.typeCode
+
 		return {id: idCounter, editId: editId}
 	}
 	
@@ -387,40 +570,12 @@ exports.make = function(dataDir, schema, cb){
 		close: function(cb){//TODO wait for writing to sync
 			function closed(){
 				console.log('closed indexWriter, maybe waiting for sync')
-				if(syncBuffer.length > 0){
-					console.log('waiting for sync: ' + syncBuffer.length)
-					syncBuffer.push(function(){
-						console.log('*closed ol')
-						cb()
-					})
-				}else{
-					console.log('closed ol')
-					cb()
-				}
+				console.log('closed ol')
+				cb()
 			}
-			//clearInterval(statHandle)
 			closed()
-			//indexWriter.close(closed)
 		},
-		getSet: function(ids, cb){
-			//console.log('ol getSet ' + ids.length)
-			_.assertFunction(cb)
-			
-			if(ids.length === 0) throw new Error('you probably should not call this with zero values, since it will never callback')
-			for(var i=0;i<ids.length;++i){
-				var id = ids[i];
-				var index = bufferIndex[id];
-				if(index === undefined){
-					readObject(id, cb);					
-				}else{
-					var dataBuf = buffer[index].data
-					//var parserId = parserIds[index];
-					//cb(parserId, parsers[parserId], dataBuf)
-					cb(objReader(dataBuf))
-				}
-				//handle.get(id, cb)
-			}
-		},
+
 		getAsBuffer: function(id, startEditId, endEditId, cb){//TODO optimize away
 			_.assertLength(arguments, 4)
 			_.assertInt(startEditId)
@@ -429,34 +584,27 @@ exports.make = function(dataDir, schema, cb){
 			_.assert(id >= 0)
 			
 			//console.log('getting ' + id + ' ' + startEditId + ' - ' + endEditId)
+			
+			var edits = olc.get(id)
 
-			var index = bufferIndex[id];
-			if(index !== undefined){
-				var bi = buffer[index]
-
-				var actual = []
-				bi.data.forEach(function(e){
-					//console.log(JSON.stringify(e).slice(0,300))
-					_.assertInt(e.editId)
-					if(startEditId < e.editId && (endEditId === -1 || e.editId <= endEditId)){
-						//console.log('adding: ' + JSON.stringify(e))
-						actual.push(e)
-					}else{
-						//console.log('skipping ' + e.editId)
-					}
-				})
-				
-				//console.log('(' + bi.data.length + ')serializing ' + actual.length + ' between ' + startEditId + ' and ' + endEditId)
-				//_.assert(actual.length > 0)
-				if(actual.length > 0){
-					var buf = serializeEdits(fp, actual)
-					cb(buf)
+			var actual = []
+			edits.forEach(function(e){
+				//console.log(JSON.stringify(e).slice(0,300))
+				_.assertInt(e.editId)
+				if(startEditId < e.editId && (endEditId === -1 || e.editId <= endEditId)){
+					//console.log('adding: ' + JSON.stringify(e))
+					actual.push(e)
 				}else{
-					cb()
+					//console.log('skipping ' + e.editId)
 				}
-				return
+			})
+
+			if(actual.length > 0){
+				var buf = serializeEdits(fp, actual)
+				cb(buf)
+			}else{
+				cb()
 			}
-			_.errout('TODO: ' + id + ' ' + index)
 		},
 		get: function(id, startEditId, endEditId, cb){//TODO optimize away
 			_.assertLength(arguments, 4)
@@ -465,50 +613,19 @@ exports.make = function(dataDir, schema, cb){
 			_.assertInt(id)
 			
 			//console.log('getting ' + id + ' ' + startEditId + ' - ' + endEditId)
-
-			var index = bufferIndex[id];
-			if(index !== undefined){
-				var bi = buffer[index]
-
-				var actual = []
-				bi.data.forEach(function(e){
-					if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
-						actual.push(e)
-					}else{
-						//console.log('skipping ' + startEditId + ' <= ' + e.editId + ' < ' + endEditId)
-					}
-				})
-				//console.log('cbing: ' + JSON.stringify(actual))
-				cb(actual)
-				return
-			}
-			_.errout('TODO: ' + id)
-			/*
-			var nbi = getRecentVersion(id, editId)
-			if(nbi !== undefined){
-				var json = objReader(nbi.data);
-				if(json.meta.editId > editId) throw new Error()
-				cb(json)
-				return
-			}
 			
-			
-			var cached = cache[id];
-			if(cached){
-				if(cached.meta.editId > startEditId) throw new Error('TODO')
-				++stats.readFromDiskCache
-				cb(cached)
-			}else{
-				//TODO handle object versioning
-				//console.log('buffered: ' + JSON.stringify(Object.keys(bufferIndex)))
-				//console.log('buffer: ' + JSON.stringify(bufferIndex))
-				//console.log('cached: ' + JSON.stringify(Object.keys(cache)))
-				//console.log('object is not in buffer or cache, requesting read from disk: ' + id + ' ' + editId)
-				readObject(id, function(obj){
-					if(obj.meta.editId > editId) throw new Error('TODO')
-					cb(obj)
-				})
-			}*/
+			var edits = olc.get(id)
+			var actual = []
+			edits.forEach(function(e){
+				_.assertInt(e.editId)
+				if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+					actual.push(e)
+				}else{
+					//console.log('skipping ' + startEditId + ' <= ' + e.editId + ' < ' + endEditId)
+				}
+			})
+			//console.log('cbing: ' + JSON.stringify(actual))
+			cb(actual)
 		},
 		isTopLevelObject: function(id){
 			var index = bufferIndex[id];
@@ -516,25 +633,10 @@ exports.make = function(dataDir, schema, cb){
 		},
 		getLatest: function(id, cb){//TODO optimize away
 			_.assertLength(arguments, 2)
-			var index = bufferIndex[id];
-			if(index === undefined){
-
-				var cached = cache[id];
-				if(cached){
-					++stats.readFromDiskCache
-					cb(cached)
-				}else{
-					readObject(id, cb)
-				}
-			}else{
-				++stats.readFromBuffer
-				var buf = buffer[index].data
-				var json = objReader(buf);
-				cb(json)				
-			}
+			_.errout('TODO')
 		},
 		has: function(id){
-			return bufferIndex[id] !== undefined;
+			_.errout('TODO')
 		},
 		retrieve: function(id, cb){
 			handle.get(id, cb)
@@ -552,53 +654,51 @@ exports.make = function(dataDir, schema, cb){
 			_.assertInt(id)
 			_.assert(id > 0)
 			
-			var bi = bufferIndex[id]
-			if(bi !== undefined){
-				var e = buffer[bi];
-				//var n = lastVersionId
-				
-				if(e.syncId !== syncId){
-					e.data.push({op: 'setSyncId', edit: {syncId: syncId}, editId: lastVersionId})					
-					e.syncId = syncId
-					++lastVersionId
-				}
-
-				var res = {editId: lastVersionId}
+			var newEdits = []
+			
+			var objCurrentSyncId = getObjectCurrentSyncId(id)
+		
+			if(objCurrentSyncId !== syncId){
+				olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: lastVersionId})					
+				setObjectCurrentSyncId(id, syncId)
 				++lastVersionId
+			}
 
-				if(op === 'addNew'){
-					op = 'addedNew'
-					++idCounter
-					res.id = idCounter
-					//_.assertInt(edit.temporary)
-					edit = {id: res.id/*, temporary: edit.temporary*/, typeCode: edit.typeCode}
-				}else if(op === 'replaceInternalNew' || op === 'replaceExternalNew'){
-					//es.objectChanged(id, 'replacedNew', {typeCode: edit.typeCode, newId: newId, temporary: temporary, oldId: edit.id}, syncId, editId)
-					op = 'replacedNew'
-					++idCounter
-					res.id = idCounter
-					edit = {typeCode: edit.typeCode, newId: res.id, oldId: edit.id}
-				}else if(op === 'setToNew'){
-					op = 'wasSetToNew'
-					++idCounter
-					res.id = idCounter
-					//_.assertInt(edit.temporary)
-					edit = {typeCode: edit.typeCode, id: res.id/*, temporary: edit.temporary*/}
-				}
-				res.edit = edit
-				res.op = op
-				
-				e.data.push({op: op, edit: edit, editId: res.editId})				
-				
-				/*if(op === 'addNew' || op === 'replaceInternalNew' || op === 'replaceExternalNew'){
-					++idCounter
-					res.id = idCounter
-					console.log('adding new id: ' + res.id)
-				}*/
-				return res
-			}else{
-				_.errout('TODO: ' + id + ' ' + JSON.stringify(bufferIndex))
-			}			
+			var res = {editId: lastVersionId}
+			++lastVersionId
+
+			if(op === 'addNew'){
+				op = 'addedNew'
+				++idCounter
+				res.id = idCounter
+				edit = {id: res.id, typeCode: edit.typeCode}
+			}else if(op === 'replaceInternalNew' || op === 'replaceExternalNew'){
+				op = 'replacedNew'
+				++idCounter
+				res.id = idCounter
+				edit = {typeCode: edit.typeCode, newId: res.id, oldId: edit.id}
+			}else if(op === 'setToNew'){
+				op = 'wasSetToNew'
+				++idCounter
+				res.id = idCounter
+				edit = {typeCode: edit.typeCode, id: res.id}
+			}else if(op === 'putNew'){
+				op = 'didPutNew'
+				++idCounter
+				res.id = idCounter
+				_.assert(edit.typeCode > 0)
+				edit = {typeCode: edit.typeCode, id: res.id}
+			}else if(op === 'destroy'){
+				//_.errout('TODO')
+				destroy(id)
+			}
+			res.edit = edit
+			res.op = op
+
+			olc.addEdit(id, {op: op, edit: edit, editId: res.editId})
+			
+			return res
+		
 		},
 		//streams the object and its dependencies
 		streamVersion: function(already, id, startEditId, endEditId, cb, endCb){
@@ -637,137 +737,29 @@ exports.make = function(dataDir, schema, cb){
 		},
 		getObjectMetadata: function(id, cb){
 			//_.errout('TODO')
-			var pu = pathupdater.make()
-			//var processEx
+			var pu = pathsplicer.make()
+
 			handle.get(id, -1, -1, function(edits){
-				edits.forEach(pu.update)
+				//console.log(JSON.stringify(edits))
+				edits.forEach(function(e){
+					pu.update(e)
+				})
 			})
 			cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
 		},
-		getObjectType: function(id, cb){
-			handle.get(id, -1, -1, function(edits){
-				for(var i=0;i<edits.length;++i){
-					var e = edits[i]
-					if(e.op === 'made'){
-						cb(e.edit.typeCode)
-						return;
-					}
-				}
-				_.errout('invalid object has no "made" event?');
-			})
+		getObjectType: function(id){
+			_.assertLength(arguments, 1)
+
+			var tc = objectTypeCodes[id]
+			if(tc === undefined) _.errout('unknown id: ' + id)
+			return tc
 		},
-		//calls-back with the json representation, and saves it once the callback returns
-		//must be in buffer or cache
-		/*
-		change: function(id, cb){
-			_.assertInt(id)
-			
-			++stats.change
-			var bi = bufferIndex[id]
-			if(bi !== undefined){
-				var e = buffer[bi];
-				var data = e.data;
-				//console.log('reading data bytes: ' + e.data.length)
-				var json = objReader(data);
-				_.assertObject(json)
-
-				var editId = lastVersionId
-				++lastVersionId
-				//console.log('changing to ' + editId)
-				//var versionId = incr(json)
-				
-				cb(json, editId);
-				json.meta.editId = editId
-				var newData = objWriter[json.meta.typeCode](json)
-				//console.log('### wrote object ' + id + ' ' + JSON.stringify(json))
-				//e.versionId = editId;
-
-				var newBi = {data: newData, id: id, versionId: editId, typeCode: e.typeCode}
-				
-				cacheVersion(id, e.editId, e)//cache the old version
-				
-				buffer[bi] = newBi
-				
-				++stats.readFromBuffer
-			}else{
-
-				var cached = cache[id];
-				_.assertObject(cached)
-				
-				var json = cached
-				cb(json);
-				//var versionId = incr(json)
-				
-				var editId = lastVersionId
-				//console.log('changing to ' + editId)
-				++lastVersionId
-				json.meta.editId = editId
-				
-				//if(versionId !== undefined){
-				var buf = objWriter[json.meta.typeCode](json);
-				//console.log('### wrote object ' + id + ' ' + JSON.stringify(json))
-				bufferIndex[id] = buffer.length;
-				var bi = {data: buf, id: id, versionId: editId, typeCode: json.meta.typeCode}
-				buffer.push(bi);
-				//cacheVersion(id, editId, bi)
-				delete cache[id]
-				++stats.readFromDiskCache
-			}
-			//console.log('next editId will be ' + lastVersionId)
-			writeToDiskIfNecessary()
-		},*/
 		//ensures that the requested id will retrieve synchronously for the lifetime
 		//of the cb call.
 		//this is for change calls.
 		cache: function(id, cb){
-			if(bufferIndex[id] !== undefined){
-				cb();
-				return;
-			}
-			var fp = filePositions[id];
-			_.assertDefined(fp)
-			_.assertInt(fp.position);
-			_.assertInt(fp.length);
-			++stats.readFromDisk
-			dataWriter.readRange(fp.position, fp.length, function(buf){
-
-				cache[id] = objReader(buf)
-				cb()
-			})
+			_.errout('TODO')
 		},
-		/*make: function(initialState, typeCode){
-			//_.assertLength(arguments, 2)
-			_.assertObject(initialState)
-			_.assertInt(typeCode)
-			
-			++stats.make
-			
-			++idCounter;
-			var editId = lastVersionId
-			++lastVersionId
-			initialState.meta = {id: idCounter,typeCode: typeCode, editId: editId}
-
-			//console.log('making to ' + editId)
-
-			Object.freeze(initialState.meta)
-			
-			//console.log('writing...')
-			var data = objWriter[typeCode](initialState);
-			//console.log('~~~wrote new object: ' + data.length + ' ' + JSON.stringify(initialState))
-			bufferIndex[idCounter] = buffer.length
-			var bi = {data: data, id: idCounter, typeCode: typeCode, versionId: editId}
-			buffer.push(bi)
-			//cacheVersion(bi.id, editId, bi)
-			
-
-			writeToDiskIfNecessary()
-			
-			addByType(typeCode, initialState.meta.id);
-			
-			//console.log('reading data: ' + data.length)
-			//console.log('next editId will be ' + lastVersionId)
-			return objReader(data)//idCounter;
-		},*/
 		getLatestVersionId: function(){
 			return lastVersionId;
 		},
@@ -795,6 +787,18 @@ exports.make = function(dataDir, schema, cb){
 			}
 			ids.forEach(function(id){handle.get(id, storeCb);})
 		},
+		getAllObjectsOfType: function(typeCode, cb, doneCb){
+			var ids = idsByType[typeCode] || [];
+			var cdl = _.latch(ids.length, function(){
+				doneCb()
+			})
+			ids.forEach(function(id){
+				handle.get(id, function(obj){
+					cb(id, obj)
+					cdl()
+				});
+			})
+		},
 		getPropertyValueForChangedSince: function(typeCode, propertyCode, editId, cb, doneCb){
 			//TODO optimize
 			handle.getAllOfType(typeCode, function(objs){
@@ -805,65 +809,15 @@ exports.make = function(dataDir, schema, cb){
 				})
 				doneCb()
 			})
+		},
+		getInitialManySyncIdsMade: function(){
+			return manySyncIdsMade
 		}
 	};
 	
-	var indexReaders = {
-		entry: function(e, segmentIndex){
-			if(lastVersionId < e.versionId) lastVersionId = e.versionId;
-			log('read entry: ' + e.versionId)
-			e.objects.forEach(function(obj){			
-				_.assertUndefined(obj.serverId)//TODO
-				if(filePositions[obj.id] === undefined){
-					addByType(obj.typeCode, obj.id);
-				}
-				filePositions[obj.id] = {id: obj.id, position: obj.position, length: obj.length, typeCode: obj.typeCode};
-				segmentsForId[obj.id] = segmentIndex
-			})
-			return e.objects.length
-		},
-		parser: function(p, segmentIndex){
-			parsers[p.id] = p.data;//we never rewrite parsers unless we have to, so no need to track their segment
-		}
-	}
-	
-	var indexRewriters = {
-		entry: function(e, oldSegment){
-			var newEntry = {objects: [], versionId: e.versionId}
-			e.objects.forEach(function(obj){
-				if(segmentsForId[obj.id] === oldSegment){
-					newEntry.objects.push(obj)//TODO rewrite chained data
-				}
-			})
-			indexWriter.writer.entry(newEntry, newEntry.objects.length);
-		},
-		parser: function(p, oldSegment){	
-			indexWriter.writer.parser(p, 1)
-		}
-	}
-	
-	//_.assertString(schema.name)
-	
-	var config = {
-		path: dataDir + '/minnow_data/ol.index', 
-		readers: indexReaders, 
-		rewriters: indexRewriters, 
-		format: indexFormat,
-		maxSegmentLength: 100*1024,
-		chained: dataDir + '/minnow_data/ol.data'
-	}
-	/*
-	var indexWriter = indexFile.open(config, function(){
-		
-		console.log('loaded ol, latest version id: ' + lastVersionId)
-
-		cb(handle)
-	})*/
 	log('done ol')
 	cb(handle)
 	log('done ol after cb')
-	
-	//var dataWriter
-}
+}*/
 
 

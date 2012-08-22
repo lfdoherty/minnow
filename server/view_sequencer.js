@@ -14,6 +14,7 @@ var _ = require('underscorem')
 var fparse = require('fparse')
 
 var shared = require('./tcp_shared')
+var pathmerger = require('./pathmerger')
 
 function orderEditsByEditIdAndOrder(a,b){
 	if(a.editId !== b.editId){
@@ -34,7 +35,9 @@ function serializeSnapshot(startEditId, endEditId, codes, writers, objectEditBuf
 	w.putInt(endEditId)
 	w.putInt(objectEditBuffers.length)
 	//console.log('many ids: ' + objectEditBuffers.length)
-	objectEditBuffers.forEach(function(e){
+	//objectEditBuffers.forEach(function(e){
+	for(var i=0;i<objectEditBuffers.length;++i){
+		var e = objectEditBuffers[i]
 		//_.assertInt(e.many)
 		writers.selectTopObject(w, {id: e.id})
 		//console.log('many edits: ' + e.many + ' (' + e.edits.length + ')')
@@ -42,10 +45,12 @@ function serializeSnapshot(startEditId, endEditId, codes, writers, objectEditBuf
 		//console.log('e2: ' + JSON.stringify(e).slice(0,300))
 		_.assertBuffer(e.edits)
 		w.putData(e.edits)
-	})
+	}
 	//console.log('many view ids: ' + viewIds.length)
 	w.putInt(viewIds.length)
-	viewIds.forEach(function(id){
+	//viewIds.forEach(function(id){
+	for(var i=0;i<viewIds.length;++i){
+		var id = viewIds[i]
 		var list = viewObjectEditBuffers[id]
 		
 		//w.putByte(codes['selectTopViewObject'])
@@ -55,17 +60,22 @@ function serializeSnapshot(startEditId, endEditId, codes, writers, objectEditBuf
 		//console.log('many edits: ' + list.length)
 		w.putInt(list.length)//number of edits
 		
-		list.forEach(function(e){
+		//list.forEach(function(e){
+		for(var j=0;j<list.length;++j){
+			var e = list[j]
 			w.putByte(codes[e.op])
 			//console.log('code: ' + codes[e.op])
 			_.assertInt(e.editId)
 			w.putInt(e.editId)
 			writers[e.op](w, e.edit)
-		})
-	})
+		}
+	}
 	var b = w.finish()
 	return b
 }
+
+//var fp = fparse.makeFromSchema(shared.editSchema)
+var fp = shared.editFp
  
 exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable, startEditId, endEditId, readyCb){
 	_.assertLength(arguments, 7)
@@ -77,7 +87,9 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 	
 	//console.log(new Error().stack)
 
-	var fp = fparse.makeFromSchema(shared.editSchema)//TODO reuse
+	//var fp = shared.fp
+	//if(fp === undefined){
+	//}
 	
 	var viewId = viewVariable.key
 
@@ -126,20 +138,27 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		_.assertInt(e.editId)
 		_.assertArray(e.path)
 		
+		log('(makeSnapshot) emitting edit: ' + JSON.stringify(e))
+		
 		if(isView[e.typeCode] && viewObjectEditBuffers[e.id] === undefined){
 			_.assertInt(e.typeCode)
 			viewObjectEditBuffers[e.id] = [{op: 'madeViewObject', edit: {typeCode: e.typeCode, id: e.id}, editId: e.editId}]
 		}
-		
-		var pathUpdater = pathUpdaters[e.id]
-		if(pathUpdater === undefined) pathUpdater = pathUpdaters[e.id] = shared.makePathStateUpdater(schema, e.typeCode)
-		
-		pathUpdater(e.path, function(op, edit){
-			//sendUpdate(op, edit, -1, up.editId, e.syncId)					
-			//_.errout('TODO: ' + JSON.stringify(e.path))
-			//emitEdit({op: op, edit: edit, syncId: -1, editId: e.editId})
+
+		var curPath = pathUpdaters[e.id]
+		if(curPath === undefined){
+			curPath = pathUpdaters[e.id] = []//shared.makePathStateUpdater(schema, e.typeCode)		
+			//viewObjectEditBuffers[e.id].push({op: 'reset', edit: {}, syncId: -1, editId: e.editId})	
+		}
+		var newPath = [].concat(e.path)
+		pathmerger.editToMatch(curPath, newPath, function(op, edit){
+			//log('sending update: ' + JSON.stringify([op, edit]))
+			//sendUpdate(op, edit, -1, e.editId, e.syncId)					
 			viewObjectEditBuffers[e.id].push({op: op, edit: edit, syncId: -1, editId: e.editId})
 		})
+		pathUpdaters[e.id] = newPath
+		
+		//_.errout('TODO: ' + JSON.stringify(e.path))
 		
 		if(e.op === 'addExisting'){
 			ensureHasObject(e.edit.id, e.editId)
@@ -152,9 +171,9 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		}
 		
 		//TODO ensure hasObject for key for all puts where the key is an existing object
-		if(e.op.indexOf('put') === 0 && pathUpdater.isKeyAnObject()){
+		if(e.op.indexOf('put') === 0 && newPath[newPath.length-1].op === 'selectObjectKey'){//pathUpdater.isKeyAnObject()){
 			//process.exit(0)
-			ensureHasObject(pathUpdater.getKey(), e.editId)
+			ensureHasObject(newPath[newPath.length-1].edit.key, e.editId)
 		}
 		
 		
@@ -207,17 +226,24 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		objectChange: function(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId){
 			_.assertLength(arguments, 9)
 			_.assert(isView[typeCode])//?
-			log('snapshot got op: ' + JSON.stringify(arguments))
+			//log('snapshot got op: ' + JSON.stringify(arguments))
 			/*if(editId < startEditId || editId >= endEditId){
 				console.log('outside range, ignoring')
 				return
 			}*/
-			if(ready) return
+			
 			_.assertInt(editId)
+			
+			
+			if(editId >= objectState.getCurrentEditId()){
+				_.errout('editId too large: ' + editId)
+			}
+			
+			if(ready) return
 			//TODO filter edits by editId?
-			for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
+			//for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
 			editBuffer.add({order: ++orderingIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId})
-		},
+		}/*,
 		shouldHaveObject: function(id, flag, editId){
 			//_.errout('TODO')
 			if(flag){
@@ -225,7 +251,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			}else{
 				_.errout('TODO')
 			}
-		}
+		}*/
 	}
 	
 	var intervalHandle = setInterval(function(){
@@ -241,7 +267,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			var snapshot = serializeSnapshot(startEditId, endEditId,fp.codes, fp.writers, objectEditBuffers, viewObjectEditBuffers)
 			_.assertBuffer(snapshot)
 			log('SNAP READY: ' + JSON.stringify([viewVariable.oldest(), startEditId, endEditId]))
-			log(JSON.stringify(viewObjectEditBuffers).slice(0,1000))
+			//log(JSON.stringify(viewObjectEditBuffers).slice(0,1000))
 			//process.exit(0)
 			readyCb(snapshot)
 		}else{
@@ -256,7 +282,7 @@ var fs = require('fs')
 
 function filterInclusions(op, edit, editId, includeObjectCb){
 	_.assertString(op)
-	log('filtering: ' + op + ' ' + JSON.stringify(edit))
+	log('filtering:', op,edit)
 	//ws.write('filtering: ' + op + ' ' + JSON.stringify(edit) + '\n')
 	if(_.isInt(edit.id)){//for view objects, we require that the constructing variables correctly include them
 		if(op === 'addExisting'){
@@ -274,13 +300,12 @@ function filterInclusions(op, edit, editId, includeObjectCb){
 		}
 	}
 }
+
+function lambdaRunner(f){f()}
+
 exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, editCb, infoSyncId){
 	_.assertLength(arguments,7)
 
-	//var ws = fs.createWriteStream('view_sequencer.log')
-	
-	//TODO return handle for disconnecting from sequence
-	
 	var editBuffer = new buckets.Heap(orderEditsByEditIdAndOrder)
 	
 	var timeoutHandle
@@ -289,10 +314,10 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 	
 	var orderIndex = 1
 	
+	var oldestEditId = -1
 	function advanceEdits(){
 		if(editBuffer.isEmpty()) return
 		
-		var oldestEditId = oldest()//TODO cache?
 		_.assertInt(oldestEditId)
 		var toEmit = []
 		while(true){
@@ -302,6 +327,11 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 				return
 			}
 			var e = editBuffer.peek()
+			if(e.editId >= oldestEditId){
+				var prev = oldestEditId
+				oldestEditId = oldest()
+				//console.log(prev + ' -> ' + oldestEditId)
+			}
 			if(e.editId < oldestEditId){
 				toEmit.push(editBuffer.removeRoot()) //emitEdit(editBuffer.removeRoot())
 			}else{
@@ -314,13 +344,14 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 	}
 
 	var onNext = false;
+	function flipNext(){
+		onNext = false;
+		advanceEdits()
+	}
 	function advanceOnNext(){
 		if(!onNext){
 			onNext = true
-			process.nextTick(function(){
-				onNext = false;
-				advanceEdits()
-			})
+			process.nextTick(flipNext)
 		}
 	}
 	timeoutHandle = setInterval(advanceEdits, 0)
@@ -330,10 +361,11 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 			return objectState.getCurrentEditId()
 		}
 		var least
-		viewVariables.forEach(function(vv){
+		for(var i=0;i<viewVariables.length;++i){
+			var vv = viewVariables[i]
 			var old = vv.oldest()
 			if(least === undefined || least > old) least = old
-		})
+		}
 		return least
 	}
 
@@ -344,7 +376,8 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 
 	var dd = Math.random()
 	function emitEdit(e){
-		log(dd + ' sync sequencer emitting(' + oldest() + '): ' + JSON.stringify(e))
+		log(dd, ' sync sequencer emitting(', oldest(), '): ', e)
+		//console.log(dd + ' sync sequencer emitting(' + oldest() + '): ' + JSON.stringify(e))
 
 		if(e.editId < latestSent){
 			_.errout('out-of-order emitting happening: ' + latestSent + ' > ' + e.editId + ': ' + JSON.stringify(e))
@@ -361,40 +394,55 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 	
 	var alreadyHas = {}
 	
-	var alreadyListening = {}
-	function listenObjectCb(id, editId){
-		if(alreadyListening[id]){
-			log('already listening: ' + id)
-			return;
-		}else{
-			alreadyListening[id] = true
-			//TODO if the point at which we are instructed to listen is in the past (edits have occurred since)
-			//fill in the intervening edits?
-			broadcaster.output.listenByObject(id, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+	//var alreadyListening = {}
+	
+	function inclusionsListener(id, editId){
+		if(alreadyHas[id]) return
+		alreadyHas[id] = true
 
-				filterInclusions(op, edit, editId, function(id, editId){
-					includeObjectCb(id, editId)
-					listenObjectCb(id, editId)
-				})
-				
-				var e = {order: ++orderIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId}
-				
+		includeObjectCb(id, editId)
+		listenObjectCb(id, editId)
+	}
+	//TODO clean up broadcaster - no need to track inverse there if we're tracking it here via filterInclusions
+	function objectUpdateListener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 
-				if(editId < latestSent){
-					_.errout('really out-of-order edit got: ' + latestSent + ' > ' + editId + ': ' + JSON.stringify(e))
-				}
+		filterInclusions(op, edit, editId, inclusionsListener)
+		
+		var e = {order: ++orderIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId}
+		
 
-				editBuffer.add(e)
-			})
+		if(editId < latestSent){
+			_.errout('really out-of-order edit got: ' + latestSent + ' > ' + editId + ': ' + JSON.stringify(e))
 		}
+
+		editBuffer.add(e)
+	}
+	
+	var broadcastSet = broadcaster.output.listenBySet(objectUpdateListener)
+	
+	function addObjectToSet(id){
+		broadcastSet.add(id)		
+	}
+	
+	function listenObjectCb(id, editId){
+	
+	//	objectState.streamObject(id, editId+1, objectUpdateListener)
+	
+		objectState.updateObject(id, editId+1, objectUpdateListener, addObjectToSet)
 	}
 				
 	return {
 		addView: function(viewTypeCode, viewVariable, startEditId, readyCb){
 			var viewId = viewVariable.key	
-			var readyYetTimeoutHandle;
+			var readyYetTimeoutHandle
 			var isReady = false
 			viewVariables.push(viewVariable)
+			
+			function retryReady(){
+				readyYetTimeoutHandle=undefined
+				isReadyYet()
+			}
+			
 			function isReadyYet(){
 				if(isReady) return;
 				var old = viewVariable.oldest()
@@ -405,32 +453,41 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 				}else{
 					//console.log('waiting for isReadyYet')
 					if(readyYetTimeoutHandle === undefined){
-						readyYetTimeoutHandle = setTimeout(function(){readyYetTimeoutHandle=undefined;isReadyYet()}, 50)
+						readyYetTimeoutHandle = setTimeout(retryReady, 50)
 					}
 				}
-			}		
+			}	
+			function requiresOldEditsInclusionsListener(id, editId){
+				if(alreadyHas[id]) return
+				alreadyHas[id] = true
+				
+				alreadyHasCb(id, editId)
+				listenObjectCb(id, startEditId)//note startEditId instead of editId
+			}
+			
 			var listenHandle = {
 				set: function(viewId, editId){
 				},
 				objectChange: function(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId){
 					_.assertInt(editId)
 					//_.assert(editId >= 0)
-					log(dd + ' (' + startEditId + ') ' + id + ' view got change: ' + op + ' ' + JSON.stringify(edit) + ' ' + syncId + ' ' + editId)
+					log(dd, ' (', startEditId, ') ', id, ' view got change: ', op, edit, syncId, editId)
 					//console.log(JSON.stringify(path))
 					//console.log(new Error().stack)
 					if(editId > startEditId){//ignore all changes already known to the consumer
-						filterInclusions(op, edit, editId, function(id, editId){
+						/*filterInclusions(op, edit, editId, function(id, editId){
 							if(alreadyHas[id]) return
 							alreadyHas[id] = true
 							
 							log('registering for new: ' + id)
 							includeObjectCb(id, editId)
-							listenObjectCb(id, startEditId)
-						})
+							listenObjectCb(id, editId)//startEditId)
+						})*/
+						filterInclusions(op, edit, editId, inclusionsListener)
 						
 						_.assertArray(path)
 						if(_.isInt(id)) _.assert(id >= 0)
-						for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
+						//for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
 						//console.log('sending change')
 						//console.log(new Error().stack)
 						
@@ -443,20 +500,9 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 						editBuffer.add(e)
 					}else{
 						
-						filterInclusions(op, edit, editId, function(id, editId){
-							if(alreadyHas[id]) return
-							alreadyHas[id] = true
-							
-							log('including new: ' + id + ' ' + editId)
-
-							alreadyHasCb(id, editId)
-							listenObjectCb(id, startEditId)
-						})
+						filterInclusions(op, edit, editId, requiresOldEditsInclusionsListener)
 						log('otherwise, ignoring old edit: ' + editId + ' <= ' + startEditId)
 					}
-				},
-				shouldHaveObject: function(id, flag, editId){
-					//TODO deprecate entirely
 				}
 			}
 			//we attach with -1 so that we can accumulate the object inclusions
@@ -467,13 +513,16 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 		subscribeToObject: function(id){
 			_.assert(id >= 0)
 
+			if(alreadyHas[id]) return
+			alreadyHas[id] = true
+			
 			includeObjectCb(id,-1)
 			listenObjectCb(id, -1)
 		},
 		end: function(){
 			editBuffer = undefined
 			clearInterval(timeoutHandle)
-			detachFuncs.forEach(function(f){f()})
+			detachFuncs.forEach(lambdaRunner)
 		}
 	}
 }

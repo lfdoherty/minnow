@@ -28,6 +28,7 @@ function recursivelyGetLeafTypes(objType, schema){
 	});
 	return res;
 }
+exports.recursivelyGetLeafTypes = recursivelyGetLeafTypes
 
 exports.getOnlyPossibleType = function getOnlyPossibleType(local, typeName){
 	if(typeName === undefined){
@@ -65,8 +66,10 @@ exports.getPrimitiveCollectionAssertion = function(collectionType, typeSchema){
 exports.primitiveChangeListener = function changeListener(op, edit, syncId, editId){
 	//_.assertLength(path, 0);
 
+	//console.log('in primitive change listener: ' + JSON.stringify([op, edit, syncId, editId]))
+
 	if(syncId === this.getEditingId()){
-		//console.log('ignoring change by same user')
+	//	console.log('ignoring change by same user')
 		return stub;//TODO deal with local/global priority
 	}
 	
@@ -116,10 +119,12 @@ function wrapCollection(local, arr){
 exports.wrapCollection = wrapCollection
 
 function adjustObjectCollectionPath(source){
+	return this.parent.adjustPath(this.part)
 	//console.log('adjust object collection path ' + source)
-	var remainingCurrentPath = this.parent.adjustPath(this.part)
+	/*var remainingCurrentPath = this.parent.adjustPath(this.part)
+	console.log('remaining: ' + JSON.stringify(remainingCurrentPath))
 	if(remainingCurrentPath.length === 0){
-		//console.log('zero')
+		console.log('zero -> ' + source)
 		this.persistEdit('selectObject', {id: source})
 		return []
 	}else if(remainingCurrentPath[0] !== source){
@@ -139,7 +144,7 @@ function adjustObjectCollectionPath(source){
 	}else{
 		//console.log('same')
 		return remainingCurrentPath.slice(1)
-	}
+	}*/
 }
 exports.adjustObjectCollectionPath = adjustObjectCollectionPath
 
@@ -166,7 +171,11 @@ exports.getPutOperator = function(schema){
 	return 'put' + ts
 }
 exports.getKeyOperator = function(schema){
-	var ts = typeSuffix[schema.type.value.primitive]
+	if(schema.type.key.type === 'primitive'){
+		var ts = typeSuffix[schema.type.key.primitive]
+	}else{
+		return 'selectObjectKey'
+	}
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
 	return 'select' + ts + 'Key'
 }

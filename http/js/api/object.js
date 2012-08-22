@@ -12,6 +12,10 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	_.assertFunction(parent.adjustPath)
 	
 	_.assertNot(objId !== -1 && parent.isView())
+	
+	//_.assert(objId !== -1)
+	
+	//_.assert(part[0] > 0)
 	/*
 	if(edits !== undefined) _.assertArray(edits)
 	_.assertObject(parent);
@@ -56,6 +60,7 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 			_.errout('WTF')
 		}
 	}*/
+	this.log = this.parent.log
 }
 
 ObjectHandle.prototype.types = u.genericObjectTypes
@@ -66,12 +71,16 @@ ObjectHandle.prototype.adjustPath = function(source){
 	_.assertInt(source)
 	_.assert(source > 0)
 	
+	_.assert(this.objectId !== -1)
+	
 	var remainingCurrentPath = this.parent.adjustPath(this.part[0])
 	this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
+	//console.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
 	if(remainingCurrentPath.length === 0){
+		this.persistEdit('selectObject', {id: this.objectId})
 		this.persistEdit('selectProperty', {typeCode: source})
 		return []
-	}else if(remainingCurrentPath[0] !== source){
+	}else if(remainingCurrentPath[0] !== this.objectId){
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
 				this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + source)
@@ -80,10 +89,14 @@ ObjectHandle.prototype.adjustPath = function(source){
 				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
 			}
 		}
-		this.persistEdit('reselectProperty', {typeCode: source})
+		this.persistEdit('reselectObject', {id: this.objectId})
+		this.persistEdit('selectProperty', {typeCode: source})
 		return []
 	}else{
-		return remainingCurrentPath.slice(1)
+		if(remainingCurrentPath.length === 1 || remainingCurrentPath[1] !== source){
+			this.persistEdit('selectProperty', {typeCode: source})
+		}
+		return remainingCurrentPath.slice(2)
 	}
 }
 
@@ -96,6 +109,7 @@ ObjectHandle.prototype.adjustPathSelf = function(objId){
 	//var remainingCurrentPath = this.parent.adjustPath(this.objectId)
 	var remainingCurrentPath = this.parent.adjustPath(this.part[0])
 	this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
+	//console.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
 	if(remainingCurrentPath.length === 0){
 		this.persistEdit('selectObject', {id: objId})
 		return []
@@ -291,7 +305,26 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 	
 	if(op === 'setObject') _.errout('HMM')
 	else if(op === 'setViewObject') _.errout('HMM')
-	else{
+	else if(op === 'wasSetToNew'){
+		_.errout('TODO wasSetToNew')
+
+		console.log('WAS SET TO NEW')
+		_.errout('TODO')
+
+		var type = this.schema._byCode[edit.typeCode]
+		
+		var n = new ObjectHandle(type, [], temporary, [temporary], this);
+		if(this.objectApiCache === undefined) this.objectApiCache = {}
+		this.objectApiCache[temporary] = n;
+	
+		n.prepare()
+
+		_.assertObject(n)
+
+		this.emit({}, 'set', n)()
+		
+		this.parent.replaceObjectHandle(this, n, this.part)
+	}else{
 		this.log('TODO: ' + op)
 		this.log(new Error().stack)
 		//process.exit(0)
@@ -414,16 +447,9 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	var type = u.getOnlyPossibleType(this, typeName);
 	
 	var remaining = this.parent.adjustPath(this.part[0])
-	/*if(remaining.length === 0){
-		this.persistEdit('selectProperty', {typeCode: pt.code})
-	}else if(remaining[0] !== pt.code){
-		if(remaining.length > 1) this.ascendBy(remaining.length-1)
-		this.persistEdit('reselectProperty', {typeCode: pt.code})
-	}*/
+
 	this.saveEdit('setToNew', {typeCode: type.code})
 
-	//var n = this._makeAndSaveNew(json, type)
-	
 	var temporary = this.makeTemporaryId();
 	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json);
 
@@ -435,49 +461,23 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 		}
 	}
 	
-	var n = new ObjectHandle(type, edits, temporary, [temporary], this);
+	_.assert(this.part[0] > 0)
+	
+	var n = new ObjectHandle(type, edits, temporary, this.part, this.parent);
 	if(this.objectApiCache === undefined) this.objectApiCache = {}
 	this.objectApiCache[temporary] = n;
 	
 	n.prepare()
 
 	_.assertObject(n)
-	
-	
-	//_.errout('TODO replace self with non-readonly version')
-	/*
-	var temporary = this.makeTemporaryId();
-	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json);
-
-	if(edits.length > 0){
-		this.adjustPath(temporary)
-		for(var i=0;i<edits.length;++i){
-			var e = edits[i]
-			this.persistEdit(e.op, e.edit)
-		}
-	}
-	
-	this.edits = edits
-	this.obj = {};
-	
-	this.objectId = temporary
-
-	//the stuff that was readonly
-	this.property = ObjectHandle.prototype.property
-	this.setProperty = ObjectHandle.prototype.setProperty
-	//this.add = ObjectHandle.prototype.property
-	
-	this.prepare()*/
 
 	this.emit({}, 'set', n)()
 	
-	//this.parent[
 	//TODO rewrite parent property stuff
+	this.parent.replaceObjectHandle(this, n, this.part)
+	
 	return n
-	//_.errout('TODO impl')
-	/*
-	var n = this._makeAndSaveNew(json, type)
-	_.assertObject(n)*/
+
 }
 /*
 ObjectHandle.prototype.setProperty = function(propertyName, newValue){
@@ -516,6 +516,7 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 ObjectHandle.prototype.hasProperty = function(propertyName){
 	if(this.obj === undefined) return false;
 	var pt = this.typeSchema.properties[propertyName];
+	if(pt === undefined) _.errout('not a valid property for that object: ' + propertyName)
 	if(pt.type.type === 'set' || pt.type.type === 'list' || pt.type.type === 'map') return true
 	if(pt === undefined) _.errout('not a valid property(' + propertyName + ') for this type: ' + this.typeSchema.code)
 	_.assertDefined(pt);
@@ -529,6 +530,9 @@ ObjectHandle.prototype.hasProperty = function(propertyName){
 	if(this.isReadonlyAndEmpty) return
 	
 	var n = this[propertyName]//.cachedProperties[propertyName];
+	if(n && !n.isReadonlyAndEmpty && n instanceof ObjectHandle){
+		return true
+	}
 	if(n && !n.isReadonlyAndEmpty && _.isFunction(n.value)){
 		if(n.value() !== undefined){
 			//this.log('nvalue')
@@ -541,7 +545,9 @@ ObjectHandle.prototype.has = ObjectHandle.prototype.hasProperty
 
 ObjectHandle.prototype.propertyByCode = function property(propertyCode){
 	this.log('getting property: ' + propertyCode)
-	//this.log(JSON.stringify(this.typeSchema.propertiesByCode))
+	//console.log('getting property: ' + propertyCode)
+	//console.log('type: ' + this.typeSchema.name)
+	//console.log(JSON.stringify(this.typeSchema.propertiesByCode))
 	var propertyName = this.typeSchema.propertiesByCode[propertyCode].name
 	return this.property(propertyName)
 }
@@ -550,7 +556,7 @@ ObjectHandle.prototype.propertyByCode = function property(propertyCode){
 ObjectHandle.prototype.property = function property(propertyName){
 	var n = this[propertyName]//.cachedProperties[propertyName];
 	if(n === undefined){
-		//this.log('initializing property: ' + propertyName);
+		//console.log('initializing property: ' + propertyName + ' ' + this.rere + ' ' + this.objectId);
 		//this.log('type schema: ' + JSON.stringify(this.typeSchema));
 		var pt = this.typeSchema.properties[propertyName];
 		//_.assertDefined(pt);
@@ -605,13 +611,15 @@ ObjectHandle.prototype.property = function property(propertyName){
 			var c = api.getClassForType(pt.type, this.typeSchema.isView);
 			n = new c(pt, pv, pt.code, this, this.typeSchema.isView);
 		}
+		_.assertDefined(n)
 		this[propertyName] = n//.cachedProperties[propertyName] = n;
 	}
 	return n;
 }
 ObjectHandle.prototype.toJson = function toJson(already){
 
-	if(this.obj === undefined) return undefined;
+	if(this.obj === undefined) return
+	if(this.isReadonlyAndEmpty) return
 	
 	var obj = {};
 
@@ -621,11 +629,16 @@ ObjectHandle.prototype.toJson = function toJson(already){
 	if(already[this.objectId]){
 		return 'CIRCULAR REFERENCE'
 	}
-	already[this.objectId] = true
+
+	var subAlready = _.extend({}, already)	
+	subAlready[this.objectId] = true
+	
+	//console.log(JSON.stringify(Object.keys(local)))
 	Object.keys(this.typeSchema.properties).forEach(function propertyToJson(name){
 		var p = local.typeSchema.properties[name];
-		if(local.hasProperty(p.name)){
-			obj[p.name] = local.property(p.name).toJson(already)
+		//if(local.hasProperty(p.name)){
+		if(local[p.name] !== undefined){
+			obj[p.name] = local[p.name].toJson(subAlready)//local.property(p.name).toJson(subAlready)
 		}
 	})
 	obj.id = this.objectId

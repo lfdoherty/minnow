@@ -13,6 +13,7 @@ var fixedObject = require('./../fixed/object')
 
 
 function typeType(rel, computeType){
+	_.assertString(rel.params[0].value)
 	return {type: 'set', members: {type: 'object', object: rel.params[0].value}};
 }
 
@@ -69,8 +70,8 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			_.assertFunction(listener.add)
 			_.assertFunction(listener.remove)
 			listeners.add(listener)
-			s.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
-			s.log(new Error().stack)
+			//s.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
+			//s.log(new Error().stack)
 			if(idList){
 				idList.forEach(function(id){
 					listener.add(id, editId)
@@ -99,16 +100,19 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		isType: true,
 		descend: function(path, editId, cb, continueListening){
 			_.assertFunction(cb)
-			_.assertInt(path[0])
-			_.assertInt(path[1])
+			//_.assertInt(path[0])
+			//_.assertInt(path[1])
 			s.objectState.streamProperty(path, editId, cb, continueListening)
+		},
+		getType: function(v){
+			return s.objectState.getObjectType(v)
 		}
 	}
 
 	s.objectState.getAllIdsOfType(typeCode, function(ids){
 		
 		idList = [].concat(ids)
-		s.log('TYPE got all ids: ' + JSON.stringify(ids))
+		s.log('TYPE got all ids', ids)
 		
 		function listenCreated(typeCode, id, editId){
 			idList.push(id)
@@ -120,13 +124,18 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			listeners.emitAdd(id, editId)
 		}
 		function listenDeleted(typeCode, id, editId){
+			//console.log('got deleted')
 			idList.splice(idList.indexOf(id), 1)
 			listeners.emitRemove(id, editId)
 			//listeners.emitShould(id, false, editId)
 		}
-		s.broadcaster.listenForNew(typeCode, listenCreated)
-		s.broadcaster.listenForDeleted(typeCode, listenDeleted)
 		
+		//console.log('\n\n\n'+JSON.stringify(s.schema._byCode[typeCode]))
+		
+		s.getAllSubtypes(typeCode).forEach(function(objSchema){
+			s.broadcaster.listenForNew(objSchema.code, listenCreated)
+			s.broadcaster.listenForDeleted(objSchema.code, listenDeleted)
+		})		
 		/*s.broadcaster.listenByType(typeCode, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//console.log('type emitting change ' + op + ' ' + editId)
 			//process.exit(0)

@@ -12,6 +12,8 @@ function ObjectSetHandle(typeSchema, obj, part, parent){
 	this.parent = parent;
 	this.schema = typeSchema;
 
+	this.log = this.parent.log
+	
 	this.obj = u.wrapCollection(this, obj)
 }
 

@@ -80,6 +80,8 @@ function viewExprHash(e){
 		})
 	}else if(e.type === 'value'){
 		s += JSON.stringify(e.value)
+	}else if(e.type === 'array'){
+		s += JSON.stringify(e.value)
 	}else if(e.type === 'int'){
 		s += JSON.stringify(e.value)
 	}else if(e.type === 'macro'){

@@ -14,14 +14,19 @@ var indexingStub = {
 
 var log = require('quicklog').make('minnow/ap')
 
-var pathControlEdits = [
-	'reset', 
+var pathControlEdits = {}
+
+var pce = ['reset', 
 	'selectProperty', 'reselectProperty', 
 	'selectObject', 'reselectObject', 
 	'selectIntKey', 'selectStringKey', 'selectLongKey', 'selectBooleanKey',
 	'reselectIntKey', 'reselectStringKey', 'reselectLongKey', 'reselectBooleanKey',
 	'ascend', 'ascend1', 'ascend2', 'ascend3', 'ascend4', 'ascend5']
-	
+
+pce.forEach(function(v){
+		pathControlEdits[v] = true
+})
+
 function make(schema, ol){
 	
 	_.assertLength(arguments, 2);
@@ -30,15 +35,15 @@ function make(schema, ol){
 	
 	var ap;
 	
-	var syncIdCounter = 1 || initialSyncIdCounter;
+	var syncIdCounter = 1
 	
 	function makeNewSyncId(){
-		var syncId = syncIdCounter;
+		ap.madeSyncId({})
+		var syncId = syncIdCounter + ol.getInitialManySyncIdsMade()
+		log('created new sync id: ' + syncId)
 		++syncIdCounter;
 		return syncId;
 	}
-	
-	//var ws = fs.createWriteStream('ap.log')
 	
 	var broadcaster
 	
@@ -112,26 +117,26 @@ function make(schema, ol){
 		ap[op](e)
 
 		var n = ol.persist(id, op, e, syncId)
-		log(n.editId + ' ' + id + ' ' + op + ' ' + JSON.stringify(e)+' ' + syncId)
+		log(n.editId, id, op, e, syncId)
 	}
 	var currentId
 	
 	function persistEdit(typeCode, id, path, op, edit, syncId, computeTemporary, cb){
-		_.assertLength(arguments, 8);
+		//_.assertLength(arguments, 8);
 				
 		_.assertInt(typeCode)
 		_.assertInt(syncId);
 		_.assertArray(path)
 		_.assertString(op);
 		_.assertFunction(computeTemporary)
-		_.assertFunction(cb)
+		//_.assertFunction(cb)
 		
 		var e = edit
 		
-		_.assert(pathControlEdits.indexOf(op) === -1)
+		_.assert(!pathControlEdits[op])//.indexOf(op) === -1)
+
 		
-		
-		if(op === 'setString'){
+		/*if(op === 'setString'){
 		}else if(op === 'setInt'){
 		}else if(op === 'setLong'){
 		}else if(op === 'setBoolean'){
@@ -141,11 +146,11 @@ function make(schema, ol){
 		}else if(op === 'putLong'){
 		}else if(op === 'putBoolean'){
 		}else if(op === 'del'){
-		}else if(op === 'setObject'){
+		}else */if(op === 'setObject'){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}else if(op === 'setData'){
+		}/*else if(op === 'setData'){
 		}else if(op === 'truncate'){
 		}else if(op === 'append'){
 		}else if(op === 'writeData'){
@@ -155,7 +160,9 @@ function make(schema, ol){
 		}else if(op === 'addBoolean'){
 		}else if(op === 'shift'){
 		}else if(op === 'setToNew'){
-		}else if(op === 'addNew'){
+		}*/else if(op === 'addNew'){
+			_.assert(e.typeCode > 0)
+		}else if(op === 'putNew'){
 			_.assert(e.typeCode > 0)
 		}else if(op === 'addExisting'){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
@@ -174,16 +181,16 @@ function make(schema, ol){
 			if(e.oldId < 0){
 				e.oldId = translateTemporary(e.oldId, syncId)
 			}
-		}else if(op === 'removeString'){
+		}/*else if(op === 'removeString'){
 		}else if(op === 'removeInt'){
 		}else if(op === 'removeLong'){
 		}else if(op === 'removeBoolean'){
-		}else if(op === 'remove'){
+		}*/else if(op === 'remove'){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}else if(op === 'removePrimitive'){
-		}else if(op === 'replaceInternalNew'){
+		}/*else if(op === 'removePrimitive'){
+		}*/else if(op === 'replaceInternalNew'){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
@@ -199,7 +206,7 @@ function make(schema, ol){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === 'reselectObject'){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === 'selectStringKey'){
+		}/*else if(op === 'selectStringKey'){
 		}else if(op === 'selectIntKey'){
 		}else if(op === 'selectLongKey'){
 		}else if(op === 'selectBooleanKey'){
@@ -217,7 +224,7 @@ function make(schema, ol){
 		}else if(op === 'destroy'){
 		}else{
 			_.errout('TODO implement op: ' + op);
-		}
+		}*/
 
 		if(op !== 'make' && id < -1){//note that -1 is not a valid temporary id - that is reserved
 			_.assertInt(id)
@@ -248,20 +255,20 @@ function make(schema, ol){
 			e.id = newId
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
-		}else if(op === 'addNew'){
+		}else if(op === 'addNew' || op === 'replaceInternalNew' || op === 'replaceExternalNew'){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
-		}else if(op === 'replaceInternalNew'){
+		}/*else if(op === 'replaceInternalNew'){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 		}else if(op === 'replaceExternalNew'){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
-		}else if(op === 'setToNew'){
+		}*/else if(op === 'setToNew'){
 			e.id = newId
 		}
 			
-		log(editId + ' ' + id + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit)+' ' + syncId)
+		log(editId, id, path, op, edit, syncId)
 		
 		ap[op](e)
 	
@@ -272,12 +279,16 @@ function make(schema, ol){
 			_.assertInt(newId)
 			mapTemporary(temporary, newId, syncId)
 			
-			cb({editId: editId, id: newId, temporary: temporary});
+			//if(cb) cb({editId: editId, id: newId, temporary: temporary});
 			_.assert(newId >= 0)
 			//es.objectCreated(edit.typeCode, newId, editId)
 			log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId)
 			broadcaster.input.objectCreated(e.typeCode, newId, editId)
-			return;
+			return newId;
+		}
+		
+		if(op === 'destroy'){
+			broadcaster.input.objectDeleted(typeCode, id, editId)
 		}
 
 		_.assertInt(id);
@@ -285,7 +296,8 @@ function make(schema, ol){
 		//es.objectChanged(id, realOp, realEdit, syncId, editId)
 		broadcaster.input.objectChanged(typeCode, id, path, realOp, realEdit, syncId, editId)	
 		
-		cb({editId: editId})
+		if(cb) cb({editId: editId})
+		//return newId
 	}		
 	var externalHandle = {
 		setBroadcaster: function(b){
@@ -295,8 +307,8 @@ function make(schema, ol){
 		},
 		persistEdit: persistEdit,
 		saveEdit: saveEdit,
-		getInverse: function(id){
-			_.errout('TODO, somewhere')
+		//getInverse: function(id){
+			//_.errout('TODO, somewhere')
 			/*_.assertLength(arguments, 1);
 			//TODO when we implement the edits that cause this, implement the lookup/indexing for this
 			//var lk = inverses[typeCode];
@@ -314,18 +326,25 @@ function make(schema, ol){
 				});
 				return arr;
 			}*/
-		},
+		//},
 		
 		makeNewSyncId: makeNewSyncId,
-		getSyncIdCounter: function(){//for RAFization only
-			return syncIdCounter;
-		},
+		//getSyncIdCounter: function(){//for RAFization only
+		//	return syncIdCounter;
+		//},
 		translateTemporaryId: function(id, syncId){
 			return translateTemporary(id, syncId)
 		},
 		syntheticEditId: function(){
 			ap.syntheticEdit({})
 			return ol.syntheticEditId()
+		},
+		forgetTemporary: function(real, temporary, syncId){
+			//console.log('forgetting temporary')
+			var te = temporaryIdsBySync[syncId]
+			delete te.temporaryIds[temporary]
+			delete te.mappedIds[real]
+			return
 		}
 	};
 		

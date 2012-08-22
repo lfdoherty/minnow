@@ -31,6 +31,8 @@ function oneMaker(s, self, rel, typeBindings){
 function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 
 	var elements = elementsExprGetter(bindings, editId)
+	if(!_.isFunction(elements.getType))_.errout('no getType: ' + elements.name)
+
 	var key = elements.key
 	if(cache.has(key)) return cache.get(key)
 	
@@ -59,11 +61,8 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 		},
 		oldest: elements.oldest,
 		key: key,
-		descend: elements.descend
-		/*,
-		getId: function(){
-			return value
-		}*/
+		descend: elements.descend,
+		getType: elements.getType
 	}
 	
 	elements.attach({
@@ -92,7 +91,7 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 		/*shouldHaveObject: function(id, flag, editId){
 			listeners.emitShould(id, flag, editId)
 		},*/
-		objectChange: listeners.emitObjectChange//Unfortunately, there's no easy way to optimize this
+		objectChange: listeners.emitObjectChange.bind(listeners)//Unfortunately, there's no easy way to optimize this
 
 	}, editId)
 	return cache.store(key, handle)

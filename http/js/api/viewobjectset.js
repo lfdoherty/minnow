@@ -1,3 +1,7 @@
+/*
+
+Note that this is a set of objects (view or not) that is a property of a view - not necessarily a set of objects which ARE views.
+*/
 
 var u = require('./util')
 var _ = require('underscorem')
@@ -11,8 +15,18 @@ function ViewObjectSetHandle(typeSchema, obj, part, parent){
 	this.parent = parent;
 	this.schema = typeSchema;
 
+	this.log = this.parent.log
+	
 	//console.log('obj: ' + JSON.stringify(obj))
 	this.obj = u.wrapCollection(this, obj)
+	
+	var local = this
+	this.delListener = function(){
+		var i = local.obj.indexOf(this)
+		local.obj.splice(i, 1)
+		console.log('removed deleted object from viewobjectset: ' + this.objectId)
+		local.emit({}, 'remove', this)
+	}
 }
 
 ViewObjectSetHandle.prototype.count = function(){return this.obj.length;}
@@ -52,24 +66,36 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 //if it doesn't that's a client error
 ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertString(op)
-
+	//console.log(JSON.stringify([op, edit, syncId, editId]))
 	if(op === 'addExistingViewObject' || op === 'addExisting'){
 		//_.assertString(edit.id)
 		var addedObjHandle = this.getObjectApi(edit.id);
 		//console.log('got obj handle: ' + addedObjHandle.id())
 		//console.log(_.map(this.obj, function(v){return v.id();}))
-		if(this.obj.indexOf(addedObjHandle) !== -1){
+		/*if(this.obj.indexOf(addedObjHandle) !== -1){
 			//_.errout('already have obj handle: ' + syncId + ' ' + this.getEditingId())
 			_.assert(this.wasAdded.indexOf(addedObjHandle) !== -1)
-		}else{
+		}else{*/
 			//console.log('view adding: ' + JSON.stringify(addedObjHandle.id()))
 			this.obj.push(addedObjHandle)
 			addedObjHandle.prepare()
+			
+			addedObjHandle.on('del', this.delListener)
 			return this.emit(edit, 'add', addedObjHandle)
+		//}
+	}else if(op === 'removeViewObject' || op === 'remove'){//TODO why do we need to support remove here?
+	//	_.assertString(edit.id)
+		//console.log('REMOVING')
+		try{
+			var objHandle = this.getObjectApi(edit.id);
+		}catch(e){
+			console.log('WARNING: might be ok (if already destroyed locally), but could not find object: ' + edit.id)
+			return
 		}
-	}else if(op === 'remove'){
-		var objHandle = this.getObjectApi(edit.id);
 		this.obj.splice(this.obj.indexOf(objHandle), 1)
+
+		objHandle.off('del', this.delListener)
+
 		return this.emit(edit, 'remove', objHandle)
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));

@@ -8,23 +8,24 @@ var quicklog = require('quicklog')
 var log = quicklog.make('minnow/tcp.server')
 
 var _ = require('underscorem')
-var baleen = require('baleen')
 var shared = require('./tcp_shared');
 var bin = require('./../util/bin')
 var server = require('./server');
 var fparse = require('fparse')
 
-var pathupdater = require('./pathupdater')
+var pathsplicer = require('./pathsplicer')
+var pathmerger = require('./pathmerger')
 
-function makeServer(appSchema, appMacros, dataDir, port, synchronousPlugins, readyCb){
-	_.assertLength(arguments, 6);
+var totalBytesReceived = 0
+var totalBytesSent = 0
+
+function makeServer(appSchema, appMacros, dataDir, port, readyCb){
+	_.assertLength(arguments, 5);
 	_.assertInt(port);
 	_.assertFunction(readyCb);
 	
-	var exes = shared.makeExes(appSchema);
-	
-	server.make(appSchema, appMacros, dataDir, synchronousPlugins, function(s){
-		createTcpServer(appSchema, port, exes, s, readyCb);
+	server.make(appSchema, appMacros, dataDir, function(s){
+		createTcpServer(appSchema, port, s, readyCb);
 	});
 }
 
@@ -82,24 +83,29 @@ var pathControlEdits = [
 	'selectIntKey', 'selectStringKey', 'selectLongKey', 'selectBooleanKey',
 	'reselectIntKey', 'reselectStringKey', 'reselectLongKey', 'reselectBooleanKey',
 	'ascend', 'ascend1', 'ascend2', 'ascend3', 'ascend4', 'ascend5']
+
+var fp = shared.editFp
 	
-function createTcpServer(appSchema, port, exes, s, readyCb){
+function createTcpServer(appSchema, port, s, readyCb){
 	log('making tcp server')
 	var connections = []
 	
-	var fp = fparse.makeFromSchema(shared.editSchema)
 	
 	var temporaryGeneratorsBySyncId = {}
-	
-	function getTemporaryGenerator(syncId, ws){
+	var lastTemporaryId = {}
+	function getTemporaryGenerator(syncId){
 		if(temporaryGeneratorsBySyncId[syncId]){
 			return temporaryGeneratorsBySyncId[syncId]
 		}
-		
+		return makeTemporaryGenerator(syncId)
+	}
+	
+	function makeTemporaryGenerator(syncId){
 		var nextTemporary = -2
 		function temporaryGenerator(){
 			var nt = nextTemporary
 			--nextTemporary
+			lastTemporaryId[syncId] = nt
 			return nt
 		}
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
@@ -113,28 +119,15 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		
 		connections.push(c)
 
-		var updaters = {}
+		var syncId = s.makeSyncId()
+		
+		var eHandle = {syncId: syncId}
+		var wrappedListenerCb = sendEditUpdate.bind(eHandle)
+		function wrappedObjCb(ob){
+			sendObject(syncId, ob)
+		}
 
-		var wrappedListenerCb;
-		var listenerCb = function(){
-			wrappedListenerCb.apply(undefined, Array.prototype.slice.apply(arguments))
-		}
-		var wrappedObjCb;
-		var objCb = function(){
-			wrappedObjCb.apply(undefined, Array.prototype.slice.apply(arguments))
-		}
-		var syncId = s.beginSync(listenerCb, objCb)
-		
-		
-		
-		var currentId;
-		//var currentTypeCode;
-		
-		var currentResponseId
-		//var currentResponsePath = []
-		
-		wrappedListenerCb = sendEditUpdate.bind({}, {syncId: syncId})
-		wrappedObjCb = sendObject.bind(undefined, {syncId: syncId})
+		s.beginSync(syncId, wrappedListenerCb, wrappedObjCb)
 		
 		var setupStr = JSON.stringify({syncId: syncId, schema: appSchema})
 		var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
@@ -144,15 +137,26 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		
 		c.write(setupBuffer)
 
-		var w = exes.responses.binary.stream.makeWriter({
+		var wfs = fparse.makeWriteStream(shared.serverResponses, {
 			write: function(buf){
 				c.write(buf);
+				totalBytesSent += buf.length
+				//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes sent: ' + totalBytesSent);
 			},
 			end: function(){
 				//TODO?
 			}
-		});
+		})
 		
+		var w = wfs.fs
+		
+		wfs.beginFrame()
+		w.flush = function(){
+			wfs.endFrame()
+			wfs.beginFrame()
+		}
+		w.end = function(){}
+				
 		var flushHandle = setInterval(function(){
 			w.flush()
 		},10)
@@ -160,92 +164,51 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		
 		var viewHandles = []
 		
-		//this is the outgoing path state
-		var pathUpdaters = {}//TODO these should be indexed by syncId as well as id
-		
-		var alreadySentEdit = {}//TODO deprecate or index by syncId as well
-		
 		//these are the *incoming* edit's path state
 		var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
 		
-		function sendObject(e, ob){
+		function sendObject(syncId, ob){
 			_.assertBuffer(ob.edits)
 			ws('sending object: ' + ob.id)
 			//log('sending object: ' + ob.id)
-			ob.destinationSyncId = e.syncId
+			ob.destinationSyncId = syncId
 			w.updateObject(ob);
 		}
+		//var nw = fparse.makeReusableBufferWriter(1024*1024)
+		var nkw = fparse.makeTemporaryBufferWriter(1024*1024)
 		function binEdit(op, edit){
-			var nw = fparse.makeSingleBufferWriter()
 			//console.log('getting writer: ' + e.type)
-			fp.writers[op](nw, edit)
-			return nw.finish()
+			fp.writers[op](nkw.w, edit)
+			//return nw.finish()
+			return nkw.get()
 		}
-		function sendEditUpdate(e, up){
-			_.assertLength(arguments, 2)
-			_.assertInt(up.typeCode)
+		
+		//var curPath = []
+		function sendEditUpdate(op, edit, editId){
+			_.assertLength(arguments, 3)
 			
-			log('sending update: ' + JSON.stringify(up))
-			//console.log(new Error().stack)
-			//if(_.isInt(up.id)) _.assert(up.id >= 0)
+			var destinationSyncId = this.syncId
+			
+			log.info('sending update', [op, edit, editId, destinationSyncId])
+
 			if(w === undefined){
 				throw new Error('got update after already disconnected')
 			}
-
-			var editKey = up.id+'|'+up.editId+up.op+JSON.stringify(up.path)
-
-			if(alreadySentEdit[syncId+':'+editKey]){
-				log('already sent edit: ' + editKey)
-				return
-			}
 			
-			alreadySentEdit[syncId+':'+editKey] = true
-			
-			if(this.currentSyncId !== up.syncId){
-				this.currentSyncId = up.syncId
-				sendUpdate('setSyncId', {syncId: up.syncId}, -1, up.editId, e.syncId)					
-			}
-			_.assertArray(up.path)
-
-
-			if(up.id !== -1){
-				if(currentResponseId !== up.id){
-					if(_.isString(up.id)){
-						sendUpdate('selectTopViewObject', {id: up.id}, -1, up.editId, e.syncId)					
-					}else{
-						sendUpdate('selectTopObject', {id: up.id}, -1, up.editId, e.syncId)					
-					}
-				}
-				currentResponseId = up.id
-				
-				_.assertDefined(up.id)
-				
-				var pathUpdater = pathUpdaters[syncId+':'+up.id]
-				if(pathUpdater === undefined) pathUpdater = pathUpdaters[syncId+':'+up.id] = shared.makePathStateUpdater(appSchema, up.typeCode)
-			
-				log('updating to path ' + JSON.stringify(up.path))
-				pathUpdater(up.path, function(op, edit){
-					log('sending update: ' + JSON.stringify([op, edit]))
-					sendUpdate(op, edit, -1, up.editId, e.syncId)					
-				}, up)
-				log('...done updating to path ' + JSON.stringify(up.path))
-				log('sending actual: ' + JSON.stringify([up.op, up.edit]))
-			}
-			
-			
-			sendUpdate(up.op, up.edit, up.syncId, up.editId, e.syncId)
+			sendUpdate(op, edit, editId, destinationSyncId)
 			
 		}
-		function sendUpdate(op, edit, syncId, editId, destinationSyncId){
-			_.assertLength(arguments, 5)
-			log('writing edit: ' + op + ' ' + JSON.stringify(edit) + ' ' + syncId + ' ' + editId + ' ' + destinationSyncId)
+		function sendUpdate(op, edit, editId, destinationSyncId){
+			_.assertLength(arguments, 4)
+			_.assert(destinationSyncId > 0)
+			log('writing edit', op, edit, syncId, editId, destinationSyncId)
 			var binaryEdit = binEdit(op, edit)
 			if(syncId === undefined) syncId = -1
 			_.assertInt(editId)
 			var update = {
 				op: op,
 				edit: binaryEdit,
-				syncId: syncId, 
+				//syncId: syncId, 
 				editId: editId,
 				destinationSyncId: destinationSyncId};
 
@@ -254,18 +217,34 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 		function sendReady(e, updatePacket){
 			_.assertArray(updatePacket)
 			log('sending ready')
-			w.ready({requestId: e.requestId, updatePacket: JSON.stringify(updatePacket)})
+			var msg = {requestId: e.requestId, updatePacket: JSON.stringify(updatePacket)}
+			w.ready(msg)
 			w.flush();
 		}
 		
+		var rrk = fparse.makeRs()
+		
+		var opsByCode = {}
+		Object.keys(shared.editSchema._byCode).forEach(function(key){
+			opsByCode[key] = shared.editSchema._byCode[key].name
+		})
+		
+		var pathFromClientFor = {}
+		var currentIdFor = {}
+		
 		var reader = {
 			beginSync: function(e){
-				var updater = sendEditUpdate.bind({}, e)
-				var objectUpdater = sendObject.bind(undefined, e)
-				var syncId = s.beginSync(updater, objectUpdater);
-				e.syncId = syncId
-				updaters[syncId] = updater
-				w.newSyncId({requestId: e.requestId, syncId: syncId});
+				var syncId = s.makeSyncId()
+				var ne = {syncId: syncId}
+				var updater = sendEditUpdate.bind(ne)
+				function objectUpdater(ob){
+					sendObject(syncId, ob)
+				}
+				s.beginSync(syncId, updater, objectUpdater);
+				_.assert(e.requestId > 0)
+				var msg = {requestId: e.requestId, syncId: syncId}
+				//serverResponses.writers.newSyncId(w, msg)
+				w.newSyncId(msg)
 				w.flush();
 			},
 			beginView: function(e){
@@ -280,66 +259,102 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 				//TODO
 			},
 			persistEdit: function(e){
-				var r = fparse.makeSingleReader(e.edit)				
-				e.edit = fp.readers[e.op](r)
+				//var r = fparse.makeSingleReader(e.edit)
+				//var r = rrk
+				rrk.put(e.edit)
+				var r = rrk.s
+
+				var op = opsByCode[e.op]
+				e.op = op
+				e.edit = fp.readers[op](r)
+
+				//console.log('op: ' + e.op)
+				//console.log(JSON.stringify(e))
 				
 				var syncId = e.syncId
 				
-				var op = e.op
+				//var op = e.op
 				//ws.write('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300)+'\n')
-				ws('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300))
+				ws.info('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
 				if(op === 'selectTopObject'){
-					currentId = e.edit.id
-					_.assertInt(currentId)
+					if(currentIdFor[syncId] !== e.edit.id){
+						currentIdFor[syncId] = e.edit.id
+						//_.assertInt(currentId)
+						delete pathFromClientFor[syncId]
+					}
 					return
 				}else if(op === 'selectTopViewObject'){
-					currentId = e.edit.id
-					_.assertInt(currentId)
+					if(currentIdFor[syncId] !== e.edit.id){
+						delete pathFromClientFor[syncId]
+						currentIdFor[syncId] = e.edit.id
+						//_.assertInt(currentId)
+					}
 					return
 				}
 				
-				log('current id (tcpserver-client): ' + currentId)
+				var currentId = currentIdFor[syncId]
 
-				var pu = pathsFromClientById[syncId+':'+currentId]
-				if(pu === undefined) pu = pathsFromClientById[syncId+':'+currentId] = pathupdater.make([])
+				//console.log(currentId + ' ' + JSON.stringify(e))
+				
+				log.info('current id (tcpserver-client): ', currentId)
+				/*
+				var pathKey = syncId+':'+currentId
+				var pu = pathsFromClientById[pathKey]
+				if(pu === undefined){
+					pu = pathsFromClientById[pathKey] = pathsplicer.make([])
+				}*/
+				var pu = pathFromClientFor[syncId]
+				if(pu === undefined){
+					pu = pathFromClientFor[syncId] = pathsplicer.make([])
+				}
 				var wasPathUpdate = pu.update(e)
 				
 				if(wasPathUpdate){
-					log('processed path update: ' + JSON.stringify(e))
-					log('path now: ' + JSON.stringify(pu.getPath()))
+					log.info('processed path update: ', e)
+					log.info('path now: ', pu.getPath())
 					return
 				}
 				
-				if(e.op === 'make') currentId = -1
-				_.assertInt(currentId)
+				if(op === 'make') currentId = -1
+				//_.assertInt(currentId)
 
-				var tg = getTemporaryGenerator(syncId, ws)//temporaryGeneratorsBySyncId[syncId]
-				_.assertFunction(tg)
-				s.persistEdit(currentId, e.op, pu.getPath(), e.edit, syncId, tg, function(result){
-					if(op === 'make'){
-						//if(pathsFromClientById[result.temporary]){
-						pathsFromClientById[syncId+':'+result.temporary] = pathsFromClientById[syncId+':'+result.id] = pathupdater.make([])
-						//}
-						currentId = result.id//this works because make can be executed synchronously
-						
-						_.assertInt(result.id);
-						w.objectMade({requestId: e.requestId, id: result.id, temporary: result.temporary});
-						//console.log('wrote objectMade')
-						//w.flush();
+				var tg = getTemporaryGenerator(syncId)//temporaryGeneratorsBySyncId[syncId]
+				//_.assertFunction(tg)
+				if(op === 'make'){
+
+					pathFromClientFor[syncId] = undefined
+				
+					//TODO remove this cb
+					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+
+					currentIdFor[syncId] = id//this works because make can be executed synchronously
+				
+					if(!e.edit.forget){
+						//_.assertInt(id);
+						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId]}
+						w.objectMade(msg);
 					}
-				});
+				}else{
+					s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+				}
 			},
-			getSnapshots: function(e, cb){
+			forgetLastTemporary: function(e){
+				var temporaryId = lastTemporaryId[syncId]
+				_.assertInt(temporaryId)
+				s.forgetTemporary(temporaryId, e.syncId)
+			},
+			getSnapshots: function(e){
 				s.getSnapshots(e, function(versionList){
 
 					
 					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList)}
 					res.requestId = e.requestId;
 					w.gotSnapshots(res);
+					//serverResponses.writers.gotSnapshots(w, res)
 					w.flush();
 				});
 			},//makeRequestWrapper('getSnapshots', 'gotSnapshots'),
-			getAllSnapshots: function(e, cb){
+			getAllSnapshots: function(e){
 				e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
 				s.getAllSnapshots(e, function(res){
 					res.requestId = e.requestId;
@@ -348,10 +363,11 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 					w.flush();
 				});
 			},
-			getSnapshot: function(e, cb){
+			getSnapshot: function(e){
 				s.getSnapshot(e, function(res){
 					//res.snap = serializeSnapshot(res.snap)
-					w.gotSnapshot({snap: res, requestId: e.requestId});
+					var msg = {snap: res, requestId: e.requestId}
+					w.gotSnapshot(msg);
 					w.flush();
 				});
 			}
@@ -372,10 +388,12 @@ function createTcpServer(appSchema, port, exes, s, readyCb){
 
 		var deser;
 		c.on('connect', function(){
-			deser = exes.client.binary.stream.makeReader(reader);
+			deser = fparse.makeReadStream(shared.clientRequests, reader)
 		})
 		c.on('data', function(buf){
 			deser(buf);
+			totalBytesReceived += buf.length
+			//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes received: ' + totalBytesReceived)
 		})
 		
 		//console.log('writing setup')

@@ -84,7 +84,7 @@ function svgOrderBy(s, cache, elementsGetter, ordinalGetter, bindings, editId){
 				listeners.emitSet(value, v, editId)
 			}
 		},
-		objectChange: listeners.emitObjectChange//Unfortunately, there's no easy way to optimize this
+		objectChange: listeners.emitObjectChange.bind(listeners)//Unfortunately, there's no easy way to optimize this
 
 	}, editId)
 	return cache.store(key, handle)

@@ -30,6 +30,9 @@ function maker(s, self, rel, typeBindings){
 function svgGeneral(s, cache, elementGetter, bindings, editId){
 
 	var element = elementGetter(bindings, editId)
+	if(!_.isFunction(element.getType))_.errout('no getType: ' + element.name)
+	_.assertFunction(element.getType)
+	
 	var key = element.key
 	if(cache.has(key)) return cache.get(key)
 	
@@ -56,29 +59,31 @@ function svgGeneral(s, cache, elementGetter, bindings, editId){
 		key: key
 	}
 	
-	var ongoingEditId;
+	//var ongoingEditId;
 	function oldest(){
 		var oldestEditId = element.oldest()
 		//console.log('p(' + propertyCode + ') oldest ' + oldestEditId + ' ' + ongoingEditId)
-		if(ongoingEditId !== undefined) return Math.min(oldestEditId, ongoingEditId)
-		else return oldestEditId
+		//if(ongoingEditId !== undefined) return Math.min(oldestEditId, ongoingEditId)
+		//else 
+		return oldestEditId
 	}
 	
 	var oldName;
 	element.attach({
 		set: function(v, oldV, editId){
 			if(v !== undefined){
-				ongoingEditId = editId
-				s.objectState.getObjectType(v, function(typeCode){
-					if(ongoingEditId > editId) return
-					ongoingEditId = undefined
-					
-					var name = s.schema._byCode[typeCode].name;
-					if(name !== oldName){
-						listeners.emitSet(name, oldName, editId)
-						oldName = name
-					}
-				})
+				var typeCode = element.getType(v)
+				
+				var name = s.schema._byCode[typeCode].name;
+				if(name !== oldName){
+					listeners.emitSet(name, oldName, editId)
+					oldName = name
+				}
+				/*
+				//ongoingEditId = editId
+				var typeCode = s.objectState.getObjectType(v)
+
+				*/
 			}
 		}
 	}, editId)
