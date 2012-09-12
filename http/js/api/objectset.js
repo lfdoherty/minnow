@@ -164,7 +164,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			var res = this.wrapObject(id, edit.typeCode, [], this)
 			this.obj.push(res)
 			res.prepare()
-			return this.emit(edit, 'add', res)
+			return this.emit(edit, 'add', res, editId)
 		}
 	}else if(op === 'remove'){
 		if(this.getEditingId() === syncId){
@@ -175,7 +175,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		_.assert(i >= 0)
 		this.obj.splice(i, 1);
 		this.log('new length: ' + this.obj.length)
-		return this.emit(edit, 'remove', removedObj)		
+		return this.emit(edit, 'remove', removedObj, editId)		
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}

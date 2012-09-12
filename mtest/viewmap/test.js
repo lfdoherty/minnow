@@ -104,3 +104,89 @@ exports.mapReduce = function(config, done){
 	})
 }
 
+exports.topByValuesWithDel = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('generalTop', function(c){
+
+				var expected = JSON.stringify([19, 22, 28])
+				poll(function(){
+					if(c.threeOldest.size() === 3){
+						//console.log(JSON.stringify(c.threeOldest.toJson()))
+						var data = c.threeOldest.toJson()
+						var ages = _.map(Object.keys(data), function(key){return data[key];})
+						ages.sort()
+						if(JSON.stringify(ages) === expected){
+							done()
+							return true
+						}else{
+							//console.log('value: ' + JSON.stringify(ages))
+						}
+					}else{
+						//console.log('many: ' + c.threeOldest.size())
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(v){
+						v.make('entity', {key: 'tim', age: 19})
+						v.make('entity', {key: 'robert', age: 18})
+						v.make('entity', {key: 'janice', age: 22})
+						v.make('entity', {key: 'sue', age: 28})
+						var toChange = v.make('entity', {key: 'bruce', age: 21})
+						setTimeout(function(){
+							toChange.age.set(17)
+						},100)
+					})
+				})
+			})
+		})
+	})
+}
+
+exports.testSyncInputSetRemoval = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('syncInputSetRemoval', function(c){
+
+				//var expected = JSON.stringify([19, 22, 28])
+				var gotFirst = false
+				poll(function(){
+					/*if(c.threeOldest.size() === 3){
+						//console.log(JSON.stringify(c.threeOldest.toJson()))
+						var data = c.threeOldest.toJson()
+						var ages = _.map(Object.keys(data), function(key){return data[key];})
+						ages.sort()
+						if(JSON.stringify(ages) === expected){
+							done()
+							return true
+						}else{
+							//console.log('value: ' + JSON.stringify(ages))
+						}
+					}else{
+						//console.log('many: ' + c.threeOldest.size())
+					}*/
+					console.log('many: ' + c.manyStrings.value())
+					if(c.manyStrings.value() === 3){
+						gotFirst = true
+					}
+					if(gotFirst && c.manyStrings.value() === 2){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(v){
+						v.make('entity', {key: 'tim', value:'bill'})
+						var toChange = v.make('entity', {key: 'bruce', value: 'bill'})
+						setTimeout(function(){
+							toChange.key.set('bill')
+						},100)
+					})
+				})
+			})
+		})
+	})
+}
+

@@ -1,6 +1,8 @@
 
 var _ = require('underscorem')
 
+var Cache = require('./../variable_cache')
+
 var wrapParam = require('./syncplugins').wrapParam
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -16,7 +18,8 @@ function fromMacro(e, implicits){
 			//console.log(JSON.stringify(implicits))
 			return implicits.indexOf(e.name) !== -1
 		}
-		_.errout(JSON.stringify(e))
+		//_.errout(JSON.stringify(e))
+		throw new Error('each_subset_optimization not possible')
 	}
 }
 
@@ -36,7 +39,7 @@ function extractMacroPropertyExpressions(e, implicits){
 	}else if(e.type === 'value'){
 	}else if(e.type === 'int'){
 	}else{
-		_.errout('TODO: ' + JSON.stringify(e))
+		throw new Error('each_subset_optimization not possible')
 	}
 	return res
 }
@@ -96,8 +99,11 @@ function makeSynchronousFunction(s, pes, typeBindings, objSchema, implicits, e){
 			//_.errout('TODO get binding wrapper value')
 			_.assertString(e.name)
 			var v = bindings[e.name].get()
-			_.assertDefined(v)
 			//console.log('got param ' + e.name + ' value: ' + v)
+			if(v === undefined){
+				_.errout('param.get is undefined: ' + e.name)
+			}
+			_.assertDefined(v)
 			return v
 		}
 	}else if(e.type === 'int'){
@@ -154,6 +160,8 @@ function makeBindingWrappersFunction(s, self, e, typeBindings){
 
 exports.make = function(s, self, rel, typeBindings){
 
+	var cache = new Cache()
+
 	if(rel.params[0].type !== 'view' || rel.params[0].view !== 'typeset') return //must involve a *<type> input set
 	_.assert(rel.params[1].type === 'macro')
 	if(rel.params[1].expr.view !== 'filter') return//must be a subset call
@@ -162,7 +170,12 @@ exports.make = function(s, self, rel, typeBindings){
 	var objTypeCode = objSchema.code
 	
 	//console.log(JSON.stringify(rel))//.params[1]))
-	var pes = extractMacroPropertyExpressions(rel.params[1].expr.params[1], rel.params[1].implicits)
+	var pes
+	try{
+		pes = extractMacroPropertyExpressions(rel.params[1].expr.params[1], rel.params[1].implicits)
+	}catch(e){
+		return
+	}
 	//console.log(JSON.stringify(pes))
 	var propertyCodes = []
 	for(var i=0;i<pes.length;++i){
@@ -185,6 +198,7 @@ exports.make = function(s, self, rel, typeBindings){
 	
 		//_.errout('TODO')
 	
+	
 		var ids = []
 		var has = {}
 		
@@ -194,6 +208,21 @@ exports.make = function(s, self, rel, typeBindings){
 		var streamingEditId = -1
 		
 		var key = ''
+		_.each(bindings, function(value, k){
+			key += bindings[k].key + ';'
+		})
+		//console.log('each_subset_key: ' + key)
+
+		//var key = JSON.stringify(rel.params[1])
+		key += JSON.stringify(rel.params[1].expr)//TODO better keys?
+		
+		if(cache.has(key)){
+			//console.log('returning cached each_subset_optimization')
+			return cache.get(key)
+		}else{
+			//console.log('keys different: ' + key)
+		}
+		
 		function oldest(){
 			var old = s.objectState.getCurrentEditId()
 			for(var i=0;i<bindingWrapperKeys.length;++i){
@@ -245,18 +274,18 @@ exports.make = function(s, self, rel, typeBindings){
 		//stream *all* property values for the input set
 		//console.log('setting up object streaming')
 		s.objectState.streamAllPropertyValues(objTypeCode, propertyCodes, function(id, propertyValueMap, editId){
+			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 			var singleResult = wrapper(bindingWrappers, propertyValueMap)
 			if(singleResult){
 				//console.log('got map ' + id + ' -> ' + JSON.stringify(propertyValueMap))
 				//console.log('result: ' + singleResult)
-				if(!has[id]){//ids.indexOf(id) === -1){
+				if(!has[id]){
+					//console.log('adding ' + id)
 					ids.push(id)
 					has[id] = true
 					listeners.emitAdd(id, editId)
 				}
 			}else{
-				//var i = ids.indexOf(id)
-				//if(i !== -1){
 				if(has[id]){
 					delete has[id]
 					ids.splice(i, 1)
@@ -267,9 +296,16 @@ exports.make = function(s, self, rel, typeBindings){
 			//console.log('has streamed all initial object property values: ' + live + ' ' + editId)
 			streamUpToDate = live
 			streamLast = editId
+		}, function(id){
+			if(has[id]){
+				delete has[id]
+				ids.splice(i, 1)
+				listeners.emitRemove(id, editId)
+			}			
 		})
 		
-		return handle;
+		//return handle;
+		return cache.store(key, handle)
 	}
 
 	var fixedObjGetter = fixedObject.make(s)	

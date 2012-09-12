@@ -32,10 +32,10 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	var exReader = {}
 	Object.keys(ex.codes).forEach(function(key){
 		//var rf = reader[key];
-		exReader[key] = function(e){
+		exReader[key] = function(e, timestamp){
 			++count;
 			if(count >= olLatestVersionId){
-				reader[key](e, count)
+				reader[key](e, timestamp)
 			}else{
 				log('skipping: ' + count)
 			}
@@ -53,6 +53,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			var len = bin.readInt(buf, 0)
 			if(buf.length < 4 + len) return
 			var timestamp = bin.readLong(buf,4)
+			//console.log('read timestamp: ' + timestamp)
 			var frame = buf.slice(12, 4+len)
 			//console.log('frame: ' + len)
 			deserFrame(frame,timestamp)
@@ -67,7 +68,8 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			rs.put(frame.slice(off))//TODO optimize - let fparse take non-zero initial off
 			var e = ex.readersByCode[typeCode](rs.s)
 			var name = ex.names[typeCode]
-			exReader[name](e)//TODO optimize to use code instead of name?
+			//console.log('*timestamp: ' + timestamp)
+			exReader[name](e, timestamp)//TODO optimize to use code instead of name?
 			off += rs.getOffset()
 		}
 	}

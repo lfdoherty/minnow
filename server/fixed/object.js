@@ -5,11 +5,6 @@ var _ = require('underscorem')
 
 exports.make = function(s){
 	var f = sfgObject.bind(undefined, s)
-	/*f.getDescender = function(){
-		return function(id, propertyCode, editId, cb){
-			s.objectState.streamProperty(id, propertyCode, editId, cb)
-		}
-	}*/
 	return f
 }
 
@@ -19,6 +14,10 @@ function sfgObject(s, id, editId, context){
 	_.assertDefined(context)
 	_.assertString(context.name)
 	_.assertFunction(context.descend)
+
+	//if(!s.objectState.isTopLevelObject(id)){
+	//	throw new Error('invalid id: ' + id)
+	//}
 
 	if(!_.isFunction(context.getType))_.errout('no getType: ' + context.name)
 	_.assertFunction(context.getType)

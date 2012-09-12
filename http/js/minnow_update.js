@@ -25,6 +25,8 @@ function establishSocket(appName, schema, host, cb){
 	var closed = false
 	var connected = false
 
+	var versionsBeingGot = {}
+
 	var syncUrl = host+'/mnw/sync/'+appName+'/'+(Math.random()+'').substr(2);
 	getJson(syncUrl, function(json){    
 
@@ -51,7 +53,13 @@ function establishSocket(appName, schema, host, cb){
 			},
 			addEditListener: function(listener){
 				editListeners.push(listener)
-			}
+			}/*,
+			getVersionTimestamps: function(versions, cb){
+				//_.errout('TODO')
+				var uid = Math.random()+''
+				versionsBeingGot[uid] = cb
+				sendFacade.editBuffer.push({type: 'versionTimestamps', versions: versions, uid: uid});
+			}*/
 		};
 
 		function log(msg){
@@ -67,7 +75,7 @@ function establishSocket(appName, schema, host, cb){
 		api.setEditingId(syncId);
 		
 		//update.establishSocket(schemaName, host, syncId, sendFacade, viewsBeingSetup)
-		setupRest(api, syncId, sendFacade, viewsBeingSetup, editListeners)
+		setupRest(api, syncId, sendFacade, viewsBeingSetup, versionsBeingGot, editListeners)
 
 		sendFacade.addEditListener(function(data){			
 			if(data[0] === 'edit'){
@@ -102,7 +110,7 @@ function establishSocket(appName, schema, host, cb){
 	
 	var sendMessageTimeoutHandle;
 		
-	function setupRest(api, syncId, sendFacade, viewsBeingSetup, editListeners){
+	function setupRest(api, syncId, sendFacade, viewsBeingSetup, versionsBeingGot, editListeners){
 		
 		if(closed) return
 
@@ -153,6 +161,8 @@ function establishSocket(appName, schema, host, cb){
 					_.errout('unknown view uid: ' + data.uid + ', known: ' + JSON.stringify(Object.keys(viewsBeingSetup)))
 				}
 				viewsBeingSetup[data.uid](data.data)
+			}else if(data.type === 'versionTimestamps'){
+				versionsBeingGot[data.uid](data.timestamps)
 			}else{
 				editListeners.forEach(function(listener){
 					listener(data)

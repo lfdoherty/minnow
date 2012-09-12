@@ -8,5 +8,9 @@ exports.plugins = {
 	eq: require('./eq'),
 	and: require('./and'),
 	or: require('./or'),
-	either: require('./either')
+	either: require('./either'),
+	union: require('./union'),
+	'in': require('./in'),
+	inKeys: require('./inKeys'),
+	intersection: require('./intersection')
 }

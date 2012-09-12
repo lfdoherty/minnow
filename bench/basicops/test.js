@@ -89,7 +89,7 @@ function makePartially(v){
 
 var mtrace = require('mtrace');
 
-exports.singlePropertySubset = function(config, done){
+exports.singlePropertySubset = function(config, done){//benchmark to beat: N=10M in 106 seconds (~94000/sec)
 	minnow.makeServer(config, function(){
 		console.log('made server')
 		//setTimeout(function(){

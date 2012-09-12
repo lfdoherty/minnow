@@ -17,8 +17,8 @@ exports.make = function(s, self, rel, typeBindings){
 				fullKey += v.key+';'
 			}
 		})
-		s.log('macro key: ' + fullKey + ' ' + JSON.stringify(rel.bindingsUsed))
-		s.log('bindings: ' + JSON.stringify(bindings))
+		s.log('macro key:', fullKey, ' ', rel.bindingsUsed)
+		s.log('bindings:', bindings)
 		return fullKey
 	}
 	var f = svgMacroCall.bind(undefined, s, computeKey, mGetter)

@@ -115,7 +115,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				
 				var listenerCb = listenerCbs[e.syncId]
 				_.assertFunction(listenerCb)
-				log('beginView: ' + JSON.stringify(e))
+				log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, listenerCb, readyCb)
 			},
 			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, cb){//(typeCode, id, path, op, edit, syncId, cb){
@@ -139,6 +139,10 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				}else{
 					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId);
 				}
+			},
+			getVersionTimestamps: function(versions, cb){
+				var timestamps = ol.getVersionTimestamps(versions)
+				cb(timestamps)
 			},
 			forgetTemporary: function(temporary, syncId){
 				_.assertInt(syncId)
@@ -164,7 +168,6 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						currentSyncId = up.syncId
 						listenerCb('setSyncId', {syncId: up.syncId}, up.editId)					
 					}
-					_.assertArray(up.path)
 
 
 					if(up.id !== -1){
@@ -175,16 +178,20 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 								curPath = []
 							}else{
 								listenerCb('selectTopObject', {id: up.id},  up.editId)					
-								curPath = []
+								//curPath = []
 							}
 						}
 						currentResponseId = up.id
+						
+						if(_.isString(up.id)){
 		
-						var newPath = [].concat(up.path)
-						pathmerger.editToMatch(curPath, newPath, function(op, edit){
-							listenerCb(op, edit, up.editId)					
-						})
-						curPath = newPath
+							_.assertArray(up.path)
+							var newPath = [].concat(up.path)
+							pathmerger.editToMatch(curPath, newPath, function(op, edit){
+								listenerCb(op, edit, up.editId)					
+							})
+							curPath = newPath
+						}
 					}
 					listenerCb(up.op, up.edit, up.editId)					
 				}
@@ -248,7 +255,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				}
 				function listenerCbWrapper(e){
 					_.assertLength(arguments, 1);
-					_.assertInt(e.typeCode)
+					//_.assertInt(e.typeCode)
 					log('e: ', e)
 					//console.log(new Error().stack)
 					if(sentBuffer.length > 0){
@@ -292,7 +299,13 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
-					viewState.getAllSnapshotStates(typeCode, params, snapshotIds, cb);
+					try{
+						viewState.getAllSnapshotStates(typeCode, params, snapshotIds, function(states){
+							cb(undefined, states)
+						});
+					}catch(e){
+						cb(e)
+					}
 				}else{
 					_.errout('ERROR')
 				}			

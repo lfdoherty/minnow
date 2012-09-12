@@ -53,29 +53,35 @@ function convertJsonToEdits(dbSchema, type, json){
 	var edits = []
 	
 	var t = dbSchema[type];
-	var allProperties = []
-	function getProperties(t){
+	var allProperties = t.allProperties
+	if(allProperties === undefined){
+		t.allProperties = allProperties = []
 		Object.keys(t.properties).forEach(function(key){
 			var p = t.properties[key]
 			allProperties.push(p)
 		})
-		Object.keys(t.superTypes).forEach(function(sn){
-			var st = dbSchema[sn]
-			if(st) getProperties(st)
-		})
 	}
-	getProperties(t)
 	
 	var taken = {};
 	//_.each(allProperties, function(p){
-	allProperties.forEach(function(p){
+	//console.log('allProperties: ' + JSON.stringify(allProperties))
+	var first = true
+	
+	//allProperties.forEach(function(p){
+	for(var j=0;j<allProperties.length;++j){
+		var p = allProperties[j]
 		var name = p.name;
 		var pv = json[name];
+		//_.assertNot(taken[name])
 		taken[name] = true;
 		
 		if(pv !== undefined && pv !== null){
-			
-			edits.push({op: 'selectProperty', edit: {typeCode: p.code}})
+			if(first){
+				edits.push({op: 'selectProperty', edit: {typeCode: p.code}})
+			}else{
+				edits.push({op: 'reselectProperty', edit: {typeCode: p.code}})
+			}
+			first = false
 			
 			if(p.type.type === 'primitive'){
 				var v = valueOrId(pv);
@@ -142,8 +148,12 @@ function convertJsonToEdits(dbSchema, type, json){
 				if(_.isInteger(pv)){
 					edits.push({op: 'setObject', edit: {id: pv}})
 				}else{
-					//if(pv._internalId){
+					if(pv._internalId){
 						edits.push({op: 'setObject', edit: {id: pv._internalId()}})
+					}else{
+						var typeCode = dbSchema[p.type.object].code
+						edits.push({op: 'setToNew', edit: {typeCode: typeCode}})
+					}
 					/*}else{
 						var typeCode = dbSchema[p.type.object].code;//TODO assert uniqueness of type
 						edits.push({op: 'setToNew', edit: {typeCode: typeCode}})
@@ -153,9 +163,12 @@ function convertJsonToEdits(dbSchema, type, json){
 				_.errout('TODO: ' + p.type.type + ' (' + name + ')');
 			}
 			//console.log('json property ascend1')
-			edits.push({op: 'ascend1', edit: {}})
+			//if(first) edits.push({op: 'ascend1', edit: {}})
+			//first = false			
 		}
-	});
+	}
+	
+	if(!first) edits.push({op: 'ascend1', edit: {}})
 
 	//_.each(json, function(value, attr){
 	Object.keys(json).forEach(function(attr){
@@ -167,6 +180,7 @@ function convertJsonToEdits(dbSchema, type, json){
 	edits.forEach(function(e){
 		e.editId = -2
 	})
+	//console.log('resulting edits: ' + JSON.stringify(edits))
 	//return obj;
 	return edits
 }

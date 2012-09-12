@@ -44,6 +44,13 @@ require('./variables/top')
 require('./variables/switch')
 require('./variables/type')
 require('./variables/cast')
+//require('./variables/values')
+require('./variables/filter')
+require('./variables/each')
+require('./variables/subset')
+require('./variables/sessions')
+require('./variables/versions')
+require('./variables/timestamps')
 
 var fixedPrimitive = require('./fixed/primitive')
 var fixedObject = require('./fixed/object')
@@ -107,6 +114,10 @@ function variableGetter(s, setExpr, typeBindings){
 			}
 			if(impl.isSynchronousPlugin){
 				//_.errout('TODO')
+				//_.assertString(impl.syntax)
+				if(impl.callSyntax === undefined){
+					_.errout('sync plugin has no callSyntax: ' + require('util').inspect(impl))
+				}
 				return syncplugins.wrap(s, self, setExpr, typeBindings, impl)
 			}else{
 				//console.log('setExpr: ' + JSON.stringify(setExpr))
@@ -145,6 +156,7 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 	var topLevel = {
 		name: 'top-level',
 		descend: function(path, editId, cb){
+			//console.log('descending: ' + JSON.stringify(path))
 			s.objectState.streamProperty(path, editId, cb)
 		},
 		getType: function(id){

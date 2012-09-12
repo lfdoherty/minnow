@@ -139,10 +139,14 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			//_.assertFunction(listener.shouldHaveObject)
 			var h = {
 				set: function(value, oldValue, editId){
-					_.assertInt(value)
-					var edit = {id: value}
-					log('view translating set id to setObject')
-					listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'setObject', edit, -1, editId)
+					if(value === undefined){
+						listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'clearObject', {}, -1, editId)
+					}else{
+						_.assertInt(value)
+						var edit = {id: value}
+						log('view translating set id to setObject')
+						listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'setObject', edit, -1, editId)
+					}
 				}
 				//just forward property changes if our rels are themselves views or sets of views
 				//objectChange: listener.objectChange
@@ -247,6 +251,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			if(ks === undefined) _.errout('TODO: ' + JSON.stringify(relSchema))//relSchema.key.primitive)
 			var putOpName = 'put'+ts
 			var keyOpName = 'select'+ks+'Key'
+			var delOpName = 'del'+ks+'Key'
 
 			return function(listener, rel, viewId, editId){
 				_.assertInt(editId)
@@ -260,15 +265,17 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						//console.log('*got put')
 						//listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, [relCode], keyOpName, 
 						//	{key: key}, -1, editId)
+						if(ks === 'Object' && listener.includeObject) listener.includeObject(key, editId)
 						listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, 
 							[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: keyOpName, edit: {key: key}}], 
 							putOpName, edit, -1, editId)
 					},
 					del: function(key, editId){
-						var edit = {key: key}
+						var edit = {}
+						//console.log('emitting del key: ' + key)
 						listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, 
 							[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: keyOpName, edit: {key: key}}], 
-							'del', edit, -1, editId)
+							'delKey', edit, -1, editId)
 					},
 					//shouldHaveObject: listener.shouldHaveObject,
 					//just forward property changes if our rels are themselves views or sets of views

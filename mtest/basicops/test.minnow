@@ -72,3 +72,6 @@ nameCollisionTest(name string) 113
 booleanSetTest(name string) 114
 	truth each(*entity, {sameNameMacro(name, ~.name)}) 1
 
+stringUpdateTest() 115
+	name one(*entity).name 1
+	

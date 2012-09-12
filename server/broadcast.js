@@ -39,6 +39,9 @@ exports.make = function(){
 	var byObject = {};
 	var bySet = []
 	
+	var updateByObject = {}
+	var updateBySet = []
+	
 	var createdByType = {};
 	var delByType = {};
 	
@@ -97,6 +100,22 @@ exports.make = function(){
 	
 	return {
 		input: {
+			objectUpdated: function(typeCode, id, op, edit, syncId, editId){
+				var ob = updateByObject
+				var obj = ob[id];
+				if(obj !== undefined){
+					for(var i=0;i<obj.length;++i){
+						var listener = obj[i];
+						listener(typeCode, id, op, edit, syncId, editId);
+					}
+				}
+				for(var i=0;i<updateBySet.length;++i){
+					var bh = updateBySet[i]
+					if(bh.has(id)){
+						bh.listener(typeCode, id, op, edit, syncId, editId)
+					}
+				}
+			},
 			objectChanged: function(typeCode, id, path, op, edit, syncId, editId){
 				_.assertLength(arguments, 7);
 				_.assertInt(syncId);
@@ -196,6 +215,10 @@ exports.make = function(){
 			
 			listenBySet: function(listener){
 				var h = new ListenBySetHandle(listener, byObject, bySet)
+				return h
+			},
+			updateBySet: function(listener){
+				var h = new ListenBySetHandle(listener, updateByObject, updateBySet)
 				return h
 			}
 		}

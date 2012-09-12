@@ -67,7 +67,8 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 	}, editId)
 	
 	passedValue.attach({set: function(newPassed, oldPassed, editId){
-		_.assertBoolean(newPassed)
+		_.assertNot(_.isInt(newPassed))
+		//_.assertBoolean(newPassed)
 		s.log('*passed: ' + newPassed)
 		if(value){
 			if(newPassed){

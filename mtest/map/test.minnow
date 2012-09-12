@@ -2,12 +2,23 @@
 entity 1
 	data string:string 1
 	name string 2
-	
+
+empty() 103
+
 general() 100
 	s one(*entity) 1
 	
 container 2
-	members string:entity 1
+	members string:entity 201
 	
 genc() 101
 	s one(*container) 1
+	
+valuesView() 102
+	vs each(*entity,{~.data.values}) 1
+
+innerCv(c container){
+	each(c.members.values, {~.data.values})
+}
+containerValuesView() 104
+	vs each(*container, {innerCv(~)}) 100

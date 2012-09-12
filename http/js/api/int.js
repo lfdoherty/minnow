@@ -14,6 +14,9 @@ IntHandle.prototype.value = function(){
 }
 IntHandle.prototype.changeListener = u.primitiveChangeListener;
 IntHandle.prototype.set = function(v){
+
+	if(this.obj === v) return
+	
 	this.obj = v;
 
 	var e = {value: this.obj}

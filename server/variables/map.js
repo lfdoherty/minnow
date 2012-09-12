@@ -383,17 +383,23 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				var kv = {}
 				
 				function keyListener(value, oldValue, editId){
-					if(oldValue !== undefined){
-						delete state[oldValue]
-						listeners.emitDelete(oldValue, editId)
-					}
-					s.log('map key: ' + value + ' ' + typeof(value))
-					kv.key = value	
-					if(kv.value !== undefined){				
-						var oldValue = kv.value
-						state[kv.key] = kv.value
-						_.assertPrimitive(kv.value)
-						listeners.emitPut(kv.key, kv.value, oldValue, editId)
+					if(value === undefined){
+						if(oldValue !== undefined){
+							var oldKvValue = state[oldValue]
+							if(oldKvValue !== undefined){
+								delete state[oldValue]
+								listeners.emitDel(oldValue, editId)
+							}
+						}
+					}else{
+						s.log('map key: ' + value + ' ' + typeof(value))
+						kv.key = value	
+						if(kv.value !== undefined){				
+							var oldValue = kv.value
+							state[kv.key] = kv.value
+							_.assertPrimitive(kv.value)
+							listeners.emitPut(kv.key, kv.value, oldValue, editId)
+						}
 					}
 				}
 				function valueListener(value, oldValue, editId){
@@ -408,16 +414,19 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					}
 				}
 				
-				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
-
-				newKeyVariable.attach({
+				var kl = {
 					set: keyListener,
 					shouldHaveObject: stub
-				}, editId)
-				newValueVariable.attach({
+				}
+				var vl = {
 					set: valueListener,
 					shouldHaveObject: stub
-				}, editId)
+				}
+				
+				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: kl, valueListener: vl}
+
+				newKeyVariable.attach(kl, editId)
+				newValueVariable.attach(vl, editId)
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
@@ -548,7 +557,7 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 					var i = kvs.indexOf(k)
 					var ks = kvs[i]
 					kvs.splice(i, 1)
-					if(value !== undeifned){
+					if(value !== undefined){
 						multiState[k].splice(value)
 					}
 					if(value !== undefined){

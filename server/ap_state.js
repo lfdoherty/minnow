@@ -98,7 +98,8 @@ function make(schema, ol){
 		te.mappedIds[real] = true;
 	}
 
-	function saveEdit(id, op, e, syncId){
+	function saveEdit(typeCode, id, op, e, syncId, timestamp){
+		_.assertNumber(timestamp)
 		//TODO selectTopObject?
 
 		if(op === 'selectObject'){
@@ -116,12 +117,16 @@ function make(schema, ol){
 		
 		ap[op](e)
 
-		var n = ol.persist(id, op, e, syncId)
+		var n = ol.persist(id, op, e, syncId, timestamp)
+
 		log(n.editId, id, op, e, syncId)
+
+		broadcaster.input.objectUpdated(typeCode, id, op, e, syncId, n.editId)	
 	}
 	var currentId
+	var currentSyncId
 	
-	function persistEdit(typeCode, id, path, op, edit, syncId, computeTemporary, cb){
+	function persistEdit(typeCode, id, path, op, edit, syncId, computeTemporary, timestamp, cb){
 		//_.assertLength(arguments, 8);
 				
 		_.assertInt(typeCode)
@@ -129,6 +134,8 @@ function make(schema, ol){
 		_.assertArray(path)
 		_.assertString(op);
 		_.assertFunction(computeTemporary)
+		_.assertNumber(timestamp)
+		
 		//_.assertFunction(cb)
 		
 		var e = edit
@@ -164,7 +171,10 @@ function make(schema, ol){
 			_.assert(e.typeCode > 0)
 		}else if(op === 'putNew'){
 			_.assert(e.typeCode > 0)
+		}else if(op === 'putExisting'){
+			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === 'addExisting'){
+			_.assert(e.id !== -1)
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === 'replaceInternalExisting'){
 			if(e.newId < 0){
@@ -232,8 +242,13 @@ function make(schema, ol){
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
 			id = newId;
 		}
+		
+		if(currentSyncId !== syncId){
+			ap.setSyncId({syncId: syncId})
+			currentSyncId = syncId
+		}
 				
-		var n = ol.persist(id, op, edit, syncId)
+		var n = ol.persist(id, op, edit, syncId, timestamp)
 		var newId = n.id//may be undefined if not applicable for the edit type
 		var editId = n.editId
 		var realOp = n.op
@@ -283,6 +298,7 @@ function make(schema, ol){
 			_.assert(newId >= 0)
 			//es.objectCreated(edit.typeCode, newId, editId)
 			log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId)
+			//console.log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId+ ' ' + temporary + ' ' + syncId)
 			broadcaster.input.objectCreated(e.typeCode, newId, editId)
 			return newId;
 		}
@@ -294,6 +310,9 @@ function make(schema, ol){
 		_.assertInt(id);
 	
 		//es.objectChanged(id, realOp, realEdit, syncId, editId)
+
+		broadcaster.input.objectUpdated(e.typeCode, id, realOp, realEdit, syncId, editId)	
+
 		broadcaster.input.objectChanged(typeCode, id, path, realOp, realEdit, syncId, editId)	
 		
 		if(cb) cb({editId: editId})
@@ -340,7 +359,7 @@ function make(schema, ol){
 			return ol.syntheticEditId()
 		},
 		forgetTemporary: function(real, temporary, syncId){
-			//console.log('forgetting temporary')
+			//console.log('forgetting temporary: ' + temporary + ' ' + real)
 			var te = temporaryIdsBySync[syncId]
 			delete te.temporaryIds[temporary]
 			delete te.mappedIds[real]

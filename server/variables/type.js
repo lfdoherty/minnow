@@ -6,7 +6,6 @@ var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
-var _ = require('underscorem')
 
 function typeType(rel){
 	return {type: 'primitive', primitive: 'string'}//type: 'object', object: rel.params[0].schemaType.value}

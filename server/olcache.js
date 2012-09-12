@@ -73,7 +73,7 @@ exports.make = function(){
 			//console.log('repeated: ' + id)
 			return
 		}
-		//console.log('incr diff(' + id + ')[' + first + ' ' + rot(first-1) + ']: ' + JSON.stringify(order))
+	//	console.log('incr diff(' + id + ')[' + first + ' ' + rot(first-1) + ']: ' + JSON.stringify(order))
 		//shift everything over one, overwriting the old position of the id, and moving the current 'first' id to second place
 		var prev = order.indexOf(id)
 		var distance = first > prev ? first-prev : first + (CACHE_SIZE-prev)
@@ -85,13 +85,14 @@ exports.make = function(){
 			
 			order[pOff] = order[off]
 		}
-		//console.log('preshift(' + id + ', old: ' + order[first] + '): ' + JSON.stringify(order))
-		order[first] = id
-		//console.log('shifted: ' + id)
+	//	console.log('preshift(' + id + ', old: ' + order[rot(first-1)] + '): ' + JSON.stringify(order))
+		order[rot(first-1)] = id
+	//	console.log('shifted: ' + id)
 	}
 	var handle = {
 		addEdit: function(id, edit){
-		
+			_.assertInt(id)
+					
 			if(CACHE_SIZE === 0){
 			
 				if(ob.isNew(id)){
@@ -102,19 +103,19 @@ exports.make = function(){
 				return
 			}
 			
-			//console.log('adding edit: ' + id + ' ')
+			//console.log('adding edit: ' + id + ' ' + JSON.stringify(edit))
 		
 			//console.log('id: ' + id)
 			var list = cache[id]
 			
-			if(!ob.isNew(id) && ob.get(id).length >= 2){
-				_.assert(edit.op !== 'made')
-			}
+			//if(!ob.isNew(id) && ob.get(id).length >= 2){
+			//	_.assert(edit.op !== 'made')
+			//}
 			
 			if(list === undefined){
 				list = cache[id] = []
 				if(cacheHasFilled){
-					//console.log('evicting')
+					//console.log('evicting, cached filled')
 					evict(id)
 				}else{
 					order[many] = id
@@ -151,6 +152,7 @@ exports.make = function(){
 			if(cache[id]){
 				if(ob.isNew(id)){
 					var edits = cache[id]
+					if(edits === undefined) _.errout('unknown object: ' + JSON.stringify([id, startEditId, endEditId]))
 					var actual = []
 					for(var i=0;i<edits.length;++i){
 						var e = edits[i]
@@ -159,8 +161,10 @@ exports.make = function(){
 							actual.push(e)
 						}
 					}
-					if(startEditId === -1) _.assert(actual.length >= 2)
 					//console.log('serializing: ' + JSON.stringify(actual))
+					if(startEditId === -1){
+						_.assert(actual.length >= 2)
+					}
 					ob.serializeEdits(actual, w)
 				}else{
 					var edits = ob.get(id).concat(cache[id])

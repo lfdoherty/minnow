@@ -90,6 +90,8 @@ exports.make = function(){
 	var buffers = []
 	var bufferStarts = []//relatively fast way to work out what buffer a total offset is in
 
+	var destroyed = {}
+	
 	var currentStart = 0	
 	var ws = {
 		write: function(buf){
@@ -126,6 +128,10 @@ exports.make = function(){
 		append: function(id, edits){
 			_.assertInt(id)
 			_.assertArray(edits)
+			
+			if(destroyed[id]){
+				_.errout('tried to append edits to destroyed object: ' + JSON.stringify(edits))
+			}
 
 			var offset = currentStart + w.getCurrentOffset()
 			
@@ -154,7 +160,8 @@ exports.make = function(){
 
 		},
 		destroy: function(id){
-			index[id] = -1
+			//index[id] = -1
+			destroyed[id] = true
 		},
 		get: function(id){
 			var res = deserializeFrame(handle.getBinary(id))

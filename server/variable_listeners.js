@@ -64,6 +64,7 @@ VariableListeners.prototype.emitDel = function(key, editId){
 	_.assertLength(arguments, 2)
 	_.assertInt(editId)
 	//if(this.listeners.length === 0) console.log('no this.listeners')
+	//console.log('emitting del: ' + this.listeners.length)
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
 		listener.del(key, editId)

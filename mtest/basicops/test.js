@@ -448,7 +448,7 @@ exports.crazyPartials = function(config, done){
 						done()
 						return true
 					}else{
-						//console.log(JSON.stringify([JSON.stringify(c.crazy.toJson().sort()) , JSON.stringify(lookingFor)]))
+						console.log(JSON.stringify([JSON.stringify(c.crazy.toJson().sort()) , JSON.stringify(lookingFor)]))
 					}
 				})
 
@@ -497,6 +497,7 @@ exports.booleanSetTest = function(config, done){
 				poll(function(){
 					if(c.truth.size() === 2){
 						var set = c.truth.toJson()
+						console.log('got size')
 						if(set.indexOf(true) !== -1 && set.indexOf(false) !== -1){
 							done()
 							return true
@@ -508,6 +509,35 @@ exports.booleanSetTest = function(config, done){
 					otherClient.view('general', function(v){
 						v.make('entity', {age: 22, name: 'brian'})
 						v.make('entity', {age: 13, name: 'sue'})
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.stringUpdateTest = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('stringUpdateTest', [], function(c){
+				var gotFirst
+				poll(function(){
+					if(c.name.value() === 'brian'){
+						gotFirst = true
+					}
+					if(gotFirst && c.name.value() === 'bill'){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(v){
+						var e = v.make('entity', {age: 22, name: 'brian'})
+						setTimeout(function(){
+							e.name.set('bill')
+						},200)
 					})
 				})
 				

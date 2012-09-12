@@ -14,7 +14,7 @@ madeViewObject 33
 	typeCode int 2
 
 setSyncId 50
-	syncId int 1 required
+	syncId int 1
 selectObject 51
 	id int 1
 selectViewObject 52
@@ -47,6 +47,19 @@ reselectLongKey 90
 	key long 1
 reselectBooleanKey 91
 	key boolean 1
+/*
+delStringKey 119
+	key string 1
+delIntKey 120
+	key int 1
+delLongKey 121
+	key long 1
+delBooleanKey 122
+	key boolean 1
+delObjectKey 123
+	key int 1*/
+
+delKey 119
 
 //TODO should this be a 'destination set'?  how do we optimize large-multicast scenarios?
 setDestinationSyncId 70 //used for multiplexed server->client streams (where proxying is occuring.)
@@ -79,17 +92,18 @@ setBoolean 78
 
 setObject 21 
 	id int 1
+clearObject 73
 
 setViewObject 107
 	id string 1
 	
 setToNew 22
-	typeCode int 1 required
+	typeCode int 1
 	
 wasSetToNew 32
-	id int 1 required
-	temporary int 2 required
-	typeCode int 3 required
+	id int 1
+	temporary int 2
+	typeCode int 3
 	
 setData 23
 	data binary 1
@@ -112,11 +126,11 @@ addBoolean 81
 	value boolean 1
 
 addNew 11
-	typeCode int 1 required
+	typeCode int 1
 addedNew 96
 	id int 1 required
-	temporary int 2 required
-	typeCode int 3 required
+	temporary int 2
+	typeCode int 3
 	
 addExisting 12
 	id int 1
@@ -148,10 +162,10 @@ replaceInternalNew 28 //the id being replaced is in the path
 	id int 2 //id being replaced
 	typeCode int 3
 replacedNew 95
-	newId int 1 required
-	typeCode int 2 required
-	temporary int 3 required
-	oldId int 4 required
+	newId int 1
+	typeCode int 2
+	temporary int 3
+	oldId int 4
 	
 replaceExternalExisting 17
 	oldId int 1
@@ -174,7 +188,7 @@ putReal 99
 	value real 1
 
 putAddExisting 100
-	id int 1 required
+	id int 1
 
 putAddInt 101
 	value int 1
@@ -190,10 +204,10 @@ putAddReal 105
 del 31
 
 putNew 24
-	typeCode int 1 required
+	typeCode int 1
 didPutNew 110
-	typeCode int 1 required
-	id int 2 required
+	typeCode int 1
+	id int 2
 		
 putExisting 30
 	id int 2
@@ -201,3 +215,6 @@ putExisting 30
 shift 20
 
 destroy 108
+
+revert 40
+	version int 1

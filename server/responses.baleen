@@ -12,15 +12,15 @@ open 1
 	requestId int 1
 	
 update 2
-	editId int 1 required
-	op string 5 required
+	editId int 1
+	op string 5
 	edit binary 2
 	destinationSyncId int 3
 
 updateObject 11
 	id int 1
 	edits binary 2
-	destinationSyncId int 3 required
+	destinationSyncId int 3
 	syncId int 4
 	
 //comes after open (and possibly some updates), indicates that the sync handle is ready for use
@@ -29,11 +29,11 @@ ready 3
 	updatePacket string 2
 gotSnapshots 4
 	requestId int 1
-	snapshotVersionIds binary 2 required//structure is 4-byte int series with 1 byte count prefix
+	snapshotVersionIds binary 2//structure is 4-byte int series with 1 byte count prefix
 	
 gotAllSnapshots 5
 	requestId int 1
-	snapshots binary 2 required//structure is like gotSnapshot.snap, with each snap prefixed with a byte length
+	snapshots binary 2//structure is like gotSnapshot.snap, with each snap prefixed with a byte length
 
 gotSnapshot 6
 	requestId int 1
@@ -44,4 +44,15 @@ gotSnapshot 6
 objectMade 10
 	requestId int 1
 	id int 2
-	temporary int 3 required
+	temporary int 3
+	destinationSyncId int 4
+	
+gotVersionTimestamps 12
+	requestId int 1
+	timestamps binary 2
+	destinationSyncId int 4
+	
+requestError 13
+	err string 1
+	requestId int 2
+	

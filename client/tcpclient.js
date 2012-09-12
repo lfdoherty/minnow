@@ -107,6 +107,9 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	var syncListenersByRequestId = {}
 	var syncListenersBySyncId = {}
 	
+	//var makeCbListenersByRequestId = {}
+	//var makeCbListenersBySyncId = {}
+	
 	var callbacks = {};
 	var requestIdCounter = 1;
 	function applyRequestId(e, cb){
@@ -141,12 +144,16 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		newSyncId: function(e){
 			_.assertInt(e.requestId)
 			//console.log('set newSyncId listener =============================')
-			console.log('got new syncId: ' + JSON.stringify(e))
+			//console.log('got new syncId: ' + JSON.stringify(e))
 			var cb = getRequestCallback(e);
 			syncListenersBySyncId[e.syncId] = syncListenersByRequestId[e.requestId]
+			//makeCbListenersBySyncId[e.syncId] = makeCbListenersByRequestId[e.requestId]
 			_.assertFunction(syncListenersBySyncId[e.syncId].edit)
 			_.assertFunction(syncListenersBySyncId[e.syncId].object)
+			_.assertFunction(syncListenersBySyncId[e.syncId].make)
+			_.assertFunction(syncListenersBySyncId[e.syncId].versionTimestamps)
 			delete syncListenersByRequestId[e.requestId]
+			//delete makeCbListenersByRequestId[e.requestId]
 			cb(e.syncId);
 		},
 		update: function(e){
@@ -191,17 +198,32 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		gotAllSnapshots: function(e){
 			var cb = getRequestCallback(e);
 			//console.log('tcpclient got response gotAllSnapshots: ' + JSON.stringify(e))
-			cb(e);
+			cb(undefined, e);
 		},
 		gotSnapshot: function(e){
 			var cb = getRequestCallback(e);
 			cb(e);
 		},
 		objectMade: function(e){
-			//console.log('GOT BACK OBJECT MADE EVENT')
-			//var cb = getRequestCallback(e);
-			//cb(e);
-			defaultMakeListener(e.id, e.requestId)//TODO shouldn't this depend on which syncId we're informing?
+			//console.log('GOT BACK OBJECT MADE EVENT: ' + e.destinationSyncId + ' ' + JSON.stringify(Object.keys(syncListenersBySyncId)))
+			var makeCb = syncListenersBySyncId[e.destinationSyncId].make
+			makeCb(e.id, e.requestId, e.temporary)
+			//defaultMakeListener(e.id, e.requestId)//TODO shouldn't this depend on which syncId we're informing?
+		},
+		gotVersionTimestamps: function(e){
+			var timestamps = []
+			for(var i=0;i<e.timestamps.length;i+=8){
+				timestamps.push(bin.readLong(e.timestamps, i))
+			}
+			//console.log('got version timestamps: ' + JSON.stringify(e.destinationSyncId) + ' ' + JSON.stringify(timestamps))
+			var vtListener = syncListenersBySyncId[e.destinationSyncId].versionTimestamps
+			vtListener(e.requestId, timestamps)
+		},
+		requestError: function(e){
+			log.err('ERROR: ' + e.err)
+			console.log('ERROR: ' + e.err)
+			var cb = callbacks[e.requestId]
+			cb(e.err)
 		}
 	};
 	
@@ -284,14 +306,23 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		deser = fparse.makeReadStream(shared.serverResponses, reader)
 		
 		defaultSyncHandle = makeSyncHandle(syncId, defaultMakeListener)
-		syncListenersBySyncId[syncId] = {edit: defaultChangeListener, object: defaultObjectListener}
-
+		syncListenersBySyncId[syncId] = {edit: defaultChangeListener, object: defaultObjectListener, make: defaultMakeListener}
+		//makeCbListenersBySyncId[syncId] = defaultMakeListener
+		
 		flushIntervalHandle = setInterval(doFlush, 20)
 	}
 	
-	client.on('data', function(data) {
-		deser(data);
-	});
+	function dataListener(data) {
+		try{
+			deser(data);
+		}catch(e){
+			client.removeListener('data', dataListener)
+			client.destroy()
+			throw e
+		}
+	}
+	client.on('data', dataListener);
+	
 	client.on('end', function() {
 		log('client disconnected');
 	});
@@ -327,21 +358,28 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				w.endView(e);
 			},
 			persistEdit: function(op, edit, sourceSyncId){//, cb){
-				_.assertLength(arguments, 3)
-				_.assertString(op)
-				_.assertInt(sourceSyncId)
-				var editTypeCode = shared.editSchema[op].code
+				//_.assertLength(arguments, 3)
+				//_.assertString(op)
+				//_.assertInt(sourceSyncId)
+				var es = shared.editSchema[op]
+				if(es === undefined) _.errout('unknown edit op: ' + op)
+				var editTypeCode = es.code
 				
 				var requestId
 				if(op === 'make' && !edit.forget){
 					requestId = makeRequestId()
 				}
 				
-				var e = {op: editTypeCode}
-				log('op: ', op)
-				e.edit = serializeEdit(op, edit)
-				e.syncId = sourceSyncId
-				e.requestId = requestId
+				var e = {
+					op: editTypeCode,
+					edit: serializeEdit(op, edit),
+					syncId: sourceSyncId,
+					requestId: requestId
+				}
+				//log('op: ', op)
+				//e.edit = serializeEdit(op, edit)
+				//e.syncId = sourceSyncId
+				//e.requestId = requestId
 				
 				
 
@@ -354,6 +392,18 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				}
 				return requestId
 			},
+			/*getVersionTimestamps: function(versions){
+				var bv = new Buffer(versions.length*4)
+				for(var i=0;i<versions.length;++i){
+					bin.writeInt(bv, i*4, versions[i])
+				}
+				var e = {versions: bv}
+				var requestId = makeRequestId()
+				e.requestId = requestId
+				e.syncId = syncId
+				w.getVersionTimestamps(e)
+				return requestId
+			},*/
 			forgetLastTemporary: function(sourceSyncId){
 				_.assertInt(sourceSyncId)
 				w.forgetLastTemporary({syncId: sourceSyncId})
@@ -375,11 +425,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		//even though we provide a default sync handle, we include the ability to create them
 		//for the purposes of proxying.
-		beginSync: function(listenerCb, objectCb, makeCb, cb){
-			_.assertLength(arguments, 4)
+		beginSync: function(listenerCb, objectCb, makeCb, versionTimestamps, cb){
+			_.assertLength(arguments, 5)
 			_.assertFunction(listenerCb)
 			_.assertFunction(objectCb)
 			_.assertFunction(makeCb)
+			_.assertFunction(versionTimestamps)
 			_.assertFunction(cb);
 			var e = {};
 			applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
@@ -387,8 +438,8 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			log('BEGAN SYNC CLIENT')
 
 			w.beginSync(e);
-			
-			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb}
+			//makeCbListenersByRequestId[e.requestId] = makeCb
+			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb, make: makeCb, versionTimestamps: versionTimestamps}
 			
 			
 		},
@@ -414,11 +465,15 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				off += 4
 			}
 			e.snapshotVersionIds = svb
-			applyRequestId(e, function(res){
+			applyRequestId(e, function(err, res){
+				if(err){
+					cb(err)
+					return
+				}
 				log('got request reply: ' + res.requestId)
 				res.snapshots = deserializeAllSnapshots(fp.readers, fp.names, res.snapshots)
 				log('deserialized: ' + JSON.stringify(res).slice(0,500))
-				cb(res)
+				cb(undefined, res)
 			});
 			w.getAllSnapshots(e);
 			log('tcpclient: getSnapshots')

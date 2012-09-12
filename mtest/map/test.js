@@ -145,11 +145,6 @@ exports.putNew = function(config, done){
 					otherClient.view('general', function(v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('container')
-						//v.s.set(obj)
-						//_.assertDefined(obj)
-						//_.assertDefined(obj.data)
-						//obj.data.put('testKey', 'testValue')
-						//obj.data.put('testKey', 'testValueTwo')
 						obj.members.putNew('testKey', {name: 'Bill'})
 					})
 				})
@@ -159,3 +154,102 @@ exports.putNew = function(config, done){
 	})
 }
 
+exports.values = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('valuesView', function(c){
+			
+				poll(function(){
+					console.log(JSON.stringify(c.toJson()))
+					if(c.vs.size() === 2){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(v){
+						//console.log(''+v.setPropertyToNew)
+						var obj = v.make('entity')
+						//v.s.set(obj)
+						_.assertDefined(obj)
+						_.assertDefined(obj.data)
+						obj.data.put('testKey', 'testValue')
+						obj.data.put('testKey2', 'testValue')
+						obj.data.del('testKey2')
+						obj.data.put('testKey', 'testValueTwo')
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.nestedInnerValues = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('containerValuesView', function(c){
+			
+				poll(function(){
+					console.log(JSON.stringify(c.toJson()))
+					if(c.vs.size() === 2){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(v){
+						//console.log(''+v.setPropertyToNew)
+						var cont = v.make('container')
+						var obj = cont.members.putNew('testb', 'entity')
+
+						_.assertDefined(obj)
+						_.assertDefined(obj.data)
+						obj.data.put('testKey', 'testValue')
+						obj.data.put('testKey2', 'testValue')
+						obj.data.del('testKey2')
+						obj.data.put('testKey', 'testValueTwo')
+						
+					})
+				})
+				
+			})
+		})
+	})
+}
+exports.nestedExternalValues = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('containerValuesView', function(c){
+			
+				poll(function(){
+					console.log(JSON.stringify(c.toJson()))
+					if(c.vs.size() === 2){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(v){
+						//console.log(''+v.setPropertyToNew)
+						var obj = v.make('entity')
+
+						_.assertDefined(obj)
+						_.assertDefined(obj.data)
+						obj.data.put('testKey', 'testValue')
+						obj.data.put('testKey2', 'testValue')
+						obj.data.del('testKey2')
+						obj.data.put('testKey', 'testValueTwo')
+						
+						var cont = v.make('container')
+						cont.members.put('testb', obj)
+					})
+				})
+				
+			})
+		})
+	})
+}

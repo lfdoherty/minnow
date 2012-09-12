@@ -64,20 +64,19 @@ exports.getPrimitiveCollectionAssertion = function(collectionType, typeSchema){
 }
 
 exports.primitiveChangeListener = function changeListener(op, edit, syncId, editId){
-	//_.assertLength(path, 0);
-
-	//console.log('in primitive change listener: ' + JSON.stringify([op, edit, syncId, editId]))
 
 	if(syncId === this.getEditingId()){
-	//	console.log('ignoring change by same user')
 		return stub;//TODO deal with local/global priority
 	}
+	//console.log('pcl: ' + JSON.stringify({op: op, edit: edit, syncId: syncId, editId: editId}))
+	/*if(!isNotExternal){
+		if(this.edits === undefined) this.edits = []
+		this.edits.push({op: op, edit: edit, syncId: syncId, editId: editId})
+	}*/
 	
 	if(op.indexOf('set') === 0){
 		this.obj = edit.value;
-		//console.log('set happened(' + this.getEditingId() + ')(' + syncId + '): ' + edit.value)
-		//this.parent.obj[this.part[0]] = edit.value
-		return this.emit(edit, 'set')
+		return this.emit(edit, 'set', edit.value, editId)
 	}else{
 		_.errout('-TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}

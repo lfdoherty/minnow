@@ -11,15 +11,17 @@ var fs = require('fs')
 
 var log = require('quicklog').make('minnow/longpoll')
 
-exports.load = function(app, appName, schema, identifier, viewSecuritySettings, minnowClient){
+exports.load = function(app, appName, schema, identifier, viewSecuritySettings, minnowClient, syncHandleCreationListener){
 	_.assertFunction(identifier)
 	_.assertString(appName)
-
+	_.assertFunction(syncHandleCreationListener)
+	
 	var clientInfoBySyncId = {};
 	
 	log('setting up long poll -------------')
 	var syncHandles = {}
 	
+	var gvtHandles = {}
 	
 	//TODO dedup for multiple?
 	app.get(exports, '/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
@@ -35,13 +37,22 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 		}
 		function makeCb(id, temporary){
 			//_.errout('TODO')
+			//console.log('makeCb in longpoll: ' + temporary + ' -> ' + id)
 			sendToClient(theSyncId, ['reify', id, temporary])
 		}
-		minnowClient.beginSync(listenerCb, objectCb, makeCb, function(syncId, syncHandle){
+		function versionTimestamps(requestId, timestamps){
+			_.assertInt(requestId)
+			_.assertArray(timestamps)
+			gvtHandles[requestId](timestamps)
+			//sendToClient(theSyncId, ['versionTimestamps', {uid: uid, timestamps: timestamps}])			
+		}
+		
+		minnowClient.beginSync(listenerCb, objectCb, makeCb, versionTimestamps, function(syncId, syncHandle){
 			theSyncId = syncId
 			syncHandle.owningUserId = req.user.id
 			syncHandles[syncId] = syncHandle
 			log('got sync handle: ' + syncId)
+			syncHandleCreationListener(req, syncId)
 			var data = JSON.stringify({syncId: syncId})
 			httpRes.setHeader('Content-Type', 'application/json');
 			httpRes.setHeader('Content-Length', data.length);
@@ -134,6 +145,15 @@ exports.load = function(app, appName, schema, identifier, viewSecuritySettings, 
 			log('msg: ' + JSON.stringify(msg).slice(0, 300))
 			if(msg.type === 'setup'){
 				doViewSetup(msg)
+			}else if(msg.type === 'versionTimestamps'){
+				//_.errout('TODO')
+				_.assertArray(msg.versions)
+				console.log('versions: ' + JSON.stringify(msg.versions))
+				var requestId = syncHandle.getVersionTimestamps(msg.versions)
+				gvtHandles[requestId] = function(timestamps){
+					delete gvtHandles[requestId]
+					sendToClient(syncId, {type: 'versionTimestamps', uid: msg.uid, timestamps: timestamps})
+				}
 			}else{
 				msg = msg.data
 

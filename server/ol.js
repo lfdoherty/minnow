@@ -33,16 +33,18 @@ var fp = shared.editFp
 function OlReaders(ol){
 	this.ol = ol
 	this.currentId = -1
-	this.currentSyncId = -1
+	this.currentSyncId = undefined
 	this.lastVersionId = 1
 	this.manySyncIdsMade = 0
 }
-OlReaders.prototype.make = function(e){
-	var n = this.ol._make(e)//TODO
+OlReaders.prototype.make = function(e, timestamp){
+	var n = this.ol._make(e, timestamp, this.currentSyncId)//TODO
 	this.currentId = n.id
 	log('got make', e.typeCode, ':', this.currentId)
+	//console.log('loading make '+ e.typeCode+ ':'+ this.currentId)
 }
 OlReaders.prototype.setSyncId = function(e){
+	_.assert(e.syncId > 0)
 	this.currentSyncId = e.syncId
 }
 OlReaders.prototype.selectTopObject = function(e){
@@ -70,9 +72,15 @@ _.each(shared.editSchema._byCode, function(objSchema){
 		readers[name] = appendEdit.bind(undefined, name)
 	}*/
 	if(OlReaders.prototype[name] === undefined){
-		OlReaders.prototype[name] = function(edit){
+		OlReaders.prototype[name] = function(edit, timestamp){
+			_.assertNumber(timestamp)
+			//console.log('loading timestamp: ' + timestamp)
+			//console.log(new Error().stack)
+			//console.log('args: ' + JSON.stringify(arguments))
 			//appendEdit(name, edit)
-			this.ol.persist(this.currentId, name, edit, this.currentSyncId)
+			log('edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
+			//console.log('loading edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
+			this.ol.persist(this.currentId, name, edit, this.currentSyncId, timestamp)
 		}//appendEdit.bind(undefined, name)
 	}
 })
@@ -87,6 +95,8 @@ function Ol(){
 	this.objectTypeCodes = {}
 	this.destroyed = {}//for better bug reporting
 	
+	this.timestamps = {}//TODO optimize
+	
 	this.stats = {
 		make: 0,
 		change: 0,
@@ -97,18 +107,21 @@ function Ol(){
 		readFromBuffer: 0
 	}
 }
-Ol.prototype._make = function make(edit, syncId){
+Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	++this.stats.make
 		
 	++this.idCounter;
 	var editId = this.readers.lastVersionId
+	this.timestamps[editId]  = timestamp
+
 	++this.readers.lastVersionId
 	
 	log('wrote object ', this.idCounter)
 	
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
+	_.assert(syncId > 0)
 	this.olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: editId})
 	this.olc.addEdit(id, {op: 'made', edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
 	//setObjectCurrentSyncId(id, syncId)
@@ -127,18 +140,23 @@ Ol.prototype._make = function make(edit, syncId){
 }
 Ol.prototype._destroy = function(id){
 
+	//console.log('destroying')
+
 	this.olc.destroy(id)
+
+	//console.log('destroying...')
 	
 	//_.each(idsByType, function(arr, tcStr){
 	var keys = Object.keys(this.idsByType)
 	for(var i=0;i<keys.length;++i){
 		var arr = this.idsByType[keys[i]]
-		var i = arr.indexOf(id)
-		if(i !== -1){
-			arr.splice(i, 1)
+		var index = arr.indexOf(id)
+		//console.log(id + ': ' + JSON.stringify(arr))
+		if(index !== -1){
+			arr.splice(index, 1)
 		}
 	}
-	
+	//console.log('done destroying')
 	this.destroyed[id] = true
 }
 Ol.prototype._getForeignIds = function(id, editId, cb){
@@ -246,9 +264,72 @@ Ol.prototype.syntheticEditId = function(){
 	++this.readers.lastVersionId
 	return editId
 }
-Ol.prototype.persist = function(id, op, edit, syncId){
+Ol.prototype.getVersionTimestamp = function(v){
+	_.assert(v > 0)
+	var t = this.timestamps[v]
+	_.assertNumber(t)
+	_.assert(t > 0)
+	return t
+}
+Ol.prototype.getVersionTimestamps = function(versions){
+	var timestamps = []
+	for(var i=0;i<versions.length;++i){
+		var v = versions[i]
+		if(v === -1){
+			//timestamps.push(0)
+			_.errout('TODO ENSURE THIS DOES NOT HAPPEN')
+		}else{
+			var t = this.timestamps[v]
+			_.assertNumber(t)
+			_.assert(t > 0)
+			timestamps.push(t)
+		}
+	}
+	return timestamps
+}
+Ol.prototype.getSyncIds = function(id, cb){
+	this.get(id, -1, -1, function(edits){
+		var syncIds = []
+		var has = {}
+		//console.log(JSON.stringify(edits))
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(e.op === 'setSyncId'){
+				var syncId = e.edit.syncId
+				if(has[syncId] === undefined){
+					has[syncId] = true
+					syncIds.push(syncId)
+				}
+			}
+		}
+		cb(syncIds)
+	})
+}
+
+var isPathOp = require('./editutil').isPathOp
+
+Ol.prototype.getVersions = function(id, cb){
+	this.get(id, -1, -1, function(edits){
+		var versions = []
+		var has = {}
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(isPathOp(e.op)) continue
+			var version = e.editId
+			if(has[version] === undefined){
+				has[version] = true
+				//console.log('adding version: ' + JSON.stringify(e))
+				versions.push(version)
+			}
+		}
+		cb(versions)
+	})
+}
+Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
+	_.assertNumber(timestamp)
 	if(op === 'make'){
-		return this._make(edit, syncId)
+		_.assert(syncId > 0)
+		return this._make(edit, timestamp, syncId)
 	}
 	//console.log('PERSISTING PERSISTING: ' + JSON.stringify(arguments))
 	_.assertInt(id)
@@ -259,6 +340,7 @@ Ol.prototype.persist = function(id, op, edit, syncId){
 	var objCurrentSyncId = this.objectCurrentSyncId[id]
 
 	if(objCurrentSyncId !== syncId){
+		_.assert(syncId > 0)
 		this.olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
 		this.objectCurrentSyncId[id] = syncId
 		++this.readers.lastVersionId
@@ -266,6 +348,8 @@ Ol.prototype.persist = function(id, op, edit, syncId){
 
 	var res = {editId: this.readers.lastVersionId}
 	++this.readers.lastVersionId
+
+	this.timestamps[res.editId]  = timestamp
 
 	if(op === 'addNew'){
 		op = 'addedNew'

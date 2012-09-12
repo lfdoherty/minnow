@@ -113,7 +113,7 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 		},
 		detach: function(listener, editId){
 			listeners.splice(listeners.indexOf(listener), 1)
-			if(caseVariable){
+			if(caseVariable !== undefined){
 				caseVariable.detach(listener, editId)
 			}
 		},

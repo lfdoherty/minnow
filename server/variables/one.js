@@ -4,9 +4,8 @@ var _ = require('underscorem')
 
 var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
-
+var fixedObject = require('./../fixed/object')
 var schema = require('./../../shared/schema')
-var _ = require('underscorem')
 
 function oneType(rel){
 	return rel.params[0].schemaType.members;
@@ -25,6 +24,12 @@ function oneMaker(s, self, rel, typeBindings){
 	var cache = new Cache()
 	var f = svgGeneralOne.bind(undefined, s, cache, elementsGetter)
 	//f.getDescender = elementsGetter.getDescender
+	
+	var fixedObjGetter = fixedObject.make(s)
+	f.wrapAsSet = function(id, editId, context){
+		var fo = fixedObjGetter(id, editId, context)
+		return fo
+	}
 	return f
 }
 

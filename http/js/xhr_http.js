@@ -1,9 +1,6 @@
 
 var XMLHttpRequest = require('xhr').XMLHttpRequest
 
-exports.getJson = getJson
-exports.postJson = postJson
-
 function getJson(url, cb, errCb){
 	//if(arguments.length !== 2) throw new Error('getJson(url,cb) should not be called with ' + arguments.length + ' arguments')
     var xhr = new XMLHttpRequest();  
@@ -57,3 +54,7 @@ function postJson(url, content, cb, errCb){
 	};  
 	xhr.send(JSON.stringify(content)); 
 }
+
+
+exports.getJson = getJson
+exports.postJson = postJson

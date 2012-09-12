@@ -74,18 +74,18 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			//console.log('BEGINNING VIEW:' + JSON.stringify(e))
 			
 			function readyCb(){
-				log('GOT READY PACKET:' + JSON.stringify(readyPacket))
+				log('GOT READY PACKET:', readyPacket)
 				readyPacketCb(readyPacket)
 				readyPacket = undefined
 			}
-			log('params: ' + e.params)
+			log('params:', e.params)
 			_.assertString(e.params)
 			var vg = viewGettersByTypeCode[e.typeCode]
 			
 			var parsedParams = JSON.parse(e.params)//e.params.split(';')
 			_.assertArray(parsedParams)
 			
-			log('beginning view after ' + e.latestSnapshotVersionId)
+			log('beginning view after', e.latestSnapshotVersionId)
 			
 			var bindings = vg.binder(parsedParams, e.latestSnapshotVersionId)
 			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId()-1)
@@ -103,7 +103,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		getSnapshots: function(typeCode, params, cb){
 			var c = objectState.getCurrentEditId()
 			var realVersions = [c-1]//would be -1, except we want to keep the *previous* editId open for time-triggered appends
-			log('GOT SNAPSHOTS: ' + realVersions[0])
+			log('GOT SNAPSHOTS: ', realVersions[0])
 			//log(new Error().stack)
 			cb(realVersions)
 		},
@@ -111,11 +111,11 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotIds[snapshotIds.length-1])
 			var curEditId = objectState.getCurrentEditId()-1
-			log('curEditId: ' + curEditId)
+			log('curEditId: ', curEditId)
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, curEditId)
 
 			var list = [];
-			log('GETTING SNAPSHOT STATES: ' + JSON.stringify(snapshotIds))
+			log('GETTING SNAPSHOT STATES: ',snapshotIds)
 			var cdl = _.latch(snapshotIds.length, function(){
 				log('GOT ALL SNAPSHOT STATES')
 				cb({snapshots: list});

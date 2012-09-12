@@ -28,38 +28,9 @@ var longpoll = require('./../http/longpoll')
 
 var jsonutil = require('./../http/js/jsonutil')
 
-
-//exports.name = 'minnow'
-//exports.dir = __dirname
 exports.module = module
 
 var log = require('quicklog').make('minnow/client')
-//var ws = require('fs').createWriteStream('client.log')
-//function log(msg){ws.write(msg+'\n');}
-
-//copied from browserclient.js
-function mergeSnapshots(snaps){
-
-	var result = {latestVersionId: snaps[snaps.length-1].latestVersionId, objects: []};
-	
-	var taken = {};
-	for(var i=snaps.length-1;i>=0;--i){
-		var m = snaps[i].objects;
-		
-		for(var j=0;j<m.length;++j){	
-			var obj = m[j]
-			var id = obj.object.meta.id
-			if(!taken[id]){
-				taken[id] = true;
-				result.objects.push(obj);
-			}
-		}
-	}
-	
-	return result;
-}
-		
-//var ooo = console.log
 
 function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 	_.assertInt(syncId)
@@ -79,7 +50,12 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 		for(var i=0;i<snapshotIds.length;++i){
 			_.assertInt(snapshotIds[i]);
 		}
-		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds}, function(snapshotsRes){
+		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds}, function(e, snapshotsRes){
+		
+			if(e){
+				cb(e)
+				return
+			}
 		
 			var snapshots = snapshotsRes.snapshots;
 			if(snapshots === undefined){
@@ -118,7 +94,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
 				syncId: syncId
 			}
-			beginView(req, /*changeListenerWrapper, */readyCb);
+			beginView(req, readyCb);
 
 		});
 	});
@@ -142,6 +118,7 @@ function translateParamObjects(s, params){
 				}
 			}
 			//TODO check objectHandle type against param type
+			_.assertInt(id)
 			_.assert(id >= 0)
 			res.push(id)
 		}else{
@@ -171,19 +148,31 @@ function makeClient(host, port, clientCb){
 	var api;
 	var cc;
 
-	wrapper.persistEdit = function(op, edit, temporaryId){
+	wrapper.persistEdit = function(op, edit){//, temporaryId){
 		//.assertLength(arguments, 2)
 		_.assertString(op)
 		_.assertObject(edit)
 		
 		var requestId = cc.getDefaultSyncHandle().persistEdit(op, edit, listeningSyncId);
 
-		if(op === 'make' && !edit.forget){
-			_.assertInt(temporaryId)
-			_.assert(temporaryId < -1)
-			makeCbsWaiting[requestId] = {temporary: temporaryId}
+		if(op === 'make'){// && !edit.forget){
+			_.errout('TODO')
+			//_.assertInt(temporaryId)
+			//_.assert(temporaryId < -1)
+			//makeCbsWaiting[requestId] = {temporary: temporaryId}
 		}
 	}
+	
+	wrapper.make = function(type, json, forget, cb){
+		_.assertLength(arguments, 4)
+		_.assertString(type)
+		/*if(_.isFunction(json)){
+			cb = json
+			json = {}
+		}*/
+		return doMake(type, json, forget, cb)
+	}
+
 	wrapper.forgetLastTemporary = function(){
 		//_.errout('TODO');
 		cc.getDefaultSyncHandle().forgetLastTemporary(listeningSyncId)
@@ -206,31 +195,57 @@ function makeClient(host, port, clientCb){
 	}
 	
 	var makeCbsWaiting = {}
-	function defaultMakeListener(id, requestId){
+	function defaultMakeListener(id, requestId, temporary){
 		_.assertInt(id)
 		_.assertInt(requestId)
+
+		api.reifyExternalObject(temporary, id)
 		
 		//console.log('getting cb: ' + id + ' ' + requestId)
 		var cb = makeCbsWaiting[requestId]
 		if(cb){
-			if(cb.temporary !== -1){
-				api.reifyExternalObject(cb.temporary, id)
-			}
 			if(cb.cb){
-				var objHandle = api.getTopObject(id)
-				cb.cb(objHandle)
+				//var objHandle = api.getTopObject(id)
+				_.assert(id > 0)
+				cb.cb(id)
+			}else{
+				//console.log('no actual cb')
 			}
 			delete makeCbsWaiting[requestId]
 		}else{
-			console.log('WARNING: no cb')
+			//console.log('WARNING: no cb')
 		}
 	}
+	
+	function doMake(type, json, forget, cb){
+		var st = dbSchema[type];
+		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json)
+		
+		var dsh = cc.getDefaultSyncHandle()
+		var requestId = dsh.persistEdit('make', {typeCode: st.code, forget: forget}, listeningSyncId)
+		if(cb){
+			_.assertInt(requestId)
+			_.assertFunction(cb)
+			//console.log('setting cb: ' + requestId)
+			
+			makeCbsWaiting[requestId] = {temporary: -1, cb: cb}
+		}
+		edits.forEach(function(e){
+			dsh.persistEdit(e.op, e.edit, listeningSyncId);
+		})
+		if(forget){
+			dsh.forgetLastTemporary(listeningSyncId)
+		}
+		return edits
+	}	
+
+	var dbSchema
 	
 	tcpclient.make(host, port, changeListenerWrapper, objectListenerWrapper, defaultMakeListener, function(serverHandle, syncId){
 		_.assertInt(syncId)
 		
 		listeningSyncId = syncId
-		var dbSchema = serverHandle.schema;
+		dbSchema = serverHandle.schema;
 	
 		//if(console.log !== ooo) ooo('*got inmem')
 		//console.log('making tcp client')
@@ -252,13 +267,19 @@ function makeClient(host, port, clientCb){
 		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
 			_.assertFunction(cb)
 			log(uid + ' getting view ' + type + JSON.stringify(params))
-			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(){
+			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(e){
+				if(e){
+					console.log('e: ' + JSON.stringify(e))
+					cb()
+					return
+				}
 				var viewId = st.code+':'+JSON.stringify(params)
 				log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
 				cb(api.getView(viewId))
 			})
 		},function(type, params){
+			//console.log(require('util').inspect(params))
 			var key = type + JSON.stringify(params)
 			//console.log(uid + ' view key (' + key + ')')
 			return key
@@ -273,18 +294,17 @@ function makeClient(host, port, clientCb){
 			schema: dbSchema,
 			//schemaName: dbName,
 			internalClient: cc,
-			beginSync: function(listenerCb, objectCb, makeCb, cb){
-				_.assertLength(arguments, 4)
+			beginSync: function(listenerCb, objectCb, makeCb, versionTimestamps, cb){
+				_.assertLength(arguments, 5)
 				_.assertFunction(listenerCb)
 				_.assertFunction(objectCb)
 				_.assertFunction(makeCb)
+				_.assertFunction(versionTimestamps)
 				_.assertFunction(cb)
-				function makeCbWrapper(id, requestId){
-					var temporary = makeCbsWaiting[requestId].temporary
-					delete makeCbsWaiting[requestId]
+				function makeCbWrapper(id, requestId, temporary){
 					makeCb(id, temporary)
 				}
-				cc.beginSync(listenerCb, objectCb, makeCbWrapper, function(syncId, syncHandle){
+				cc.beginSync(listenerCb, objectCb, makeCbWrapper, versionTimestamps, function(syncId, syncHandle){
 					_.assertLength(arguments, 2)
 					_.assertInt(syncId)
 					_.assertObject(syncHandle)
@@ -294,13 +314,13 @@ function makeClient(host, port, clientCb){
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
-			setupService: function(name, local, identifier, viewSecuritySettings){
-				_.assertLength(arguments, 4)
+			setupService: function(name, local, identifier, viewSecuritySettings, syncHandleCreationListener){
+				_.assertLength(arguments, 5)
 				_.assertFunction(identifier)
 				_.assertObject(viewSecuritySettings)
 				_.assertNot(serviceIsSetup);
 				serviceIsSetup = true;
-				var lp = longpoll.load(local, name, dbSchema, identifier, viewSecuritySettings, handle)
+				var lp = longpoll.load(local, name, dbSchema, identifier, viewSecuritySettings, handle, syncHandleCreationListener)
 				xhrService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
 				return matterhornService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
 			},
@@ -334,24 +354,12 @@ function makeClient(host, port, clientCb){
 					cb = json
 					json = {}
 				}
-				var st = dbSchema[type];
-				var edits = jsonutil.convertJsonToEdits(dbSchema, type, json)
-				
-				var dsh = cc.getDefaultSyncHandle()
-				var requestId = dsh.persistEdit('make', {typeCode: st.code, forget: !cb}, listeningSyncId)
-				if(cb){
-					_.assertInt(requestId)
-					_.assertFunction(cb)
-					//console.log('setting cb: ' + requestId)
-					
-					makeCbsWaiting[requestId] = {temporary: -1, cb: cb}
+				var forget = !cb
+				if(cb === true){
+					forget = true
 				}
-				edits.forEach(function(e){
-					dsh.persistEdit(e.op, e.edit, listeningSyncId);
-				})
-				if(!cb){
-					dsh.forgetLastTemporary(listeningSyncId)
-				}
+				//doMake(type, json, forget, cb)
+				return api.createNewExternalObject(type, json, forget, cb)
 			},
 			
 			getDefaultSyncId: function(){

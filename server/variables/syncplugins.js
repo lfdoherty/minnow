@@ -38,8 +38,9 @@ function wrapParam(v, schemaType, s){
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
-					if(cachedValue)
-					listener.changed(editId)
+					if(cachedValue !== undefined){
+						listener.changed(editId)
+					}
 				},
 				get: function(){return cachedValue;},
 				oldest: t.oldest
@@ -63,8 +64,9 @@ function wrapParam(v, schemaType, s){
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
-					if(cachedValue)
-					listener.changed(editId)
+					if(cachedValue !== undefined){
+						listener.changed(editId)
+					}
 				},
 				get: function(){return cachedValue;},
 				oldest: t.oldest
@@ -90,8 +92,11 @@ function wrapParam(v, schemaType, s){
 						listeners.emitChanged(editId)
 					},
 					remove: function(v, editId){
+						//console.log('removed: ' + v)
 						cachedValues.splice(cachedValues.indexOf(v), 1)
-					}
+						listeners.emitChanged(editId)
+					},
+					objectChange: function(){_.errout('TODO?');}
 				}, editId)
 				return {
 					attach: function(listener, editId){
@@ -155,11 +160,11 @@ function wrapParam(v, schemaType, s){
 				var t = v(bindings, editId)
 				var cachedValues = {}
 				var re = Math.random()
-				s.log('attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+				s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
 				t.attach({
 					put: function(key, value, oldValue, editId){
-						s.log('GOT PUT: ' + key + ' ' + value + ' $$$$$$$$$$$$$4')
+						s.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
 						cachedValues[key] = value
 						listeners.emitChanged(editId)
 					},
@@ -251,6 +256,7 @@ function setupOutputHandler(schemaType, s){
 						var newHas = {}
 						for(var i=0;i<result.length;++i){
 							var v = result[i]
+							_.assertDefined(v)
 							newHas[v] = true
 							//console.log(r + ' emitting adds?: ' + JSON.stringify(result))
 							if(has[v] === undefined){
@@ -338,13 +344,15 @@ function setupOutputHandler(schemaType, s){
 						_.assertInt(editId)
 						if(_.size(result) === 0 && _size(map) === 0) return
 
-						_.each(result, function(value, key){
-							if(map[key] === undefined){
+						Object.keys(result).forEach(function(key){
+							var value = result[key]
+							if(map[key] !== value){//=== undefined){
 								key = keyParser(key)
-								listeners.emitPut(key, value, undefined, editId)
+								listeners.emitPut(key, value, map[key], editId)
 							}
 						})
-						_.each(map, function(value, key){
+						Object.keys(map).forEach(function(key){
+							var value = map[key]
 							if(result[key] === undefined){
 								key = keyParser(key)
 								listeners.emitDel(key, editId)
@@ -357,7 +365,9 @@ function setupOutputHandler(schemaType, s){
 					attach: function(listener, editId){
 						listeners.add(listener)
 						_.assertFunction(listener.put)
-						_.each(map, function(value, key){
+						//_.each(map, function(value, key){
+						Object.keys(map).forEach(function(key){
+							var value = map[key]
 							key = keyParser(key)
 							listener.put(key, value, undefined, editId)
 						})
@@ -365,7 +375,8 @@ function setupOutputHandler(schemaType, s){
 					detach: function(listener, editId){
 						listeners.remove(listener)
 						if(editId){
-							_.each(map, function(value, key){
+							Object.keys(map).forEach(function(key){
+								//var value = map[key]
 								key = keyParser(key)
 								listener.del(key, editId)
 							})
@@ -474,7 +485,10 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 		for(var i=0;i<params.length;++i){
 			valueArray[i] = params[i].get()
 			//_.assertDefined(valueArray[i])
-			if(valueArray[i] === undefined && !plugin.nullsOk) return
+			if(valueArray[i] === undefined && !plugin.nullsOk){
+				s.log('WARNING: null input found for plugin that will not take nulls: ' + plugin.callSyntax)
+				return
+			}
 		}
 		//console.log('recomputing with: ' + JSON.stringify(valueArray))
 		var rr = plugin.implementation(valueArray)

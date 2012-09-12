@@ -106,6 +106,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			var nt = nextTemporary
 			--nextTemporary
 			lastTemporaryId[syncId] = nt
+			//console.log('generated temporary for ' + syncId + ': ' + nt)
 			return nt
 		}
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
@@ -255,7 +256,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			endView: function(e){
 			},
 			endSync: function(e){
-				log('tcpserver got client request endSync: ' + JSON.stringify(e))
+				log('tcpserver got client request endSync: ', e)
 				//TODO
 			},
 			persistEdit: function(e){
@@ -331,12 +332,28 @@ function createTcpServer(appSchema, port, s, readyCb){
 				
 					if(!e.edit.forget){
 						//_.assertInt(id);
-						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId]}
+						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
 						w.objectMade(msg);
 					}
 				}else{
 					s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
 				}
+			},
+			getVersionTimestamps: function(e){
+				var versions = []
+				for(var f=0;f<e.versions.length;f+=4){
+					versions.push(bin.readInt(e.versions, f))
+				}
+				s.getVersionTimestamps(versions, function(timestamps){
+					//_.errout('TODO')
+					//console.log('writing timestamps: ' + JSON.stringify(timestamps))
+					var tb = new Buffer(timestamps.length*8)
+					for(var i=0;i<timestamps.length;++i){
+						var t = timestamps[i]
+						bin.writeLong(tb, i*8, t)
+					}
+					w.gotVersionTimestamps({requestId: e.requestId, timestamps: tb, destinationSyncId: e.syncId})
+				})
 			},
 			forgetLastTemporary: function(e){
 				var temporaryId = lastTemporaryId[syncId]
@@ -356,7 +373,11 @@ function createTcpServer(appSchema, port, s, readyCb){
 			},//makeRequestWrapper('getSnapshots', 'gotSnapshots'),
 			getAllSnapshots: function(e){
 				e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
-				s.getAllSnapshots(e, function(res){
+				s.getAllSnapshots(e, function(err, res){
+					if(err){
+						w.requestError({err: ''+err, requestId: e.requestId})
+						return
+					}
 					res.requestId = e.requestId;
 					res.snapshots = serializeAllSnapshots(res.snapshots)
 					w.gotAllSnapshots(res);
@@ -415,7 +436,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				log('tcp server closed')
 				cdl()
 			})
-			log('closing tcp server: ' + tcpServer.connections)
+			log('closing tcp server: ', tcpServer.connections)
 			//apparently you cannot close a server until you've destroyed all its connections
 			//even if those connections were closed remotely???
 			connections.forEach(function(c){c.destroy();})

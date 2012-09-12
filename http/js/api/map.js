@@ -92,7 +92,7 @@ MapHandle.prototype.each = function(cb){
 	}
 }
 
-MapHandle.prototype.adjustPath = function adjustMapPath(key){
+MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
 	this.log('adjust map path ' + key)
 	console.log('adjust map path ' + key)
 	_.assertDefined(key)
@@ -123,25 +123,76 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 		return remainingCurrentPath.slice(1)
 	}
 }
+
+MapHandle.prototype.adjustPath = function adjustMapPath(key){
+	if(this.schema.type.value.type === 'primitive'){
+		_.assertDefined(key)
+		var remainingCurrentPath = this.parent.adjustPath(this.part)
+		if(remainingCurrentPath.length === 0){
+			this.log('zero')
+			console.log('zero')
+			this.persistEdit(this.keyOp, {key: key})
+			return []
+		}else if(remainingCurrentPath[0] !== key){
+			this.log('different')
+			console.log('different')
+			if(remainingCurrentPath.length > 1){
+				if(remainingCurrentPath.length < 6){
+					this.log('primitive ascending ' + remainingCurrentPath[0])
+					this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
+				}else{
+					this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
+				}
+			}else{
+				this.log('reselecting')
+				console.log('reselecting')
+			}
+		
+			this.persistEdit('re'+this.keyOp, {key: key})
+			return []
+		}else{
+			this.log('same')
+			return remainingCurrentPath.slice(1)
+		}
+	}else{
+		this.log('adjust map path ' + key)
+		console.log('adjust map path ' + key)
+
+		var remainingCurrentPath = this.parent.adjustPath(this.part)
+		if(remainingCurrentPath.length !== 0){
+			this.persistEdit('ascend', {many: remainingCurrentPath.length})
+		}
+		return []
+	}
+}
 MapHandle.prototype.del = function(key){
 
-	this.adjustPath(key)
+	this.adjustPathLocal(key)
 	var e = {key: key};
-	this.persistEdit('del', {})
+	this.persistEdit('delKey', {})
 	delete this.obj[key]
 		
 	this.emit(e, 'del', key)()
 }
 
 MapHandle.prototype.put = function(newKey, newValue){
-	if(this.schema.type.value.type === 'object') _.errout('cannot put - values are not primitive (TODO support putting objects)');
+	if(this.obj[newKey] === newValue) return
 
-
-	this.adjustPath(newKey)
-	var e = {value: newValue, key: newKey};
-	this.persistEdit(this.putOp, e)
-	this.obj[newKey] = newValue
+	this.adjustPathLocal(newKey)
+	
+	if(this.schema.type.value.type === 'object'){
+		//_.errout('cannot put - values are not primitive (TODO support putting objects)');
+		_.assertInt(newValue.objectId)
 		
+		var e = {id: newValue.objectId};
+		this.persistEdit('putExisting', e)
+		this.obj[newKey] = newValue
+		
+	}else{
+		var e = {value: newValue, key: newKey};
+		this.persistEdit(this.putOp, e)
+		this.obj[newKey] = newValue
+	}		
 	this.emit(e, 'put', newKey, newValue)()
 }
 
@@ -158,7 +209,7 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	
 	var type = u.getOnlyPossibleType(this, newTypeName);
 	
-	this.adjustPath(newKey)
+	this.adjustPathLocal(newKey)
 	var e = {typeCode: type.code};
 	this.persistEdit('putNew', e)
 
@@ -166,6 +217,7 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	this.obj[newKey] = n
 		
 	this.emit(e, 'put', newKey, n)()
+	return n
 }
 
 MapHandle.prototype.has = function(desiredKey){
@@ -174,6 +226,31 @@ MapHandle.prototype.has = function(desiredKey){
 	return this.obj[desiredKey] !== undefined;
 }
 
+MapHandle.prototype.values = function(){
+	_.assertLength(arguments, 0)
+	var keys = Object.keys(this.obj)
+	var values = []
+	for(var i=0;i<keys.length;++i){
+		var k = keys[i]
+		var v = this.obj[k]
+		if(values.indexOf(v) === -1){
+			values.push(v)
+		}
+	}
+	return values
+}
+
+MapHandle.prototype.getObjectValue = function(id){
+	_.assert(this.schema.type.value.type === 'object')
+	var keys = Object.keys(this.obj)
+	for(var i=0;i<keys.length;++i){
+		var key = keys[i]
+		var value = this.obj[key]
+		if(value.objectId === id){
+			return value
+		}
+	}
+}
 MapHandle.prototype.get = function(desiredKey){
 	_.assertLength(arguments, 1);
 	
@@ -281,8 +358,9 @@ MapHandle.prototype.changeListener = function(op, edit, syncId){
 
 	_.errout('-TODO implement op: ' + JSON.stringify(edit));
 }
-MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId){
-
+MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, editId){
+	_.assertInt(editId)
+	
 	if(syncId === this.getEditingId()){
 		return stub;//TODO deal with local/global priority
 	}
@@ -291,12 +369,12 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId){
 		//_.errout('TODO')
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.id)
-		return this.emit(edit, 'putAdd')
+		return this.emit(edit, 'put-add')//, key, value, editId)
 	}else if(op.indexOf('putAdd') === 0){
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.value)
-		this.log('key: ' + key)
-		return this.emit(edit, 'put')
+		//this.log('key: ' + key)
+		return this.emit(edit, 'put-add', key, edit.value, editId)
 	}else if(op === 'didPutNew'){
 		/*this.obj[key] = edit.value;
 		this.log('key: ' + key)
@@ -315,18 +393,21 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId){
 		}else{
 			_.assertInt(id)
 
-			var res = this.wrapObject(id, edit.typeCode, [key], this)
+			var res = this.wrapObject(id, edit.typeCode, [id], this)
+			var old = this.obj[key]
 			this.obj[key] = res
 			res.prepare()
-			return this.emit(edit, 'put')
+			return this.emit(edit, 'put', key, res, old, editId)
 		}
 	}else if(op.indexOf('put') === 0){
+		var old = this.obj[key]
 		this.obj[key] = edit.value;
-		this.log('key: ' + key)
-		return this.emit(edit, 'put')
-	}else if(op === 'del'){
+		//this.log('key: ' + key)
+		return this.emit(edit, 'put', key, edit.value, old, editId)
+	}else if(op === 'delKey'){
+		//console.log('key: ' + key)		
 		delete this.obj[key]
-		return this.emit(edit, 'del')
+		return this.emit(edit, 'del', editId)
 	}else{
 		_.errout('-TODO implement op: ' + JSON.stringify(edit));
 	}

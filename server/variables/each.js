@@ -16,6 +16,7 @@ function eachType(rel, ch){
 	//console.log('each computing input type... ' + r)
 	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
 	//console.log('...done ' + r)
+	//console.log('inputType: ' + JSON.stringify(inputType))
 	var singleInputType = inputType.members
 	_.assertDefined(singleInputType)
 	var newBindings = {}
@@ -160,7 +161,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		remove: function(value, editId){
 			if(counts[value] === 1){
 				delete counts[value]
-				listener.emitRemove(value, editId)
+				listeners.emitRemove(value, editId)
 				values.splice(values.indexOf(value), 1)
 			}else{
 				--counts[value]
@@ -186,6 +187,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 	
 	elements.attach({
 		add: function(v, editId){
+			//console.log('adding: ' + v)
 			var newBindings = copyBindings(bindings)
 			var ss = contextExprGetter.wrapAsSet(v, editId, elements)
 			if(ss.isType) _.errout('isType')
@@ -322,6 +324,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId, elements)
 			if(ss.isType) throw new Error('is type')
 			var newSet = concreteGetter(newBindings, editId)
+			//console.log('attaching to: ' + newSet.name)
 			newSet.attach(resultSetListener, editId)
 			allSets[v] = newSet
 		},

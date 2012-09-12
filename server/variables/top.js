@@ -104,12 +104,17 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 	
 	var top = {}
 	
+	var uid = Math.random()+''
+	
 	elements.attach({
 		put: function(key, value, oldValue, editId){
 			_.assertInt(editId)
 			_.assertPrimitive(value)
+			_.assertDefined(key)
+			
 			if(value === undefined) return
-			s.log('top got put: ' + key + ' ' + value)
+			s.log(uid+' top got put: ' + key + ' ' + value)
+			//console.log(uid+' top got put: ' + key + ' ' + value)
 			if(manyValue === undefined){
 				bottomHeap.add({key: key, value: value})
 				return
@@ -117,17 +122,31 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			
 			if(top[key] !== undefined){
 				s.log('already got')
+				//console.log('already got: ' + top[key])
 				if(bottomHeap.size() > 0){
 					var b = bottomHeap.peek()
+					//console.log('peeked ' + b.value + ' ' + value)
 					if(b.value > value){
 						var oldValue = top[key]
 						delete top[key]
 						top[b.key] = b.value
+
+
+						var rkv
+						topHeap.data.forEach(function(kvv){
+							if(kvv.key === key){rkv = kvv}
+						})
+						topHeap.remove(rkv)
+						listeners.emitDel(rkv.key,editId)
+						//console.log('full, del: ' + rkv.key)
+
 						topHeap.add(b)
 						listeners.emitPut(b.key, b.value, oldValue, editId)
 						bottomHeap.removeRoot()
+						
 					}else{
 						top[key] = value
+						//console.log('inplace replace ' + oldValue + ' -> ' + value)
 						listeners.emitPut(key, value, oldValue, editId)
 					}
 				}else{
@@ -139,6 +158,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 					s.log('full: ' + topHeap.size() +'==='+ manyValue)
 					var t = topHeap.peek()
 					if(t.value < value){
+						s.log('replacing(' + t.key + '->'+key+') ' + t.value + ' ' + value)
 						var kv
 						bottomHeap.data.forEach(function(kvv){
 							if(kvv.key === key){kv = kvv}
@@ -151,13 +171,16 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 						}
 						top[key] = value
 						var rkv = topHeap.removeRoot()
+						_.assertEqual(t,rkv)
 						topHeap.add(kv)
 						listeners.emitPut(kv.key, kv.value, undefined, editId)
 						listeners.emitDel(rkv.key, editId)
 						bottomHeap.add(rkv)							
-						s.log('replaced ' + t.value + ' ' + rkv.value)
+						//s.log('replaced ' + t.value + ' ' + rkv.value)
 					}else{
 						s.log('too small: ' + t.value + '>' + value)
+						var kv = {key: key, value: value}
+						bottomHeap.add(kv)
 					}
 				}else{
 					_.assertEqual(bottomHeap.size(), 0)
@@ -170,6 +193,10 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			}
 		},
 		del: function(key, editId){
+		
+			s.log(uid+' top got del: ' + key)
+			delete top[key]
+			
 			if(bottomHeap.size() > 0){
 				var kv;
 				topHeap.data.forEach(function(kvv){
@@ -177,7 +204,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				})
 				if(kv){
 					topHeap.remove(kv)
-					listeners.emitDel(kv.key, kv.value, editId)
+					listeners.emitDel(kv.key, editId)
 					var rkv = bottomHeap.removeRoot()
 					topHeap.add(rkv)				
 					listeners.emitPut(rkv.key, rkv.value, undefined, editId)
@@ -192,9 +219,13 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				topHeap.data.forEach(function(kvv){
 					if(kvv.key === key){kv = kvv}
 				})
-				_.assert(kv !== undefined)
+				
+				if(kv === undefined){
+					_.errout('cannot find key: ' + key +'\n'+JSON.stringify(topHeap.data))
+				}
+				
 				topHeap.remove(kv)
-				listeners.emitDel(kv.key, kv.value, editId)
+				listeners.emitDel(kv.key, editId)
 			}
 		},
 		objectChange: listeners.emitObjectChange.bind(listeners)//Unfortunately, there's no easy way to optimize this

@@ -37,7 +37,7 @@ function sfgObject(s, idExpr, bindings, editId){
 			//s.log(new Error().stack)
 			listeners.emitSet(id)
 		}
-	})
+	}, editId)
 	//console.log('TODO LISTEN FOR CHANGES %%%%%%%%%%%%%%%%%5: ' + id)
 	
 	var handle = {
@@ -45,11 +45,13 @@ function sfgObject(s, idExpr, bindings, editId){
 		attach: function(listener, editId){
 			_.assertInt(editId)
 			listeners.add(listener)
-			listener.set(id, undefined, editId)
+			if(id !== undefined){
+				listener.set(id, undefined, editId)
+			}
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
-			if(editId){
+			if(editId && id !== undefined){
 				listener.set(undefined, id, editId)
 			}
 		},

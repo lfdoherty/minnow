@@ -94,7 +94,11 @@ ObjectHandle.prototype.adjustPath = function(source){
 		return []
 	}else{
 		if(remainingCurrentPath.length === 1 || remainingCurrentPath[1] !== source){
-			this.persistEdit('selectProperty', {typeCode: source})
+			if(remainingCurrentPath.length > 1){
+				this.persistEdit('reselectProperty', {typeCode: source})
+			}else{
+				this.persistEdit('selectProperty', {typeCode: source})
+			}
 		}
 		return remainingCurrentPath.slice(2)
 	}
@@ -291,6 +295,9 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 			}
 			this.emit(edit, 'set', setObj)			
 		}
+	}else if(op === 'clearObject'){
+		var ps = this.typeSchema.propertiesByCode[descentCode];
+		this[ps.name] = undefined
 	}else if(op === 'setToNew'){
 		_.errout('TODO setToNew: ' + JSON.stringify(arguments))
 	}else{
@@ -544,7 +551,7 @@ ObjectHandle.prototype.hasProperty = function(propertyName){
 ObjectHandle.prototype.has = ObjectHandle.prototype.hasProperty
 
 ObjectHandle.prototype.propertyByCode = function property(propertyCode){
-	this.log('getting property: ' + propertyCode)
+	//this.log('getting property: ' + propertyCode)
 	//console.log('getting property: ' + propertyCode)
 	//console.log('type: ' + this.typeSchema.name)
 	//console.log(JSON.stringify(this.typeSchema.propertiesByCode))
@@ -638,6 +645,9 @@ ObjectHandle.prototype.toJson = function toJson(already){
 		var p = local.typeSchema.properties[name];
 		//if(local.hasProperty(p.name)){
 		if(local[p.name] !== undefined){
+			if(typeof(local[p.name].toJson) !== 'function'){
+				_.errout(JSOn.stringify(local[p.name]))
+			}
 			obj[p.name] = local[p.name].toJson(subAlready)//local.property(p.name).toJson(subAlready)
 		}
 	})

@@ -13,3 +13,6 @@ generalTop() 101
 	
 mapReduce() 103
 	oldestWithKey map(*entity,{~.key},{~.age},{add(~,~2)}) 1
+	
+syncInputSetRemoval() 104
+	manyStrings count(union(*entity.key,*entity.value)) 1

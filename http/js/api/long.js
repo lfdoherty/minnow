@@ -12,6 +12,8 @@ LongHandle.prototype.value = function(){
 }
 LongHandle.prototype.set = function(v){
 	
+	if(this.obj === v) return
+	
 	this.obj = v;
 	
 	var e = {value: this.obj}
