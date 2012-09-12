@@ -379,6 +379,7 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 	res.edit = edit
 	res.op = op
 
+	//console.log('op now: ' + op)
 	this.olc.addEdit(id, {op: op, edit: edit, editId: res.editId})
 	
 	return res

@@ -312,14 +312,17 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 	
 	if(op === 'setObject') _.errout('HMM')
 	else if(op === 'setViewObject') _.errout('HMM')
-	else if(op === 'wasSetToNew'){
-		_.errout('TODO wasSetToNew')
+	else if(op === 'wasSetToNew' || op === 'setToNew'){
+		//_.errout('TODO wasSetToNew')
 
-		console.log('WAS SET TO NEW')
-		_.errout('TODO')
+		//console.log('WAS SET TO NEW')
+		//_.errout('TODO')
+		if(op === 'setToNew'){
+			_.assertInt(edit.temporary)
+		}
 
-		var type = this.schema._byCode[edit.typeCode]
-		
+		var type = this.getFullSchema()._byCode[edit.typeCode]
+		var temporary = edit.temporary
 		var n = new ObjectHandle(type, [], temporary, [temporary], this);
 		if(this.objectApiCache === undefined) this.objectApiCache = {}
 		this.objectApiCache[temporary] = n;
@@ -455,6 +458,7 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	
 	var remaining = this.parent.adjustPath(this.part[0])
 
+	console.log('setting to new: ' + this.parent.prepared)
 	this.saveEdit('setToNew', {typeCode: type.code})
 
 	var temporary = this.makeTemporaryId();

@@ -219,7 +219,7 @@ function makeClient(host, port, clientCb){
 	
 	function doMake(type, json, forget, cb){
 		var st = dbSchema[type];
-		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json)
+		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, api.makeTemporaryId.bind(api))
 		
 		var dsh = cc.getDefaultSyncHandle()
 		var requestId = dsh.persistEdit('make', {typeCode: st.code, forget: forget}, listeningSyncId)

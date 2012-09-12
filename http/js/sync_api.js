@@ -444,11 +444,11 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	this.log.info(this.uid+' SyncApi changeListener: ' + op + ' ', arguments)
 	//console.log('*** ' + op + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
 
-	var hereKey = op+editId+JSON.stringify(edit)
-	if(this.lastKey === hereKey){
-		throw new Error('repeat: ' + hereKey)
-	}
-	this.lastKey = hereKey
+	//var hereKey = op+editId+JSON.stringify(edit)
+	//if(this.lastKey === hereKey){
+		//throw new Error('repeat: ' + hereKey)
+	//}
+	//this.lastKey = hereKey
 
 	if(editId > -1){
 		if(editId > this.latestVersionId) this.latestVersionId = editId

@@ -45,9 +45,10 @@ function primitiveCast(value, type){
 	if(type === 'long') return Number(value)
 	_.errout('TODO: ' + type)
 }
-function convertJsonToEdits(dbSchema, type, json){
+function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 	//_.errout('TODO')
-	_.assertLength(arguments, 3);
+	_.assertLength(arguments, 4);
+	_.assertFunction(makeTemporaryId)
 	_.assertObject(json);
 	
 	var edits = []
@@ -151,8 +152,9 @@ function convertJsonToEdits(dbSchema, type, json){
 					if(pv._internalId){
 						edits.push({op: 'setObject', edit: {id: pv._internalId()}})
 					}else{
+						var temporary = makeTemporaryId();
 						var typeCode = dbSchema[p.type.object].code
-						edits.push({op: 'setToNew', edit: {typeCode: typeCode}})
+						edits.push({op: 'setToNew', edit: {typeCode: typeCode, temporary: temporary}})
 					}
 					/*}else{
 						var typeCode = dbSchema[p.type.object].code;//TODO assert uniqueness of type
