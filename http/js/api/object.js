@@ -462,7 +462,7 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	this.saveEdit('setToNew', {typeCode: type.code})
 
 	var temporary = this.makeTemporaryId();
-	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json);
+	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this));
 
 	if(edits.length > 0){
 		this.adjustPathSelf(temporary)
