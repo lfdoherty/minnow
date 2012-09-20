@@ -319,7 +319,7 @@ function SyncApi(schema, sh, logger){
 	this.uid = Math.random()
 	
 	this.latestVersionId = -1
-	this.log('made SyncApi ' + this.uid)
+	//this.log('made SyncApi ' + this.uid)
 }
 
 SyncApi.prototype.makeTemporaryId = function(){
@@ -340,9 +340,16 @@ SyncApi.prototype.getView = function(viewId){
 	return view;
 }
 
+SyncApi.prototype.hasView = function(viewId){
+	//var view = this.getObjectApi(viewId, this);
+	//view.prepare();
+	//return view;
+	return this.objectApiCache[viewId] !== undefined
+}
+
 SyncApi.prototype.objectListener = function(id, edits){
 	//console.log('working: ' + id + ' ' + JSON.stringify(edits))
-	if(this.objectApiCache[id] !== undefined){
+	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		return
 		//_.errout('TODO:')
 	}
@@ -351,7 +358,10 @@ SyncApi.prototype.objectListener = function(id, edits){
 	var t = this.schema._byCode[typeCode];
 	_.assertObject(t)
 	if(this.objectApiCache[id] !== undefined){
-		console.log('WARNING: redundant update')
+		if(this.objectApiCache[id].prepared){
+			_.errout('already prepared object being overwritten: ' + id)
+		}
+		console.log('WARNING: redundant update?: ' + id)
 		return
 	}
 	_.assertUndefined(this.objectApiCache[id])
@@ -380,21 +390,23 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
 	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
+
 	if(this.currentObjectId !== id){
 		
 		if(this.currentObjectId !== undefined){
 			var handle = this.objectApiCache[this.currentObjectId]
 			 if(handle){
 				handle.currentPath = undefined
-				console.log('reset path: '+ this.currentObjectId)
+				//console.log('reset path: '+ this.currentObjectId)
 			}else{
-				console.log('no handle: ' + this.currentObjectId)
+				//console.log('no handle: ' + this.currentObjectId)
 			}
 		}
+
+		//console.log('selecting top object: ' + id + ' ' + op + ' ' + this.currentObjectId)
 		
 		this.currentObjectId = id
 
-		//console.log('selecting top object: ' + id + ' ' + op)
 		//_.assert(this.objectApiCache[this.currentObjectId] === undefined)
 		//console.log('current path: ' + JSON.stringify(this.objectApiCache[this.currentObjectId].currentPath))
 
@@ -417,7 +429,7 @@ SyncApi.prototype.onEdit = function(listener){
 var DESTROYED_LOCALLY = {}
 var DESTROYED_REMOTELY = {}
 SyncApi.prototype._destroyed = function(objHandle){
-	var id = objHandle.id()
+	var id = objHandle._internalId()
 	delete this.objectApiCache[id]
 	delete this.snap.objects[id]
 	this.currentTopObject = DESTROYED_LOCALLY
@@ -441,7 +453,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		}
 	}
 
-	this.log.info(this.uid+' SyncApi changeListener: ' + op + ' ', arguments)
+	//this.log.info(this.uid+' SyncApi changeListener: ' + op + ' ', arguments)
 	//console.log('*** ' + op + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
 
 	//var hereKey = op+editId+JSON.stringify(edit)
@@ -512,7 +524,9 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
 	}
 }
-function getFullSchema(){ return this.parent.getFullSchema();}
+function getFullSchema(){
+	return this.parent.getFullSchema();
+}
 SyncApi.prototype.getFullSchema = function(){return this.schema;}
 SyncApi.prototype.setEditingId = function(editingId){
 	this.editingId = editingId;
@@ -523,24 +537,19 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 
 	var temporary = this.makeTemporaryId()
 	
-	var edits = this.sh.make(typeName, obj, forget, cb)
+	var edits = this.sh.make(typeName, obj, forget, cb, temporary)
 
 	var oldHandle = this.objectApiCache[this.currentObjectId]
 	if(oldHandle){
-		//console.log('*reseting path: ' + this.currentObjectId)
 		oldHandle.currentPath = undefined
-	}else{
-		//console.log('handle not found********')
 	}
 	
 	this.currentObjectId = temporary//TODO only if !forget?
 	
 	if(!forget){
-		_.assert(temporary !== -1)
 		var t = this.schema[typeName]
 		var n = new TopObjectHandle(this.schema, t, edits, this, temporary);
 		this.objectApiCache[temporary] = n;
-		//console.log('cached object: ' + temporary + ' for ' + this.getEditingId())
 		return n
 	}
 }

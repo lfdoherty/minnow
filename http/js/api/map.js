@@ -1,3 +1,4 @@
+"use strict";
 
 var _ = require('underscorem')
 var u = require('./util')
@@ -93,33 +94,33 @@ MapHandle.prototype.each = function(cb){
 }
 
 MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
-	this.log('adjust map path ' + key)
-	console.log('adjust map path ' + key)
+	//this.log('adjust map path ' + key)
+	//console.log('adjust map path ' + key)
 	_.assertDefined(key)
 	var remainingCurrentPath = this.parent.adjustPath(this.part)
 	if(remainingCurrentPath.length === 0){
-		this.log('zero')
-		console.log('zero')
+		//this.log('zero')
+		//console.log('zero')
 		this.persistEdit(this.keyOp, {key: key})
 		return []
 	}else if(remainingCurrentPath[0] !== key){
-		this.log('different')
-		console.log('different')
+		//this.log('different')
+		//console.log('different')
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
-				this.log('primitive ascending ' + remainingCurrentPath[0])
+				//this.log('primitive ascending ' + remainingCurrentPath[0])
 				this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
 			}else{
 				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
 			}
 		}else{
-			this.log('reselecting')
-			console.log('reselecting')
+			//this.log('reselecting')
+			//console.log('reselecting')
 		}
 		this.persistEdit('re'+this.keyOp, {key: key})
 		return []
 	}else{
-		this.log('same')
+		//this.log('same')
 		return remainingCurrentPath.slice(1)
 	}
 }
@@ -129,23 +130,23 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 		_.assertDefined(key)
 		var remainingCurrentPath = this.parent.adjustPath(this.part)
 		if(remainingCurrentPath.length === 0){
-			this.log('zero')
-			console.log('zero')
+			//this.log('zero')
+			//console.log('zero')
 			this.persistEdit(this.keyOp, {key: key})
 			return []
 		}else if(remainingCurrentPath[0] !== key){
-			this.log('different')
-			console.log('different')
+			//this.log('different')
+			//console.log('different')
 			if(remainingCurrentPath.length > 1){
 				if(remainingCurrentPath.length < 6){
-					this.log('primitive ascending ' + remainingCurrentPath[0])
+					//this.log('primitive ascending ' + remainingCurrentPath[0])
 					this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
 				}else{
 					this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
 				}
 			}else{
-				this.log('reselecting')
-				console.log('reselecting')
+				//this.log('reselecting')
+				//console.log('reselecting')
 			}
 		
 			this.persistEdit('re'+this.keyOp, {key: key})
@@ -155,8 +156,8 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 			return remainingCurrentPath.slice(1)
 		}
 	}else{
-		this.log('adjust map path ' + key)
-		console.log('adjust map path ' + key)
+		//this.log('adjust map path ' + key)
+		//console.log('adjust map path ' + key)
 
 		var remainingCurrentPath = this.parent.adjustPath(this.part)
 		if(remainingCurrentPath.length !== 0){
@@ -275,7 +276,7 @@ MapHandle.prototype.get = function(desiredKey){
 		//return idOrValue;
 
 		var c = api.getClassForType(this.schema.type.value, this.schema.isView);
-		n = new c(undefined, idOrValue, desiredKey, this, this.schema.isView);
+		var n = new c(undefined, idOrValue, desiredKey, this, this.schema.isView);
 		n.prepare()
 		return n
 	}else{
@@ -403,7 +404,13 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		var old = this.obj[key]
 		this.obj[key] = edit.value;
 		//this.log('key: ' + key)
-		return this.emit(edit, 'put', key, edit.value, old, editId)
+		if(this.keyOp === 'selectObjectKey'){
+			var wrappedKey = this.getObjectApi(key);
+			wrappedKey.prepare()
+			return this.emit(edit, 'put', wrappedKey, edit.value, old, editId)
+		}else{
+			return this.emit(edit, 'put', key, edit.value, old, editId)
+		}
 	}else if(op === 'delKey'){
 		//console.log('key: ' + key)		
 		delete this.obj[key]

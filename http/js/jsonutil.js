@@ -29,8 +29,32 @@ var typeSuffix = {
 	int: 'Int',
 	long: 'Long',
 	boolean: 'Boolean',
-	string: 'String',
-	timestamp: 'Long'
+	string: 'String'
+}
+var mapSelect = {
+	int: 'selectIntKey',
+	long: 'selectLongKey',
+	boolean: 'selectBooleanKey',
+	string: 'selectStringKey'
+}
+var mapReselect = {
+	int: 'reselectIntKey',
+	long: 'reselectLongKey',
+	boolean: 'reselectBooleanKey',
+	string: 'reselectStringKey'
+}
+var mapPut = {
+	int: 'putInt',
+	long: 'putLong',
+	boolean: 'putBoolean',
+	string: 'putString'
+}
+var setOp = {
+	int: 'setInt',
+	long: 'setLong',
+	boolean: 'setBoolean',
+	string: 'setString',
+	real: 'setReal'
 }
 function getTypeSuffix(primitive){
 	var ts = typeSuffix[primitive]
@@ -46,35 +70,43 @@ function primitiveCast(value, type){
 	_.errout('TODO: ' + type)
 }
 function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
-	//_.errout('TODO')
+
 	_.assertLength(arguments, 4);
 	_.assertFunction(makeTemporaryId)
 	_.assertObject(json);
-	
+
+
 	var edits = []
 	
 	var t = dbSchema[type];
+	if(t === undefined) _.errout('invalid, unknown type: ' + type)
 	var allProperties = t.allProperties
 	if(allProperties === undefined){
 		t.allProperties = allProperties = []
-		Object.keys(t.properties).forEach(function(key){
-			var p = t.properties[key]
-			allProperties.push(p)
-		})
+		if(t.properties){
+			Object.keys(t.properties).forEach(function(key){
+				var p = t.properties[key]
+				allProperties.push(p)
+			})
+		}
 	}
-	
-	var taken = {};
-	//_.each(allProperties, function(p){
-	//console.log('allProperties: ' + JSON.stringify(allProperties))
+
+	Object.keys(json).forEach(function(attr){
+		if(!t.properties[attr]){
+			_.errout('unprocessable json attribute: ' + attr + '(' + json[attr] + ')');
+		}
+	});
+		
+	//var taken = {};
+
 	var first = true
 	
-	//allProperties.forEach(function(p){
 	for(var j=0;j<allProperties.length;++j){
 		var p = allProperties[j]
 		var name = p.name;
 		var pv = json[name];
-		//_.assertNot(taken[name])
-		taken[name] = true;
+
+		//taken[name] = true;
 		
 		if(pv !== undefined && pv !== null){
 			if(first){
@@ -87,28 +119,30 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 			if(p.type.type === 'primitive'){
 				var v = valueOrId(pv);
 				assertPrimitiveType(v,p.type.primitive, p.name);
-				var ts = getTypeSuffix(p.type.primitive)
-				edits.push({op: 'set'+ts,  edit: {value: v}})
+				//var ts = getTypeSuffix(p.type.primitive)
+				if(setOp[p.type.primitive] === undefined) _.errout('TODO: ' + p.type.primitive)
+				edits.push({op: setOp[p.type.primitive],  edit: {value: v}})
+				
 			}else if(p.type.type === 'map'){
 
 				if(_.size(pv) > 0){
-					var ts = getTypeSuffix(p.type.key)
-					var next = 'select'+ts+'Key'
-					//_.each(pv, function(value, key){
+					//var ts = getTypeSuffix(p.type.key)
+					var next = mapSelect[p.type.key]//)'select'+ts+'Key'
+
 					Object.keys(pv).forEach(function(key){
 						var value = pv[key]
 						if(value != undefined){
 							edits.push({op: next, edit: {key: primitiveCast(key,p.type.key)}})
-							edits.push({op: 'put'+ts, edit: {value: value}})
-							next = 'reselect'+ts+'Key'
+							edits.push({op: /*'put'+ts*/mapPut[p.type.key], edit: {value: value}})
+							next = mapReselect[p.type.key]//'reselect'+ts+'Key'
 						}
 					});
-					//console.log('json map ascend1')
+
 					edits.push({op: 'ascend1', edit: {}})
 				}
 			}else if(p.type.type === 'set'){
 				if(p.type.members.type === 'primitive'){
-					//_.each(pv, function(value){
+
 					pv.forEach(function(value){
 						var v = valueOrId(value);
 						assertPrimitiveType(v,p.type.members.primitive);
@@ -116,18 +150,14 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 						edits.push({op: 'add'+ts, edit: {value: v}})
 					});
 				}else{
-					/*var types = recursivelyGetLeafTypes(dbSchema[p.type.members.object], dbSchema);
-					if(types.length !== 1) _.errout('TODO support type polymorphism in JSON'); 
-					var actualType = dbSchema[types[0]];*/
-					
-					//_.each(pv, function(value){
+
 					pv.forEach(function(value){
 						edits.push({op: 'addExisting', edit: {id: valueOrId(value)}})
 					});
 				}
 			}else if(p.type.type === 'list'){
 				if(p.type.members.type === 'primitive'){
-					//_.each(pv, function(value){
+
 					pv.forEach(function(value){
 						if(value === undefined) _.errout('invalid data for property ' + p.name + ': ' + JSON.stringify(pv));
 						var v = valueOrId(value);
@@ -136,11 +166,6 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 						edits.push({op: 'add'+ts, edit: {value: v}})
 					});
 				}else{
-					//var types = recursivelyGetLeafTypes(dbSchema[p.type.members.object], dbSchema);
-					//if(types.length !== 1) _.errout('TODO support type polymorphism in JSON'); 
-					//var actualType = dbSchema[types[0]];
-				
-					//_.each(pv, function(value){
 					pv.forEach(function(value){
 						edits.push({op: 'addExisting', edit: {id: valueOrId(value)}})
 					});
@@ -156,28 +181,14 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 						var typeCode = dbSchema[p.type.object].code
 						edits.push({op: 'setToNew', edit: {typeCode: typeCode, temporary: temporary}})
 					}
-					/*}else{
-						var typeCode = dbSchema[p.type.object].code;//TODO assert uniqueness of type
-						edits.push({op: 'setToNew', edit: {typeCode: typeCode}})
-					}*/
 				}
 			}else{
 				_.errout('TODO: ' + p.type.type + ' (' + name + ')');
 			}
-			//console.log('json property ascend1')
-			//if(first) edits.push({op: 'ascend1', edit: {}})
-			//first = false			
 		}
 	}
 	
 	if(!first) edits.push({op: 'ascend1', edit: {}})
-
-	//_.each(json, function(value, attr){
-	Object.keys(json).forEach(function(attr){
-		if(!taken[attr]){
-			_.errout('unprocessed json attribute: ' + attr + '(' + json[attr] + ')');
-		}
-	});
 	
 	edits.forEach(function(e){
 		e.editId = -2

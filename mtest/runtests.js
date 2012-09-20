@@ -7,8 +7,26 @@ var file_matcher = /\.js$/;
 var _ = require('underscorem')
 
 var rimraf = require('rimraf')
+var mh = require('matterhorn');
 
 var start = Date.now()
+
+var minnow = require('./../client/client')
+var minnowXhr = require('./../http/js/minnow_xhr')
+
+/*
+var count = 0
+var old = console.log
+console.log = function(msg){
+	msg = ''+msg
+	if(msg.indexOf('Error') === -1 && msg.indexOf('test ') === -1 && msg.indexOf('WARNING') === -1 && count > 0){
+		console.log(new Error().stack)
+		//throw new Error()
+	}
+	++count
+	old(msg)
+}
+*/
 
 var includedTestDir
 var includedTest
@@ -117,8 +135,10 @@ function moreCont(doneCb){
 	var inProgress = []
 	
 	process.on('uncaughtException', function(e){
-		console.log('got uncaught exception')
+		console.log('Error: got uncaught exception')
 		//throw new Error(e)
+		console.log(e)
+		console.log(e.stack)
 		currentFail(e)
 	})
 	
@@ -132,6 +152,7 @@ function moreCont(doneCb){
 		if(!t) return
 		
 		currentTest = t
+	
 		runTest(t, runNextTest)
 	}
 	runNextTest()
@@ -180,7 +201,6 @@ function moreCont(doneCb){
 						if(err) throw err;
 					})
 				}
-				//dieCdl()
 				cb()
 			})
 		}
@@ -188,7 +208,7 @@ function moreCont(doneCb){
 		function doTest(){
 			try{
 				var config = {schemaDir: t.dir, dataDir: testDir, port: port}
-				//console.log('callling')
+				//console.log('calling')
 				t.test(config, done)
 			}catch(e){
 				fail(e)

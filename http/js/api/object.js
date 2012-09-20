@@ -1,3 +1,4 @@
+"use strict";
 
 var u = require('./util')
 var _ = require('underscorem')
@@ -74,7 +75,7 @@ ObjectHandle.prototype.adjustPath = function(source){
 	_.assert(this.objectId !== -1)
 	
 	var remainingCurrentPath = this.parent.adjustPath(this.part[0])
-	this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
+	//this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
 	//console.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
 	if(remainingCurrentPath.length === 0){
 		this.persistEdit('selectObject', {id: this.objectId})
@@ -83,7 +84,7 @@ ObjectHandle.prototype.adjustPath = function(source){
 	}else if(remainingCurrentPath[0] !== this.objectId){
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
-				this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + source)
+				//this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + source)
 				this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
 			}else{
 				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
@@ -112,7 +113,7 @@ ObjectHandle.prototype.adjustPathSelf = function(objId){
 	
 	//var remainingCurrentPath = this.parent.adjustPath(this.objectId)
 	var remainingCurrentPath = this.parent.adjustPath(this.part[0])
-	this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
+	//this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
 	//console.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
 	if(remainingCurrentPath.length === 0){
 		this.persistEdit('selectObject', {id: objId})
@@ -120,7 +121,7 @@ ObjectHandle.prototype.adjustPathSelf = function(objId){
 	}else if(remainingCurrentPath[0] !== source){
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
-				this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + objId)
+				//this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + objId)
 				this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
 			}else{
 				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
@@ -148,7 +149,7 @@ ObjectHandle.prototype.isInner = function(){return true;}
 
 ObjectHandle.prototype.reify = function(id){
 	_.assertInt(id)
-	this.log('reified: ' + this.objectId + ' -> ' + id)
+	//this.log('reified: ' + this.objectId + ' -> ' + id)
 	_.assert(this.objectId < 0)
 	this.objectId = id
 }
@@ -161,7 +162,7 @@ ObjectHandle.prototype.prepare = function(){
 	//apply edits
 	if(this.edits){
 		var currentSyncId=-1
-		this.log(this.objectId + ' preparing topobject with edits: ' + JSON.stringify(this.edits).slice(0,500))
+		//this.log(this.objectId + ' preparing topobject with edits: ' + JSON.stringify(this.edits).slice(0,500))
 		var local = this
 		this.edits.forEach(function(e, index){
 			topObject.maintainPath(local, e.op, e.edit, -1, index)
@@ -215,7 +216,7 @@ function getTypeAndSubtypeCodes(schema, name){
 }
 
 function recursivelyGetLeafTypes(objType, schema){
-	if(_.size(objType.subTypes) === 0){
+	if(!objType.subTypes || _.size(objType.subTypes) === 0){
 		return [objType.name];
 	}
 	
@@ -283,17 +284,17 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 		var pv = this[ps.name]//.cachedProperties[ps.name]
 		if(pv && pv.objectId === edit.id){
 			//already done
-			this.log('setObject redundant (local view object?), skipping')
+			//this.log('setObject redundant (local view object?), skipping')
 		}else{
-			this.log('set to: ' + edit.id + ' ' + descentCode + ' ' + this.objectId + ' ' + ps.name)
+			//this.log('set to: ' + edit.id + ' ' + descentCode + ' ' + this.objectId + ' ' + ps.name)
 			var setObj = this.getObjectApi(edit.id)
 
 			this.obj[descentCode] = setObj;
-			if(this.prepared){
+			//if(this.prepared){
 				setObj.prepare()
 				this[ps.name] = setObj
-			}
-			this.emit(edit, 'set', setObj)			
+			//}
+			this.emit(edit, 'set', ps.name, setObj)			
 		}
 	}else if(op === 'clearObject'){
 		var ps = this.typeSchema.propertiesByCode[descentCode];
@@ -414,7 +415,7 @@ ObjectHandle.prototype.replaceObjectHandle = function(oldHandle, newHandle, part
 
 ObjectHandle.prototype.set = function(objHandle){
 	if(this.parent.typeSchema.isView){//TODO verify from eventual server->client update
-		this.log('is view, just setting')
+		//this.log('is view, just setting')
 		//this.parent.cachedProperties[propertyName] = newValue;
 		this.parent.replaceObjectHandle(this, objHandle, this.part)
 		return
@@ -458,7 +459,7 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	
 	var remaining = this.parent.adjustPath(this.part[0])
 
-	console.log('setting to new: ' + this.parent.prepared)
+	//console.log('setting to new: ' + this.parent.prepared)
 	this.saveEdit('setToNew', {typeCode: type.code})
 
 	var temporary = this.makeTemporaryId();
@@ -490,12 +491,12 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	return n
 
 }
-/*
+
 ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 	_.assertLength(arguments, 2)
 	
 	if(this.typeSchema.isView){//TODO verify from eventual server->client update
-		this.log('is view, just setting')
+		//this.log('is view, just setting')
 		this.cachedProperties[propertyName] = newValue;
 		return
 	}
@@ -509,7 +510,8 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 
 		var n = newValue
 
-		this.cachedProperties[propertyName] = n;
+		//this.cachedProperties[propertyName] = n;
+		this[propertyName] = n
 		
 		var e = {id: n._internalId(), typeCode: newValue.typeSchema.code}
 		
@@ -523,7 +525,7 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 }
 
 
-*/
+
 ObjectHandle.prototype.hasProperty = function(propertyName){
 	if(this.obj === undefined) return false;
 	var pt = this.typeSchema.properties[propertyName];
@@ -531,7 +533,7 @@ ObjectHandle.prototype.hasProperty = function(propertyName){
 	if(pt.type.type === 'set' || pt.type.type === 'list' || pt.type.type === 'map') return true
 	if(pt === undefined) _.errout('not a valid property(' + propertyName + ') for this type: ' + this.typeSchema.code)
 	_.assertDefined(pt);
-	if(pt.type.type === 'object' && pt.tags['always_local']) return true;
+	if(pt.type.type === 'object' && pt.tags && pt.tags['always_local']) return true;
 	var pv = this.obj[pt.code]//getPropertyValue(this.obj, pt.code);
 	//this.log('has ' + this.obj[pt.code] + ' ' + pt.code + ' ' + this.objectId)
 	if(pv && pv.isReadonlyAndEmpty){
@@ -577,7 +579,7 @@ ObjectHandle.prototype.property = function property(propertyName){
 		if(pt.type.type === 'object'){
 			var fullSchema = this.getFullSchema();
 			if(pv === undefined){
-				if(pt.tags.must_already_exist){
+				if(pt.tags && pt.tags.must_already_exist){
 					_.errout('cannot create local object due to must_already_exist constraint in schema - must specify property value to a object reference via setProperty');
 				}
 				
@@ -586,7 +588,7 @@ ObjectHandle.prototype.property = function property(propertyName){
 				if(types.length > 1){
 					_.errout('need to specify object type - use setPropertyType');
 				}else{
-					this.log('made empty readonly object ' + pt.code + ' ' + pv)
+					//this.log('made empty readonly object ' + pt.code + ' ' + pv)
 					n = new ObjectHandle(fullSchema[types[0]], undefined, -1, [pt.code], this, true);
 				}
 			}else{

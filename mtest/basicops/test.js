@@ -29,6 +29,30 @@ exports.count = function(config, done){
 	})
 }
 
+exports.makeAndForget = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(c){
+			
+				poll(function(){
+					//console.log('count: ' + c.c.value())
+					if(c.c.value() === 1){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(v){
+						v.make('entity', true)
+					})
+				})
+				
+			})
+		})
+	})
+}
+
 exports.type = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -163,6 +187,7 @@ exports.countOfEachFiltered = function(config, done){
 			
 				poll(function(){
 					//console.log('adults: ' + c.manyAdults.value())
+					_.assertEqual(c.manyAdults.value(), c.adults.toJson().length)
 					if(c.manyAdults.value() === 1 && c.adults.toJson()[0].age === 22){
 						done()
 						return true
@@ -382,7 +407,7 @@ exports.singlePairedFilterTest = function(config, done){
 								teenager.age.set(18)
 								setTimeout(function(){
 									cc.ageOfMajority.set(19)
-								},500)
+								},200)
 							})
 						})
 					})
@@ -448,7 +473,7 @@ exports.crazyPartials = function(config, done){
 						done()
 						return true
 					}else{
-						console.log(JSON.stringify([JSON.stringify(c.crazy.toJson().sort()) , JSON.stringify(lookingFor)]))
+						//console.log(JSON.stringify([JSON.stringify(c.crazy.toJson().sort()) , JSON.stringify(lookingFor)]))
 					}
 				})
 
@@ -497,7 +522,7 @@ exports.booleanSetTest = function(config, done){
 				poll(function(){
 					if(c.truth.size() === 2){
 						var set = c.truth.toJson()
-						console.log('got size')
+						//console.log('got size')
 						if(set.indexOf(true) !== -1 && set.indexOf(false) !== -1){
 							done()
 							return true
@@ -537,7 +562,7 @@ exports.stringUpdateTest = function(config, done){
 						var e = v.make('entity', {age: 22, name: 'brian'})
 						setTimeout(function(){
 							e.name.set('bill')
-						},200)
+						},500)
 					})
 				})
 				

@@ -1,5 +1,11 @@
 
-var XMLHttpRequest = require('xhr').XMLHttpRequest
+var XMLHttpRequest = global.XMLHttpRequest
+try{
+	XMLHttpRequest = require('xhr').XMLHttpRequest
+}catch(e){
+	console.log('falling back to node module for XMLHttpRequest')
+	XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+}
 
 function getJson(url, cb, errCb){
 	//if(arguments.length !== 2) throw new Error('getJson(url,cb) should not be called with ' + arguments.length + ' arguments')
@@ -7,14 +13,15 @@ function getJson(url, cb, errCb){
     
   	if(typeof(url) !== 'string') throw new Error('url must be a string: ' + url + ' ' + typeof(url))
     
-    console.log('getJson: ' + url)
+   // console.log('getJson: ' + url)
     
     xhr.open("GET", url, true);
     //xhr.setRequestHeader('Content-Type', 'application/json');
 	xhr.onreadystatechange = function (oEvent) {  
-		if (xhr.readyState === 4) {  
+		//console.log('xhr.readyState: ' + xhr.readyState)
+		if (xhr.readyState === 4) {
 			if (xhr.status === 200) {  
-               console.log('parsing response text(' + xhr.responseText.substr(0,300) + ')')
+               //console.log('parsing response text(' + xhr.responseText.substr(0,300) + ')')
                //console.log(url)
 				//console.log('response headers are:' + xhr.getAllResponseHeaders());
 				try{
@@ -23,9 +30,13 @@ function getJson(url, cb, errCb){
 		            throw new Error('cannot parse getJson response: ' + xhr.responseText + ' ' + url)
 	            }
                 if(json === undefined) throw new Error('cannot parse getJson response')
-				if(cb) cb(json)
+				if(cb){
+					cb(json)
+				}else{
+					console.log('WARNING: no cb')
+				}
 			} else {  
-				console.log("Error", xhr.statusText, url);  
+				console.log("Error", xhr.statusText, xhr.status, url);  
 				if(errCb) errCb(xhr.status)
 			}  
 		}  
@@ -38,7 +49,7 @@ function postJson(url, content, cb, errCb){
 
     var xhr = new XMLHttpRequest();  
     
-    console.log('postJson: ' + url)
+    //console.log('postJson: ' + url)
     
     xhr.open("POST", url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');

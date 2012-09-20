@@ -116,7 +116,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				var listenerCb = listenerCbs[e.syncId]
 				_.assertFunction(listenerCb)
 				log('beginView: ', e)
-				return viewState.beginView(e, listenerCb.seq, listenerCb, readyCb)
+				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
 			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, cb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
@@ -128,6 +128,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//_.assertFunction(cb)
 				
 				log.info('adding edit: ', [id, path, op, edit, syncId])
+				//console.log('adding edit: ', JSON.stringify([id, path, op, edit, syncId]))
 				
 				if(op === 'make'){
 					var id = objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId)
@@ -152,10 +153,20 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				var syncId = ap.makeNewSyncId();
 				return syncId
 			},
-			beginSync: function(syncId, listenerCb, objectCb){
+			endSync: function(syncId){
+				if(listenerCbs[syncId]){
+					listenerCbs[syncId].seq.end()
+					delete listenerCbs[syncId]
+				}else{
+					console.log('WARNING: tried to end sync handle that does not exist or was already ended: ' + syncId)
+					console.log(new Error().stack)
+				}
+			},
+			beginSync: function(syncId, listenerCb, objectCb, viewObjectCb){
 				_.assertInt(syncId)
 				_.assertFunction(listenerCb)
 				_.assertFunction(objectCb)
+				_.assertFunction(viewObjectCb)
 				
 				var alreadySent = {}
 				
@@ -264,10 +275,15 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						sendEditUpdate(e)
 					}
 				}
+				
+				function sendViewObjectCb(id, edits){
+					//_.errout('TODO: ' + id + ' ' + JSON.stringify(edits))
+					viewObjectCb(id, edits, syncId)
+				}
 
 				listenerCbs[syncId] = listenerCbWrapper
 
-				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, syncId)
+				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, sendViewObjectCb, syncId)
 				listenerCbWrapper.seq = seq
 				
 				/*objectSubscribers[syncId] = function(id){
@@ -304,6 +320,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 							cb(undefined, states)
 						});
 					}catch(e){
+						console.log('ERROR: ' + e.stack)						
 						cb(e)
 					}
 				}else{
@@ -326,6 +343,11 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				}else{
 					_.errout('ERROR')
 				}			
+			},
+			end: function(){
+				_.each(listenerCbs, function(value){
+					value.seq.end()
+				})
 			}
 		};
 		//console.log('cbing')

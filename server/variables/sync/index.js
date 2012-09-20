@@ -12,5 +12,6 @@ exports.plugins = {
 	union: require('./union'),
 	'in': require('./in'),
 	inKeys: require('./inKeys'),
-	intersection: require('./intersection')
+	intersection: require('./intersection'),
+	relativeComplement: require('./relativeComplement')
 }

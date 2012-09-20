@@ -3,7 +3,7 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 exports.connect = function(config, done){
 	minnow.makeServer(config, function(){
-		console.log('made server')
+		//console.log('made server')
 		minnow.makeClient(config.port, function(c){
 			done()
 		})
@@ -55,7 +55,9 @@ exports.clientRestart = function(config, done){
 	minnow.makeServer(config, function(s){
 		minnow.makeClient(config.port, function(c){
 			c.close(function(){
+				//console.log('closed client')
 				s.close(function(){
+					//console.log('closed server')
 					minnow.makeServer(config, function(s){
 						done()
 					})
@@ -73,7 +75,7 @@ exports.slowPersist = function(config, done){
 				setTimeout(function(){
 				c.close(function(){
 					s.close(function(){
-						console.log('persist test reloading server')
+						//console.log('persist test reloading server')
 							minnow.makeServer(config, function(s){
 								minnow.makeClient(config.port, function(c){
 									c.view('general', [], function(handle){
@@ -96,7 +98,7 @@ exports.fastPersist = function(config, done){
 				handle.make('entity', {name: 'test name'})
 				c.close(function(){
 					s.close(function(){
-						console.log('persist test reloading server')
+						//console.log('persist test reloading server')
 						minnow.makeServer(config, function(s){
 							minnow.makeClient(config.port, function(c){
 								c.view('general', [], function(handle){

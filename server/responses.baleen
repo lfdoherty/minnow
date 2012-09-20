@@ -21,12 +21,18 @@ updateObject 11
 	id int 1
 	edits binary 2
 	destinationSyncId int 3
-	syncId int 4
+	//syncId int 4
+
+updateViewObject 14
+	id string 1
+	edits binary 2
+	destinationSyncId int 3
+	//syncId int 4
 	
 //comes after open (and possibly some updates), indicates that the sync handle is ready for use
 ready 3
 	requestId int 1
-	updatePacket string 2
+	//updatePacket string 2
 gotSnapshots 4
 	requestId int 1
 	snapshotVersionIds binary 2//structure is 4-byte int series with 1 byte count prefix

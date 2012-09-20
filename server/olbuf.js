@@ -16,6 +16,7 @@ function serializeFrame(edits, w){
 	for(var i=0;i<edits.length;++i){
 		var e = edits[i]
 		w.putByte(fp.codes[e.op])
+		//console.log('code: ' + fp.codes[e.op] + ' ' + e.editId)
 		w.putInt(e.editId)
 		fp.writers[e.op](w, e.edit)
 	}

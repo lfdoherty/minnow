@@ -372,12 +372,12 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				prop[key] = edit.id
 				_.assert(edit.id > 0)
 				cb(prop, editId)
-				console.log('used putExisting: ' + key + ' -> ' + edit.id)
+				//console.log('used putExisting: ' + key + ' -> ' + edit.id)
 			}else{
 				var key = editPath[editPath.length-1].edit.key
 				prop[key] = edit.value
 				cb(prop, editId)
-				console.log('used put: ' + key + ' -> ' + edit.value)
+				//console.log('used put: ' + key + ' -> ' + edit.value)
 			}
 		}else if(op === 'didPutNew'){
 			//_.errout('TODO: put')

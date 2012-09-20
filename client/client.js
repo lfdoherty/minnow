@@ -25,6 +25,7 @@ var tcpserver = require('./../server/tcpserver')
 var tcpclient = require('./tcpclient');
 
 var longpoll = require('./../http/longpoll')
+var websocket = require('./../http/websocket')
 
 var jsonutil = require('./../http/js/jsonutil')
 
@@ -164,7 +165,8 @@ function makeClient(host, port, clientCb){
 	}
 	
 	wrapper.make = function(type, json, forget, cb){
-		_.assertLength(arguments, 4)
+		//_.assertLength(arguments, 4)
+		_.assert(arguments.length >= 4)
 		_.assertString(type)
 		/*if(_.isFunction(json)){
 			cb = json
@@ -217,9 +219,13 @@ function makeClient(host, port, clientCb){
 		}
 	}
 	
+	function makeTemporary(){
+		return api.makeTemporaryId()
+	}
+	
 	function doMake(type, json, forget, cb){
 		var st = dbSchema[type];
-		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, api.makeTemporaryId.bind(api))
+		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, makeTemporary)
 		
 		var dsh = cc.getDefaultSyncHandle()
 		var requestId = dsh.persistEdit('make', {typeCode: st.code, forget: forget}, listeningSyncId)
@@ -230,9 +236,10 @@ function makeClient(host, port, clientCb){
 			
 			makeCbsWaiting[requestId] = {temporary: -1, cb: cb}
 		}
-		edits.forEach(function(e){
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
 			dsh.persistEdit(e.op, e.edit, listeningSyncId);
-		})
+		}
 		if(forget){
 			dsh.forgetLastTemporary(listeningSyncId)
 		}
@@ -269,7 +276,7 @@ function makeClient(host, port, clientCb){
 			log(uid + ' getting view ' + type + JSON.stringify(params))
 			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(e){
 				if(e){
-					console.log('e: ' + JSON.stringify(e))
+					console.log('e: ' + e)
 					cb()
 					return
 				}
@@ -294,33 +301,39 @@ function makeClient(host, port, clientCb){
 			schema: dbSchema,
 			//schemaName: dbName,
 			internalClient: cc,
-			beginSync: function(listenerCb, objectCb, makeCb, versionTimestamps, cb){
-				_.assertLength(arguments, 5)
+			beginSync: function(listenerCb, objectCb, makeCb, cb){
+				_.assertLength(arguments, 4)
 				_.assertFunction(listenerCb)
 				_.assertFunction(objectCb)
 				_.assertFunction(makeCb)
-				_.assertFunction(versionTimestamps)
+				//_.assertFunction(versionTimestamps)
 				_.assertFunction(cb)
 				function makeCbWrapper(id, requestId, temporary){
 					makeCb(id, temporary)
 				}
-				cc.beginSync(listenerCb, objectCb, makeCbWrapper, versionTimestamps, function(syncId, syncHandle){
+				cc.beginSync(listenerCb, objectCb, makeCbWrapper, function(syncId, syncHandle){
 					_.assertLength(arguments, 2)
 					_.assertInt(syncId)
 					_.assertObject(syncHandle)
 					
 					syncHandles[syncId] = syncHandle
+
 					cb(syncId, syncHandle)
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
-			setupService: function(name, local, identifier, viewSecuritySettings, syncHandleCreationListener){
-				_.assertLength(arguments, 5)
+			setupService: function(name, local, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener){
+				//_.assertLength(arguments, 5)
+				_.assert(arguments.length >= 5)
+				_.assert(arguments.length <= 6)
 				_.assertFunction(identifier)
-				_.assertObject(viewSecuritySettings)
+				_.assert(_.isObject(viewSecuritySettings) || _.isFunction(viewSecuritySettings))
 				_.assertNot(serviceIsSetup);
 				serviceIsSetup = true;
 				var lp = longpoll.load(local, name, dbSchema, identifier, viewSecuritySettings, handle, syncHandleCreationListener)
+
+				var ws = websocket.load(local, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
+				
 				xhrService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
 				return matterhornService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
 			},

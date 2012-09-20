@@ -13,8 +13,11 @@ var postJson = xhrHttp.postJson
 var getJson = xhrHttp.getJson
 
 var syncApi = require('./sync_api')
+var jsonutil = require('./jsonutil')
 
 exports.establishSocket = establishSocket
+
+var shared = require('./update_shared')
 
 function establishSocket(appName, schema, host, cb){
 	if(arguments.length !== 4) throw new Error(arguments.length)
@@ -25,124 +28,104 @@ function establishSocket(appName, schema, host, cb){
 	var closed = false
 	var connected = false
 
-	var versionsBeingGot = {}
-
+	
 	var syncUrl = host+'/mnw/sync/'+appName+'/'+(Math.random()+'').substr(2);
 	getJson(syncUrl, function(json){    
+
+		if(closed) return
 
 		var syncId = json.syncId
 
 
 		var editListeners = []
 	
+		var makeIdCbListeners = {}
+	
 		var viewsBeingSetup = {}
+
+		var editBuffer = []
+		
 		var sendFacade = {
-			editBuffer: [],
+			send: function(e){
+				editBuffer.push(e)
+			},
 			sendSetupMessage: function(e, cb){
 				_.assertFunction(cb)
 				var uid = Math.random()+''
 				viewsBeingSetup[uid] = cb
 				e.uid = uid
-				console.log(syncId + ' sent setup message for uid: ' + uid)
-				sendFacade.editBuffer.push(e)//{type: 'setup view', snapshotVersion: snapshotVersion, uid: uid})
+				console.log(syncId + ' sent setup message ' + JSON.stringify(e))
+				sendFacade.send(e)//{type: 'setup view', snapshotVersion: snapshotVersion, uid: uid})
 			},
-			persistEdit: function(op, edit, temporaryId){
+			persistEdit: function(op, edit){
 				_.assertString(op)
 				_.assertObject(edit)
-				sendFacade.editBuffer.push({data: {op: op, edit: edit}});
+				sendFacade.send({data: {op: op, edit: edit}});
+			},
+			make: function(type, json, forget, cb, temporary){
+
+				_.assertLength(arguments, 5)
+				
+				var st = schema[type];
+
+				var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
+
+				sendFacade.persistEdit('make', {typeCode: st.code, forget: forget})
+
+				if(cb) {
+					makeIdCbListeners[temporary] = cb
+					//console.log('setup cb: ' + temporary)
+				}
+
+				edits.forEach(function(e){
+					sendFacade.persistEdit(e.op, e.edit);
+				})
+				if(forget){
+					sendFacade.forgetLastTemporary()
+				}
+				return edits
+			},
+			forgetLastTemporary: function(){
+				sendFacade.send({type: 'forgetLastTemporary'});
 			},
 			addEditListener: function(listener){
 				editListeners.push(listener)
-			}/*,
-			getVersionTimestamps: function(versions, cb){
-				//_.errout('TODO')
-				var uid = Math.random()+''
-				versionsBeingGot[uid] = cb
-				sendFacade.editBuffer.push({type: 'versionTimestamps', versions: versions, uid: uid});
-			}*/
+			}
 		};
 
 		function log(msg){
-			//console.log(msg)
+			console.log(msg)
 		}
-		log.info = function(){
+		log.info = function(msg){
+			console.log(msg)
 		}
-		log.warn = function(){
+		log.warn = function(msg){
+			console.log('WARNING: ' + msg)
 		}
-		log.err = function(){
+		log.err = function(msg){
+			console.log('ERROR: ' + msg)
 		}
 		var api = syncApi.make(schema, sendFacade, log);
 		api.setEditingId(syncId);
 		
-		//update.establishSocket(schemaName, host, syncId, sendFacade, viewsBeingSetup)
-		setupRest(api, syncId, sendFacade, viewsBeingSetup, versionsBeingGot, editListeners)
-
-		sendFacade.addEditListener(function(data){			
-			if(data[0] === 'edit'){
-				/*var doneRefresh = */api.changeListener(data[1], data[2], data[3]);
-				//doneRefresh();
-			}else if(data[0] === 'reify'){
-				var id = data[1]
-				var temporary = data[2]
-				api.reifyExternalObject(temporary, id)
-			}else{
-				//console.log('got object: ' + data[1])
-				api.objectListener(data[1], data[2]);
-			}
-		})
-	
-		var handle = {
-			view: function(viewName, params, cb){
-				openView(syncId, api, schema, host, appName, viewName, params, sendFacade, cb)
-			},
-			_openViewWithSnapshots: function(baseTypeCode, lastId, snaps, viewName, params, cb){
-				openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
-			},
-			close: function(){
-				closed = true
-				if(sendMessageTimeoutHandle !== undefined){
-					clearTimeout(sendMessageTimeoutHandle)
-				}
-			}
-		}
-		cb(handle)		
-	})
-	
-	var sendMessageTimeoutHandle;
 		
-	function setupRest(api, syncId, sendFacade, viewsBeingSetup, versionsBeingGot, editListeners){
-		
-		if(closed) return
-
-		function editSender(id, path, op, edit){
-
-			sendFacade.editBuffer.push([id, path, op, edit])
-			//console.log('sending message: ' + msgStr);
-		}
-
 		function sendMessages(){
-		    if(sendFacade.editBuffer.length > 0){
-				sendMessage(syncId, sendFacade.editBuffer)
-				sendFacade.editBuffer = []
+		    if(editBuffer.length > 0){
+				sendMessage(syncId, editBuffer)
+				editBuffer = []
 		    }else{
-		    	sendMessageTimeoutHandle = setTimeout(sendMessages, 500);    
+		    	sendMessageTimeoutHandle = setTimeout(sendMessages, 100);    
 		    }
 		}	
 		function sendMessage(syncId, msg){
-			//TODO
-		    //throw new Error('TODO send message: ' + msgStr)
-		   // console.log('sending messages: ' + msg.length)
 		    var sendUrl = '/mnw/xhr/update/' + appName + '/' + syncId
 		    postJson(host+sendUrl, msg, function(){
-		       // console.log('got ok response from post messages')
-		    	sendMessageTimeoutHandle = setTimeout(sendMessages, 500);	
+		    	sendMessageTimeoutHandle = setTimeout(sendMessages, 100);	
 		    })
 		}
-		sendMessageTimeoutHandle = setTimeout(sendMessages, 500);	
+		sendMessageTimeoutHandle = setTimeout(sendMessages, 100);	
 
 		sendMessages()
-
-		var wasAlreadyReady = false;
 
 		var pollUrl = '/mnw/xhr/longpoll/' + appName + '/' + syncId
 		function pollServer(){
@@ -151,138 +134,81 @@ function establishSocket(appName, schema, host, cb){
 				//console.log('got messages: ' + JSON.stringify(msgs))
 				msgs.forEach(takeMessage)
 				pollServer()
+			}, function(){
+				setTimeout(pollServer, 2000)//TODO use backoff?
 			})
 		}
 		pollServer()
-
+		
 		function takeMessage(data){
 			if(data.type === 'ready'){
+				console.log('got ready: ' + data.uid)
 				if(viewsBeingSetup[data.uid] === undefined){
 					_.errout('unknown view uid: ' + data.uid + ', known: ' + JSON.stringify(Object.keys(viewsBeingSetup)))
 				}
 				viewsBeingSetup[data.uid](data.data)
-			}else if(data.type === 'versionTimestamps'){
-				versionsBeingGot[data.uid](data.timestamps)
 			}else{
+				console.log('message: ' + JSON.stringify(data))
 				editListeners.forEach(function(listener){
 					listener(data)
 				})
 			}
 		}
-	}
-}
 
-function openView(syncId, api, schema, host, appName, viewName, params, sendFacade, readyCb){
-
-	var paramsStr = stringifyParams(params)
-	var metaUrl = host+'/mnw/meta/' + appName + '/' + syncId + '/' + viewName + '/' + paramsStr + '/'
-
-    //1. download meta file (stuff that would be included in the initial GET response in the browserclient.js implementation.)
-	//console.log('metaUrl: ' + metaUrl)
-	//console.log('host: ' + host)
-	
-	getJson(metaUrl, function(json){
-	
-
-		var syncId = json.syncId
-        var baseTypeCode = json.baseTypeCode
-        var lastId = json.lastId
-
-		openViewWithMeta(syncId, baseTypeCode, lastId, json.snapUrls, host, api, viewName, params, sendFacade, readyCb)
-	})    
-}
-
-function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, viewName, params, sendFacade, cb){
-	_.assertInt(lastId)
-	var snaps = []
-	var remaining = snapUrls.length
-	snapUrls.forEach(function(url, index){
-		getJson(host+url, function(snapJson){
-			//console.log('got snap: ' + JSON.stringify(snapJson) + ' ' + remaining)
-			snaps[index] = snapJson
-			--remaining
-			if(remaining === 0){
-				openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
+		sendFacade.addEditListener(function(data){			
+			//console.log('processing: ' + JSON.stringify(data))
+			if(data[0] === 'edit'){
+				api.changeListener(data[1], data[2], data[3]);
+			}else if(data[0] === 'reify'){
+				var id = data[1]
+				var temporary = data[2]
+				api.reifyExternalObject(temporary, id)
+				//console.log('reifying temporary: ' + temporary)
+				if(makeIdCbListeners[temporary] !== undefined){
+					var cb = makeIdCbListeners[temporary]
+					delete makeIdCbListeners[temporary]
+					cb(id)
+				}
+			}else{
+				api.objectListener(data[1], data[2]);
 			}
 		})
-	})
-}
-function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb){
-	_.assertInt(lastId)
 	
-	//var snapshot = mergeSnapshots(snaps)
-	
-    var viewId = baseTypeCode+':'+JSON.stringify(params)
-    
-    //console.log('adding snapshots: ' + JSON.stringify(snaps))
-    for(var i=0;i<snaps.length;++i){
-		api.addSnapshot(snaps[i])
-	}
-	var lastSnapshotVersion = snaps[snaps.length-1].endVersion
-
-	function readyCb(){	
-		//console.log('calling back')
-		cb(api.getView(viewId))
-	}
-	
-
-
-	//console.log('sent setup message: ' + viewName)
-	sendFacade.sendSetupMessage({type: 'setup', viewName: viewName, params: JSON.stringify(params), version: lastSnapshotVersion}, function(updatePacket){
-		//console.log('update packet: ' + updatePacket)
-		//updatePacket = JSON.parse(updatePacket)
-		//console.log('got packet of ' + updatePacket.length)
-		updatePacket.forEach(function(data){				
-			api.changeListener(data[0], data[1], data[2], data[3], data[4], data[5])
-		})
-		readyCb()
-	})
-	if(lastSnapshotVersion >= lastId){
-		//waitingForReady = false
-		readyCb();
-		readyCb = function(){}
-	}else{
-		//console.log(JSON.stringify(snapshot))
-		//console.log('waiting for update from ' + lastSnapshotVersion + ' to ' + lastId)
-	}
-	//}
-}
-
-function stringifyParams(params){
-    if(params.length === 0) return '-'
-	var str = ''
-	for(var i=0;i<params.length;++i){
-		if(i > 0) str += ';';
-		str += encodeURIComponent(params[i]);
-	}
-	return str
-}
-/*
-function mergeSnapshots(snaps){
-
-	console.log('TOP SNAP ID: ' + snaps[snaps.length-1].latestVersionId)
-	var result = {version: snaps[snaps.length-1].latestVersionId || -1, objects: []};
-	
-	var taken = {};
-	for(var i=snaps.length-1;i>=0;--i){
-		var m = snaps[i].objects;
-		
-		var objs = m
-		
-		var t = taken
-		
-		var resObjs = result.objects
-		
-		//for(var j=0;j<objs.length;++j){
-			var obj = objs[j];
-			var id = obj.object.meta.id
-			
-			if(t[id] === undefined || t[id] < obj.object.meta.editId){
-				t[id] = obj.object.meta.editId;
-				resObjs.push(obj)
+		var handle = {
+			getSessionId: function(){
+				return syncId
+			},
+			view: function(viewName, params, cb){
+				if(arguments.length === 2 && _.isFunction(params)){
+					cb = params
+					params = []
+				}
+				var realParams = []
+				for(var i=0;i<params.length;++i){
+					realParams[i] = params[i]
+					if(_.isObject(params[i])) realParams[i] = params[i].id()
+				}
+				
+				//console.log('getting view: ' + viewName + ' ' + JSON.stringify(params))
+				shared.openView(syncId, api, schema, host, appName, viewName, realParams, sendFacade, cb)
+			},
+			_openViewWithSnapshots: function(baseTypeCode, lastId, snaps, viewName, params, cb){
+				shared.openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
+			},
+			close: function(cb){
+				closed = true
+				if(sendMessageTimeoutHandle !== undefined){
+					clearTimeout(sendMessageTimeoutHandle)
+				}
+				if(cb) cb()
 			}
-		//}
-	}
+		}
+		cb(handle)		
+	})
 	
-	return result;
-}*/
+	var sendMessageTimeoutHandle;
+		
+	
+}
+
+

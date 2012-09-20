@@ -13,12 +13,14 @@ function makeGetAllSubtypes(schema){
 		var objSchema = schema._byCode[typeCode]
 		var result = {}
 		result[objSchema.code] = objSchema
-		Object.keys(objSchema.subTypes).forEach(function(stName){
-			var subs = getAllSubtypes(schema[stName].code)
-			subs.forEach(function(objSchema){
-				result[objSchema.code] = objSchema
+		if(objSchema.subTypes){
+			Object.keys(objSchema.subTypes).forEach(function(stName){
+				var subs = getAllSubtypes(schema[stName].code)
+				subs.forEach(function(objSchema){
+					result[objSchema.code] = objSchema
+				})
 			})
-		})
+		}
 		var real = []
 		Object.keys(result).forEach(function(codeStr){
 			real.push(result[codeStr])
@@ -56,27 +58,28 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 	})
 	
 	var handle = {
-		beginView: function(e, seq, listenerCb, readyPacketCb){
-			function includeObjectCb(id, editId){
+		beginView: function(e, seq, readyPacketCb){
+			_.assertLength(arguments, 3)
+			/*function includeObjectCb(id, editId){
 				_.assertInt(editId)
 				//leave it up to the sync handle to deduplicate and retrieve that state
 				listenerCb({op: 'includeObject', id: id, editId: editId})
-			}
-			var readyPacket = []
+			}*/
+			/*var readyPacket = []
 			function editCb(e){
 				if(readyPacket === undefined){
 					listenerCb(e)
 				}else{
 					readyPacket.push[e]
 				}
-			}
+			}*/
 
 			//console.log('BEGINNING VIEW:' + JSON.stringify(e))
 			
 			function readyCb(){
-				log('GOT READY PACKET:', readyPacket)
-				readyPacketCb(readyPacket)
-				readyPacket = undefined
+				//log('GOT READY PACKET:', readyPacket)
+				readyPacketCb()
+				//readyPacket = undefined
 			}
 			log('params:', e.params)
 			_.assertString(e.params)
@@ -91,12 +94,12 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId()-1)
 			seq.addView(e.typeCode, viewVariable, e.latestSnapshotVersionId, readyCb)
 			
-			return {
+			/*return {
 				end: function(){
 					//_.errout('TODO')
 					seq.end()
 				}
-			}
+			}*/
 		},
 		//TODO: implement halving algorithm
 		//TODO: randomize halving points by hash of view id

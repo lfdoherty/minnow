@@ -47,9 +47,9 @@ exports.setBoolean = makeWrapper(
 exports.setString = makeWrapper(
 	function(c){return c.v.stringValue.value() === 'test'}, 
 	function(obj){obj.stringValue.set('test')})
-	
+	/*
 exports.setTimestamp = makeWrapper(
 	function(c){return _.isNumber(c.v.timestampValue.value())}, 
 	function(obj){obj.timestampValue.setNow()})
-
+*/
 

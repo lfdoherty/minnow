@@ -125,13 +125,18 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 		handle.close = function(cb){
 			clearInterval(flushHandle)
 			clearInterval(writeHandle)
+			//console.log('closing apf')
 			var cdl = _.latch(2, function(){
 				cb()
 			})
 			doFlush()
-			w.close(cdl)
+			w.close(function(){
+				//console.log('closed w')
+				cdl()
+			})
 			sfw.end()
 			sfw.sync(function(){
+				//console.log('synced sfw')
 				cdl()
 			})
 		}
@@ -184,6 +189,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 
 		function initWriter(){
 			function end(cb){
+				//console.log('in w close')
 				if(cb) cb()
 			}
 			w = fparse.makeWriter({write: write, end: end})

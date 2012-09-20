@@ -167,11 +167,11 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 				--counts[value]
 			}
 		},
-		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+		objectChange: function(typeCode, id, path, op, edit, syncId, editId){
 			//console.log('each passing on objectChange to ' + listeners.many())
-			var e = [subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]
+			var e = [typeCode, id, path, op, edit, syncId, editId]
 			cachedObjectChanges.push(e)
-			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
+			listeners.emitObjectChange(typeCode, id, path, op, edit, syncId, editId)
 		}
 	}
 	
@@ -195,6 +195,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			var newSet = concreteGetter(newBindings, editId)
 			//console.log('multiple each attaching to macro: ' + key)
 			//console.log(JSON.stringify(s.outputType))
+			allSets[v] = newSet
 			newSet.attach(resultSetListener, editId)
 		},
 		remove: function(v, editId){
@@ -202,7 +203,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			var removedSet = allSets[v]
 			removedSet.detach(resultSetListener, editId)
 		},
-		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+		objectChange: function(typeCode, id, path, op, edit, syncId, editId){
 			//_.errout('TODO')
 		}
 	}, editId)
@@ -292,13 +293,13 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 				}
 			}
 		},
-		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+		objectChange: function(subjTypeCode, subjId,/* typeCode, id, */path, op, edit, syncId, editId){
 			//console.log('each passing on objectChange to ' + listeners.many() + ': ' + JSON.stringify([op, edit, syncId, editId]))
 			//console.log(new Error().stack)
 			_.assert(editId < s.objectState.getCurrentEditId())
-			var e = [subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId]
+			var e = [subjTypeCode, subjId,/* typeCode, id,*/ path, op, edit, syncId, editId]
 			cachedObjectChanges.push(e)
-			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
+			listeners.emitObjectChange(subjTypeCode, subjId, /*typeCode, id,*/ path, op, edit, syncId, editId)
 			//_.errout('TODO: ' + op + ' ' + JSON.stringify(edit))
 		}
 	}

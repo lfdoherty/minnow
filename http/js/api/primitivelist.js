@@ -1,3 +1,4 @@
+"use strict";
 
 var u = require('./util')
 var _ = require('underscorem')
@@ -22,7 +23,7 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 		this.shift = readonlyError;
 	}
 	this.latestVersionId = -1
-	this.log('setting up primitive list: ' + JSON.stringify(obj))
+	//this.log('setting up primitive list: ' + JSON.stringify(obj))
 	
 	this.addOp = u.getAddOperator(typeSchema)
 	this.removeOp = u.getRemoveOperator(typeSchema)
@@ -45,6 +46,27 @@ PrimitiveListHandle.prototype.toJson = function(){
 PrimitiveListHandle.prototype.count = function(){return this.obj.length;}
 PrimitiveListHandle.prototype.size = PrimitiveListHandle.prototype.count
 
+PrimitiveListHandle.prototype.set = function(arr){
+	var local = this
+	var toRemove = []
+	var changed = false
+	this.obj.forEach(function(v){
+		if(arr.indexOf(v) === -1){
+			toRemove.push(v)
+			changed = true
+		}
+	})
+	toRemove.forEach(function(v){
+		local.remove(v)
+	})
+	arr.forEach(function(v){
+		if(local.obj.indexOf(v) === -1){
+			local.add(v)
+			changed = true
+		}
+	})
+	return changed
+}
 PrimitiveListHandle.prototype.add = function(value){
 	this.assertMemberType(value)
 
@@ -109,7 +131,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 		
 	if(op.indexOf('add') === 0){
 		if(this.getEditingId() !== syncId){
-			this.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
+			//this.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
 			//console.log(JSON.stringify([op, edit, syncId, editId]))
 			_.assertPrimitive(edit.value)
 			_.assert(edit.value != null)

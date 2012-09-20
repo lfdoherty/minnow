@@ -92,7 +92,7 @@ exports.del = function(config, done){
 			client.view('general', function(c){
 			
 				poll(function(){
-					console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1){
 						if(c.s.data.value('testKey') === 'testValueTwo'){
 							done()
@@ -160,7 +160,7 @@ exports.values = function(config, done){
 			client.view('valuesView', function(c){
 			
 				poll(function(){
-					console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 2){
 						done()
 						return true
@@ -192,7 +192,7 @@ exports.nestedInnerValues = function(config, done){
 			client.view('containerValuesView', function(c){
 			
 				poll(function(){
-					console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 2){
 						done()
 						return true
@@ -225,7 +225,7 @@ exports.nestedExternalValues = function(config, done){
 			client.view('containerValuesView', function(c){
 			
 				poll(function(){
-					console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 2){
 						done()
 						return true

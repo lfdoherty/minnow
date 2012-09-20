@@ -1,3 +1,5 @@
+"use strict";
+
 /*
 
 Note that this is a set of objects (view or not) that is a property of a view - not necessarily a set of objects which ARE views.
@@ -24,7 +26,7 @@ function ViewObjectSetHandle(typeSchema, obj, part, parent){
 	this.delListener = function(){
 		var i = local.obj.indexOf(this)
 		local.obj.splice(i, 1)
-		console.log('removed deleted object from viewobjectset: ' + this.objectId)
+		//console.log('removed deleted object from viewobjectset: ' + this.objectId)
 		local.emit({}, 'remove', this)
 	}
 }
@@ -89,7 +91,7 @@ ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId
 		try{
 			var objHandle = this.getObjectApi(edit.id);
 		}catch(e){
-			console.log('WARNING: might be ok (if already destroyed locally), but could not find object: ' + edit.id)
+			this.log.info('WARNING: might be ok (if already destroyed locally), but could not find object: ' + edit.id)
 			return
 		}
 		this.obj.splice(this.obj.indexOf(objHandle), 1)

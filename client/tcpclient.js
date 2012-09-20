@@ -33,7 +33,7 @@ function deserializeAllSnapshots(readers, names, snapshots){
 	var r = fparse.makeSingleReader(snapshots)
 	var manySnaps = r.readByte()//readInt()
 	var snaps = []
-	log('many snaps: ' + manySnaps)
+	//log('many snaps: ' + manySnaps)
 	for(var i=0;i<manySnaps;++i){
 		var objects = deserializeSnapshotInternal(readers, names, r)
 		snaps.push(objects)
@@ -45,6 +45,8 @@ function deserializeSnapshotInternal(readers, names, rs){
 	var startEditId = rs.readInt()
 	var endEditId = rs.readInt()
 	
+	//console.log(startEditId + ' -> ' + endEditId)
+	
 	var manyObjects = rs.readInt()
 	var objects = {}
 	//console.log('many objects: ' + manyObjects)
@@ -54,14 +56,16 @@ function deserializeSnapshotInternal(readers, names, rs){
 		var e = readers.selectTopObject(rs)
 		var id = e.id
 		objects[id] = edits
+		//var segmentLength = rs.readInt()//we just ignore this
+		//console.log('segment length: ' + )
 		var many = rs.readInt()
 		//console.log('many edits: ' + many)
 		for(var j=0;j<many;++j){
 			var code = rs.readByte()
 			var editId = rs.readInt()
 			var name = names[code]
-			//console.log('getting name(' + code + '): ' + name)
-			_.assertString(name)
+			//console.log('getting name(' + code + '): ' + name + ' ' + editId)
+			//_.assertString(name)
 			var e = readers[name](rs)
 			//console.log('got e: ' + JSON.stringify(e))
 			edits.push({op: name, edit: e, editId: editId})
@@ -107,6 +111,8 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	var syncListenersByRequestId = {}
 	var syncListenersBySyncId = {}
 	
+	var closed = {}
+	
 	//var makeCbListenersByRequestId = {}
 	//var makeCbListenersBySyncId = {}
 	
@@ -151,12 +157,16 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			_.assertFunction(syncListenersBySyncId[e.syncId].edit)
 			_.assertFunction(syncListenersBySyncId[e.syncId].object)
 			_.assertFunction(syncListenersBySyncId[e.syncId].make)
-			_.assertFunction(syncListenersBySyncId[e.syncId].versionTimestamps)
+			//_.assertFunction(syncListenersBySyncId[e.syncId].versionTimestamps)
 			delete syncListenersByRequestId[e.requestId]
 			//delete makeCbListenersByRequestId[e.requestId]
 			cb(e.syncId);
 		},
 		update: function(e){
+			if(closed[e.destinationSyncId]){
+				return
+			}
+			
 			_.assertInt(e.destinationSyncId)
 			var cb = syncListenersBySyncId[e.destinationSyncId]
 			_.assertFunction(cb.edit);
@@ -168,6 +178,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			cb.edit(e);
 		},
 		updateObject: function(e){
+			if(closed[e.destinationSyncId]){
+				return
+			}
+			
 			_.assertInt(e.destinationSyncId)
 			var cb = syncListenersBySyncId[e.destinationSyncId]
 			_.assertObject(cb)
@@ -184,7 +198,32 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//log([e.id, edits])
 			cb.object(e.id, edits)
 		},
+		updateViewObject: function(e){
+			if(closed[e.destinationSyncId]){
+				return
+			}
+			
+			_.assertInt(e.destinationSyncId)
+			//console.log('destination: ' + e.destinationSyncId)
+			var cb = syncListenersBySyncId[e.destinationSyncId]
+			_.assertObject(cb)
+			var r = fparse.makeSingleReader(e.edits)
+			var many = r.readInt()
+			var edits = []
+			//console.log('many: ' + many)
+			for(var i=0;i<many;++i){
+				var op = fp.names[r.readByte()]
+				var editId = r.readInt()
+				var edit = fp.readers[op](r)
+				edits.push({op: op, edit: edit, editId: editId})
+			}
+			//log([e.id, edits])
+			cb.object(e.id, edits)
+		},
 		ready: function(e){
+			if(closed[e.syncId]){
+				return
+			}
 			//console.log('tcpclient got response ready(' + e.syncId + '): ' + JSON.stringify(e))
 			var cb = syncReadyCallbacks[e.requestId];
 			_.assertFunction(cb);
@@ -210,7 +249,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			makeCb(e.id, e.requestId, e.temporary)
 			//defaultMakeListener(e.id, e.requestId)//TODO shouldn't this depend on which syncId we're informing?
 		},
-		gotVersionTimestamps: function(e){
+		/*gotVersionTimestamps: function(e){
 			var timestamps = []
 			for(var i=0;i<e.timestamps.length;i+=8){
 				timestamps.push(bin.readLong(e.timestamps, i))
@@ -218,7 +257,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//console.log('got version timestamps: ' + JSON.stringify(e.destinationSyncId) + ' ' + JSON.stringify(timestamps))
 			var vtListener = syncListenersBySyncId[e.destinationSyncId].versionTimestamps
 			vtListener(e.requestId, timestamps)
-		},
+		},*/
 		requestError: function(e){
 			log.err('ERROR: ' + e.err)
 			console.log('ERROR: ' + e.err)
@@ -280,6 +319,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		}
 	}
 	
+	var clientDestroyed = false
+	var clientEnded = false
+	var clientClosed = false
+	
 	var backingWriter
 	function setupBasedOnSchema(schema){
 		log('setting up')
@@ -289,6 +332,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 
 		backingWriter = fparse.makeWriteStream(shared.clientRequests, {
 			write: function(buf){
+				if(clientDestroyed || clientEnded || clientClosed){
+					console.log('WARNING: client already destroyed, discarding bytes to write: ' + buf.length)
+					return
+				}
 				client.write(buf);
 			},
 			end: function(){
@@ -316,15 +363,29 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		try{
 			deser(data);
 		}catch(e){
+			console.log('WARNING: deserialization error: ' + e.stack)
 			client.removeListener('data', dataListener)
 			client.destroy()
+			clientDestroyed = true
+			clearInterval(flushIntervalHandle)
 			throw e
 		}
 	}
 	client.on('data', dataListener);
+
+	client.on('error', function(e) {
+		console.log('tcp client error: ' + e)
+	})
 	
+	client.on('close', function() {
+		clientClosed = true
+		clearInterval(flushIntervalHandle)
+	})
 	client.on('end', function() {
 		log('client disconnected');
+		//doFlush()
+		clearInterval(flushIntervalHandle)
+		clientEnded = true
 	});
 	
 	var flushIntervalHandle
@@ -357,10 +418,9 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			endView: function(e){
 				w.endView(e);
 			},
-			persistEdit: function(op, edit, sourceSyncId){//, cb){
-				//_.assertLength(arguments, 3)
-				//_.assertString(op)
-				//_.assertInt(sourceSyncId)
+			persistEdit: function(op, edit, sourceSyncId){
+				_.assertString(op)
+				
 				var es = shared.editSchema[op]
 				if(es === undefined) _.errout('unknown edit op: ' + op)
 				var editTypeCode = es.code
@@ -370,18 +430,29 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 					requestId = makeRequestId()
 				}
 				
+				var bw = backingWriter.writer
+				bw.putByte(3)
+				bw.putInt(requestId)
+				bw.putByte(editTypeCode)
+				try{
+					bw.startLength()
+					fp.writers[op](bw, edit)
+					bw.endLength()
+				}catch(e){
+					console.log(e)
+					console.log('invalid edit received and not sent to server: ' + JSON.stringify(e));
+					delete callbacks[e.requestId];
+					throw e
+				}
+				bw.putInt(syncId)
+				
+				/*
 				var e = {
 					op: editTypeCode,
 					edit: serializeEdit(op, edit),
 					syncId: sourceSyncId,
 					requestId: requestId
 				}
-				//log('op: ', op)
-				//e.edit = serializeEdit(op, edit)
-				//e.syncId = sourceSyncId
-				//e.requestId = requestId
-				
-				
 
 				try{
 					w.persistEdit(e);
@@ -389,24 +460,18 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 					console.log(e)
 					console.log('invalid edit received and not sent to server: ' + JSON.stringify(e));
 					delete callbacks[e.requestId];
-				}
+				}*/
 				return requestId
 			},
-			/*getVersionTimestamps: function(versions){
-				var bv = new Buffer(versions.length*4)
-				for(var i=0;i<versions.length;++i){
-					bin.writeInt(bv, i*4, versions[i])
-				}
-				var e = {versions: bv}
-				var requestId = makeRequestId()
-				e.requestId = requestId
-				e.syncId = syncId
-				w.getVersionTimestamps(e)
-				return requestId
-			},*/
 			forgetLastTemporary: function(sourceSyncId){
 				_.assertInt(sourceSyncId)
 				w.forgetLastTemporary({syncId: sourceSyncId})
+			},
+			close: function(){
+				//_.errout('TODO close sync handle')
+				delete syncListenersBySyncId[syncId]
+				closed[syncId] = true
+				w.endSync({syncId: syncId})
 			}
 		}
 		return handle;
@@ -425,12 +490,11 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		//even though we provide a default sync handle, we include the ability to create them
 		//for the purposes of proxying.
-		beginSync: function(listenerCb, objectCb, makeCb, versionTimestamps, cb){
-			_.assertLength(arguments, 5)
+		beginSync: function(listenerCb, objectCb, makeCb, cb){
+			_.assertLength(arguments, 4)
 			_.assertFunction(listenerCb)
 			_.assertFunction(objectCb)
 			_.assertFunction(makeCb)
-			_.assertFunction(versionTimestamps)
 			_.assertFunction(cb);
 			var e = {};
 			applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
@@ -438,8 +502,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			log('BEGAN SYNC CLIENT')
 
 			w.beginSync(e);
-			//makeCbListenersByRequestId[e.requestId] = makeCb
-			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb, make: makeCb, versionTimestamps: versionTimestamps}
+			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb, make: makeCb}
 			
 			
 		},
@@ -470,13 +533,19 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 					cb(err)
 					return
 				}
-				log('got request reply: ' + res.requestId)
+				/*log('got request reply: ' + res.requestId)
+				var str = ''
+				for(var i=0;i<res.snapshots.length;++i){
+					str += res.snapshots[i]+' '
+				}
+				console.log(res)
+				console.log(str)*/
 				res.snapshots = deserializeAllSnapshots(fp.readers, fp.names, res.snapshots)
-				log('deserialized: ' + JSON.stringify(res).slice(0,500))
+				//log('deserialized: ' + JSON.stringify(res).slice(0,500))
 				cb(undefined, res)
 			});
 			w.getAllSnapshots(e);
-			log('tcpclient: getSnapshots')
+			//log('tcpclient: getSnapshots')
 			//w.flush()
 		},
 		getSnapshot: function(e, cb){
@@ -486,7 +555,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				cb(res)
 			});
 			w.getSnapshot(e);
-			log('tcpclient: getSnapshots')
+			//log('tcpclient: getSnapshots')
 		},
 		close: function(cb){
 			w.flush()

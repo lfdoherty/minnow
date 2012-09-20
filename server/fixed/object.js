@@ -10,6 +10,7 @@ exports.make = function(s){
 
 function sfgObject(s, id, editId, context){
 	_.assertLength(arguments, 4)
+	if(!_.isInt(id)) _.errout('invalid id: ' + id)
 	_.assertInt(id)
 	_.assertDefined(context)
 	_.assertString(context.name)

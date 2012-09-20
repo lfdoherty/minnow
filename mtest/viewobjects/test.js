@@ -42,10 +42,12 @@ exports.wrappedFromObjectSet = function(config, done){
 				var obj = v.make('entity', {value: 'test'})
 				var n = v.make('context', function(){
 				
-					n.entities.add(obj)
+					
 
 					minnow.makeClient(config.port, function(client){
 						client.view('specific', [n], function(c){
+						
+							n.entities.add(obj)
 	
 							poll(function(){
 								//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))

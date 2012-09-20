@@ -3,7 +3,7 @@
 var domready = require('matterhorn-standard/js/domready')
 
 var syncApi = require('./sync_api')
-var update = require('./minnow_update')
+var update = require('./minnow_update_websocket')
 
 var listenForMinnow;
 

@@ -1,3 +1,4 @@
+"use strict";
 
 var _ = require('underscorem')
 
@@ -17,7 +18,7 @@ exports.genericCollectionTypes = function types(){
 }
 
 function recursivelyGetLeafTypes(objType, schema){
-	if(_.size(objType.subTypes) === 0){
+	if(!objType.subTypes || _.size(objType.subTypes) === 0){
 		return [objType.name];
 	}
 	

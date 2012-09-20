@@ -19,7 +19,10 @@ VariableListeners.prototype.add = function(listener){
 VariableListeners.prototype.remove = function(listener){
 	_.assertObject(listener)
 	var i = this.listeners.indexOf(listener)
-	_.assert(i !== -1)
+	if(i === -1){
+		_.errout('removing listener we do not have: ' + listener)
+	}
+	//_.assert(i !== -1)
 	this.listeners.splice(i, 1)
 }
 VariableListeners.prototype.emitAdd = function(value, editId){
@@ -70,12 +73,12 @@ VariableListeners.prototype.emitDel = function(key, editId){
 		listener.del(key, editId)
 	}
 }
-VariableListeners.prototype.emitObjectChange = function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-	_.assertLength(arguments, 9)
+VariableListeners.prototype.emitObjectChange = function(typeCode, id, path, op, edit, syncId, editId){
+	_.assertLength(arguments, 7)
 	_.assert(this instanceof VariableListeners)
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
-		listener.objectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
+		listener.objectChange(typeCode, id, path, op, edit, syncId, editId)
 	}
 }
 VariableListeners.prototype.emitChanged = function(editId){

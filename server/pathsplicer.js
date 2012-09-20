@@ -7,6 +7,7 @@ function PathUpdater(initialPath){
 	//this.typeCode;
 	//var syncId;
 	//this.update = PathUpdater.prototype.update.bind(this)
+	this.edits = []
 }
 PathUpdater.prototype.updateAll = function update(edits){
 	for(var i=0;i<edits.length;++i){
@@ -15,6 +16,7 @@ PathUpdater.prototype.updateAll = function update(edits){
 }
 PathUpdater.prototype.update = function update(e){
 	_.assertDefined(this)
+	this.edits.push(e)
 	var op = e.op
 	//console.log(JSON.stringify(e))
 	if(op === 'made'){
@@ -55,6 +57,7 @@ PathUpdater.prototype.update = function update(e){
 	}else if(op === 'ascend5'){
 		this.path = this.path.slice(0, this.path.length-5)
 	}else{
+		//_.assertInt(this.typeCode)
 		return false
 	}
 	return true
@@ -63,6 +66,8 @@ PathUpdater.prototype.getPath = function(){
 	return this.path
 }
 PathUpdater.prototype.getTypeCode = function(){
+	if(this.typeCode == undefined) _.errout('no typeCode defined: ' + JSON.stringify(this.edits))
+	_.assertInt(this.typeCode)
 	return this.typeCode
 }
 PathUpdater.prototype.getSyncId = function(){

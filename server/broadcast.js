@@ -98,6 +98,9 @@ exports.make = function(){
 		notifyChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId);
 	}
 	
+	var setListenerIdCounter = 1
+	var setListenerHandles = {}
+	
 	return {
 		input: {
 			objectUpdated: function(typeCode, id, op, edit, syncId, editId){
@@ -219,7 +222,17 @@ exports.make = function(){
 			},
 			updateBySet: function(listener){
 				var h = new ListenBySetHandle(listener, updateByObject, updateBySet)
+				listener._setListenerId = setListenerIdCounter
+				setListenerHandles[listener._setListenerId] = h
+				++setListenerIdCounter
 				return h
+			},
+			stopUpdatingBySet: function(listener){
+				if(listener._setListenerId === undefined) _.errout('never started listening in the first place')
+				
+				var h = setListenerHandles[listener._setListenerId]
+				delete setListenerHandles[listener._setListenerId]
+				h.destroy()
 			}
 		}
 	};
@@ -274,12 +287,15 @@ ListenBySetHandle.prototype.has = function(id){
 	return this.set[id]
 }
 ListenBySetHandle.prototype.destroy = function(){
+	if(this.destroyed) _.errout('already destroyed')
+	this.destroyed = true
 	if(this.count >= TransitionToInterceptCount){
 		this.bySet.splice(this.bySet.indexOf(this), 1)
 	}else{
 		var keys = Object.keys(this.set)
 		for(var i=0;i<keys.length;++i){
-			this.byObject[keys[i]].splice(list.indexOf(this.listener), 1)
+			var list = this.byObject[keys[i]]
+			list.splice(list.indexOf(this.listener), 1)
 		}
 	}
 }

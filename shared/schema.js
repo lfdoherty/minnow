@@ -369,6 +369,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 				_.each(st.superTypes, function(v, superType){
 					if(reservedTypeNames.indexOf(superType) === -1){
 						if(schema[superType] === undefined) _.errout('cannot find super type "' + superType + '" of "' + name + '"');
+						if(schema[superType].subTypes === undefined) schema[superType].subTypes = {}
 						schema[superType].subTypes[name] = true;
 					}
 				});
@@ -769,6 +770,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			//_.assertString(rel.typeName)
 			_.assertDefined(rel.params[0].value)
 			if(rel.params[0].value.name === 'undefined') _.errout('here')
+			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
 			return rel.schemaType = {type: 'object', object: rel.params[0].value}
 		}
 		if(rel.view === 'case'){
@@ -914,8 +916,6 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 	_.assertLength(arguments, 5)
 	
-	result.properties = {};
-	result.propertiesByCode = {};
 	result.superTypes = {readonly: true, recursively_readonly: true};
 	result.name = v.name
 	_.assertString(v.name)
@@ -923,6 +923,11 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 	v.params.forEach(function(p){
 		bindingTypes[p.name] = p.type;
 	})
+
+	if(_.size(v.rels) > 0){
+		result.properties = {};
+		result.propertiesByCode = {};
+	}
 	
 	_.each(v.rels, function(rel, name){
 		var p = result.properties[name] = {};

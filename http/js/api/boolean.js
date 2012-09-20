@@ -1,3 +1,5 @@
+"use strict";
+
 var u = require('./util')
 var _ = require('underscorem')
 
@@ -8,8 +10,8 @@ function BooleanHandle(typeSchema, obj, part, parent){
 	_.assertObject(parent);
 	
 	if(obj === undefined){
-		if(typeSchema.tags['default:false']) obj = false;
-		else if(typeSchema.tags['default:false']) obj = true;
+		if(typeSchema.tags && typeSchema.tags['default:false']) obj = false;
+		else if(typeSchema.tags && typeSchema.tags['default:false']) obj = true;
 	}
 
 	this.obj = obj;

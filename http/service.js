@@ -25,7 +25,7 @@ function parseParams(schema, params){
 	for(var i=0;i<ps.length;++i){
 		var p = ps[i];
 		var pv = params[i];
-		
+		if(pv == null) throw new Error('invalid params: ' + JSON.stringify(params))
 		if(p.type.type === 'set'){
 			if(pv.length === 0) pv = [];
 			else pv = pv.split(',');
@@ -48,11 +48,14 @@ function parseParams(schema, params){
 
 function doParseParams(paramsStr, s){
 	if(paramsStr === '-') return []
-	
+	//console.log('params: ' + paramsStr)
+	if(paramsStr === 'NaN' || paramsStr === '[object Object]') _.errout('corrupted paramsStr: "' + paramsStr+'"')
+	_.assertString(paramsStr)
 	var parsedParams;
 	if(s.isView){
 		var params = paramsStr.split(';');
 		for(var i=0;i<params.length;++i){
+			if(params[i] == null) throw new Error('invalid paramsStr: ' + paramsStr)
 			params[i] = querystring.unescape(params[i]);
 		}
 		parsedParams = parseParams(s.viewSchema, params);
@@ -75,6 +78,7 @@ exports.stringifyParams = stringifyParams
 function viewExprHash(e){
 	var s = ''
 	if(e.type === 'view'){
+		//console.log(JSON.stringify(e))
 		e.params.forEach(function(ep){
 			s += viewExprHash(ep)
 		})
@@ -150,6 +154,7 @@ exports.make = function(schema, cc){
 
 					if(s.isView){
 						key = '';
+						if(params.length === 0) key = '-'
 						for(var i=0;i<params.length;++i){
 							if(i > 0) key += ';';
 							key += querystring.escape(params[i]);

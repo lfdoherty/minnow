@@ -22,7 +22,6 @@ require('matterhorn-standard');
 
 var matterhorn = require('matterhorn');
 
-var longpoll = require('./longpoll')
 var serviceModule = require('./service')
 
 var log = require('quicklog').make('minnow/matterhorn-service')
@@ -44,10 +43,19 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 	
 	var snapPath = '/mnw/snaps/' + appName + '/';
 	
+	var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))
+	Object.keys(simplifiedSchema).forEach(function(key){
+		if(simplifiedSchema[key].isView){
+			delete simplifiedSchema._byCode[simplifiedSchema[key].code].viewSchema
+			delete simplifiedSchema[key].viewSchema
+		}
+	})
+	
 	var schemaUrl;
+	var schemaStr = 'gotSchema(' + JSON.stringify(simplifiedSchema) + ');'
 	local.serveJavascript(exports, appName, function(ccc){
 		_.assertFunction(ccc);
-		schemaUrl = ccc('gotSchema(' + JSON.stringify(minnowClient.schema) + ');');
+		schemaUrl = ccc(schemaStr);
 	});
 	
 	//var bb = {};
@@ -57,8 +65,15 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		var viewId = parseInt(req.params.viewId);
 		var viewSchema = schema._byCode[viewId]
 		var viewName = viewSchema.name
-		var securitySetting = viewSecuritySettings[viewName]
+		
+		var securitySetting
+		if(_.isFunction(viewSecuritySettings)){
+			securitySetting = viewSecuritySettings.bind(undefined,viewName)
+		}else{
+			securitySetting = viewSecuritySettings[viewName]
+		}
 		if(securitySetting === undefined){
+			//console.log('vss: ' + viewSecuritySettings)
 			log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 			res.send(404)
@@ -105,7 +120,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 					});
 				});
 			}
-		}, params, req)
+		}, params, req.userToken)
 	});
 
 	

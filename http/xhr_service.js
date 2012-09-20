@@ -26,12 +26,16 @@ function sendData(res, data){
 
 var log = require('quicklog').make('minnow/xhr')
 
-exports.make = function(appName, schema, local, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
+var urlModule = require('url')
+
+exports.make = function(appName, schema, local, minnowClient, authenticator, viewSecuritySettings){//, clientInfoBySyncId){
 
 	_.assertString(appName)
 	_.assertFunction(authenticator)
 	
-	//log('loading xhr')
+	//console.log('auth: ' + authenticator)
+	
+	//log('setting up service for ' + appName + ' on port ' + local.getPort())
 	
 	//authenticator = authenticator || function(){return true;}
 	
@@ -43,22 +47,25 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 	local.serveJson(exports, appName, function(ccc){
 		_.assertFunction(ccc);
 		schemaUrl = ccc(JSON.stringify(minnowClient.schema));
+		//console.log('serve json: ' + schemaUrl)
 	});
 	
-	local.get(exports, '/mnw/schema/'+appName, authenticator, function(req, httpRes){
-
-		var json = JSON.stringify(schemaUrl)
-		var data = new Buffer(json)
-		httpRes.setHeader('Content-Type', 'application/json');
-		httpRes.setHeader('Content-Length', data.length);
-		httpRes.end(data)
+	function aa(req,res,next){
+		//console.log('authenticating')
+		authenticator(req,res,next)
+	}
+	local.get(exports, '/mnw/schema/'+appName, aa, function(req, httpRes){
+		var url= 'http://'+req.headers.host+schemaUrl
+		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
+		
+		httpRes.redirect(url)
 	})
 	
 	local.get(exports, '/mnw/meta/'+appName+'/:syncId/:viewName/:params', authenticator, function(req, httpRes){
-
 		var viewName = req.params.viewName
 		var syncId = parseInt(req.params.syncId)
 		var viewSchema = schema[viewName]
+		//console.log('url: ' + req.url)
 		var params = serviceModule.parseParams(req.params.params, viewSchema)
 		_.assert(params != null)
 		_.assert(params !== 'null')
@@ -67,10 +74,15 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		//console.log('paramsStr: ' + req.params.params)
 		//console.log('params: ' + JSON.stringify(params))
 
-		var securitySetting = viewSecuritySettings[viewName]
+		var securitySetting// = viewSecuritySettings[viewName]
+		if(_.isFunction(viewSecuritySettings)){
+			securitySetting = viewSecuritySettings.bind(undefined,viewName)
+		}else{
+			securitySetting = viewSecuritySettings[viewName]
+		}
 		if(securitySetting === undefined){
 			log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
-			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
+			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP - xhr): ' + viewName);
 			return
 		}
 		securitySetting(function(passed){
@@ -84,7 +96,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 			
 				var res = [];
 		
-				clientInfoBySyncId[syncId] = [viewSchema.code, params, snapshotIds];
+				//clientInfoBySyncId[syncId] = [viewSchema.code, params, snapshotIds];
 
 				for(var i=0;i<paths.length;++i){
 					var p = paths[i];
@@ -98,7 +110,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 					baseTypeCode: viewSchema.code, 
 					lastId: lastSeenVersionId
 				}
-				if(req.user.id) vals.userId = req.user.id
+				//if(req.user.id) vals.userId = req.user.id
 
 				var data = JSON.stringify(vals)
 			
@@ -107,7 +119,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				httpRes.setHeader('Content-Length', data.length);
 				httpRes.end(data)
 			});
-		}, params, req)
+		}, params, req.userToken)
 	})
 	
 	local.get(exports, snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, function(req, res){
@@ -115,9 +127,15 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		var viewId = parseInt(req.params.viewId);
 		var viewName = schema._byCode[viewId].name
 		
-		var securitySetting = viewSecuritySettings[viewName]
+		var securitySetting// = viewSecuritySettings[viewName]
+		if(_.isFunction(viewSecuritySettings)){
+			securitySetting = viewSecuritySettings.bind(undefined,viewName)
+		}else{
+			securitySetting = viewSecuritySettings[viewName]
+		}
 		if(securitySetting === undefined){
 			log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
+			console.log('WARNING: security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 			return
 		}
 			
@@ -127,6 +145,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		securitySetting(function(passed){
 			if(!passed){
 				log('security policy denied access to view: ' + viewName);
+				console.log('WARNING: security policy denied access to view: ' + viewName);
 				return
 			}
 
@@ -145,15 +164,21 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				service.getViewJson(viewId, snapshotId, previousId, paramStr, function(json){
 
 					var jsStr = JSON.stringify(json)
-							
-					zlib.gzip(jsStr, function(err, data){
-						if(err) _.errout(err);
-				
-						sendData(res, data);
-					});
+					
+					//res.setHeader('Content-Encoding', 'gzip');
+					res.setHeader('Content-Length', Buffer.byteLength(jsStr));
+					res.setHeader('Content-Type', 'application/json');
+					res.setHeader('Cache-Control', 'max-age=2592000');
+					res.send(jsStr);
+					
+					//zlib.gzip(jsStr, function(err, data){
+					//	if(err) _.errout(err);
+
+						//sendData(res, data);
+					//});
 				});
 			}
-		}, params, req);
+		}, params, req.userToken);
 	})
 	log('minnow xhr service set up');
 	

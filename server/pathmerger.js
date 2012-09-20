@@ -28,8 +28,22 @@ function editToMatch(curPath, newPath, cb){
 	}
 	if(sameIndex+1 < curPath.length){
 		var many = curPath.length-(sameIndex+1)
+		if(many === 1 && curPath.length === newPath.length){
+			var newOp = newPath[newPath.length-1].op
+			var oldOp = curPath[newPath.length-1].op
+			if(newOp === oldOp || (newOp.indexOf('re') === 0 && newOp.substr(2) === oldOp)){
+				var op = newOp
+				if(newOp.indexOf('re') !== 0) op = 're'+op
+				cb(op, newPath[newPath.length-1].edit)
+				return
+			}
+		}
 		//console.log('ascending: ' + many)
-		cb('ascend', {many: many})
+		if(many === 1){
+			cb('ascend1', {})
+		}else{
+			cb('ascend', {many: many})
+		}
 		curPath = curPath.slice(0, sameIndex+1)
 	}
 	if(curPath.length < newPath.length){
@@ -103,8 +117,10 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 			olMap[id].push(e)
 		}else{
 			olMap[id] = [e]
+			//console.log('taking: ' + JSON.stringify(e))
 			ol.getObjectMetadata(id, function(typeCode, path, syncId){
-				log.info('GOT OBJECT METADATA', [id, path])
+				//log.info('GOT OBJECT METADATA', [id, path])
+				_.assertInt(typeCode)
 				advance(id, typeCode, path, syncId)
 			})
 		}

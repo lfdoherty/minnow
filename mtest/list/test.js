@@ -6,10 +6,13 @@ var _ = require('underscorem')
 function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
 
 exports.append = function(config, done){
+	//console.log('running list.append test')
 	minnow.makeServer(config, function(){
+		//console.log('got server')
 		minnow.makeClient(config.port, function(client){
+			//console.log('got client')
 			client.view('general', function(c){
-			
+				//console.log('got general view')
 				poll(function(){
 					//if(c.has('primitiveList')) console.log(c.primitiveList.data.size())
 					if(c.has('primitiveList') && c.primitiveList.data.size() === 1){

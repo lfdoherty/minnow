@@ -1,3 +1,4 @@
+"use strict";
 
 var u = require('./util')
 var jsonutil = require('./../jsonutil')
@@ -92,7 +93,7 @@ function stub(){}
 ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 	//if(path.length > 0) _.errout('TODO implement');
-	this.log('object set handle changeListener')
+	//this.log('object set handle changeListener')
 	_.assertString(op)
 /*
 	if(path.length === 1 && op === 'remove'){
@@ -174,7 +175,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		var i = this.obj.indexOf(removedObj)
 		_.assert(i >= 0)
 		this.obj.splice(i, 1);
-		this.log('new length: ' + this.obj.length)
+		//this.log('new length: ' + this.obj.length)
 		return this.emit(edit, 'remove', removedObj, editId)		
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));

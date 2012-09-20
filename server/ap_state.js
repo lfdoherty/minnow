@@ -281,6 +281,7 @@ function make(schema, ol){
 			mapTemporary(temporary, newId, syncId)
 		}*/else if(op === 'setToNew'){
 			e.id = newId
+			e.temporary
 		}
 			
 		log(editId, id, path, op, edit, syncId)

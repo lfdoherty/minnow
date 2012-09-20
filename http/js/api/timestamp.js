@@ -1,3 +1,5 @@
+"use strict";
+
 var u = require('./util')
 var _ = require('underscorem')
 

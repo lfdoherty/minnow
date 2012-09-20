@@ -5,11 +5,12 @@ var _ = require('underscorem')
 
 function poll(f){
 	var ci=setInterval(wf,10);
-	setTimeout(function(){
-		clearInterval(ci)
-	}, 1000)
+	//setTimeout(function(){
+	//	clearInterval(ci)
+	//}, 4000)
 	function wf(){
 		if(f()){
+			//console.log('HERE HERE HERE')
 			clearInterval(ci)
 		}
 	}
@@ -25,6 +26,7 @@ exports.simplest = function(config, done){
 					if(c.has('s')){
 						if(c.s.wrappedValue.value() === 'test'/* && d.wrappedOtherValue.value()*/){
 							done()
+							//console.log('DONE')
 							return true
 						}
 					}
@@ -51,7 +53,7 @@ exports.simpleOther = function(config, done){
 				poll(function(){
 					if(c.has('s')){
 						var d = c.s
-						console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
+						//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 						if(d.wrappedOtherValue.value() === 'test2'){
 							done()
 							return true

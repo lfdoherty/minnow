@@ -16,6 +16,8 @@ var fparse = require('fparse')
 var pathsplicer = require('./pathsplicer')
 var pathmerger = require('./pathmerger')
 
+var serializeViewObject = require('./view_sequencer').serializeViewObject
+
 var totalBytesReceived = 0
 var totalBytesSent = 0
 
@@ -112,8 +114,14 @@ function createTcpServer(appSchema, port, s, readyCb){
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
 	}
 	
+
 	var tcpServer = net.createServer(function(c){
 	
+		c.on('error', function(e){
+			console.log('ERROR: ' + e)
+			
+		})
+
 		var ws = quicklog.make('minnow/tcp server->client.' + (++logCounter))
 	
 		log('tcp server got connection')
@@ -125,10 +133,31 @@ function createTcpServer(appSchema, port, s, readyCb){
 		var eHandle = {syncId: syncId}
 		var wrappedListenerCb = sendEditUpdate.bind(eHandle)
 		function wrappedObjCb(ob){
+			//console.log('sending: ' + JSON.stringify(ob).substr(0,100))
 			sendObject(syncId, ob)
 		}
+		
+		function viewObjectCb(id, obj, syncId){//TODO find a more optimal way (binary serialization, etc.)
+			_.assertInt(syncId)
+			///var update = {
+			//	id: id,
+			//	data: JSON.stringify(obj)
+			//}
 
-		s.beginSync(syncId, wrappedListenerCb, wrappedObjCb)
+			//w.resetViewObject(update);
+			var tw = fparse.makeSingleBufferWriter()
+			serializeViewObject(tw, fp.codes, fp.writers, obj)
+			var edits = tw.finish()
+			
+			var ob = {
+				id: id,
+				edits: edits,
+				destinationSyncId: syncId,
+			}
+			w.updateViewObject(ob);
+		}
+
+		s.beginSync(syncId, wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
 		var setupStr = JSON.stringify({syncId: syncId, schema: appSchema})
 		var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
@@ -163,7 +192,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 		},10)
 
 		
-		var viewHandles = []
+		//var viewHandles = []
+		//var syncHandles = []
 		
 		//these are the *incoming* edit's path state
 		var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
@@ -215,10 +245,10 @@ function createTcpServer(appSchema, port, s, readyCb){
 
 			w.update(update);
 		}
-		function sendReady(e, updatePacket){
-			_.assertArray(updatePacket)
+		function sendReady(e){
+			//_.assertArray(updatePacket)
 			log('sending ready')
-			var msg = {requestId: e.requestId, updatePacket: JSON.stringify(updatePacket)}
+			var msg = {requestId: e.requestId}//)//, updatePacket: JSON.stringify(updatePacket)}
 			w.ready(msg)
 			w.flush();
 		}
@@ -241,7 +271,12 @@ function createTcpServer(appSchema, port, s, readyCb){
 				function objectUpdater(ob){
 					sendObject(syncId, ob)
 				}
-				s.beginSync(syncId, updater, objectUpdater);
+				function viewObjectUpdater(id, obj, syncId){
+					_.assertInt(syncId)
+					//sendObject(syncId, ob)
+					viewObjectCb(id, obj, syncId)
+				}
+				s.beginSync(syncId, updater, objectUpdater, viewObjectUpdater);
 				_.assert(e.requestId > 0)
 				var msg = {requestId: e.requestId, syncId: syncId}
 				//serverResponses.writers.newSyncId(w, msg)
@@ -249,15 +284,16 @@ function createTcpServer(appSchema, port, s, readyCb){
 				w.flush();
 			},
 			beginView: function(e){
-				var viewHandle = s.beginView(e, sendReady.bind(undefined, e));
-				_.assertObject(viewHandle)
-				viewHandles.push(viewHandle)
+				s.beginView(e, sendReady.bind(undefined, e));
+				//_.assertObject(viewHandle)
+				//viewHandles.push(viewHandle)
 			},
 			endView: function(e){
 			},
 			endSync: function(e){
 				log('tcpserver got client request endSync: ', e)
 				//TODO
+				s.endSync(e.syncId)
 			},
 			persistEdit: function(e){
 				//var r = fparse.makeSingleReader(e.edit)
@@ -277,27 +313,35 @@ function createTcpServer(appSchema, port, s, readyCb){
 				//var op = e.op
 				//ws.write('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300)+'\n')
 				ws.info('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
+				//console.log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
 				if(op === 'selectTopObject'){
-					if(currentIdFor[syncId] !== e.edit.id){
-						currentIdFor[syncId] = e.edit.id
-						//_.assertInt(currentId)
-						delete pathFromClientFor[syncId]
+					if(currentIdFor[syncId] === e.edit.id){
+						console.log('WARNING: redundant selectTopObject edit?')//I'm not sure if this is really the case
 					}
+					//if(currentIdFor[syncId] !== e.edit.id){
+					currentIdFor[syncId] = e.edit.id
+					//_.assertInt(currentId)
+					delete pathFromClientFor[syncId]
+					//}
 					return
 				}else if(op === 'selectTopViewObject'){
-					if(currentIdFor[syncId] !== e.edit.id){
-						delete pathFromClientFor[syncId]
-						currentIdFor[syncId] = e.edit.id
-						//_.assertInt(currentId)
+					/*//if(currentIdFor[syncId] !== e.edit.id){
+					if(currentIdFor[syncId] === e.edit.id){
+						console.log('WARNING: redundant selectTopViewObject edit')
 					}
-					return
+					delete pathFromClientFor[syncId]
+					currentIdFor[syncId] = e.edit.id
+						//_.assertInt(currentId)
+					//}
+					return*/
+					_.errout('cannot modify view objects directly')
 				}
 				
 				var currentId = currentIdFor[syncId]
 
 				//console.log(currentId + ' ' + JSON.stringify(e))
 				
-				log.info('current id (tcpserver-client): ', currentId)
+				//log.info('current id (tcpserver-client): ', currentId)
 				/*
 				var pathKey = syncId+':'+currentId
 				var pu = pathsFromClientById[pathKey]
@@ -311,8 +355,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 				var wasPathUpdate = pu.update(e)
 				
 				if(wasPathUpdate){
-					log.info('processed path update: ', e)
-					log.info('path now: ', pu.getPath())
+					//log.info('processed path update: ', e)
+					//log.info('path now: ', pu.getPath())
+					//console.log(syncId+' path(' + currentId+') now: ', pu.getPath())
 					return
 				}
 				
@@ -329,6 +374,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
 
 					currentIdFor[syncId] = id//this works because make can be executed synchronously
+					
+					//console.log('last temporary id(' + syncId + '): ' + tg)
 				
 					if(!e.edit.forget){
 						//_.assertInt(id);
@@ -336,7 +383,12 @@ function createTcpServer(appSchema, port, s, readyCb){
 						w.objectMade(msg);
 					}
 				}else{
-					s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+					if(currentId === undefined){
+						log.err('current id is not defined, cannot save edit: ', [ op, pu.getPath(), e.edit, syncId])
+						c.destroy()
+					}else{
+						s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+					}
 				}
 			},
 			getVersionTimestamps: function(e){
@@ -356,7 +408,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				})
 			},
 			forgetLastTemporary: function(e){
-				var temporaryId = lastTemporaryId[syncId]
+				var temporaryId = lastTemporaryId[e.syncId]
 				_.assertInt(temporaryId)
 				s.forgetTemporary(temporaryId, e.syncId)
 			},
@@ -385,6 +437,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				});
 			},
 			getSnapshot: function(e){
+				//console.log('getting snapshot: ' + JSON.stringify(e))
 				s.getSnapshot(e, function(res){
 					//res.snap = serializeSnapshot(res.snap)
 					var msg = {snap: res, requestId: e.requestId}
@@ -393,27 +446,42 @@ function createTcpServer(appSchema, port, s, readyCb){
 				});
 			}
 		}
-
-		c.on('end', function() {
-			log('client disconnected')
-			//ws.end()
-			viewHandles.forEach(function(sh){
-				sh.end()
-			})
+		
+		function cleanupClient(){
+			log('client closed')
+			if(c.isDead){
+				return
+			}
+			c.isDead = true
 			clearInterval(flushHandle)
-			//w.flush()
+			//viewHandles.forEach(function(sh){
+			//	sh.end()
+			//})
+			//activeSyncIds.forEach(function(syncId){
+			//	sh.endSync(syncId)
+			//})
+			s.end()
+			
 			w.end(undefined, true)
 			w = undefined
 			connections.splice(connections.indexOf(c), 1)
-		});
+		}
+		
+		c.on('close', cleanupClient)
+		c.on('end', cleanupClient);
 
 		var deser;
 		c.on('connect', function(){
 			deser = fparse.makeReadStream(shared.clientRequests, reader)
 		})
 		c.on('data', function(buf){
-			deser(buf);
-			totalBytesReceived += buf.length
+			try{
+				deser(buf);
+				totalBytesReceived += buf.length
+			}catch(e){
+				c.destroy()
+				throw e
+			}
 			//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes received: ' + totalBytesReceived)
 		})
 		
@@ -437,9 +505,13 @@ function createTcpServer(appSchema, port, s, readyCb){
 				cdl()
 			})
 			log('closing tcp server: ', tcpServer.connections)
+			
 			//apparently you cannot close a server until you've destroyed all its connections
 			//even if those connections were closed remotely???
-			connections.forEach(function(c){c.destroy();})
+			connections.forEach(function(c){
+				c.end();
+				//_.assert(c.isDead)
+			})
 			tcpServer.close()
 			s.close(function(){
 				log('closed rest')
