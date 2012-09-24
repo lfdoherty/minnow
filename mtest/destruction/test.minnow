@@ -1,0 +1,9 @@
+
+entity 1
+	value string 1
+
+general() 100
+	s *entity 1
+
+specific(e entity) 101
+	e e 1

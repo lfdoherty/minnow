@@ -288,6 +288,11 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 		}else{
 			//this.log('set to: ' + edit.id + ' ' + descentCode + ' ' + this.objectId + ' ' + ps.name)
 			var setObj = this.getObjectApi(edit.id)
+			if(setObj === undefined){
+				this.log.warn('object not found, may have been del\'ed: ' + edit.id)
+				this.log(new Error().stack)
+				return
+			}
 
 			this.obj[descentCode] = setObj;
 			//if(this.prepared){

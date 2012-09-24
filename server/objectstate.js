@@ -359,7 +359,8 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 					prop.splice(i, 1)
 					cb(prop, editId)
 				}else{
-					_.errout('TODO: ' + JSON.stringify([op, edit]))
+					//_.errout('TODO: ' + JSON.stringify([op, edit]))
+					log.warn('tried to remove element from property that does not contain it: ' + edit.value)
 				}
 			}else{
 				_.errout('TODO: ' + op)
@@ -451,7 +452,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 	var prop = {}
 
 	log('streamPropertyTypes got ' + edits.length + ' edits')
-	//console.log('streamPropertyTypes got ' + edits.length + ' edits')
+	console.log('streamPropertyTypes got ' + edits.length + ' edits')
 	//console.log(JSON.stringify(edits))
 	
 	var tracker = makePathTracker(path)
@@ -462,14 +463,14 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 		var matching = tracker(e)
 
 		log(matching, path, ' <- ', e)
-		//console.log(matching + ' ' + JSON.stringify(path) + ' <- ' + JSON.stringify(e))
+		console.log(matching + ' ' + JSON.stringify(path) + ' <- ' + JSON.stringify(e))
 
 		if(!matching) return
 		
 		if(op.indexOf('set') === 0){
 			if(op === 'setExisting' || op === 'setObject'){
 				if(e.edit.id !== prop){
-					prop = e.edit.id
+					prop[e.edit.id] = ol.getObjectType(e.edit.id)//e.edit.id
 				}
 			}else if(op === 'setSyncId'){
 			}else{
@@ -487,13 +488,14 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 			//TODO deal with
 			
 		}else if(op === 'wasSetToNew'){
-			_.errout('TODO')
+			//_.errout('TODO')
+			prop[e.edit.id] = e.edit.typeCode
 		}
 	})
 	log('streaming types ', path, ':', prop)
-	function getType(id){
+	function getType(id, undefOk){
 		var typeCode = prop[id]
-		if(typeCode === undefined) _.errout('requested type code of unknown id: ' + id + ', only got: ' + JSON.stringify(Object.keys(prop)))
+		if(!undefOk && typeCode === undefined) _.errout('requested type code of unknown id: ' + id + ', only got: ' + JSON.stringify(prop))
 		return typeCode
 	}
 	cb(getType, editId)
@@ -719,6 +721,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 		},
 
 		updateObject: function(objId, editId, cb, doneCb){
+			_.assertLength(arguments, 4)
+			
 			ol.get(objId, -1, -1, function(res){
 				//var pu = pathsplicer.make()
 				var typeCode = ol.getObjectType(objId)

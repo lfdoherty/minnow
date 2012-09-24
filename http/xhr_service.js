@@ -161,7 +161,10 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				var key = viewId+':'+paramStr+':'+snapshotId+':'+previousId;
 				//TODO cache zipped snapshots
 		
-				service.getViewJson(viewId, snapshotId, previousId, paramStr, function(json){
+				service.getViewJson(viewId, snapshotId, previousId, paramStr, function(err, json){
+					if(err){
+						res.send(500, err)
+					}
 
 					var jsStr = JSON.stringify(json)
 					

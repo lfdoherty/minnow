@@ -124,6 +124,9 @@ exports.make = function(authenticateByToken, local){
 				return
 			}
 			senders[syncId](msg)
+		},
+		failToBegin: function(err, syncId){
+			handle.sendToClient(syncId, {type: 'error', code: err.code, msg: err+''})
 		}
 	}
 	

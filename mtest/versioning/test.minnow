@@ -1,0 +1,21 @@
+
+entity 1
+	text string 1
+	description string 2
+	values string:string 3
+empty() 100
+
+general() 101
+	e one(*entity) 1
+
+generalWithVersions() 102
+	e one(*entity) 1
+	ev versions(one(*entity)) 2
+
+generalWithManyVersions() 104
+	e one(*entity) 1
+	ev versions(*entity) 2
+	
+generalWithTimestamps() 103
+	e one(*entity) 1
+	et timestamps(versions(one(*entity))) 2

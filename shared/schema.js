@@ -1072,7 +1072,7 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 	//we do this separately to resolve circular dependencies
 	_.each(result, function(vn, name){
 		if(vn.schema){
-			log('computing schema for ' + name)
+			//console.log('computing schema for ' + name)
 			makeViewSchema(vn, schema, vn.schema, result, synchronousPlugins);
 			vsStr += keratin.stringize(vn.schema, name, vn.code, function(t){
 				if(t.type === 'view'){
@@ -1084,6 +1084,8 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 				}
 			});
 			vsStr += '\n';
+		}else{
+			//console.log('not computing schema for: ' + name)
 		}
 	});
 	fs.writeFile(schemaDir + '/view.schema.generated', vsStr, 'utf8');

@@ -7,10 +7,10 @@ var clearTimeout = timers.clearTimeout
 
 var _ = require('underscorem')
 
-var xhrHttp = require('./xhr_http')
+//var xhrHttp = require('./xhr_http')
 
-var postJson = xhrHttp.postJson
-var getJson = xhrHttp.getJson
+//var postJson = xhrHttp.postJson
+//var getJson = xhrHttp.getJson
 
 var syncApi = require('./sync_api')
 var jsonutil = require('./jsonutil')
@@ -85,7 +85,7 @@ function establishSocket(appName, schema, host, cb){
 	
 	ws.onmessage = function(msg) {
 		msg = msg.data
-		//console.log('message: ' + msg)
+		console.log('message: ' + msg)
 		msg = JSON.parse(msg)
 		
 		//console.log('isFirstMessage: ' + isFirstMessage)

@@ -93,11 +93,6 @@ ObjectListHandle.prototype.get = function(desiredId){
 	_.assertLength(arguments, 1);
 	_.assertInt(desiredId)
 	
-	/*if(this.objectApiCache === undefined){
-		console.log('got ids: ' + JSON.stringify(_.map(this.obj, function(v){return v.id();})))
-		return
-	}*/
-	//var res = this.objectApiCache[desiredId]//
 	var res = u.findObj(this.obj, desiredId)
 	
 	if(res){
@@ -123,77 +118,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 
 	var local = this;
-	/*
-	if(path.length === 1 && (op === 'replaceInternalNew' || op === 'replaceInternalExisting')){
-
-		if(op === 'replaceInternalExisting' ){
-			if(this.getEditingId() !== syncId){
-
-				var removeId = path[path.length-1];
-				var objHandle = u.findObj(this.obj, removeId)
-				
-				if(!objHandle){
-					_.errout('not sure what to do about a replace of something already missing!');
-				}else{
-			
-					var newObj = this.getObjectApi(edit.newId);
-					
-					doListReplace(this, objHandle, newObj);
-
-					return this.emit(edit, 'replace', objHandle, newObj)
-				}
-			}
-			return stub;
-		}else if(op === 'replaceInternalNew'){
-			if(this.getEditingId() === syncId){
-				var objHandle = this.get(edit.temporary);
-				if(objHandle === undefined){
-					var gotReal = this.get(edit.obj.object.meta.id)
-					if(gotReal) throw new Error('got real but not temporary')
-					if(objHandle === undefined){
-						//_.errout('not got object being replaced')
-						console.log('WARNING: did not reify new inner object created via replace - might already have been removed')
-						return stub;
-					}
-				}
-				objHandle.reify(edit.obj.object.meta.id)
-				return stub
-			}else{
-				var removeId = path[path.length-1];
-				var objHandle = this.get(removeId);
-			
-				_.assertObject(objHandle);
-		
-				var res = this.wrapObject(edit.obj.object, [], this)
-				doListReplace(this, objHandle, res);
-				res.prepare()
-				objHandle.prepare()
-
-				return this.emit(edit, 'replace', objHandle, res)				
-			}	
-		}else{
-			_.errout('^TODO implement op: ' + op + ' ' + JSON.stringify(edit));			
-		}
-	}
-
-	if(path.length === 1 && this.getEditingId() === syncId && op === 'remove'){
-		return stub;	
-	}
-
-			
-
-	if(path.length > 0){
 	
-		var a = this.get(path[0]);
-		console.log('got(' + path[0] +'): ' + JSON.stringify(_.map(this.obj, function(v){return v.id();})))
-		if(a === undefined){
-			console.log('WARNING: did not descend into object in list - might already have been removed')
-			return stub;
-		}
-		_.assertObject(a);	
-		return a.changeListener(path.slice(1), op, edit, syncId);
-	}	
-	*/
 	if(op === 'addedNew'){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
@@ -451,24 +376,6 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	this.obj.push(n)
 
 	return n
-
-		/*
-	var newObj = jsonutil.convertJsonToObject(this.getFullSchema(), type.name, json);
-	newObj.meta = {id: temporaryId, typeCode: type.code, editId: -10}
-
-	var ee = {temporary: temporaryId, obj: {type: type.code, object: newObj}};
-	
-	var newObjHandle = this.wrapObject(newObj, [], this)
-	
-	this.obj.push(newObjHandle);
-
-	this.saveEdit('addNewInternal', ee);
-	
-	newObjHandle.prepare();
-
-	this.emit(ee, 'add', newObjHandle)()
-	
-	return newObjHandle;*/
 }
 
 ObjectListHandle.prototype.add = function(objHandle){

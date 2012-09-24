@@ -161,11 +161,13 @@ exports.make = function(){
 							actual.push(e)
 						}
 					}
-					//console.log('serializing: ' + JSON.stringify(actual))
-					if(startEditId === -1){
+					//console.log('serializing('+id+')(' + startEditId+')(' + endEditId+'): ' + JSON.stringify(actual))
+					if(actual.length === 0) return
+					/*if(startEditId === -1){
 						_.assert(actual.length >= 2)
-					}
+					}*/
 					ob.serializeEdits(actual, w)
+					return true
 				}else{
 					var edits = ob.get(id).concat(cache[id])
 					var actual = []
@@ -176,7 +178,9 @@ exports.make = function(){
 							actual.push(e)
 						}
 					}
+					if(actual.length === 0) return
 					ob.serializeEdits(actual, w)
+					return true
 					/*var res = ob.get(id).concat(cache[id])
 					console.log("returning combination: " + JSON.stringify(res))
 					_.errout('TODO?')
@@ -188,6 +192,7 @@ exports.make = function(){
 				//ob.get(id)
 				//_.errout('TODO')
 				ob.serializeBinaryRange(id, startEditId, endEditId, w)				
+				return true
 			}
 		},
 		destroy: function(id){

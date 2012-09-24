@@ -171,6 +171,7 @@ exports.make = function(){
 		},
 		getBinary: function(id){
 			var offset = index[id]
+			if(offset === undefined) throw new Error('object does not exist: ' + id)
 			_.assert(offset !== -1)
 			//console.log('getting ' + id + ' ' + offset)
 			_.assertInt(offset)

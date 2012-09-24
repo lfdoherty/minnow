@@ -267,7 +267,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				function listenerCbWrapper(e){
 					_.assertLength(arguments, 1);
 					//_.assertInt(e.typeCode)
-					log('e: ', e)
+					//log('e: ', e)
 					//console.log(new Error().stack)
 					if(sentBuffer.length > 0){
 						sentBuffer.push(e)
@@ -318,6 +318,9 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					try{
 						viewState.getAllSnapshotStates(typeCode, params, snapshotIds, function(states){
 							cb(undefined, states)
+						}, function(e){
+							console.log('ERROR: ' + e.stack)						
+							cb(e)
 						});
 					}catch(e){
 						console.log('ERROR: ' + e.stack)						
@@ -339,7 +342,11 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 			
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
-					viewState.getSnapshotState(typeCode, params, snapshotId, previousId, cb);
+					viewState.getSnapshotState(typeCode, params, snapshotId, previousId, function(res){
+						cb(undefined, res)
+					}, function(e){
+						cb(e)
+					});
 				}else{
 					_.errout('ERROR')
 				}			

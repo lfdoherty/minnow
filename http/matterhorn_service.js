@@ -104,13 +104,20 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 					return;
 				}*/
 		
-				service.getViewFile(viewId, snapshotId, previousId, paramStr, function(jsStr){
+				service.getViewFile(viewId, snapshotId, previousId, paramStr, function(err, jsStr){
+				
+					if(err){
+						//console.log('err: ' + JSON.stringify(err))
+						console.log(new Error().stack)
+						console.log('code: ' + err.code)
+						if(err.code === 'InvalidParamId'){
+							res.send(400, err)
+						}else{
+							res.send(500, err)
+						}
+						return
+					}
 
-					/*if(bb[key]){
-						sendData(res, bb[key]);
-						return;
-					}*/
-			
 					zlib.gzip(jsStr, function(err, data){
 						if(err) _.errout(err);
 				

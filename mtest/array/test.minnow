@@ -1,0 +1,16 @@
+
+entity 1
+	
+blah 2 entity
+	names set:string 1
+
+general() 100
+	names each(*entity, {
+		switch(type(~),
+			case('blah', blah:~.names),
+			case('entity', [])
+		)
+	}) 1
+	
+empty() 101
+

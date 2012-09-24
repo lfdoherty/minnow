@@ -41,7 +41,14 @@ function propertyType(rel, ch){
 		}
 	}else if(st.type === 'view'){
 		var objSchema = ch.viewMap[st.view].schema
-		//console.log(propertyName + ' ' + JSON.stringify(objSchema))
+		if(objSchema === undefined) _.errout('cannot find view schema: ' + st.view);
+
+		//if(objSchema.name === undefined) _.errout('no name for view schema: ' + st.view);
+
+		//console.log(propertyName + ' ' + JSON.stringify(objSchema) + '\n'+JSON.stringify(ch.viewMap[st.view]))
+		if(objSchema.properties === undefined){
+			_.errout('cannot find property (or any properties) "' + propertyName + '" of ' + objSchema.name + ' (' + st.view + ')');
+		}
 		var p = objSchema.properties[propertyName]
 		if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
 		return p.type
@@ -719,6 +726,8 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		return oldestEditId
 	}
 	
+	var oldTypeGetters = []//TODO optimize this
+	
 	var handle = {
 		name: 'object-set-single-value-property',
 		attach: function(listener, editId){
@@ -737,6 +746,19 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		key: key,
 		descend: function(){
 			_.errout('TODO?')
+		},
+		getType: function(v){
+			//_.errout('TODO?: ' + v)
+			if(!isObjectProperty) _.errout('internal error')
+			
+			//return oldTypeGetter(v)
+			var res
+			for(var i=0;i<oldTypeGetters.length;++i){
+				res = oldTypeGetters[i](v, true)
+				if(res) break;
+			}
+			if(res === undefined) _.errout('cannot find type of id: ' + v)
+			return res
 		}
 	}
 	
@@ -762,7 +784,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			//s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
 			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
 				editId, function(pv, editId){
-				//console.log('GOT PROPERTY VALUE: ' + pv + ' ' + editId + ' ' + propertyCode)
+				console.log('GOT PROPERTY VALUE: ' + id + ' ' + pv + ' ' + editId + ' ' + propertyCode)
 				//console.log(new Error().stack)
 				if(!first){
 					if(pvCounts[cur] === 1){
@@ -782,7 +804,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 					if(pvCounts[pv] === undefined){
 						pvCounts[pv] = 1
 						propertyValues.push(pv)
-						//console.log('calling add')
+						console.log('calling add: ' + pv)
 						listeners.emitAdd(pv, editId)
 					}else{
 						++pvCounts[pv]
@@ -797,6 +819,12 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 					first = false
 				}
 			})
+			
+			if(isObjectProperty){
+				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+					oldTypeGetters.push(typeGetter)
+				}, true)
+			}
 		},
 		remove: function(id, editId){
 			wait(editId)

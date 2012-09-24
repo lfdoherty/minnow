@@ -133,6 +133,7 @@ function makeClient(host, port, clientCb){
 	//console.log('got here')
 
 	var editListeners = []
+	var errorListeners = []
 	function changeListener(){
 		var args = Array.prototype.slice.apply(arguments)
 		var sp = editListeners
@@ -276,8 +277,15 @@ function makeClient(host, port, clientCb){
 			log(uid + ' getting view ' + type + JSON.stringify(params))
 			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(e){
 				if(e){
-					console.log('e: ' + e)
-					cb()
+					//console.log('e: ' + e)
+					//throw e
+					if(errorListeners.length > 0){
+						errorListeners.forEach(function(listener){listener(e);})
+					}else{
+						console.log('received error from server: ' + e)
+						throw e
+					}
+					//cb()
 					return
 				}
 				var viewId = st.code+':'+JSON.stringify(params)
@@ -384,6 +392,15 @@ function makeClient(host, port, clientCb){
 			},
 			close: function(cb){
 				serverHandle.close(cb);
+			},
+			on: function(what, listener){
+				if(what === 'edit'){
+					editListeners.push(listener)
+				}else if(what === 'error'){
+					errorListeners.push(listener)
+				}else{
+					_.errout('not a valid event type: ' + what)
+				}
 			}
 		};
 		//if(console.log !== ooo) ooo('#calling back')

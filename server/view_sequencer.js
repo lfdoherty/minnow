@@ -200,6 +200,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			//has[id] = true
 			++manyObjectsOut
 			log('getting state(' + id + '): ' + manyObjectsOut)
+			console.log('getting state(' + id + '): ' + manyObjectsOut)
 
 			//gets only edits between the given range
 			//TODO set start point to -1 if the first ensure source falls within this snapshots edit interval
@@ -210,6 +211,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			}else{
 				//console.log('not ' + startEditId + ' <= ' + sourceEditId + ' < ' + endEditId)
 			}
+			
 			objectState.streamObjectState(has, id, s, endEditId, function(id, editsBuffer){
 				_.assertLength(arguments, 2)
 				log('added object to buffer: ' + id)

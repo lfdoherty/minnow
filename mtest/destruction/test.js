@@ -39,3 +39,41 @@ exports.addNewFromJson = function(config, done){
 	})
 }
 
+exports.gracefulFailureForDestroyedIdView = function(config, done){
+	//console.log('destruction config: ' + JSON.stringify(config))
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(c){
+			
+				var e = c.make('entity', function(id){
+					e.del()
+					minnow.makeClient(config.port, function(otherClient){
+						//console.log('got client for destroy')
+						otherClient.view('specific', [id], function(v){
+							//console.log(JSON.stringify(v.toJson()))
+							_.assertNot(v.has('e'))
+							done()
+						})
+					})
+				})				
+			})
+		})
+	})
+}
+
+exports.gracefulFailureNonexistentIdView = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.on('error', function(e){
+				_.assert(e.indexOf('invalid object id') !== -1)
+				done()
+			})
+			client.view('specific', [5005], function(v){
+				//console.log(JSON.stringify(v.toJson()))
+				//_.assertNot(v.has('e'))
+				//done()
+				done.fail()
+			})
+		})
+	})
+}

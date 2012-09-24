@@ -72,28 +72,28 @@ ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId
 	if(op === 'addExistingViewObject' || op === 'addExisting'){
 		//_.assertString(edit.id)
 		var addedObjHandle = this.getObjectApi(edit.id);
-		//console.log('got obj handle: ' + addedObjHandle.id())
-		//console.log(_.map(this.obj, function(v){return v.id();}))
-		/*if(this.obj.indexOf(addedObjHandle) !== -1){
-			//_.errout('already have obj handle: ' + syncId + ' ' + this.getEditingId())
-			_.assert(this.wasAdded.indexOf(addedObjHandle) !== -1)
-		}else{*/
-			//console.log('view adding: ' + JSON.stringify(addedObjHandle.id()))
+		if(addedObjHandle === undefined){
+			this.log.warn('object not found, may have been del\'ed: ' + edit.id)
+		}else{
 			this.obj.push(addedObjHandle)
 			addedObjHandle.prepare()
 			
 			addedObjHandle.on('del', this.delListener)
 			return this.emit(edit, 'add', addedObjHandle)
-		//}
+		}
 	}else if(op === 'removeViewObject' || op === 'remove'){//TODO why do we need to support remove here?
 	//	_.assertString(edit.id)
 		//console.log('REMOVING')
-		try{
-			var objHandle = this.getObjectApi(edit.id);
-		}catch(e){
-			this.log.info('WARNING: might be ok (if already destroyed locally), but could not find object: ' + edit.id)
+		//try{
+		var objHandle = this.getObjectApi(edit.id);
+		if(objHandle === undefined){
+			this.log.warn('object not found, may have been del\'ed: ' + edit.id)
 			return
 		}
+		/*}catch(e){
+			this.log.info('WARNING: might be ok (if already destroyed locally), but could not find object: ' + edit.id)
+			return
+		}*/
 		this.obj.splice(this.obj.indexOf(objHandle), 1)
 
 		objHandle.off('del', this.delListener)

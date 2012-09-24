@@ -1,0 +1,28 @@
+
+subt 2
+	name string 1
+	
+suba 3 subt
+subb 4 subt
+
+entity 1
+	subs set:subt 1
+		
+general() 100
+	v type(one(*entity)) 1
+
+subaName(a suba){
+	a.name
+}
+
+names(e entity){
+	each(e.subs, {
+		switch(type(~),
+			case('suba', subaName(suba:~)),
+			case('subb', 'anon')
+		)
+	})
+}
+
+subs() 101
+	va each(*entity,{names(~)}) 1

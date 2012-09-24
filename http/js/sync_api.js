@@ -562,6 +562,9 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	
 	var oldCacheKey = temporaryId;
 	var newCacheKey = realId;
+	if(this.currentObjectId === temporaryId){
+		this.currentObjectId = realId
+	}
 	if(this.objectApiCache[oldCacheKey]){
 		var objApi = this.objectApiCache[newCacheKey] = this.objectApiCache[oldCacheKey];
 		delete this.objectApiCache[oldCacheKey];
@@ -598,13 +601,18 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 			return n
 		}
 
-		console.log('snap: ' + JSON.stringify(this.snap).slice(0,500))
+		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
 		//console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
-		_.errout(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
+		console.log(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
+		return
 	}
-	//this.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
+	//console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
+	
+	if(obj[0].op === 'destroy'){
+		return
+	}
 
 	var typeCode = obj[0].op === 'madeViewObject' ? obj[0].edit.typeCode : obj[1].edit.typeCode//first edit is a made op
 	var t = this.schema._byCode[typeCode];

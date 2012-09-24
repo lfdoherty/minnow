@@ -56,6 +56,12 @@ function postJson(url, content, cb, errCb){
     xhr.onreadystatechange = function (oEvent) {  
 		if (xhr.readyState === 4) {  
 			if (xhr.status === 200) {  
+				try{
+					var json = JSON.parse(xhr.responseText)
+					cb(json)
+				}catch(e){
+				//throw new Error('cannot parse getJson response: ' + xhr.responseText + ' ' + url)
+				} 
 				cb()
 			} else {  
 				console.log("Error", xhr.statusText, url);  

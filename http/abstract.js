@@ -116,7 +116,11 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 					params: msg.params,
 					latestSnapshotVersionId: msg.version
 				}
-				syncHandles[syncId].beginView(viewReq, function(e){
+				syncHandles[syncId].beginView(viewReq, function(err){
+					if(err){
+						impl.failToBegin(syncId, err)
+						return
+					}
 					log(syncId + ' BEGAN VIEW(' + viewCode + ')' + msg.params + ': ' + msg.uid + ' ' + msg.version)
 					//console.log(JSON.stringify(e))
 					impl.sendToClient(syncId, {type: 'ready', uid: msg.uid})

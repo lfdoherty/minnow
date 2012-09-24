@@ -69,7 +69,10 @@ MapHandle.prototype.each = function(cb){
 					var id = value[i]
 					_.assertInt(id)
 					var a
-					if(a === undefined) a = local.getObjectApi(id);
+					if(a === undefined){
+						a = local.getObjectApi(id);
+						if(a === undefined) _.errout('map object value not found: ' + id)
+					}
 					a.prepare()
 					cb(key, a);
 				}

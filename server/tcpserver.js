@@ -427,7 +427,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
 				s.getAllSnapshots(e, function(err, res){
 					if(err){
-						w.requestError({err: ''+err, requestId: e.requestId})
+						w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
 						return
 					}
 					res.requestId = e.requestId;
@@ -438,7 +438,11 @@ function createTcpServer(appSchema, port, s, readyCb){
 			},
 			getSnapshot: function(e){
 				//console.log('getting snapshot: ' + JSON.stringify(e))
-				s.getSnapshot(e, function(res){
+				s.getSnapshot(e, function(err, res){
+					if(err){
+						w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
+						return
+					}
 					//res.snap = serializeSnapshot(res.snap)
 					var msg = {snap: res, requestId: e.requestId}
 					w.gotSnapshot(msg);

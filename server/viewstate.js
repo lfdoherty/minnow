@@ -57,6 +57,27 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		}
 	})
 	
+	function checkParams(typeCode, params, errCb){
+		_.assertFunction(errCb)
+		
+		var viewSchema = schema._byCode[typeCode]
+		var failed = false
+		//console.log(JSON.stringify(viewSchema))
+		var ps = viewSchema.viewSchema.params
+		for(var i=0;i<ps.length;++i){
+			var t = ps[i]
+			if(t.type.type === 'object'){
+				if(!objectState.isTopLevelObject(params[i])){
+					var e = new Error('parameters include an invalid object id') 
+					e.code = 'InvalidParamId'
+					errCb(e)
+					return false
+				}
+			}
+		}
+		return true
+	}
+	
 	var handle = {
 		beginView: function(e, seq, readyPacketCb){
 			_.assertLength(arguments, 3)
@@ -88,18 +109,19 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var parsedParams = JSON.parse(e.params)//e.params.split(';')
 			_.assertArray(parsedParams)
 			
-			log('beginning view after', e.latestSnapshotVersionId)
 			
+			var passed = checkParams(e.typeCode, parsedParams, readyPacketCb)
+			
+			if(!passed){
+				return
+			}
+		
+			log('beginning view after', e.latestSnapshotVersionId)
+		
 			var bindings = vg.binder(parsedParams, e.latestSnapshotVersionId)
 			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId()-1)
 			seq.addView(e.typeCode, viewVariable, e.latestSnapshotVersionId, readyCb)
 			
-			/*return {
-				end: function(){
-					//_.errout('TODO')
-					seq.end()
-				}
-			}*/
 		},
 		//TODO: implement halving algorithm
 		//TODO: randomize halving points by hash of view id
@@ -110,7 +132,17 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			//log(new Error().stack)
 			cb(realVersions)
 		},
-		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb){
+		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb, errCb){
+
+			_.assertFunction(errCb)
+			
+			var passed = checkParams(typeCode, params, errCb)
+			
+			if(!passed){
+				return
+			}
+
+
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotIds[snapshotIds.length-1])
 			var curEditId = objectState.getCurrentEditId()-1
@@ -140,12 +172,21 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			//viewSequencer.makeSnapshot(typeCode, viewVariable, previousSnapshotId, snapshotId, cb)
 			
 		},
-		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, cb){
+		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, cb, errCb){
+			_.assertFunction(errCb)
+			
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotId)
 			if(snapshotId === -1) {
 				snapshotId = objectState.getCurrentEditId()-1
 			}
+			
+			var passed = checkParams(typeCode, params, errCb)
+			
+			if(!passed){
+				return
+			}
+			
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, snapshotId)//TODO is snapshotId the right editId here?
 			viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, previousSnapshotId, snapshotId, cb)
 		}

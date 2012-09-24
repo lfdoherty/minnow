@@ -1,7 +1,7 @@
 
 var _ = require('underscorem')
 
-var getJson = require('./xhr_http').getJson
+var getJson = require('./xhr').getJson
 
 exports.openView = openView
 exports.openViewWithSnapshots = openViewWithSnapshots
@@ -21,6 +21,7 @@ function openView(syncId, api, schema, host, appName, viewName, params, sendFaca
 	if(api.viewsBeingGotten === undefined) api.viewsBeingGotten = {}
 	
 	if(api.viewsBeingGotten[viewId]){
+		console.log('view already being retrieved')
 		api.viewsBeingGotten[viewId].push(readyCb)
 		return
 	}else{
@@ -67,10 +68,10 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, param
 	}
 	var lastSnapshotVersion = snaps[snaps.length-1].endVersion
 
-	var opened = false
+	//var opened = false
 	function readyCb(cb){	
-		if(opened) return
-		opened = true
+		//if(opened) return
+		//opened = true
 		
 		if(exports.slowGet){//special debug hook - specifies millisecond delay for testing
 			setTimeout(function(){
@@ -88,7 +89,8 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, param
 			readyCb(cb)
 			return
 		}
-		api.viewsBeingGotten[viewId].forEach(function(cb){
+		api.viewsBeingGotten[viewId].forEach(function(cb, index){
+			//console.log('calling back for ' + index)
 			readyCb(cb)
 		})
 	})

@@ -61,4 +61,5 @@ gotVersionTimestamps 12
 requestError 13
 	err string 1
 	requestId int 2
+	code string 3
 	

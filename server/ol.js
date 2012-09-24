@@ -212,14 +212,14 @@ Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optim
 	})*/
 	
 	var w = fparse.makeSingleBufferWriter(100)
-	this.olc.serializeBinaryRange(id, startEditId, endEditId, w)
+	var did = this.olc.serializeBinaryRange(id, startEditId, endEditId, w)
 	var buf = w.finish()
 	/*var str = ''
 	for(var i=0;i<buf.length;++i){
 		str += buf[i] + ' '
 	}
 	console.log('str(' + buf.length + '): ' + str)*/
-	cb(buf)
+	cb(did?buf:undefined)
 	/*var actual = []
 	edits.forEach(function(e){
 		_.assertInt(e.editId)
@@ -245,6 +245,7 @@ Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 		}
 	})
 	cb(actual)
+	
 }
 Ol.prototype.isTopLevelObject = function(id){
 	//var index = bufferIndex[id];
@@ -390,6 +391,7 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 }
 //streams the object and its dependencies
 Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, endCb){
+	_.assertLength(arguments, 6)
 	_.assert(id >= 0)
 	
 	if(already[id]){
@@ -402,12 +404,22 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 	var gCdl = _.latch(2, function(){
 		endCb()
 	})
-	
-	this.getAsBuffer(id, startEditId, endEditId, function(res){
-		cb(id, res)
-		gCdl()
-	})
-	
+	//try{
+		this.getAsBuffer(id, startEditId, endEditId, function(res){
+			if(res){
+			//_.assertDefined(res)
+				cb(id, res)
+			}
+			gCdl()
+		})
+	/*}catch(e){
+		if(failCb){
+			failCb(e)
+			return
+		}else{
+			_.errout(e)
+		}
+	}*/
 	var local = this
 	this._getForeignIds(id, endEditId, function(ids){
 		

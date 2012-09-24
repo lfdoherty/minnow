@@ -471,7 +471,7 @@ function maintainPath(local, op, edit, syncId, editId){
 	//console.log(new Error().stack)
 
 	if(local.lastEditId !== undefined && editId < local.lastEditId && editId >= 0){
-		console.log(JSON.stringify(local.edits))
+		console.log('HERE**: ' + JSON.stringify(local.edits))
 		_.errout('invalid old edit received: ' + editId + ' < ' + local.lastEditId + ': ' + JSON.stringify([op, edit, syncId, editId]))
 	}
 
@@ -544,7 +544,7 @@ function maintainPath(local, op, edit, syncId, editId){
 				return
 			}
 			if(currentHandle === local){
-				console.log(JSON.stringify(local.edits, null, 2))
+				console.log('YY: ' + JSON.stringify(local.edits, null, 2))
 				_.errout('TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(local.pathEdits))
 			}else{
 				//console.log('calling change listener: ' + JSON.stringify(local.pathEdits) + ': ' + op + ' ' + JSON.stringify(edit))

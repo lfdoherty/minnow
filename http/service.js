@@ -178,8 +178,8 @@ exports.make = function(schema, cc){
 		//returns the javascript string content of the view file
 		getViewFile: function(viewCode, snapshotId, previousId, paramsStr, cb){
 
-			handle.getViewJson(viewCode, snapshotId, previousId, paramsStr, function(json){
-				cb('gotSnapshot(' + JSON.stringify(json) + ');\n');
+			handle.getViewJson(viewCode, snapshotId, previousId, paramsStr, function(err, json){
+				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
 			})
 		},
 		getViewJson: function(viewCode, snapshotId, previousId, paramsStr, cb){
@@ -192,9 +192,13 @@ exports.make = function(schema, cc){
 
 			
 			var snapReq = {typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
-			cc.getSnapshot(snapReq, function(response){
-				response.snap.id = snapshotId;
-				cb(response.snap)
+			cc.getSnapshot(snapReq, function(err, response){
+				if(err){
+					cb(err)
+				}else{
+					response.snap.id = snapshotId;
+					cb(undefined, response.snap)
+				}
 			});
 		},
 		

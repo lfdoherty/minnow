@@ -39,6 +39,7 @@ function editToMatch(curPath, newPath, cb){
 			}
 		}
 		//console.log('ascending: ' + many)
+		//console.log(JSON.stringify([curPath,newPath]))
 		if(many === 1){
 			cb('ascend1', {})
 		}else{
@@ -89,12 +90,12 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 			
 			//console.log('id: ' + id)
 			
-			log.info('path', e.path)
-			log.info('cur', curPath)
+			//log.info('path', e.path)
+			//log.info('cur', curPath)
 
 			//console.log('path: ' + JSON.stringify(e.path))
 			//console.log('cur: ' + JSON.stringify(curPath))
-			
+			//console.log('current sync id: ' + e.syncId)
 			editToMatch(curPath, e.path, function(op, edit){
 				saveAp(typeCode, e.id, op, edit, e.syncId, Date.now())//TODO address serialization issue
 			})

@@ -1,0 +1,17 @@
+
+empty() 120
+
+entity 1
+	age int 1
+	name string 2
+	category string 3
+	
+displayName(e entity){
+	switch(e.category,
+		case('child', '<anonymized>'),
+		case('adult', e.name)
+	)
+}
+
+basic() 121
+	displayedName displayName(one(*entity)) 1

@@ -7,7 +7,7 @@ var clearTimeout = timers.clearTimeout
 
 var _ = require('underscorem')
 
-var xhrHttp = require('./xhr_http')
+var xhrHttp = require('./xhr')
 
 var postJson = xhrHttp.postJson
 var getJson = xhrHttp.getJson
@@ -142,7 +142,7 @@ function establishSocket(appName, schema, host, cb){
 		
 		function takeMessage(data){
 			if(data.type === 'ready'){
-				console.log('got ready: ' + data.uid)
+			//	console.log('got ready: ' + data.uid)
 				if(viewsBeingSetup[data.uid] === undefined){
 					_.errout('unknown view uid: ' + data.uid + ', known: ' + JSON.stringify(Object.keys(viewsBeingSetup)))
 				}

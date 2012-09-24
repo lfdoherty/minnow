@@ -38,7 +38,10 @@ exports.make = function(app, appName, identifier){
 				cb(req.userToken,syncId, msgs, replyCb, securityFailureCb)
 			})
 		},
-		sendToClient: sendToClient
+		sendToClient: sendToClient,
+		failToBegin: function(err, syncId){
+			sendToClient(syncId, {type: 'error', code: err.code, msg: err+''})
+		}
 	}
 	
 	function sendToClient(syncId, msg){

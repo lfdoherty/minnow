@@ -12,5 +12,9 @@ exports.syntax = 'eq(*,*)'
 
 exports.compute = function(paramValues){
 	
+	/*if(paramValues[0] !== paramValues[1]){
+		console.log('eq: ' + JSON.stringify(paramValues))
+		console.log(new Error().stack)
+	}*/
 	return paramValues[0] === paramValues[1]
 }

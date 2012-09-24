@@ -227,7 +227,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//console.log('tcpclient got response ready(' + e.syncId + '): ' + JSON.stringify(e))
 			var cb = syncReadyCallbacks[e.requestId];
 			_.assertFunction(cb);
-			cb(e);
+			cb(undefined, e);
 		},
 		gotSnapshots: function(e){
 			var cb = getRequestCallback(e);
@@ -241,7 +241,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		gotSnapshot: function(e){
 			var cb = getRequestCallback(e);
-			cb(e);
+			cb(undefined, e);
 		},
 		objectMade: function(e){
 			//console.log('GOT BACK OBJECT MADE EVENT: ' + e.destinationSyncId + ' ' + JSON.stringify(Object.keys(syncListenersBySyncId)))
@@ -260,9 +260,14 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},*/
 		requestError: function(e){
 			log.err('ERROR: ' + e.err)
-			console.log('ERROR: ' + e.err)
+			console.log('ERROR: ' + e.err + ' ' + e.code)
 			var cb = callbacks[e.requestId]
-			cb(e.err)
+			var err = {code: e.code}
+			err.toString = function(){
+				return e.code + ' - ' + e.err;
+			}
+			//err.code = e.code
+			cb(err)
 		}
 	};
 	
@@ -550,9 +555,13 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		getSnapshot: function(e, cb){
 			_.assertFunction(cb)
-			applyRequestId(e, function(res){
+			applyRequestId(e, function(err, res){
+				if(err){
+					cb(err)
+					return
+				}
 				res.snap = deserializeSnapshot(fp.readers, fp.names, res.snap)
-				cb(res)
+				cb(undefined, res)
 			});
 			w.getSnapshot(e);
 			//log('tcpclient: getSnapshots')
