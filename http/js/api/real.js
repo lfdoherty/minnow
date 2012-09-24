@@ -18,7 +18,7 @@ RealHandle.prototype.set = function(v){
 	var e = {value: this.obj}
 	this.saveEdit('set', e)
 		
-	this.emit(e, 'set', v)()
+	this.emit(e, 'set', v)//()
 }
 RealHandle.prototype.changeListener = u.primitiveChangeListener;
 RealHandle.prototype.toJson = function(){return this.obj}

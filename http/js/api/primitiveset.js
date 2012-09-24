@@ -49,7 +49,7 @@ PrimitiveSetHandle.prototype.add = function(value){
 	_.assertString(ts)
 	this.saveEdit('add'+ts, e);
 		
-	this.emit(e, 'add', value)()
+	this.emit(e, 'add', value)//()
 }
 
 PrimitiveSetHandle.prototype.remove = function(value){
@@ -63,7 +63,7 @@ PrimitiveSetHandle.prototype.remove = function(value){
 	_.assertString(ts)
 	this.saveEdit('remove'+ts, e);
 	
-	this.emit(e, 'remove', value)()
+	this.emit(e, 'remove', value)//()
 }
 
 PrimitiveSetHandle.prototype.changeListener = function(op, edit, syncId, editId){

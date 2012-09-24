@@ -337,7 +337,7 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 
 		_.assertObject(n)
 
-		this.emit({}, 'set', n)()
+		this.emit({}, 'set', n)//()
 		
 		this.parent.replaceObjectHandle(this, n, this.part)
 	}else{
@@ -488,7 +488,7 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 
 	_.assertObject(n)
 
-	this.emit({}, 'set', n)()
+	this.emit({}, 'set', n)//()
 	
 	//TODO rewrite parent property stuff
 	this.parent.replaceObjectHandle(this, n, this.part)
@@ -523,7 +523,7 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 		this.adjustPath(pt.code)
 		this.persistEdit('setObject', e)
 		
-		this.emit(e, 'setProperty', propertyName, n)()
+		this.emit(e, 'setProperty', propertyName, n)//()
 	}else{
 		_.errout('TODO: ' + pt.type.type);
 	}

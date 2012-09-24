@@ -71,7 +71,7 @@ ObjectListHandle.prototype.remove = function(objHandle){
 			e,
 			this.getEditingId());
 
-		this.emit(e, 'remove', objHandle)()
+		this.emit(e, 'remove', objHandle)//()
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
 	}
@@ -303,7 +303,7 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 
 	this.obj.push(n)
 
-	this.emit(e, 'replace', objHandle, n)()
+	this.emit(e, 'replace', objHandle, n)//()
 }
 
 //TODO differentiate between replaceInternal and replaceExternal
@@ -337,7 +337,7 @@ ObjectListHandle.prototype.replaceExisting = function(oldObjHandle, newObjHandle
 
 	}	
 
-	this.emit(e, 'replace', oldObjHandle, newObjHandle)()
+	this.emit(e, 'replace', oldObjHandle, newObjHandle)//()
 }
 
 ObjectListHandle.prototype.shift = function(){
@@ -349,7 +349,7 @@ ObjectListHandle.prototype.shift = function(){
 
 	var v = this.obj.shift();
 		
-	this.emit(e, 'shift', v)()
+	this.emit(e, 'shift', v)//()
 	return v;
 }
 
@@ -372,7 +372,7 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	var n = this._makeAndSaveNew(json, type)
 	_.assertObject(n)
 	
-	this.emit({}, 'add', n)()
+	this.emit({}, 'add', n)//()
 	this.obj.push(n)
 
 	return n
@@ -389,7 +389,7 @@ ObjectListHandle.prototype.add = function(objHandle){
 	
 	this.obj.push(objHandle);
 		
-	this.emit(e, 'add', objHandle)()
+	this.emit(e, 'add', objHandle)//()
 	
 }
 

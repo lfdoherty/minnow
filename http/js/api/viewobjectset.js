@@ -60,7 +60,7 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 		if(this.wasAdded === undefined) this.wasAdded = []
 		this.wasAdded.push(objHandle)
 
-		this.emit(undefined, 'add', objHandle)()
+		this.emit(undefined, 'add', objHandle)//()
 	}
 }
 

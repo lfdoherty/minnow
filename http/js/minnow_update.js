@@ -131,7 +131,7 @@ function establishSocket(appName, schema, host, cb){
 		function pollServer(){
 			getJson(host+pollUrl, function(msgs){
 				if(closed) return
-				//console.log('got messages: ' + JSON.stringify(msgs))
+				console.log('got messages: ' + JSON.stringify(msgs))
 				msgs.forEach(takeMessage)
 				pollServer()
 			}, function(){

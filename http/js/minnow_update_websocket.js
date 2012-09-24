@@ -86,10 +86,32 @@ function establishSocket(appName, schema, host, cb){
 	ws.onmessage = function(msg) {
 		msg = msg.data
 		console.log('message: ' + msg)
-		msg = JSON.parse(msg)
+		var msgs = JSON.parse(msg)
 		
-		//console.log('isFirstMessage: ' + isFirstMessage)
+		
 		if(isFirstMessage){
+			isFirstMessage = false
+			syncId = msgs[0].syncId
+			
+			//console.log('here')
+
+			api = syncApi.make(schema, sendFacade, log);
+			api.setEditingId(syncId);
+			
+			msgs.slice(1).forEach(function(msg){
+				processMessage(msg)
+			})
+
+			cb(handle)
+		}else{		
+			msgs.forEach(function(msg){
+				processMessage(msg)
+			})
+		}
+	}
+	function processMessage(msg){
+		//console.log('isFirstMessage: ' + isFirstMessage)
+		/*if(isFirstMessage){
 			isFirstMessage = false
 			syncId = msg.syncId
 			
@@ -100,7 +122,7 @@ function establishSocket(appName, schema, host, cb){
 
 			cb(handle)
 			//console.log('setup')
-		}else if(msg.type === 'ready'){
+		}else */if(msg.type === 'ready'){
 			if(viewsBeingSetup[msg.uid] === undefined){
 				_.errout('unknown view uid: ' + msg.uid + ', known: ' + JSON.stringify(Object.keys(viewsBeingSetup)))
 			}

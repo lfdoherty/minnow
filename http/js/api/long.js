@@ -21,7 +21,7 @@ LongHandle.prototype.set = function(v){
 	var e = {value: this.obj}
 	this.saveEdit('setLong', e)
 		
-	this.emit(e, 'set', v)()
+	this.emit(e, 'set', v)//()
 }
 LongHandle.prototype.changeListener = u.primitiveChangeListener;
 LongHandle.prototype.toJson = function(){return this.obj}

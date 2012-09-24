@@ -65,7 +65,7 @@ exports.make = function(authenticateByToken, local){
 								
 								//console.log('syncId: ' + syncId)
 			
-								ws.send(JSON.stringify({syncId: syncId}))
+								ws.send(JSON.stringify([{syncId: syncId}]))
 								authBuffer.forEach(send)
 							})
 						})
@@ -77,7 +77,7 @@ exports.make = function(authenticateByToken, local){
 				})
 
 				function securityFailureCb(){
-					ws.send(JSON.stringify({type: 'security error', msg: 'tried to access non-accessible view'}))
+					ws.send(JSON.stringify([{type: 'security error', msg: 'tried to access non-accessible view'}]))
 				}
 				function receive(msg){
 					if(userToken === undefined){
@@ -87,14 +87,18 @@ exports.make = function(authenticateByToken, local){
 					}
 				}	
 
-				function send(msg){
+				function send(msgs){
 					if(closed){
 						console.log('WARNING: tried to send to closed websocket: ' + syncId)
 						console.log(new Error().stack)
 						return
 					}
 					try{
-						ws.send(JSON.stringify(msg))
+						//ws.send({type: 'transaction', size: msgs.length})
+						//for(var i=0;i<msgs.length;++i){
+						//	ws.send(JSON.stringify(msg))
+						//}
+						ws.send(JSON.stringify(msgs))
 					}catch(e){
 						log.warn(e)
 					}
@@ -116,14 +120,14 @@ exports.make = function(authenticateByToken, local){
 			receiver = cb
 			return
 		},
-		sendToClient: function(syncId, msg){
+		sendAllToClient: function(syncId, msgs){
 			//console.log('sending to: ' + syncId + ' ' + (senders[syncId] == undefined))
 			if(senders[syncId] == undefined){
 				console.log('WARNING: tried to send to closed websocket sync handle')
 				console.log(new Error().stack)
 				return
 			}
-			senders[syncId](msg)
+			senders[syncId](msgs)
 		},
 		failToBegin: function(err, syncId){
 			handle.sendToClient(syncId, {type: 'error', code: err.code, msg: err+''})

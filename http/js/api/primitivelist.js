@@ -80,7 +80,7 @@ PrimitiveListHandle.prototype.add = function(value){
 	var e = {value: value}
 	this.saveEdit(this.addOp, e);
 		
-	this.emit(e, 'add', value)()
+	this.emit(e, 'add', value)//()
 }
 PrimitiveListHandle.prototype.push = PrimitiveListHandle.prototype.add
 
@@ -95,7 +95,7 @@ PrimitiveListHandle.prototype.remove = function(value){
 		var e = {value: value}
 		this.saveEdit(this.removeOp, e);
 		
-		this.emit(e, 'remove', value)()
+		this.emit(e, 'remove', value)//()
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
 	}
@@ -110,7 +110,7 @@ PrimitiveListHandle.prototype.shift = function(){
 
 	var v = this.obj.shift();
 		
-	this.emit(e, 'shift', v)()
+	this.emit(e, 'shift', v)//()
 	return v;
 }
 

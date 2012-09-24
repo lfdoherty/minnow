@@ -17,7 +17,34 @@ function setPropertyValue(obj, code, value){
 	obj[code] = value;
 }
 
+function _delayEmit(local, args){
+	this.parent._delayEmit(local, args)
+}
 function emit(e, eventName){
+
+	var args = Array.prototype.slice.call(arguments, 0)
+
+	/*if(this._isPaused()){
+		this._delayEmit(this, args)//e, eventName)
+	}else{*/
+		this._doEmit.apply(this, args)//(e, eventName)
+	//}
+}
+/*function _isPaused(){
+	return this.parent._isPaused()
+}
+
+SyncApi.prototype._isPaused = function(){
+	return this.paused
+}
+
+SyncApi.prototype._delayEmit = function(local, args){
+	_.assert(this.paused)
+	if(this.waitingEvents === undefined) this.waitingEvents = []
+	this.waitingEvents.push([local, args])
+}*/
+
+function _doEmit(e, eventName){
 	var afterCallbacks = []
 	
 	//console.log('emitting ' + eventName)
@@ -133,6 +160,9 @@ function addRefreshFunctions(classPrototype){
 	if(classPrototype.once === undefined) classPrototype.once = once;
 	if(classPrototype.off === undefined) classPrototype.off = off;
 	if(classPrototype.emit === undefined) classPrototype.emit = emit;
+	if(classPrototype._doEmit === undefined) classPrototype._doEmit = _doEmit
+	//if(classPrototype._delayEmit === undefined) classPrototype._delayEmit = _delayEmit
+	//if(classPrototype._isPaused === undefined) classPrototype._isPaused = _isPaused
 }
 
 function removeParent(p){
@@ -521,6 +551,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		//console.log('destroyed current object')
 	}else{
 		_.assertInt(this.currentSyncId)
+		_.assertEqual(this.currentTopObject.parent, this)
 		this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
 	}
 }
@@ -569,7 +600,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		var objApi = this.objectApiCache[newCacheKey] = this.objectApiCache[oldCacheKey];
 		delete this.objectApiCache[oldCacheKey];
 		objApi.objectId = realId;
-		objApi.emit({}, 'reify', realId, temporaryId)()
+		objApi.emit({}, 'reify', realId, temporaryId)//()
 		//console.log('reified specific object')
 	}
 	/*
@@ -581,6 +612,24 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		}
 	}*/
 }
+
+/*
+SyncApi.prototype.pause = function(){
+	this.paused = true
+	console.log('paused')
+}
+SyncApi.prototype.resume = function(){
+	console.log('beginning resume')
+	if(this.waitingEvents){
+		for(var i=0;i<this.waitingEvents.length;++i){
+			var e = this.waitingEvents[i]
+			_doEmit.apply(e[0],e[1])
+		}
+	}
+	this.paused = false
+	this.waitingEvents = []
+	console.log('resumed')
+}*/
 
 SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 

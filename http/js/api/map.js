@@ -176,7 +176,7 @@ MapHandle.prototype.del = function(key){
 	this.persistEdit('delKey', {})
 	delete this.obj[key]
 		
-	this.emit(e, 'del', key)()
+	this.emit(e, 'del', key)//()
 }
 
 MapHandle.prototype.put = function(newKey, newValue){
@@ -197,7 +197,7 @@ MapHandle.prototype.put = function(newKey, newValue){
 		this.persistEdit(this.putOp, e)
 		this.obj[newKey] = newValue
 	}		
-	this.emit(e, 'put', newKey, newValue)()
+	this.emit(e, 'put', newKey, newValue)//()
 }
 
 MapHandle.prototype.putNew = function(newKey, newTypeName, json){
@@ -220,7 +220,7 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	var n = this._makeAndSaveNew(json, type)
 	this.obj[newKey] = n
 		
-	this.emit(e, 'put', newKey, n)()
+	this.emit(e, 'put', newKey, n)//()
 	return n
 }
 

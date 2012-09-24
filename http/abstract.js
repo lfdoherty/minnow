@@ -13,29 +13,52 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 	
 	var syncHandles = {}
 	
+	//var msgBuffer = []
+	
+	var intervalHandle = setInterval(function(){
+		Object.keys(syncHandles).forEach(function(key){
+			var sh = syncHandles[key]
+			if(sh.msgs.length > 0){
+				impl.sendAllToClient(sh.id, sh.msgs)
+				sh.msgs = []
+			}
+		})
+		/*for(var i=0;i<msgBuffer.length;++i){
+			var m = msgBuffer[i]
+			impl.sendToClient(m[0],m[1])
+		}
+		msgBuffer = []*/
+	},50)
+	
 	impl.exposeBeginSync(function(userToken, replyCb){
 		_.assertLength(arguments, 2)
 		
 		var theSyncId;
-
+		var sh
+		
 		function listenerCb(e){
-			syncListener(theSyncId, e)
+			syncListener(sh, e)
 		}
 		function objectCb(id, edits){
 			_.assertLength(arguments, 2)
 
-			objectListener(theSyncId, id, edits)
+			objectListener(sh, id, edits)
 		}
 		function makeCb(id, temporary){
 
-			impl.sendToClient(theSyncId, ['reify', id, temporary])
+			//impl.sendToClient(theSyncId, ['reify', id, temporary])
+			//msgBuffer.push([theSyncId, ['reify', id, temporary]])
+			sh.msgs.push(['reify', id, temporary])
 		}
 
 		minnowClient.beginSync(listenerCb, objectCb, makeCb, function(syncId, syncHandle){
 			theSyncId = syncId
 
-			syncHandles[syncId] = syncHandle
+			sh = syncHandles[syncId] = syncHandle
+			sh.id = syncId
+			sh.msgs = []
 			log('got sync handle: ' + syncId)
+			console.log('got sync handle: ' + syncId)
 			if(syncHandleCreationListener) syncHandleCreationListener(userToken, syncId)
 			
 			replyCb(syncId)
@@ -49,30 +72,34 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		}
 	})
 
-	function objectListener(connectionSyncId, id, edits){
+	function objectListener(sh, id, edits){
 		_.assertLength(arguments, 3);
 		
 		log('$got object e: ' + JSON.stringify([id, edits]).slice(0, 300));
 		
-		log('sending message for sync ' + connectionSyncId)
+		log('sending message for sync ' + sh.id)
 		//_.assertInt(id)
 		_.assertArray(edits)
 		var msg = ['object', id, edits];
 
-		impl.sendToClient(connectionSyncId, msg)
+		//impl.sendToClient(connectionSyncId, msg)
+		//msgBuffer.push([connectionSyncId, msg])
+		sh.msgs.push(msg)
 	}
-	function syncListener(connectionSyncId, e){
+	function syncListener(sh, e){
 		_.assertLength(arguments, 2);
 		
 		log('$got e: ' + JSON.stringify(e).slice(0, 300));
 		
 		_.assertString(e.op)
 		
-		log('sending message for sync ' + connectionSyncId + ': ' + JSON.stringify(e));
+		log('sending message for sync ' + sh.id + ': ' + JSON.stringify(e));
 
 		var msg = ['edit', e.op, e.edit, e.editId];
 
-		impl.sendToClient(connectionSyncId, msg)
+		//impl.sendToClient(connectionSyncId, msg)
+		//msgBuffer.push([connectionSyncId, msg])
+		sh.msgs.push(msg)
 	}
 
 	impl.receiveUpdates(function(userToken, syncId, msgs, replyCb, securityFailureCb){
@@ -116,14 +143,17 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 					params: msg.params,
 					latestSnapshotVersionId: msg.version
 				}
-				syncHandles[syncId].beginView(viewReq, function(err){
+				var sh = syncHandles[syncId]
+				sh.beginView(viewReq, function(err){
 					if(err){
 						impl.failToBegin(syncId, err)
 						return
 					}
 					log(syncId + ' BEGAN VIEW(' + viewCode + ')' + msg.params + ': ' + msg.uid + ' ' + msg.version)
 					//console.log(JSON.stringify(e))
-					impl.sendToClient(syncId, {type: 'ready', uid: msg.uid})
+					//impl.sendToClient(syncId, {type: 'ready', uid: msg.uid})
+					//msgBuffer.push([syncId, {type: 'ready', uid: msg.uid}])
+					sh.msgs.push({type: 'ready', uid: msg.uid})
 				})
 			}, JSON.parse(msg.params), userToken)
 		}

@@ -26,7 +26,7 @@ BooleanHandle.prototype.set = function(v){
 	var e = {value: this.obj}
 	this.saveEdit('setBoolean', e);
 		
-	this.emit(e, 'set', v)()
+	this.emit(e, 'set', v)//()
 }
 
 BooleanHandle.prototype.toggle = function(){

@@ -23,7 +23,7 @@ IntHandle.prototype.set = function(v){
 	var e = {value: this.obj}
 	this.saveEdit('setInt', e);
 		
-	this.emit(e, 'set', v)()
+	this.emit(e, 'set', v)//()
 }
 IntHandle.prototype.toJson = function(){return this.obj}
 module.exports = IntHandle

@@ -38,19 +38,19 @@ exports.make = function(app, appName, identifier){
 				cb(req.userToken,syncId, msgs, replyCb, securityFailureCb)
 			})
 		},
-		sendToClient: sendToClient,
+		sendAllToClient: sendToClient,
 		failToBegin: function(err, syncId){
 			sendToClient(syncId, {type: 'error', code: err.code, msg: err+''})
 		}
 	}
 	
-	function sendToClient(syncId, msg){
+	function sendToClient(syncId, msgs){
 		if(longPollCaller[syncId]){
-			longPollCaller[syncId](msg)
+			longPollCaller[syncId](msgs)
 		}else{
 			if(waitingForLongPoll[syncId] === undefined) waitingForLongPoll[syncId] = []
 			log('adding to waiting list')
-			waitingForLongPoll[syncId].push(msg)
+			waitingForLongPoll[syncId] = waitingForLongPoll[syncId].concat(msgs)//.push(msgs)
 		}
 	}
 	var waitingForLongPoll = {}
@@ -91,9 +91,9 @@ exports.make = function(app, appName, identifier){
 			waitingForLongPoll[syncId] = []
 		}else{
 			log('got long poll request, waiting for msgs...')
-			longPollCaller[syncId] = function(msg){
+			longPollCaller[syncId] = function(msgs){
 				log('sending content to waiting long poll request')
-				msgsToSend.push(msg)
+				msgsToSend = msgsToSend.concat(msgs)
 				if(!sendPending){
 					sendPending = true
 					setTimeout(function(){

@@ -35,7 +35,7 @@ StringHandle.prototype.set = function(str){
 
 	this.saveEdit('setString', e);
 		
-	this.emit(e, 'set', str)()
+	this.emit(e, 'set', str)//()
 }
 StringHandle.prototype.value = function(){
 	return this.obj === undefined ? '' : this.obj;

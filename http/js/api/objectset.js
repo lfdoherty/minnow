@@ -75,7 +75,7 @@ ObjectSetHandle.prototype.remove = function(objHandle){
 			this.getEditingId());*/
 		this.saveEdit('remove', {id: objHandle._internalId()})
 	
-		this.emit(e, 'remove', objHandle)()
+		this.emit(e, 'remove', objHandle)//()
 	/*}else{
 		var index = this.obj.indexOf(objHandle)
 		if(index === -1){
@@ -221,7 +221,7 @@ ObjectSetHandle.prototype.add = function(objHandle){
 	
 	this.obj.push(objHandle);
 
-	this.emit(ee, 'add', objHandle)()
+	this.emit(ee, 'add', objHandle)//()
 }
 
 ObjectSetHandle.prototype.addNew = function(typeName, json){
@@ -240,7 +240,7 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 
 	var n = this._makeAndSaveNew(json, type)
 	
-	this.emit({}, 'add', n)()
+	this.emit({}, 'add', n)//()
 	this.obj.push(n)
 
 	return n

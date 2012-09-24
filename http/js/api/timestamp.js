@@ -30,7 +30,7 @@ TimestampHandle.prototype.setNow = function(){
 	this.saveEdit('setLong', e);
 		
 	//this.refresh()();
-	this.emit(e, 'set', this.obj)()
+	this.emit(e, 'set', this.obj)//()
 }
 TimestampHandle.prototype.value = function(){
 	return this.obj;
