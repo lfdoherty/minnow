@@ -174,7 +174,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				var currentResponseId
 				var curPath = []
 				function sendEditUpdate(up){
-					_.assertInt(up.syncId)
+					if(up.syncId === undefined) _.errout('no syncId: ' + JSON.stringify(up))
+					//_.assertInt(up.syncId)
 					if(currentSyncId !== up.syncId){
 						currentSyncId = up.syncId
 						listenerCb('setSyncId', {syncId: up.syncId}, up.editId)					

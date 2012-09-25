@@ -37,7 +37,12 @@ function getJson(url, cb, errCb){
 				}
 			} else {  
 				console.log("Error", xhr.statusText, xhr.status, url);  
-				if(errCb) errCb(xhr.status)
+				var json
+				try{
+					json = JSON.parse(xhr.responseText)
+				}catch(e){
+				}
+				if(errCb) errCb(xhr.status, json)
 			}  
 		}  
 	};  

@@ -10,7 +10,7 @@ var _ = require('underscorem')
 
 var update = require('./minnow_update_websocket')
 
-var getJson = require('./xhr_http').getJson
+var getJson = require('./xhr').getJson
 
 exports.setup = setup
 

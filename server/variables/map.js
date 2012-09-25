@@ -371,7 +371,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 		elements.attach({
 			add: function(v, editId){
 
-				console.log('map add: ' + v)
+				//console.log('map add: ' + v)
 				
 				var newBindingsKey = copyBindings(bindings)
 				var newBindingsValue = copyBindings(bindings)
@@ -391,15 +391,15 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 								listeners.emitDel(oldValue, editId)
 							}
 						}
-						console.log('map key, value undefined: ' + value)
+						//console.log('map key, value undefined: ' + value)
 					}else{
-						console.log('map key: ' + value + ' ' + typeof(value))
+						//console.log('map key: ' + value + ' ' + typeof(value))
 						kv.key = value	
 						if(kv.value !== undefined){				
 							var oldValue = kv.value
 							state[kv.key] = kv.value
 							_.assertPrimitive(kv.value)
-							console.log('putting: ' + kv.key + ' -> ' + kv.value)
+							//console.log('putting: ' + kv.key + ' -> ' + kv.value)
 							listeners.emitPut(kv.key, kv.value, oldValue, editId)
 						}
 					}
@@ -408,7 +408,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					_.assertInt(editId)
 					kv.value = value
 					//s.log('map value: ' + kv.key + '->'+value)
-					console.log('map value: ' + kv.key + ' -> ' + value)
+					//console.log('map value: ' + kv.key + ' -> ' + value)
 					if(kv.key !== undefined){
 						state[kv.key] = kv.value
 						//s.log('emitting put')

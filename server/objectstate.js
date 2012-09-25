@@ -452,7 +452,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 	var prop = {}
 
 	log('streamPropertyTypes got ' + edits.length + ' edits')
-	console.log('streamPropertyTypes got ' + edits.length + ' edits')
+	//console.log('streamPropertyTypes got ' + edits.length + ' edits')
 	//console.log(JSON.stringify(edits))
 	
 	var tracker = makePathTracker(path)
@@ -463,7 +463,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 		var matching = tracker(e)
 
 		log(matching, path, ' <- ', e)
-		console.log(matching + ' ' + JSON.stringify(path) + ' <- ' + JSON.stringify(e))
+		//console.log(matching + ' ' + JSON.stringify(path) + ' <- ' + JSON.stringify(e))
 
 		if(!matching) return
 		
@@ -606,6 +606,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 		isTopLevelObject: function(id){
 			return ol.isTopLevelObject(id)
 		},
+		isDeleted: function(id){
+			return ol.isDeleted(id)
+		},
 		addEdit: function(id, op, path, edit, syncId, computeTemporary){
 			//_.assertLength(arguments, 7);
 			if(op !== 'make' && op !== 'forgetTemporary') _.assertInt(id);
@@ -722,6 +725,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 
 		updateObject: function(objId, editId, cb, doneCb){
 			_.assertLength(arguments, 4)
+			
+			
 			
 			ol.get(objId, -1, -1, function(res){
 				//var pu = pathsplicer.make()

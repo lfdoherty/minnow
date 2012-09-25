@@ -10,11 +10,14 @@ exports.setProperty = function(config, done){
 					var e2 = handle.make('entity', {name:  'test2'})
 					container.setProperty('e', e2)
 					
-					c.view('specific', [id], function(handle){
-						if(handle.object.e.name.value() === 'test2'){
-							done()
-						}
-					})
+					setTimeout(function(){
+						c.view('specific', [id], function(handle){
+							console.log('e: ' + handle.object.e.name.value())
+							if(handle.object.e.name.value() === 'test2'){
+								done()
+							}
+						})
+					},500)
 				})
 				var e = handle.make('entity', {name:  'test1'})
 				container.setProperty('e', e)

@@ -70,7 +70,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			_.assertFunction(listener.add)
 			_.assertFunction(listener.remove)
 			listeners.add(listener)
-			//s.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
+			//console.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
 			//s.log(new Error().stack)
 			if(idList){
 				idList.forEach(function(id){
@@ -113,6 +113,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		
 		idList = [].concat(ids)
 		s.log('TYPE got all ids', ids)
+		//console.log('TYPE got all ids', ids)
 		
 		function listenCreated(typeCode, id, editId){
 			idList.push(id)
@@ -124,7 +125,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			listeners.emitAdd(id, editId)
 		}
 		function listenDeleted(typeCode, id, editId){
-			//console.log('got deleted')
+			//console.log('got deleted: ' + id)
 			idList.splice(idList.indexOf(id), 1)
 			listeners.emitRemove(id, editId)
 			//listeners.emitShould(id, false, editId)

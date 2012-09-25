@@ -163,7 +163,12 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		
 				service.getViewJson(viewId, snapshotId, previousId, paramStr, function(err, json){
 					if(err){
-						res.send(500, err)
+						if(err.code === 'InvalidParamId'){
+							res.send(400, JSON.stringify(err))
+						}else{
+							res.send(500, err)
+						}
+						return
 					}
 
 					var jsStr = JSON.stringify(json)

@@ -141,6 +141,9 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	return {id: this.idCounter, editId: editId}
 }
+Ol.prototype.isDeleted = function(id){
+	return this.destroyed[id]
+}
 Ol.prototype._destroy = function(id){
 
 	//console.log('destroying')
@@ -163,6 +166,7 @@ Ol.prototype._destroy = function(id){
 	this.destroyed[id] = true
 }
 Ol.prototype._getForeignIds = function(id, editId, cb){
+	
 	this.get(id, -1, editId, function(edits){
 		var de = edits//deserializeEdits(edits)
 		var ids = []
@@ -235,6 +239,10 @@ Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertInt(startEditId)
 	_.assertInt(endEditId)
 	_.assertInt(id)
+	
+	if(this.destroyed[id]){
+		_.errout('object has been destroyed, cannot get: ' + id)
+	}
 	
 	var edits = this.olc.get(id)
 	var actual = []
@@ -393,6 +401,8 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, endCb){
 	_.assertLength(arguments, 6)
 	_.assert(id >= 0)
+	
+	if(this.destroyed[id]) _.errout('object has been destroyed: ' + id)
 	
 	if(already[id]){
 		log('already got: ' + id)

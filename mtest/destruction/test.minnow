@@ -3,7 +3,7 @@ entity 1
 	value string 1
 
 general() 100
-	s *entity 1
+	s *entity 13
 
 specific(e entity) 101
-	e e 1
+	e e 12

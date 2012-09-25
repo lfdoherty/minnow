@@ -14,7 +14,7 @@ function openView(syncId, api, schema, host, appName, viewName, params, sendFaca
 	var viewId = typeCode+':'+JSON.stringify(params)
 	if(api.hasView(viewId)){
 		//api.getView(viewId)
-		readyCb(api.getView(viewId))
+		readyCb(undefined, api.getView(viewId))
 		return
 	}
 	
@@ -39,6 +39,8 @@ function openView(syncId, api, schema, host, appName, viewName, params, sendFaca
         var lastId = json.lastId
 
 		openViewWithMeta(syncId, baseTypeCode, lastId, json.snapUrls, host, api, viewName, params, sendFacade, readyCb)
+	}, function(err){
+		readyCb(err)
 	})    
 }
 
@@ -55,6 +57,9 @@ function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, vie
 			if(remaining === 0){
 				openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
 			}
+		}, function(err, json){
+			if(json) cb(json)
+			else cb(err)
 		})
 	})
 }
@@ -75,10 +80,10 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, param
 		
 		if(exports.slowGet){//special debug hook - specifies millisecond delay for testing
 			setTimeout(function(){
-				cb(api.getView(viewId))
+				cb(undefined, api.getView(viewId))
 			},exports.slowGet)
 		}else{
-			cb(api.getView(viewId))
+			cb(undefined, api.getView(viewId))
 		}
 	}
 	

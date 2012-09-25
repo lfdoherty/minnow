@@ -7,11 +7,6 @@ var clearTimeout = timers.clearTimeout
 
 var _ = require('underscorem')
 
-//var xhrHttp = require('./xhr_http')
-
-//var postJson = xhrHttp.postJson
-//var getJson = xhrHttp.getJson
-
 var syncApi = require('./sync_api')
 var jsonutil = require('./jsonutil')
 
@@ -222,6 +217,8 @@ function establishSocket(appName, schema, host, cb){
 			api.objectListener(data[1], data[2]);
 		}
 	})
+	
+	var errorListeners = []
 
 	var handle = {
 		getSessionId: function(){
@@ -237,7 +234,15 @@ function establishSocket(appName, schema, host, cb){
 				realParams[i] = params[i]
 				if(_.isObject(params[i])) realParams[i] = params[i].id()
 			}
-			shared.openView(syncId, api, schema, host, appName, viewName, realParams, sendFacade, cb)
+			shared.openView(syncId, api, schema, host, appName, viewName, realParams, sendFacade, function(err, handle){
+				if(err){
+					errorListeners.forEach(function(listener){
+						listener(err)
+					})
+					return
+				}
+				cb(handle)
+			})
 		},
 		_openViewWithSnapshots: function(baseTypeCode, lastId, snaps, viewName, params, cb){
 			shared.openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
@@ -245,6 +250,14 @@ function establishSocket(appName, schema, host, cb){
 		close: function(cb){
 			closed = true
 			cb()
+		},
+		on: function(event, listener){
+			//_.errout('TODO')
+			if(event === 'error'){
+				errorListeners.push(listener)
+			}else{
+				_errout('invalid event: ' + event)
+			}
 		}
 	}
 		

@@ -48,7 +48,7 @@ exports.gracefulFailureForDestroyedIdView = function(config, done){
 				var e = c.make('entity', function(id){
 					e.del()
 					minnow.makeClient(config.port, function(otherClient){
-						//console.log('got client for destroy')
+						console.log('got client for destroy')
 						otherClient.view('specific', [id], function(v){
 							//console.log(JSON.stringify(v.toJson()))
 							_.assertNot(v.has('e'))
@@ -65,6 +65,7 @@ exports.gracefulFailureNonexistentIdView = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.on('error', function(e){
+				console.log('error: ' + JSON.stringify(e))
 				_.assert(e.code === 'InvalidParamId')//indexOf('invalid object id') !== -1)
 				done()
 			})

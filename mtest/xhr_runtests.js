@@ -224,13 +224,19 @@ function moreCont(doneCb){
 					})
 				})
 			}
+			var hasRanNext = false
 			runTest(nt, function(){
+				if(hasRanNext) _.errout('repeat run')
+				hasRanNext = true
+				
 				var cdl = _.latch(servers.length, function(){
 					minnow.makeClient = oldMakeClient
 					minnow.makeServer = oldMakeServer
 					runNextTest()
 				})
-				servers.forEach(function(sh){
+				//console.log('next')
+				servers.forEach(function(sh, index){
+					console.log('closing: ' + index)
 					closedHosts[sh.port] = true
 					sh.close(cdl)
 				})
@@ -252,7 +258,10 @@ function moreCont(doneCb){
 			++passedCount
 			finish()
 		}
+		var alreadyFailed = false
 		function fail(e){
+			if(alreadyFailed) return
+			alreadyFailed = true
 			if(donePassed) return
 			log('test failed: ' + t.dirName + '.' + t.name)
 			++failedCount
@@ -272,7 +281,11 @@ function moreCont(doneCb){
 			fail(new Error('test timed out'))
 		}, maxTestTime)
 		
+		var finished = false
 		function finish(){
+			if(finished) _.errout('already finished')
+			finished = true
+			//console.log('finishing')
 			clearTimeout(timeoutHandle)
 			var ii = inProgress.indexOf(t)
 			inProgress.splice(ii, 1)

@@ -196,11 +196,11 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 	function ensureHasObject(id, sourceEditId){
 		_.assertInt(id)
 		_.assertInt(sourceEditId)
-		if(has[id] === undefined){
+		if(has[id] === undefined && !objectState.isDeleted(id)){
 			//has[id] = true
 			++manyObjectsOut
 			log('getting state(' + id + '): ' + manyObjectsOut)
-			console.log('getting state(' + id + '): ' + manyObjectsOut)
+			console.log('getting state(' + id + '): ' + manyObjectsOut + ' ' + viewTypeCode)
 
 			//gets only edits between the given range
 			//TODO set start point to -1 if the first ensure source falls within this snapshots edit interval
@@ -401,6 +401,8 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 
 	function objectUpdateListener(typeCode, id, op, edit, syncId, editId){
 		_.assertString(op)
+		_.assertInt(syncId)
+		
 		if(!editBuffer){
 			console.log('WARNING: editBuffer gone, seq already closed *')
 			console.log(new Error().stack)
@@ -425,8 +427,9 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 	}
 	
 	function listenObjectCb(id, editId){
-
-		objectState.updateObject(id, editId+1, objectUpdateListener, addObjectToSet)
+		if(!objectState.isDeleted(id)){
+			objectState.updateObject(id, editId+1, objectUpdateListener, addObjectToSet)
+		}
 	}
 				
 	return {
@@ -485,6 +488,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 					_.assertLength(arguments, 7)
 					_.assertInt(editId)
 					_.assertString(id)
+					_.assertInt(syncId)
 					
 					if(editBuffer === undefined){
 						console.log('WARNING: editBuffer gone, seq already closed')
