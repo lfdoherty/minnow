@@ -781,10 +781,18 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			//_.errout('TODO stream property state')
 			var cur;
 			var first = true
+			//console.log('added id: ' + id)
 			//s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
+			
+			if(isObjectProperty){
+				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
+					oldTypeGetters.push(typeGetter)
+				}, true)
+			}
+			
 			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
-				editId, function(pv, editId){
-				console.log('GOT PROPERTY VALUE: ' + id + ' ' + pv + ' ' + editId + ' ' + propertyCode)
+				outerEditId, function(pv, editId){
+				//console.log('GOT PROPERTY VALUE: ' + id + ' ' + pv + ' ' + editId + ' ' + propertyCode)
 				//console.log(new Error().stack)
 				if(!first){
 					if(pvCounts[cur] === 1){
@@ -804,7 +812,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 					if(pvCounts[pv] === undefined){
 						pvCounts[pv] = 1
 						propertyValues.push(pv)
-						console.log('calling add: ' + pv)
+						//console.log('calling add: ' + pv)
 						listeners.emitAdd(pv, editId)
 					}else{
 						++pvCounts[pv]
@@ -820,11 +828,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 				}
 			})
 			
-			if(isObjectProperty){
-				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
-					oldTypeGetters.push(typeGetter)
-				}, true)
-			}
+			
 		},
 		remove: function(id, editId){
 			wait(editId)

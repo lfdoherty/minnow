@@ -74,4 +74,7 @@ booleanSetTest(name string) 114
 
 stringUpdateTest() 115
 	name one(*entity).name 1
-	
+
+objectSetProperty(name string) 122
+	ages each(*entity, {filter(~,sameNameMacro(name, ~.name))}).age 1
+

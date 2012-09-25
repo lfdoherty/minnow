@@ -570,3 +570,35 @@ exports.stringUpdateTest = function(config, done){
 		})
 	})
 }
+
+exports.objectSubsetProperty = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('objectSetProperty', ['sue'], function(c){
+				poll(function(){
+					/*if(c.named.size() === 1){
+						console.log('name: ' + c.named.toJson()[0].name)
+					}*/
+					if(c.ages.size() === 3){
+						var ages = c.ages.toJson()
+						ages.sort()
+						_.assert(JSON.stringify(ages) === '[13,19,22]')
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(v){
+						v.make('entity', {age: 22, name: 'sue'})
+						v.make('entity', {age: 13, name: 'sue'})
+						v.make('entity', {age: 18, name: 'brian'})
+						v.make('entity', {age: 19, name: 'sue'})
+					})
+				})
+				
+			})
+		})
+	})
+}
+

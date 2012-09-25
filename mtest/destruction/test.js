@@ -65,7 +65,7 @@ exports.gracefulFailureNonexistentIdView = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.on('error', function(e){
-				_.assert(e.indexOf('invalid object id') !== -1)
+				_.assert(e.code === 'InvalidParamId')//indexOf('invalid object id') !== -1)
 				done()
 			})
 			client.view('specific', [5005], function(v){

@@ -202,7 +202,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 
 	var prop;
 
-	log('streamProperty got ' + edits.length + ' edits')
+	log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
 	//console.log('streamProperty got ' + edits.length + ' edits')
 		
 	var tracker = makePathTracker(path)
