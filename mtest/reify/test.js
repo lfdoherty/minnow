@@ -25,13 +25,13 @@ exports.updateTemporaryIdAddedElsewhere = function(config, done){
 				var col = handle.make('col')
 				col.objs.add(e)
 				e.on('reify', function(){
-					return function(){
+					//return function(){
 						if(e.id() > 0){
 							if(col.objs.has(e)){
 								done()
 							}
 						}
-					}
+					//}
 				})
 			})
 		})
