@@ -118,7 +118,8 @@ function loadMinnowView(){
 	var viewName = schema._byCode[baseTypeCode].name
 
 	update.establishSocket(applicationName, schema, host, function(syncHandle){
-		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, mainViewParams, function(root){
+		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, mainViewParams, function(err, root){
+			if(err) _.errout('Error: ' + err)
 
 			getRoot = function(){return root;}
 			
