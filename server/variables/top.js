@@ -66,15 +66,24 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		//_.errout('TODO adjust size of top')
 		if(value > oldValue){
 			while(bottomHeap.size() > 0 && topHeap.size() < manyValue){
-				topHeap.add(bottomHeap.removeRoot())
+				var kv = bottomHeap.removeRoot()
+				topHeap.add(kv)
+				top[kv.key] = kv.value
+				if(oldMany !== undefined){
+					listeners.emitPut(kv.key, kv.value, undefined, editId)
+				}
 			}
 		}else if(value < oldValue){
 			while(topHeap.size() > manyValue){
-				bottomHeap.add(topHeap.removeRoot())
+				var kv = topHeap.removeRoot()
+				bottomHeap.add(kv)
+				delete top[kv.key]
+				if(oldMany !== undefined){
+					listeners.emitDel(kv.key, editId)
+				}
 			}
 		}
 		if(oldMany === undefined){
-			
 			topHeap.forEach(function(kv){
 				listeners.emitPut(kv.key, kv.value, undefined, editId)
 			})			
@@ -106,6 +115,26 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 	
 	var uid = Math.random()+''
 	
+	function replaceInTop(key, value){
+		var rkv
+		topHeap.data.forEach(function(kvv){
+			if(kvv.key === key){rkv = kvv}
+		})
+		_.assertObject(rkv)
+		var before = topHeap.size()
+		topHeap.remove(rkv)
+		_.assertEqual(before - topHeap.size(), 1)
+		topHeap.add({key: key, value: value})
+		_.assert(topHeap.size() <= manyValue)
+	}
+	function removeFromTop(key){
+		var rkv
+		topHeap.data.forEach(function(kvv){
+			if(kvv.key === key){rkv = kvv}
+		})
+		_.assertObject(rkv)
+		topHeap.remove(rkv)
+	}
 	elements.attach({
 		put: function(key, value, oldValue, editId){
 			_.assertInt(editId)
@@ -121,7 +150,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			}
 			
 			if(top[key] !== undefined){
-				s.log('already got')
+				s.log('*already got: ' + key)
 				//console.log('already got: ' + top[key])
 				if(bottomHeap.size() > 0){
 					var b = bottomHeap.peek()
@@ -132,25 +161,25 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 						top[b.key] = b.value
 
 
-						var rkv
-						topHeap.data.forEach(function(kvv){
-							if(kvv.key === key){rkv = kvv}
-						})
-						topHeap.remove(rkv)
+						removeFromTop(key)
 						listeners.emitDel(rkv.key,editId)
 						//console.log('full, del: ' + rkv.key)
 
 						topHeap.add(b)
+						_.assert(topHeap.size() <= manyValue)
+						
 						listeners.emitPut(b.key, b.value, oldValue, editId)
 						bottomHeap.removeRoot()
 						
 					}else{
 						top[key] = value
+						replaceInTop(key, value)
 						//console.log('inplace replace ' + oldValue + ' -> ' + value)
 						listeners.emitPut(key, value, oldValue, editId)
 					}
 				}else{
 					top[key] = value
+					replaceInTop(key, value)
 					listeners.emitPut(key, value, oldValue, editId)
 				}
 			}else{
@@ -170,9 +199,13 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 							kv = {key: key, value: value}
 						}
 						top[key] = value
+						
 						var rkv = topHeap.removeRoot()
 						_.assertEqual(t,rkv)
+						delete top[rkv.key]
+						
 						topHeap.add(kv)
+						_.assert(topHeap.size() <= manyValue)
 						listeners.emitPut(kv.key, kv.value, undefined, editId)
 						listeners.emitDel(rkv.key, editId)
 						bottomHeap.add(rkv)							
@@ -183,11 +216,13 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 						bottomHeap.add(kv)
 					}
 				}else{
+					//console.log('topHeap: ' + topHeap.size() + ', bottomHeap: ' + bottomHeap.size())
 					_.assertEqual(bottomHeap.size(), 0)
 					var kv = {key: key, value: value}
-					s.log('adding to top')
+					s.log('adding to top: ' + key)
 					top[key] = value
 					topHeap.add(kv)
+					_.assert(topHeap.size() <= manyValue)
 					listeners.emitPut(kv.key, kv.value, undefined, editId)
 				}
 			}

@@ -68,11 +68,8 @@ MapHandle.prototype.each = function(cb){
 				for(var i=0;i<value.length;++i){
 					var id = value[i]
 					_.assertInt(id)
-					var a
-					if(a === undefined){
-						a = local.getObjectApi(id);
-						if(a === undefined) _.errout('map object value not found: ' + id)
-					}
+					var a = local.getObjectApi(id);
+					if(a === undefined) _.errout('map object value not found: ' + id)
 					a.prepare()
 					cb(key, a);
 				}
@@ -379,6 +376,20 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		this.obj[key].push(edit.value)
 		//this.log('key: ' + key)
 		return this.emit(edit, 'put-add', key, edit.value, editId)
+	}else if(op.indexOf('putRemove') === 0){
+		//if(this.obj[key] === undefined) this.obj[key] = []
+		var list = this.obj[key]
+		list.splice(list.indexOf(edit.value), 1)//.push(edit.value)
+		//this.log('key: ' + key)
+		console.log('put-removed: ' + edit.value)
+		console.log(JSON.stringify(this.obj))
+		if(list.length === 0){
+			delete this.obj[key]
+		}
+		return this.emit(edit, 'put-remove', key, edit.value, editId)
+		if(list.length === 0){
+			this.emit(edit, 'del', key, editId)
+		}
 	}else if(op === 'didPutNew'){
 		/*this.obj[key] = edit.value;
 		this.log('key: ' + key)

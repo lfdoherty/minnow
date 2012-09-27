@@ -60,6 +60,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 		name: 'general-count',
 		attach: function(listener, editId){
 			listeners.add(listener)
+			//console.log('attached, setting count to: ' + currentCount)
 			listener.set(currentCount, 0, editId)
 		},
 		detach: function(listener, editId){
@@ -74,7 +75,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 	var currentOldest = elements.oldest()
 	function oldest(){
 		if(will){
-			s.log('count returning oldest: ' + currentOldest)
+			//console.log('count returning oldest: ' + currentOldest)
 			return currentOldest
 		}
 		else return elements.oldest()
@@ -93,7 +94,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 		//var oldOldest = currentOldest
 		currentOldest = elements.oldest()-1
 		if(currentCount !== count){
-			s.log('reporting count change ' + currentCount + ' -> ' + count)
+			//console.log('reporting count change ' + currentCount + ' -> ' + count)
 			var oldCount = currentCount
 			currentCount = count
 			listeners.emitSet(count, oldCount, currentOldest)
@@ -103,13 +104,13 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 	elements.attach({
 		add: function(value, editId){
 			++count
-			s.log('count increased: ' + count)
+			//console.log('count increased: ' + count)
 			reportCountChangeEventually(editId)
 			//listeners.emitSet(count, count-1, editId)
 		},
 		remove: function(value, editId){
 			--count
-			s.log('count decreased: ' + count)
+			//console.log('count decreased: ' + count)
 			reportCountChangeEventually(editId)
 			//listeners.emitSet(count, count+1, editId)
 		},

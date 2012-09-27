@@ -331,8 +331,6 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 						var oldValue = kv.value
 						if(multiState[kv.key] === undefined) multiState[kv.key] = []
 						multiState[kv.key].push(kv)
-						//listeners.emitPut(kv.key, kv.value, oldValue, editId)
-						//reduceState(kv.key)
 						reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, multiState, state, listeners, bindings, kv.key, editId)
 					}
 				}
@@ -343,10 +341,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					if(kv.key !== undefined){
 						if(multiState[kv.key] === undefined) multiState[kv.key] = []
 						multiState[kv.key].push(kv)
-						//reduceState(kv.key)
 						reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, multiState, state, listeners, bindings, kv.key, editId)
-						//s.log('emitting put')
-						//listeners.emitPut(kv.key, kv.value, oldValue, editId)
 					}
 				}
 				
@@ -360,11 +355,6 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			/*shouldHaveObject: function(id, flag, editId){
-				if(hasObjectValues){
-					_.errout('TODO')
-				}
-			},*/
 			objectChange: stub
 		}, editId)
 	}else{
@@ -436,11 +426,6 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			/*shouldHaveObject: function(id, flag, editId){
-				if(hasObjectValues){
-					_.errout('TODO')
-				}
-			},*/
 			objectChange: stub
 		}, editId)
 	}

@@ -63,6 +63,15 @@ VariableListeners.prototype.emitPutAdd = function(key, value, editId){
 		listener.putAdd(key, value, editId)
 	}
 }
+VariableListeners.prototype.emitPutRemove = function(key, value, editId){
+	_.assertLength(arguments, 3)
+	_.assertInt(editId)
+	//if(this.listeners.length === 0) console.log('no this.listeners')
+	for(var i=0;i<this.listeners.length;++i){
+		var listener = this.listeners[i]
+		listener.putRemove(key, value, editId)
+	}
+}
 VariableListeners.prototype.emitDel = function(key, editId){
 	_.assertLength(arguments, 2)
 	_.assertInt(editId)

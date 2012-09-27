@@ -200,7 +200,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			//has[id] = true
 			++manyObjectsOut
 			log('getting state(' + id + '): ' + manyObjectsOut)
-			console.log('getting state(' + id + '): ' + manyObjectsOut + ' ' + viewTypeCode)
+			//console.log('getting state(' + id + '): ' + manyObjectsOut + ' ' + viewTypeCode)
 
 			//gets only edits between the given range
 			//TODO set start point to -1 if the first ensure source falls within this snapshots edit interval

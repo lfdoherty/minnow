@@ -30,7 +30,7 @@ function multimapType(rel, ch){
 	var valueType = ch.computeMacroType(rel.params[2], ch.bindingTypes, binding2)
 	if(valueType.type !== 'list' && valueType.type !== 'set'){
 		valueType = {type: 'set', members: valueType}
-	}else if(valueType.type !== 'list'){
+	}else{// if(valueType.type !== 'list'){
 		valueType = {type: 'set', members: valueType.members}
 	}
 	return {type: 'map', key: keyType, value: valueType}
@@ -65,9 +65,15 @@ function multimapMaker(s, self, rel, typeBindings){
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
 	if(t.type === 'set' || t.type === 'list'){//if the result of the values macro is a set
-		if(reduceGetter === undefined) throw new Error('a reduce-macro is required for map(collection,key-macro,value-macro,reduce-macro) when the result of the value macro has multiple values.')
+
+		if(kt.type === 'set' || kt.type === 'list'){
+			//if(reduceGetter === undefined) throw new Error('a reduce-macro is required for multimap(collection,key-macro,value-macro,reduce-macro) when both the key and value macros produce multiple values.')
+			_.errout('TODO')
+		}else{
+			//_.errout('TODO')
+			return svgMapValueMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+		}
 		//return svgMapMultiple.bind(undefined, s, cache, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
-		_.errout('TODO')
 	}else{//if the result of the values macro is a single value
 		var hasObjectValues = t.type === 'object'
 		if(kt.type === 'set' || kt.type === 'list'){
@@ -128,7 +134,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 	elements.attach({
 		add: function(v, editId){
-			//s.log('ADDED: ' + v)
+			console.log('ADDED: ' + v)
 			
 			var newBindingsKey = copyBindings(bindings)
 			var newBindingsValue = copyBindings(bindings)
@@ -141,7 +147,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 			function addKey(k, editId){
 				keys.push(k)
-				s.log('ADD KEY: ' + k + ' ' + value)
+				console.log('ADD KEY: ' + k + ' ' + value)
 				if(value !== undefined){
 					var kvk = k+':'+value
 					if(multiCounts[kvk] === undefined){
@@ -156,16 +162,20 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			function removeKey(k, editId){
 				var i = keys.indexOf(k)
 				keys.splice(i, 1)
+				if(value === undefined) return
+				var kvk = k+':'+value
 				--multiCounts[kvk]
 				if(multiCounts[kvk] === 0){
 					delete multiCounts[kvk]
 					multiValues[k].splice(multiValues[k].indexOf(value), 1)
+					//listeners.emitDel(k, editId)
+					listeners.emitPutRemove(k, value, editId)
 				}
 			}
 			function valueListener(v, oldValue, editId){
 				_.assertInt(editId)
 				value = v
-				s.log('GOT VALUE: ' + v)
+				console.log('GOT VALUE: ' + v)
 				if(oldValue !== undefined){
 					for(var i=0;i<keys.length;++i){
 						var k = keys[i]
@@ -174,6 +184,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 						if(multiCounts[kvk] === 0){
 							delete multiCounts[kvk]
 							multiValues[k].splice(multiValues[k].indexOf(oldValue), 1)
+							listeners.emitPutRemove(k, oldValue, editId)
 						}
 					}
 				}
@@ -217,7 +228,161 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 	
 	var handle = {
-		name: 'multimap',
+		name: 'multimap-multikey',
+		attach: function(listener, editId){
+			listeners.add(listener)
+			Object.keys(state).forEach(function(key){
+				var value = state[key]
+				for(var i=0;i<value.length;++i){
+					listener.putAdd(key, value[i], editId)
+				}
+			})
+		},
+		detach: function(listener, editId){
+			listeners.remove(listener)
+			if(editId){
+				throw new Error('TODO')
+			}
+		},
+		oldest: oldest,
+		key: key
+	}
+		
+	return cache.store(key, handle)
+}
+
+
+function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit, bindings, editId){
+	var elements = contextGetter(bindings, editId)
+
+	var cKeyGetter = keyGetter(bindings, editId)
+	var cValueGetter = valueGetter(bindings, editId)
+
+	//_.assert(hasObjectValues)
+	
+	var key = elements.key+cKeyGetter.key+cValueGetter.key
+	
+	if(cache.has(key)) return cache.get(key)
+	
+	var listeners = listenerSet()
+	
+	var allSets = {}
+	function oldest(){
+		var oldestEditId = elements.oldest()
+		//s.log('*map: ' + oldestEditId)
+		Object.keys(allSets).forEach(function(key){
+			var v = allSets[key]
+			var old = v.key.oldest()
+			if(old < oldestEditId) oldestEditId = old
+			old = v.value.oldest()
+			if(old < oldestEditId) oldestEditId = old
+		})
+		//s.log('map: ' + oldestEditId)
+		return oldestEditId
+	}
+	
+
+	var multiCounts = {}
+	var multiValues = {}
+
+	var should = {}
+
+	var state = multiValues
+
+	elements.attach({
+		add: function(inputSetValue, editId){
+			var newBindingsKey = copyBindings(bindings)
+			var newBindingsValue = copyBindings(bindings)
+			newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(inputSetValue, editId, elements)
+			var newKeyVariable = cKeyGetter(newBindingsKey, editId)
+			var newValueVariable = cValueGetter(newBindingsValue, editId)
+			
+			var k
+			var values = []
+
+			function setKey(key, oldKey, editId){
+				k = key
+				s.log('SET KEY: ' + k + ' ' + oldKey + ' ' + JSON.stringify(values))
+				if(oldKey !== undefined){
+					for(var i=0;i<values.length;++i){
+						var v = values[i]
+						var kvk = oldKey+':'+v
+						--multiCounts[kvk]
+						if(multiCounts[kvk] === 0){
+							delete multiCounts[kvk]
+							multiValues[oldKey].splice(multiValues[k].indexOf(v), 1)
+							listeners.emitPutRemove(k, v, editId)
+						}
+					}
+				}
+				if(k !== undefined){
+					for(var i=0;i<values.length;++i){
+						var v = values[i]
+						var kvk = k+':'+v
+						//multiState[kvk] = multiState[kvk] ? multiState[kvk]+1 : 1
+						if(multiCounts[kvk] === undefined){
+							multiCounts[kvk] = 1
+							if(multiValues[k] === undefined) multiValues[k] = []
+							multiValues[k].push(v)
+						}else{
+							++multiCounts[kvk]
+						}					
+						listeners.emitPutAdd(k, v, editId)
+					}
+				}
+			}
+			
+			function addValue(v, editId){
+				if(values.indexOf(v) === -1){
+					values.push(v)
+				}
+				if(k !== undefined){
+					var kvk = k+':'+v
+					if(multiCounts[kvk] === undefined){
+						multiCounts[kvk] = 1
+						if(multiValues[k] === undefined) multiValues[k] = []
+						multiValues[k].push(v)
+						listeners.emitPutAdd(k, v, editId)
+					}else{
+						++multiCounts[kvk]
+					}
+				}
+			}
+			function removeValue(v, editId){
+				var i = values.indexOf(v)
+				values.splice(i, 1)
+				if(k !== undefined){
+					var kvk = k+':'+v
+					--multiCounts[kvk]
+					if(multiCounts[kvk] === 0){
+						delete multiCounts[kvk]
+						multiValues[k].splice(multiValues[k].indexOf(v), 1)
+						listeners.emitPutRemove(k, v, editId)
+					}
+				}
+			}
+			
+			allSets[inputSetValue] = {key: newKeyVariable, value: newValueVariable}
+
+			newKeyVariable.attach({
+				set: setKey
+			}, editId)
+			
+			newValueVariable.attach({
+				add: addValue,
+				remove: removeValue
+			}, editId)			
+		},
+		remove: function(v, editId){
+			var r = allSets[v]
+			r.key.detach(r.key, editId)
+			r.value.detach(r.value, editId)
+		},
+		objectChange: stub
+	}, editId)
+
+	var handle = {
+		name: 'multimap-multivalue',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){

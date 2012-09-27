@@ -202,6 +202,20 @@ putAddBoolean 104
 	value boolean 1
 putAddReal 105
 	value real 1
+
+putRemoveExisting 124
+	id int 1
+
+putRemoveInt 125
+	value int 1
+putRemoveString 126
+	value string 1
+putRemoveLong 127
+	value long 1
+putRemoveBoolean 128
+	value boolean 1
+putRemoveReal 129
+	value real 1
 	
 del 31
 

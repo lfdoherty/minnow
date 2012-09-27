@@ -1162,17 +1162,23 @@ buckets.Heap.prototype.minIndex = function(leftChild, rightChild) {
 buckets.Heap.prototype.remove = function(value) {
 
 	var index = this.data.indexOf(value)
-	if(index === -1) return
+	if(index === -1){
+		throw new Error('value not found')
+	}
 	if(index === 0){
 		this.removeRoot()
 		return
 	}
+	
 	if(this.data.length === 1){
 		this.data.length = 0
 		return
 	}
 	var last = this.data[this.data.length-1]
 	--this.data.length
+	if(last === value){
+		return
+	}
 	this.data[index] = last
 
     var parent = this.parentIndex(index);
@@ -1248,7 +1254,6 @@ buckets.Heap.prototype.add = function(element) {
  * undefined if the heap is empty.
  */
 buckets.Heap.prototype.removeRoot = function() {
-
     if (this.data.length > 0) {
         var obj = this.data[0];
         this.data[0] = this.data[this.data.length - 1];
