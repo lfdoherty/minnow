@@ -105,15 +105,17 @@ function schemaHash(schema){
 		if(sch.code === undefined) return
 		
 		s += sch.code+':'
-		_.each(sch.properties, function(p){
-			s += p.code+','
-			if(sch.isView){
-				var v = sch.viewSchema
-				var vr = v.rels[p.name]
-				_.assertObject(vr.schemaType)
-				s += viewExprHash(vr)
-			}
-		})
+		if(sch.properties){
+			_.each(sch.properties, function(p){
+				s += p.code+','
+				if(sch.isView){
+					var v = sch.viewSchema
+					var vr = v.rels[p.name]
+					_.assertObject(vr.schemaType)
+					s += viewExprHash(vr)
+				}
+			})
+		}
 	})
 	return s
 }
