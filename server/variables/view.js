@@ -198,7 +198,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							_.assertInt(editId)
 							_.assertPrimitive(value)
 							var edit = {id: value}
-							console.log('got put-add: ' + key + ' ' + value)
+							//console.log('got put-add: ' + key + ' ' + value)
 							_.assertInt(value)
 							listener.objectChange(/*viewTypeCode, viewId, */viewTypeCode, viewId, 
 								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: 'selectIntKey', edit: {key: key}}], 

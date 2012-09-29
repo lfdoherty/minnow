@@ -80,7 +80,7 @@ function establishSocket(appName, schema, host, cb){
 	
 	ws.onmessage = function(msg) {
 		msg = msg.data
-		console.log('message: ' + msg)
+		//console.log('message: ' + msg)
 		var msgs = JSON.parse(msg)
 		
 		

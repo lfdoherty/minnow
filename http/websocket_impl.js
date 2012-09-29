@@ -15,6 +15,12 @@ exports.make = function(authenticateByToken, local){
 	var senders = {}
 	
 	var handle = {
+		handleErrors: function(){
+			return function(e){
+				_.assertDefined(e)
+				console.log('websocket error: ' + e)
+			}
+		},
 		exposeBeginSync: function(cb, endCb){
 
 			wss = new WebSocketServer({server: local.getServer()/*, path: '/websocket'*/})

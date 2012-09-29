@@ -6,6 +6,12 @@ exports.make = function(app, appName, identifier){
 	var userTokenBySyncId = {}
 
 	var handle = {
+		handleErrors: function(){
+			return function(e){
+				_.assertDefined(e)
+				console.log('longpoll error: ' + e)
+			}
+		},
 		exposeBeginSync: function(cb){
 		
 			app.get(exports, '/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){

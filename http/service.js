@@ -140,16 +140,22 @@ exports.make = function(schema, cc){
 			log('getting snapshots: ' + JSON.stringify(params))
 			var getMsg = {typeCode: viewCode, params: JSON.stringify(params)}
 			_.assert(getMsg.params != 'null')
-			cc.getSnapshots(getMsg, _.once(function(e){
+			cc.getSnapshots(getMsg, _.once(function(err, e){
+				if(err){
+					console.log(err)
+					console.log(new Error().stack)
+					cb(err)
+					return
+				}
 
 				var snapshotIds = e.snapshotVersionIds.concat([-1]);
 				var lastVersionId = snapshotIds[snapshotIds.length-2]//e.lastVersionId;
 				//console.log(JSON.stringify(e))
 				_.assertInt(lastVersionId)
 
-				if(arguments.length === 0){
+				/*if(arguments.length === 0){
 					cb();
-				}else{
+				}else{*/
 					var key;
 
 					if(s.isView){
@@ -170,8 +176,8 @@ exports.make = function(schema, cc){
 						paths.push(serverStateUid + '/' + viewCode + '/' + id + '/' + previousId + '/' + key);
 					}
 				
-					cb(snapshotIds, paths, lastVersionId);
-				}
+					cb(undefined, snapshotIds, paths, lastVersionId);
+				//}
 			}));
 		},
 		

@@ -30,6 +30,9 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		msgBuffer = []*/
 	},50)
 	
+	var ee = impl.handleErrors()
+	minnowClient.on('error', ee)
+	
 	impl.exposeBeginSync(function(userToken, replyCb){
 		_.assertLength(arguments, 2)
 		

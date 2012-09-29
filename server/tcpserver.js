@@ -413,8 +413,10 @@ function createTcpServer(appSchema, port, s, readyCb){
 				s.forgetTemporary(temporaryId, e.syncId)
 			},
 			getSnapshots: function(e){
-				s.getSnapshots(e, function(versionList){
-
+				s.getSnapshots(e, function(err, versionList){
+					if(err){
+						_.errout('TODO: ' + err)
+					}
 					
 					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList)}
 					res.requestId = e.requestId;

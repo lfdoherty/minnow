@@ -44,17 +44,24 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 	
 	//console.log(require('util').inspect(st));
 	_.assertInt(st.code);
+	//console.log(new Error().stack)
 	
-	cc.getSnapshots({typeCode: st.code, params: paramsStr}, function(res){
+	cc.getSnapshots({typeCode: st.code, params: paramsStr}, function(err, res){
+		if(err){
+			console.log('getView error: ' + err)
+			cb(err)
+			return
+		}
 		var snapshotIds = res.snapshotVersionIds;
 		//console.log(JSON.stringify(snapshotIds));
 		for(var i=0;i<snapshotIds.length;++i){
 			_.assertInt(snapshotIds[i]);
 		}
-		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds}, function(e, snapshotsRes){
+		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds}, function(err, snapshotsRes){
 		
-			if(e){
-				cb(e)
+			if(err){
+				console.log('getAllSnapshots error: ' + err)
+				cb(err)
 				return
 			}
 		
@@ -275,23 +282,25 @@ function makeClient(host, port, clientCb){
 		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
 			_.assertFunction(cb)
 			log(uid + ' getting view ' + type + JSON.stringify(params))
-			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(e){
-				if(e){
-					//console.log('e: ' + e)
-					//throw e
-					if(errorListeners.length > 0){
-						errorListeners.forEach(function(listener){listener(e);})
-					}else{
-						console.log('received error from server: ' + e)
-						throw e
+			//_.assert(errorListeners.length > 0)
+			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(err){
+				if(err){
+					if(cb.length === 1){
+						throw err
 					}
-					//cb()
+					//console.log('getView error in client: ' + err)
+					console.log('view "' + type + '" load failed with error: ' + err)
+					cb(err)
 					return
 				}
 				var viewId = st.code+':'+JSON.stringify(params)
 				log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
-				cb(api.getView(viewId))
+				if(cb.length === 1){
+					cb(api.getView(viewId))
+				}else{
+					cb(undefined, api.getView(viewId))
+				}
 			})
 		},function(type, params){
 			//console.log(require('util').inspect(params))

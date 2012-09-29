@@ -135,35 +135,37 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 	//	__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
 	
 	return {
-		getViewTags: function(viewName, params, vars, cb){
-			_.assertLength(arguments, 4);
+		getViewTags: function(viewName, params, vars, res, cb){
+			_.assertLength(arguments, 5);
 			
 			var viewSchema = minnowClient.schema[viewName]
 			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
 			var viewCode = viewSchema.code
-			service.getViewFiles(viewName, params, function(snapshotIds, paths, lastSeenVersionId){
+			service.getViewFiles(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
 				
-				if(arguments.length === 0){
-					cb();
-				}else{
-					var res = [];
-				
-					vars.snapshotIds = snapshotIds;
-					vars.lastId = lastSeenVersionId;
-					vars.baseTypeCode = viewCode;
-					vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
-					vars.applicationName = appName
-					vars.mainViewParams = params
-					
-					for(var i=0;i<paths.length;++i){
-						var p = paths[i];
-						res.push(snapPath + p);
-					}
-				
-					res.push(schemaUrl);
-				
-					cb(vars, res);
+				if(err){
+					console.log('view files error: ' + JSON.stringify(err))
+					res.send(500)
+					return
 				}
+				
+				var result = [];
+			
+				vars.snapshotIds = snapshotIds;
+				vars.lastId = lastSeenVersionId;
+				vars.baseTypeCode = viewCode;
+				vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
+				vars.applicationName = appName
+				vars.mainViewParams = params
+				
+				for(var i=0;i<paths.length;++i){
+					var p = paths[i];
+					result.push(snapPath + p);
+				}
+			
+				result.push(schemaUrl);
+			
+				cb(vars, result);
 			});
 		}
 	};

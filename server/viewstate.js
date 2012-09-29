@@ -130,7 +130,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var realVersions = [c-1]//would be -1, except we want to keep the *previous* editId open for time-triggered appends
 			log('GOT SNAPSHOTS: ', realVersions[0])
 			//log(new Error().stack)
-			cb(realVersions)
+			cb(undefined, realVersions)
 		},
 		getAllSnapshotStates: function(typeCode, params, snapshotIds, cb, errCb){
 

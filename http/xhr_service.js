@@ -91,7 +91,13 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				console.log('WARNING: security policy denied access to view: ' + viewName);
 				return
 			}
-			service.getViewFiles(viewName, params, function(snapshotIds, paths, lastSeenVersionId){
+			service.getViewFiles(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
+				if(err){
+					console.log('xhr getViewFiles error: ' + err)
+					httpRes.send(500)
+					return
+				}
+				
 				_.assertInt(lastSeenVersionId)
 			
 				var res = [];

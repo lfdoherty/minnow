@@ -368,7 +368,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		try{
 			deser(data);
 		}catch(e){
-			console.log('WARNING: deserialization error: ' + e.stack)
+			console.log('WARNING: deserialization error: ' + e + '\n' + e.stack)
 			client.removeListener('data', dataListener)
 			client.destroy()
 			clientDestroyed = true
@@ -517,7 +517,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			applyRequestId(e, function(res){
 				//console.log('res: ' + JSON.stringify(res))
 				res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
-				cb(res)
+				cb(undefined, res)
 			});
 			w.getSnapshots(e);
 			log('tcpclient: getSnapshots: ' + JSON.stringify(e))

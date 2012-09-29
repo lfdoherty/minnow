@@ -304,7 +304,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				if(schema._byCode[typeCode].isView){
 					viewState.getSnapshots(typeCode, params, cb);
 				}else{
-					_.errout('ERROR')
+					//_.errout('ERROR')
+					cb(new Error('view does not exist: ' + schema._byCode[typeCode].name))
 				}
 			},
 			getAllSnapshots: function(e, cb){
