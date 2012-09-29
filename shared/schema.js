@@ -366,13 +366,15 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 					throw new Error('type code of ' + name + ' already taken: ' + st.code);
 				}
 				takenObjectTypeCodes[st.code] = true
-				_.each(st.superTypes, function(v, superType){
-					if(reservedTypeNames.indexOf(superType) === -1){
-						if(schema[superType] === undefined) _.errout('cannot find super type "' + superType + '" of "' + name + '"');
-						if(schema[superType].subTypes === undefined) schema[superType].subTypes = {}
-						schema[superType].subTypes[name] = true;
-					}
-				});
+				if(st.superTypes){
+					_.each(st.superTypes, function(v, superType){
+						if(reservedTypeNames.indexOf(superType) === -1){
+							if(schema[superType] === undefined) _.errout('cannot find super type "' + superType + '" of "' + name + '"');
+							if(schema[superType].subTypes === undefined) schema[superType].subTypes = {}
+							schema[superType].subTypes[name] = true;
+						}
+					});
+				}
 			});
 			
 			cb(schema, globalMacros);
