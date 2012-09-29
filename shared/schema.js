@@ -978,7 +978,7 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 	_.assertObject(schema);
 
 	var takenCodes = {};
-	_.each(_.byCode, function(value, typeCodeStr){
+	_.each(schema._byCode, function(value, typeCodeStr){
 		_.assertInt(value.code);
 		takenCodes[value.code] = true;
 	});
