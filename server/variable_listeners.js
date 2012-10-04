@@ -20,7 +20,7 @@ VariableListeners.prototype.remove = function(listener){
 	_.assertObject(listener)
 	var i = this.listeners.indexOf(listener)
 	if(i === -1){
-		_.errout('removing listener we do not have: ' + listener)
+		_.errout('WARNING: removing listener we do not have: ' + listener)
 	}
 	//_.assert(i !== -1)
 	this.listeners.splice(i, 1)

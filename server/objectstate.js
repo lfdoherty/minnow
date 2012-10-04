@@ -609,7 +609,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 		isDeleted: function(id){
 			return ol.isDeleted(id)
 		},
-		addEdit: function(id, op, path, edit, syncId, computeTemporary){
+		addEdit: function(id, op, path, edit, syncId, computeTemporary, reifyCb){
 			//_.assertLength(arguments, 7);
 			if(op !== 'make' && op !== 'forgetTemporary') _.assertInt(id);
 			_.assertInt(syncId);
@@ -625,7 +625,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 					id = ap.translateTemporaryId(id, syncId)
 				}
 				_.assert(id > 0)
-				pm(id, path, op, edit, syncId, computeTemporary)
+				pm(id, path, op, edit, syncId, computeTemporary, reifyCb)
 			}
 		},
 		translateTemporaryId: function(id, syncId){

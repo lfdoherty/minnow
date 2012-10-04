@@ -96,13 +96,14 @@ function deserializeSnapshot(readers, names, snap){
 	var rs = fparse.makeSingleReader(snap)
 	return deserializeSnapshotInternal(readers, names, rs)
 }
-function make(host, port, defaultChangeListener, defaultObjectListener, defaultMakeListener, readyCb){
-	_.assertLength(arguments, 6);
+function make(host, port, defaultChangeListener, defaultObjectListener, defaultMakeListener, defaultReifyListener, readyCb){
+	_.assertLength(arguments, 7);
 	_.assertString(host)
 	_.assertInt(port);
 	_.assertFunction(defaultChangeListener)
 	_.assertFunction(defaultObjectListener)
 	_.assertFunction(defaultMakeListener)
+	_.assertFunction(defaultReifyListener)
 	_.assertFunction(readyCb);
 	
 	//console.log('making tcp client')
@@ -249,6 +250,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			makeCb(e.id, e.requestId, e.temporary)
 			//defaultMakeListener(e.id, e.requestId)//TODO shouldn't this depend on which syncId we're informing?
 		},
+		reifyObject: function(e){
+			var reifyCb = syncListenersBySyncId[e.destinationSyncId].reify
+			reifyCb(e.temporary, e.id)
+		},
 		/*gotVersionTimestamps: function(e){
 			var timestamps = []
 			for(var i=0;i<e.timestamps.length;i+=8){
@@ -358,7 +363,11 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		deser = fparse.makeReadStream(shared.serverResponses, reader)
 		
 		defaultSyncHandle = makeSyncHandle(syncId, defaultMakeListener)
-		syncListenersBySyncId[syncId] = {edit: defaultChangeListener, object: defaultObjectListener, make: defaultMakeListener}
+		syncListenersBySyncId[syncId] = {
+			edit: defaultChangeListener, 
+			object: defaultObjectListener, 
+			make: defaultMakeListener,
+			reify: defaultReifyListener}
 		//makeCbListenersBySyncId[syncId] = defaultMakeListener
 		
 		flushIntervalHandle = setInterval(doFlush, 20)
@@ -495,11 +504,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		//even though we provide a default sync handle, we include the ability to create them
 		//for the purposes of proxying.
-		beginSync: function(listenerCb, objectCb, makeCb, cb){
-			_.assertLength(arguments, 4)
+		beginSync: function(listenerCb, objectCb, makeCb, reifyCb, cb){
+			_.assertLength(arguments, 5)
 			_.assertFunction(listenerCb)
 			_.assertFunction(objectCb)
 			_.assertFunction(makeCb)
+			_.assertFunction(reifyCb)
 			_.assertFunction(cb);
 			var e = {};
 			applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
@@ -507,7 +517,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			log('BEGAN SYNC CLIENT')
 
 			w.beginSync(e);
-			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb, make: makeCb}
+			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb, make: makeCb, reify: reifyCb}
 			
 			
 		},

@@ -271,7 +271,7 @@ ObjectHandle.prototype.propertyTypes = function(propertyName){
 ObjectHandle.prototype.properties = getProperties;
 
 ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, syncId, editId){
-	if(op === 'setObject' || op === 'setViewObject'){
+	if(op === 'setObject' || op === 'setViewObject' || op === 'clearObject'){
 		_.assertInt(descentCode)
 		var ps = this.typeSchema.propertiesByCode[descentCode];
 		_.assertObject(ps)
@@ -301,7 +301,7 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 			//}
 			this.emit(edit, 'set', ps.name, setObj)			
 		}
-	}else if(op === 'clearObject'){
+	}else if(op === 'clearObject' || op === 'clearProperty'){
 		var ps = this.typeSchema.propertiesByCode[descentCode];
 		this[ps.name] = undefined
 	}else if(op === 'setToNew'){
@@ -495,6 +495,26 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	
 	return n
 
+}
+
+ObjectHandle.prototype.clearProperty = function(propertyName){
+	_.assertLength(arguments, 1)
+	
+	if(this.typeSchema.isView){//TODO verify from eventual server->client update
+		//this.log('is view, just setting')
+		this.cachedProperties[propertyName] = undefined
+		return
+	}
+	
+	var pt = this.typeSchema.properties[propertyName];
+	_.assertDefined(pt);
+	
+	this[propertyName] = undefined
+	
+	this.adjustPath(pt.code)
+	this.persistEdit('clearProperty', {})
+	
+	this.emit({}, 'clearProperty', propertyName)
 }
 
 ObjectHandle.prototype.setProperty = function(propertyName, newValue){

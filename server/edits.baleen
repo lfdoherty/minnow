@@ -96,6 +96,8 @@ setObject 21
 	id int 1
 clearObject 73
 
+clearProperty 140
+
 setViewObject 107
 	id string 1
 	

@@ -373,6 +373,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				var kv = {}
 				
 				function keyListener(value, oldValue, editId){
+					kv.key = value	
 					if(value === undefined){
 						if(oldValue !== undefined){
 							var oldKvValue = state[oldValue]
@@ -384,7 +385,6 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 						//console.log('map key, value undefined: ' + value)
 					}else{
 						//console.log('map key: ' + value + ' ' + typeof(value))
-						kv.key = value	
 						if(kv.value !== undefined){				
 							var oldValue = kv.value
 							state[kv.key] = kv.value

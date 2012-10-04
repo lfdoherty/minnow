@@ -215,7 +215,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							_.assertInt(editId)
 							_.assertPrimitive(value)
 							var edit = {value: value}
-							console.log('got put-add: ' + key + ' ' + value)
+							//console.log('got put-add: ' + key + ' ' + value)
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								putAddOpName, edit, -1, editId)
@@ -224,7 +224,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							_.assertInt(editId)
 							_.assertPrimitive(value)
 							var edit = {value: value}
-							console.log('got put-remove: ' + key + ' ' + value)
+							//console.log('got put-remove: ' + key + ' ' + value)
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								putRemoveOpName, edit, -1, editId)

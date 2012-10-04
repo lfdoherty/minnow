@@ -118,7 +118,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
-			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, cb){//(typeCode, id, path, op, edit, syncId, cb){
+			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
 				_.assertInt(id)
@@ -138,7 +138,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					}
 					return id
 				}else{
-					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId);
+					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, reifyCb);
 				}
 			},
 			getVersionTimestamps: function(versions, cb){

@@ -37,11 +37,15 @@ function topByValuesMaker(s, self, rel, typeBindings){
 function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 
 	var many = manyGetter(bindings, editId)
+	//_.assertDefined(manyGetter.key)
 	var elements = elementsGetter(bindings, editId)
-	var key = elements.key+manyGetter.key
+	var key = elements.key+many.key//+Math.random()
+	var variableKey = key
 	if(cache.has(key)) return cache.get(key)
 	
 	var listeners = listenerSet()
+	
+	var uid = Math.random()
 	
 	var manyValue;
 	
@@ -98,11 +102,13 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			_.assertFunction(listener.del)
 			_.assertInt(editId)
 			topHeap.forEach(function(kv){
+				//console.log(uid+' attach putting: ' + kv.key + ' -> ' + kv.value)
 				listener.put(kv.key, kv.value, undefined, editId)
 			})
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
+			//console.log(uid+' detaching from top')
 			if(editId){
 				_.errout('TODO')
 			}
@@ -162,7 +168,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 
 
 						removeFromTop(key)
-						listeners.emitDel(rkv.key,editId)
+						listeners.emitDel(key,editId)
 						//console.log('full, del: ' + rkv.key)
 
 						topHeap.add(b)
@@ -230,6 +236,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		del: function(key, editId){
 		
 			s.log(uid+' top got del: ' + key)
+			//console.log(uid+' top got del: ' + key)
 			delete top[key]
 			
 			if(bottomHeap.size() > 0){
@@ -258,8 +265,12 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				if(kv === undefined){
 					_.errout('cannot find key: ' + key +'\n'+JSON.stringify(topHeap.data))
 				}
-				
+				var before = topHeap.size()
 				topHeap.remove(kv)
+				var after = topHeap.size()
+				//console.log(before + ' -- ' + after)
+				//console.log(variableKey)
+				//console.log(uid+ ' top emitted del: ' + kv.key)
 				listeners.emitDel(kv.key, editId)
 			}
 		},

@@ -49,6 +49,8 @@ function destroyedWarning(){
 
 TopObjectHandle.prototype.replaceObjectHandle = ObjectHandle.prototype.replaceObjectHandle
 
+TopObjectHandle.prototype.clearProperty = ObjectHandle.prototype.clearProperty
+
 TopObjectHandle.prototype.isDefined = function(){return true;}
 
 TopObjectHandle.prototype.getTopObject = function(){return this;}
@@ -511,7 +513,7 @@ function maintainPath(local, op, edit, syncId, editId){
 		local[property.name] = n
 		
 	}else{
-		if(op === 'delKey' || op === 'setObject' || op === 'clearObject' || op === 'setViewObject' || op.indexOf('put') === 0 || op === 'removeExisting' || op === 'del' || op === 'didPutNew'){
+		if(op === 'delKey' || op === 'setObject' || op === 'clearObject' || op === 'clearProperty' || op === 'setViewObject' || op.indexOf('put') === 0 || op === 'removeExisting' || op === 'del' || op === 'didPutNew'){
 			_.assert(local.pathEdits.length > 0)
 			var lastCode
 			var lastEdit = local.pathEdits[local.pathEdits.length-1]

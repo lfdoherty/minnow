@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.update = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.s.size() === 1){
@@ -21,7 +21,7 @@ exports.update = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {key: 'blah', value: 'vblah'})
 					})
 				})
@@ -33,7 +33,7 @@ exports.update = function(config, done){
 exports.topByValues = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('generalTop', function(c){
+			client.view('generalTop', function(err, c){
 
 				var expected = JSON.stringify([21, 22, 28])
 				poll(function(){
@@ -54,7 +54,7 @@ exports.topByValues = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity', {key: 'tim', age: 19})
 						v.make('entity', {key: 'robert', age: 18})
 						v.make('entity', {key: 'janice', age: 22})
@@ -70,7 +70,7 @@ exports.topByValues = function(config, done){
 exports.mapReduce = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('mapReduce', function(c){
+			client.view('mapReduce', function(err, c){
 
 				var expected = {a: 37, b: 50, c: 21}
 				poll(function(){
@@ -91,7 +91,7 @@ exports.mapReduce = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity', {key: 'a', age: 19})
 						v.make('entity', {key: 'a', age: 18})
 						v.make('entity', {key: 'b', age: 22})
@@ -107,7 +107,7 @@ exports.mapReduce = function(config, done){
 exports.topByValuesWithDel = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('generalTop', function(c){
+			client.view('generalTop', function(err, c){
 
 				var expected = JSON.stringify([19, 22, 28])
 				poll(function(){
@@ -128,7 +128,7 @@ exports.topByValuesWithDel = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity', {key: 'tim', age: 19})
 						v.make('entity', {key: 'robert', age: 18})
 						v.make('entity', {key: 'janice', age: 22})
@@ -144,10 +144,71 @@ exports.topByValuesWithDel = function(config, done){
 	})
 }
 
+exports.topByValuesWithDelAndLimiter = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('empty', function(err, vv){
+			
+				var limit = vv.make('limiter', {minAge: 18}, function(){
+			
+					client.view('paramTop', [limit.id()], function(err, c){
+
+						var expected = JSON.stringify([19, 21, 24, 28])
+						var laterExpected = JSON.stringify([24, 28])
+						var gotExpected = false
+						poll(function(){
+							if(c.threeOldest.size() === 4){
+								//console.log(JSON.stringify(c.threeOldest.toJson()))
+								var data = c.threeOldest.toJson()
+								var ages = _.map(Object.keys(data), function(key){return data[key];})
+								ages.sort()
+								if(JSON.stringify(ages) === expected){
+									gotExpected = true
+									done()
+									return true
+								}else{
+									console.log('value: ' + JSON.stringify(ages))
+								}
+							}else if(gotExpected && c.threeOldest.size() === 2){
+								var ages = _.map(Object.keys(data), function(key){return data[key];})
+								ages.sort()
+								if(JSON.stringify(ages) === laterExpected){
+									gotExpected = true
+									done()
+									return true
+								}else{
+									console.log('*value: ' + JSON.stringify(ages))
+								}
+							}else{
+								console.log('many: ' + c.threeOldest.size())
+							}
+						})
+
+						minnow.makeClient(config.port, function(otherClient){
+							otherClient.view('empty', function(err, v){
+								v.make('entity', {key: 'tim', age: 19})
+								v.make('entity', {key: 'robert', age: 18})
+								//v.make('entity', {key: 'janice', age: 22})
+								v.make('entity', {key: 'horace', age: 24})
+								v.make('entity', {key: 'sue', age: 28})
+								var toChange = v.make('entity', {key: 'bruce', age: 21})
+								setTimeout(function(){
+									toChange.age.set(17)
+									limit.minAge.set(20)
+								},100)
+							})
+						})
+					})
+				})
+			})
+		})
+	})
+}
+
 exports.testSyncInputSetRemoval = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('syncInputSetRemoval', function(c){
+			client.view('syncInputSetRemoval', function(err, c){
 
 				var gotFirst = false
 				poll(function(){
@@ -162,7 +223,7 @@ exports.testSyncInputSetRemoval = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity', {key: 'tim', value:'bill'})
 						var toChange = v.make('entity', {key: 'bruce', value: 'bill'})
 						setTimeout(function(){

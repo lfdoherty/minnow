@@ -47,14 +47,15 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 
 			objectListener(sh, id, edits)
 		}
-		function makeCb(id, temporary){
-
+		function reifyCb(temporary, id){
+			_.assert(temporary < 0)
+			_.assert(id > 0)
 			//impl.sendToClient(theSyncId, ['reify', id, temporary])
 			//msgBuffer.push([theSyncId, ['reify', id, temporary]])
 			sh.msgs.push(['reify', id, temporary])
 		}
 
-		minnowClient.beginSync(listenerCb, objectCb, makeCb, function(syncId, syncHandle){
+		minnowClient.beginSync(listenerCb, objectCb, reifyCb, reifyCb, function(syncId, syncHandle){
 			theSyncId = syncId
 
 			sh = syncHandles[syncId] = syncHandle

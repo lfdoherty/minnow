@@ -10,7 +10,17 @@ general() 100
 	s map(*entity,{~.key},{~.value}) 1
 generalTop() 101
 	threeOldest topByValues(3, map(*entity,{~.key},{~.age})) 2
-	
+
+limiter 3
+	minAge int 1
+
+oldEnough(limit limiter){
+	subset(*entity, {greaterThan(~.age,limit.minAge)})
+}
+
+paramTop(limit limiter) 105
+	threeOldest topByValues(4, map(oldEnough(limit),{~.key},{~.age})) 2
+
 mapReduce() 103
 	oldestWithKey map(*entity,{~.key},{~.age},{add(~,~2)}) 1
 	

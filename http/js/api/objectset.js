@@ -152,13 +152,13 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
 		if(this.getEditingId() === syncId){
-			var objHandle = this.get(temporary);
+			/*var objHandle = this.get(temporary);
 			if(objHandle === undefined){
 				this.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
 				return;
 			}
 			objHandle.reify(id)
-			return
+			return*/
 		}else{
 			_.assertInt(id)
 

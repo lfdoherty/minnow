@@ -126,7 +126,7 @@ function make(schema, ol){
 	var currentId
 	var currentSyncId
 	
-	function persistEdit(typeCode, id, path, op, edit, syncId, computeTemporary, timestamp, cb){
+	function persistEdit(typeCode, id, path, op, edit, syncId, computeTemporary, timestamp, reifyCb){
 		//_.assertLength(arguments, 8);
 				
 		_.assertInt(typeCode)
@@ -266,13 +266,16 @@ function make(schema, ol){
 		if(op === 'putNew'){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
+			if(reifyCb) reifyCb(temporary, newId)
 		}else if(op === 'setToNew'){
 			e.id = newId
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
+			if(reifyCb) reifyCb(temporary, newId)
 		}else if(op === 'addNew' || op === 'replaceInternalNew' || op === 'replaceExternalNew'){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
+			if(reifyCb) reifyCb(temporary, newId)
 		}/*else if(op === 'replaceInternalNew'){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
@@ -280,8 +283,10 @@ function make(schema, ol){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 		}*/else if(op === 'setToNew'){
+			var temporary = computeTemporary()
 			e.id = newId
-			e.temporary
+			//e.temporary
+			if(reifyCb) reifyCb(temporary, newId)
 		}
 			
 		log(editId, id, path, op, edit, syncId)
@@ -316,7 +321,7 @@ function make(schema, ol){
 
 		broadcaster.input.objectChanged(typeCode, id, path, realOp, realEdit, syncId, editId)	
 		
-		if(cb) cb({editId: editId})
+		//if(cb) cb({editId: editId})
 		//return newId
 	}		
 	var externalHandle = {

@@ -104,13 +104,13 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 			
 			//console.log('advancing: ' + JSON.stringify(e))
 			
-			callAp(typeCode, e.id, curPath, e.op, e.edit, e.syncId, e.computeTemporary, Date.now())//TODO address serialization issue with timestamp
+			callAp(typeCode, e.id, curPath, e.op, e.edit, e.syncId, e.computeTemporary, Date.now(), e.reifyCb)//TODO address serialization issue with timestamp
 		})
 		delete olMap[id]
 	}
-	function take(id, path, op, edit, syncId, computeTemporary){
+	function take(id, path, op, edit, syncId, computeTemporary, reifyCb){
 	//	_.assertFunction(cb)
-		var e = {id: id, op: op, edit: edit, syncId: syncId, path: path, computeTemporary: computeTemporary}//, cb: cb}
+		var e = {id: id, op: op, edit: edit, syncId: syncId, path: path, computeTemporary: computeTemporary, reifyCb: reifyCb}//, cb: cb}
 
 		//for(var i=0;i<path.length;++i){_.assertObject(path[i]);}
 

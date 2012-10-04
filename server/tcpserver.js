@@ -366,6 +366,11 @@ function createTcpServer(appSchema, port, s, readyCb){
 
 				var tg = getTemporaryGenerator(syncId)//temporaryGeneratorsBySyncId[syncId]
 				//_.assertFunction(tg)
+				
+				function reifyCb(temporary, id){
+					var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
+					w.reifyObject(msg);
+				}
 				if(op === 'make'){
 
 					pathFromClientFor[syncId] = undefined
@@ -387,7 +392,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getPath(), e.edit, syncId])
 						c.destroy()
 					}else{
-						s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+						s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg, reifyCb)
 					}
 				}
 			},

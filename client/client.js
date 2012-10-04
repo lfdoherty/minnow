@@ -227,6 +227,10 @@ function makeClient(host, port, clientCb){
 		}
 	}
 	
+	function defaultReifyListener(temporary, id){
+		api.reifyObject(temporary, id)
+	}
+	
 	function makeTemporary(){
 		return api.makeTemporaryId()
 	}
@@ -256,7 +260,7 @@ function makeClient(host, port, clientCb){
 
 	var dbSchema
 	
-	tcpclient.make(host, port, changeListenerWrapper, objectListenerWrapper, defaultMakeListener, function(serverHandle, syncId){
+	tcpclient.make(host, port, changeListenerWrapper, objectListenerWrapper, defaultMakeListener, defaultReifyListener, function(serverHandle, syncId){
 		_.assertInt(syncId)
 		
 		listeningSyncId = syncId
@@ -318,17 +322,18 @@ function makeClient(host, port, clientCb){
 			schema: dbSchema,
 			//schemaName: dbName,
 			internalClient: cc,
-			beginSync: function(listenerCb, objectCb, makeCb, cb){
-				_.assertLength(arguments, 4)
+			beginSync: function(listenerCb, objectCb, makeCb, reifyCb, cb){
+				_.assertLength(arguments, 5)
 				_.assertFunction(listenerCb)
 				_.assertFunction(objectCb)
 				_.assertFunction(makeCb)
+				_.assertFunction(reifyCb)
 				//_.assertFunction(versionTimestamps)
 				_.assertFunction(cb)
 				function makeCbWrapper(id, requestId, temporary){
-					makeCb(id, temporary)
+					makeCb(temporary, id)
 				}
-				cc.beginSync(listenerCb, objectCb, makeCbWrapper, function(syncId, syncHandle){
+				cc.beginSync(listenerCb, objectCb, makeCbWrapper, reifyCb, function(syncId, syncHandle){
 					_.assertLength(arguments, 2)
 					_.assertInt(syncId)
 					_.assertObject(syncHandle)

@@ -226,10 +226,18 @@ function _makeAndSaveNew(json, type){
 	var n = new ObjectHandle(type, edits, temporary, [temporary], this);
 	if(this.objectApiCache === undefined) this.objectApiCache = {}
 	this.objectApiCache[temporary] = n;
+	this.saveTemporaryForLookup(temporary, n, this)
+	
+	console.log('made and saved new: '+ temporary)
 	
 	n.prepare()
 	
 	return n
+}
+
+SyncApi.prototype.saveTemporaryForLookup = function(temporary, n, local){
+	if(this.temporaryCache === undefined) this.temporaryCache = {}
+	this.temporaryCache[temporary] = {n: n, local: local}
 }
 
 function log(){
@@ -268,6 +276,10 @@ function getLastEditor(){
 	return this.parent.getLastEditor()
 }
 
+function saveTemporaryForLookup(temporary, n, obj){
+	return this.parent.saveTemporaryForLookup(temporary, n, obj)
+}
+
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
@@ -296,6 +308,7 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype._getVersions === undefined) classPrototype._getVersions = _getVersions
 	//if(classPrototype.getVersionTimestamps === undefined) classPrototype.getVersionTimestamps = getVersionTimestamps
 	if(classPrototype.getLastEditor === undefined) classPrototype.getLastEditor = getLastEditor
+	if(classPrototype.saveTemporaryForLookup === undefined) classPrototype.saveTemporaryForLookup = saveTemporaryForLookup
 }
 
 
@@ -587,7 +600,7 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
 	//this.log('reifying id ' + temporaryId + ' -> ' + realId)
-	//console.log('reifying id ' + temporaryId + ' -> ' + realId + ' for ' + this.getEditingId())
+	console.log('reifying id ' + temporaryId + ' -> ' + realId + ' for ' + this.getEditingId())
 
 	_.assert(temporaryId < 0)
 	
@@ -601,7 +614,17 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		delete this.objectApiCache[oldCacheKey];
 		objApi.objectId = realId;
 		objApi.emit({}, 'reify', realId, temporaryId)//()
-		//console.log('reified specific object')
+		console.log('reified specific object')
+	}else{
+		if(this.temporaryCache[oldCacheKey]){
+			var e = this.temporaryCache[oldCacheKey]
+			delete this.temporaryCache[oldCacheKey]
+			delete e.local.objectApiCache[oldCacheKey]
+			e.local.objectApiCache[realId] = e.n
+			e.n.objectId = realId
+		}else{
+			console.log('ERROR: failed to reify: ' + temporaryId + ' -> ' + realId)
+		}
 	}
 	/*
 	if(this.objectCreationCallbacks && this.objectCreationCallbacks[temporaryId]){
@@ -612,6 +635,8 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		}
 	}*/
 }
+
+SyncApi.prototype.reifyObject = SyncApi.prototype.reifyExternalObject
 
 /*
 SyncApi.prototype.pause = function(){

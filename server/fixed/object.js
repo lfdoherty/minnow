@@ -36,12 +36,14 @@ function sfgObject(s, id, editId, context){
 	var handle = {
 		name: 'object-fixed',
 		attach: function(listener, editId){
+			_.assertFunction(listener.set)
 			_.assertInt(editId)
 			listeners.add(listener)
 
 			listener.set(id, undefined, editId)
 		},
 		detach: function(listener, editId){
+			_.assertFunction(listener.set)
 			listeners.remove(listener)
 			if(editId){
 				listener.set(undefined, id, editId)

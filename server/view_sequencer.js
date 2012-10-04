@@ -419,7 +419,6 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 		editBuffer.add(e)
 	}
 	
-	//TODO retrieve without path, but include path edits
 	var broadcastSet = broadcaster.output.updateBySet(objectUpdateListener)
 	
 	function addObjectToSet(id){
@@ -452,8 +451,6 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 				if(old > startEditId){
 					isReady = true
 					//console.log('isReady: ' + old)
-					//TODO aggregate all edits from -2 into view object updates
-					//viewObjectBuffers
 					Object.keys(viewObjectBuffers).forEach(function(idStr){
 						var edits = viewObjectBuffers[idStr]
 						sendViewObject(idStr, edits)//, edits.path)

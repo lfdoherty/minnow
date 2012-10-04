@@ -362,21 +362,25 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 				}
 			}
 			
-			allSets[inputSetValue] = {key: newKeyVariable, value: newValueVariable}
 
-			newKeyVariable.attach({
+			var keyListener = {
 				set: setKey
-			}, editId)
-			
-			newValueVariable.attach({
+			}
+			var valueListener = {
 				add: addValue,
 				remove: removeValue
-			}, editId)			
+			}
+
+			allSets[inputSetValue] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
+
+			newKeyVariable.attach(keyListener, editId)
+			newValueVariable.attach(valueListener, editId)			
 		},
 		remove: function(v, editId){
 			var r = allSets[v]
-			r.key.detach(r.key, editId)
-			r.value.detach(r.value, editId)
+			r.key.detach(r.keyListener, editId)
+			r.value.detach(r.valueListener, editId)
+			delete allSets[v]
 		},
 		objectChange: stub
 	}, editId)
