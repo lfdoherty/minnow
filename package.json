@@ -1,10 +1,11 @@
 {
 	"name": "minnow",
-	"version": "0.2.24",
+	"version": "0.2.25",
 	"description": "An auto-syncing, in-memory-canonical relational database",
 	"main": "./index",
 	"author": "Liam Doherty",
 	"dependencies" : { 
+	  	"mkdirp": "*",
 		"keratin": "git://github.com/lfdoherty/keratin.git",
 		"matterhorn": "git://github.com/lfdoherty/matterhorn.git",
 		"matterhorn-standard": "git://github.com/lfdoherty/matterhorn-standard.git",
