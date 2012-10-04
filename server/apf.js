@@ -1,5 +1,5 @@
 
-var MaxDesiredSegmentSize = 1024*1024;
+//var MaxDesiredSegmentSize = 1024*1024;
 
 var FlushInterval = 1000//this is purely a performance-tuning parameter
 
@@ -13,7 +13,9 @@ var path = require('path')
 var _ = require('underscorem');
 var keratin = require('keratin');
 var fparse = require('fparse')
-var sf = require('segmentedfile')
+//var sf = require('segmentedfile')
+
+var mkdirp = require('mkdirp')
 
 var bin = require('./../util/bin')
 
@@ -76,8 +78,10 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	
 	var dir = dataDir + '/minnow_data';
 	_.assertString(dir);
+
+	mkdirp.sync(dir)
 	
-	var fullName = dir+'/ap'
+	var fullName = dir+'/ap.data'
 
 	
 	var manyDesered = 0;
@@ -86,39 +90,58 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 	
 	
 	function readCb(buf){
-		if(beginningSegment){
+		/*if(beginningSegment){
 			count = bin.readLong(buf, 0);
 			buf = buf.slice(8)
 			beginningSegment = false;
-		}
+		}*/
 		bufs.push(buf)
 		deser();
 	}
-	function segmentCb(wasDiscarded){
+	/*function segmentCb(wasDiscarded){
 		//TODO
 		beginningSegment = true;
-	}
+	}*/
 
 	var start = Date.now()
 	
-	sf.open(fullName, readCb, segmentCb, function(sfw){
+	//sf.open(fullName, readCb, segmentCb, function(sfw){
+	
+	var apfRs = fs.createReadStream(fullName);
+	
+	apfRs.on('data', readCb)
+	
+	
+	apfRs.on('error', function(err){
+		if(err.code === 'ENOENT'){
+			beginWritePhase()
+		}else{
+			throw err
+		}
+	})
+	apfRs.on('end', beginWritePhase)
+	
+	function beginWritePhase(){
+	
+		var sfw = fs.createWriteStream(fullName, {flags: 'a'});
 	
 		var end = Date.now()
 
 		//count +=  deser.manyRead;
 		
-		function writeCount(){
+		/*function writeCount(){
 			var b = new Buffer(8)
 			bin.writeLong(b, 0, count);
 			sfw.write(b);
 		}
 		
-		log('done loading ' + deser.manyRead + ' commands in ' + (end-start) + 'ms');
 
 		//write the count for the initial segment
 		if(count === 0){
 			writeCount()
-		}
+		}*/
+
+		log('done loading ' + deser.manyRead + ' commands in ' + (end-start) + 'ms');
 				
 		var handle = {}
 		
@@ -126,20 +149,25 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			clearInterval(flushHandle)
 			clearInterval(writeHandle)
 			//console.log('closing apf')
-			var cdl = _.latch(2, function(){
-				cb()
-			})
+			//var cdl = _.latch(2, function(){
+			//	cb()
+			//})
 			doFlush()
+			
 			w.close(function(){
 				//console.log('closed w')
-				cdl()
+				//cdl()
+				sfw.end()
+				sfw.on('close', function(){
+					cb()
+				})
 			})
-			sfw.end()
-			sfw.sync(function(){
+			//sfw.end()
+			//sfw.sync(function(){
 				//console.log('synced sfw')
-				cdl()
-			})
-		}
+			//	cdl()
+			//})
+		}//
 	
 		_.each(editSchema, function(s){
 			handle[s.name] = function(json){
@@ -147,18 +175,18 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			}
 		})
 	
-		var segmentSize = sfw.getCurrentSegmentSize()
+		//var segmentSize = sfw.getCurrentSegmentSize()
 	
 		function write(buf){
 			//console.log('*writing buf: ' + buf.length);
 			sfw.write(buf)
-			segmentSize += buf.length;
+			/*segmentSize += buf.length;
 			if(segmentSize > MaxDesiredSegmentSize){
 				segmentSize = 0;
 				sfw.segment();
 				writeCount();
 				initWriter()
-			}
+			}*/
 		}
 
 		var w;
@@ -207,7 +235,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 		handle.getCurrentEditId = function(){return count;}
 	
 		loadedCb(handle);
-	})
+	}
 }
 
 exports.load = load;

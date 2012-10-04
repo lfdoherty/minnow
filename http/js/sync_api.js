@@ -616,7 +616,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		objApi.emit({}, 'reify', realId, temporaryId)//()
 		console.log('reified specific object')
 	}else{
-		if(this.temporaryCache[oldCacheKey]){
+		if(this.temporaryCache && this.temporaryCache[oldCacheKey]){
 			var e = this.temporaryCache[oldCacheKey]
 			delete this.temporaryCache[oldCacheKey]
 			delete e.local.objectApiCache[oldCacheKey]

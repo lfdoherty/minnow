@@ -3,8 +3,8 @@
 var fs = require('fs')
 
 var _ = require('underscorem')
-var sf = require('segmentedfile')
-var indexFile = require('indexfilestream')
+//var sf = require('segmentedfile')
+//var indexFile = require('indexfilestream')
 //var parsicle = require('parsicle')
 var fparse = require('fparse')
 var shared = require('./tcp_shared')
