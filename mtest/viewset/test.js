@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.addNewFromJson = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.s.size() === 1){
@@ -22,7 +22,7 @@ exports.addNewFromJson = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = c.make('entity', {value: 'test'})
 						_.assertDefined(obj)
 						v.s.add(obj)
@@ -37,7 +37,7 @@ exports.addNewFromJson = function(config, done){
 exports.wrapped = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('wrapped', function(c){
+			client.view('wrapped', function(err, c){
 			
 				poll(function(){
 					if(c.s.size() === 1){
@@ -53,7 +53,7 @@ exports.wrapped = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = c.make('entity', {value: 'test'})
 						_.assertDefined(obj)
 						v.s.add(obj)
@@ -68,7 +68,7 @@ exports.wrapped = function(config, done){
 exports.wrappedRemoval = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('contained', function(c){
+			client.view('contained', function(err, c){
 			
 				var had = false
 				poll(function(){
@@ -82,7 +82,7 @@ exports.wrappedRemoval = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = c.make('entity', {value: 'test'})
 						var cont = c.make('container', {members: [obj]})
 						

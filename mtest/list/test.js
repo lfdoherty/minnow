@@ -11,7 +11,7 @@ exports.append = function(config, done){
 		//console.log('got server')
 		minnow.makeClient(config.port, function(client){
 			//console.log('got client')
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 				//console.log('got general view')
 				poll(function(){
 					//if(c.has('primitiveList')) console.log(c.primitiveList.data.size())
@@ -22,7 +22,7 @@ exports.append = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var n = v.make('stringList')
 						v.primitiveList.set(n)
 						_.assertDefined(n)
@@ -39,7 +39,7 @@ exports.append = function(config, done){
 exports.removePrimitive = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('primitiveList') && c.primitiveList.data.size() === 2){
@@ -52,7 +52,7 @@ exports.removePrimitive = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('stringList')
 						v.primitiveList.set(obj)
 						_.assertDefined(obj)
@@ -73,7 +73,7 @@ exports.removePrimitive = function(config, done){
 exports.shift = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log(c.has('primitiveList'))// + ' ' + c.primitiveList.data.size())
@@ -91,7 +91,7 @@ exports.shift = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('stringList')
 						v.primitiveList.set(obj)
 						_.assertDefined(obj)

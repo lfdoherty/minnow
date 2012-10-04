@@ -6,7 +6,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.includeReference = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && 
@@ -19,7 +19,7 @@ exports.includeReference = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 
 						var e = v.make('entity')
 						var second = v.make('secondary', {name: 'test name'})

@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.inner = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
@@ -24,7 +24,7 @@ exports.inner = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var n = c.make('entity', {value: 'test'})
 						var obj = n.other.setNew('membrance', {value: 'test2', other: n})
 					})
@@ -38,7 +38,7 @@ exports.inner = function(config, done){
 exports.innerToggle = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('gen', function(c){
+			client.view('gen', function(err, c){
 			
 				var tog = false
 				var wasOff = false
@@ -64,7 +64,7 @@ exports.innerToggle = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('gen', function(v){
+					otherClient.view('gen', function(err, v){
 						var n = c.make('entity', {value: 'test'})
 						var obj = n.other.setNew('membrance', {value: 'test2', flag: true})
 						

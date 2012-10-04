@@ -13,7 +13,7 @@ exports.connect = function(config, done){
 exports.view = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(c){
-			c.view('general', [], function(handle){
+			c.view('general', [], function(err, handle){
 				done()
 			})
 		})
@@ -23,8 +23,8 @@ exports.view = function(config, done){
 exports.viewReuse = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(c){
-			c.view('general', [], function(handle){
-				c.view('general', [], function(otherHandle){
+			c.view('general', [], function(err, handle){
+				c.view('general', [], function(err, otherHandle){
 					if(handle !== otherHandle) throw new Error('a request for the same view with same parameters should return the same handle')
 					done()
 				})
@@ -70,7 +70,7 @@ exports.clientRestart = function(config, done){
 exports.slowPersist = function(config, done){
 	minnow.makeServer(config, function(s){
 		minnow.makeClient(config.port, function(c){
-			c.view('general', [], function(handle){
+			c.view('general', [], function(err, handle){
 				handle.make('entity', {name: 'test name'})
 				setTimeout(function(){
 				c.close(function(){
@@ -78,7 +78,7 @@ exports.slowPersist = function(config, done){
 						//console.log('persist test reloading server')
 							minnow.makeServer(config, function(s){
 								minnow.makeClient(config.port, function(c){
-									c.view('general', [], function(handle){
+									c.view('general', [], function(err, handle){
 										if(handle.objects.size() !== 1) throw new Error('persistence failure: ' + handle.objects.size())
 										done()
 									})
@@ -94,14 +94,14 @@ exports.slowPersist = function(config, done){
 exports.fastPersist = function(config, done){
 	minnow.makeServer(config, function(s){
 		minnow.makeClient(config.port, function(c){
-			c.view('general', [], function(handle){
+			c.view('general', [], function(err, handle){
 				handle.make('entity', {name: 'test name'})
 				c.close(function(){
 					s.close(function(){
 						//console.log('persist test reloading server')
 						minnow.makeServer(config, function(s){
 							minnow.makeClient(config.port, function(c){
-								c.view('general', [], function(handle){
+								c.view('general', [], function(err, handle){
 									if(handle.objects.size() !== 1) throw new Error('persistence failure: ' + handle.objects.size())
 									done()
 								})

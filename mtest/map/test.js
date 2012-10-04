@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.put = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s')){
@@ -26,7 +26,7 @@ exports.put = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
 						v.s.set(obj)
@@ -45,7 +45,7 @@ exports.put = function(config, done){
 exports.putSeries = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s')){
@@ -63,7 +63,7 @@ exports.putSeries = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
 						v.s.set(obj)
@@ -89,7 +89,7 @@ exports.putSeries = function(config, done){
 exports.del = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
@@ -102,7 +102,7 @@ exports.del = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
 						v.s.set(obj)
@@ -124,7 +124,7 @@ exports.del = function(config, done){
 exports.putNew = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('genc', function(c){
+			client.view('genc', function(err, c){
 			
 				poll(function(){
 					if(c.has('s')){
@@ -142,7 +142,7 @@ exports.putNew = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('container')
 						obj.members.putNew('testKey', {name: 'Bill'})
@@ -157,7 +157,7 @@ exports.putNew = function(config, done){
 exports.values = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('valuesView', function(c){
+			client.view('valuesView', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
@@ -168,7 +168,7 @@ exports.values = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
 						//v.s.set(obj)
@@ -189,7 +189,7 @@ exports.values = function(config, done){
 exports.nestedInnerValues = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('containerValuesView', function(c){
+			client.view('containerValuesView', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
@@ -200,7 +200,7 @@ exports.nestedInnerValues = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var cont = v.make('container')
 						var obj = cont.members.putNew('testb', 'entity')
@@ -222,7 +222,7 @@ exports.nestedInnerValues = function(config, done){
 exports.nestedExternalValues = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('containerValuesView', function(c){
+			client.view('containerValuesView', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
@@ -233,7 +233,7 @@ exports.nestedExternalValues = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
 

@@ -310,7 +310,7 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 						--multiCounts[kvk]
 						if(multiCounts[kvk] === 0){
 							delete multiCounts[kvk]
-							multiValues[oldKey].splice(multiValues[k].indexOf(v), 1)
+							multiValues[oldKey].splice(multiValues[oldKey].indexOf(v), 1)
 							listeners.emitPutRemove(k, v, editId)
 						}
 					}

@@ -18,7 +18,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){
 exports.hasTopVersions = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.e.versions()))
@@ -29,7 +29,7 @@ exports.hasTopVersions = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -45,7 +45,7 @@ exports.hasTopVersions = function(config, done){
 exports.getTopVersion = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
@@ -59,7 +59,7 @@ exports.getTopVersion = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -75,7 +75,7 @@ exports.getTopVersion = function(config, done){
 exports.revertTop = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var hasReverted = false
 				
@@ -91,7 +91,7 @@ exports.revertTop = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -107,7 +107,7 @@ exports.revertTop = function(config, done){
 exports.versionPrimitive = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var hasReverted = false
 				
@@ -120,7 +120,7 @@ exports.versionPrimitive = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -137,7 +137,7 @@ exports.versionPrimitive = function(config, done){
 exports.revertPrimitive = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var hasReverted = false
 				
@@ -160,7 +160,7 @@ exports.revertPrimitive = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -178,7 +178,7 @@ exports.revertPrimitive = function(config, done){
 exports.revertPrimitiveDouble = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var hasReverted = false
 				
@@ -203,7 +203,7 @@ exports.revertPrimitiveDouble = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -221,7 +221,7 @@ exports.revertPrimitiveDouble = function(config, done){
 exports.versionMapValue = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var hasReverted = false
 				
@@ -237,7 +237,7 @@ exports.versionMapValue = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.values.put('ka', 'vWrong')
 						e.values.put('kb', 'vb')
@@ -255,7 +255,7 @@ exports.versionMapValue = function(config, done){
 exports.revertMapValue = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var hasReverted = false
 				
@@ -276,7 +276,7 @@ exports.revertMapValue = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.values.put('ka', 'vWrong')
 						e.values.put('kb', 'vb')
@@ -293,7 +293,7 @@ exports.revertMapValue = function(config, done){
 exports.versionsQuery = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('generalWithVersions', function(c){
+			client.view('generalWithVersions', function(err, c){
 			
 				poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.ev.toJson()))
@@ -306,7 +306,7 @@ exports.versionsQuery = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -323,7 +323,7 @@ exports.versionsQuery = function(config, done){
 exports.versionsQueryMany = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('generalWithManyVersions', function(c){
+			client.view('generalWithManyVersions', function(err, c){
 			
 				poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.ev.toJson()))
@@ -336,7 +336,7 @@ exports.versionsQueryMany = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')
@@ -358,7 +358,7 @@ exports.versionsQueryMany = function(config, done){
 exports.versionTopTimestamp = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('generalWithTimestamps', function(c){
+			client.view('generalWithTimestamps', function(err, c){
 			
 				poll(function(){
 					//if(c.has('e')) console.log('timestamps: ' + JSON.stringify(c.et.toJson()))
@@ -372,7 +372,7 @@ exports.versionTopTimestamp = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.text.set('test1')
 						e.text.set('test2')

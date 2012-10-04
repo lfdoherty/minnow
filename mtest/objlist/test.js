@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.append = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -18,7 +18,7 @@ exports.append = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -34,7 +34,7 @@ exports.append = function(config, done){
 exports.backandforth = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -47,7 +47,7 @@ exports.backandforth = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -74,7 +74,7 @@ exports.backandforth = function(config, done){
 exports.replaceNew = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -87,7 +87,7 @@ exports.replaceNew = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -115,7 +115,7 @@ exports.replaceNew = function(config, done){
 exports.replaceNewMore = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -128,7 +128,7 @@ exports.replaceNewMore = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -146,7 +146,7 @@ exports.replaceNewMore = function(config, done){
 exports.replaceExistingWithNew = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -159,7 +159,7 @@ exports.replaceExistingWithNew = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -187,7 +187,7 @@ exports.replaceExistingWithNew = function(config, done){
 exports.replaceExisting = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -200,7 +200,7 @@ exports.replaceExisting = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -221,7 +221,7 @@ exports.replaceExisting = function(config, done){
 exports.replaceExistingExternalWithNew = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
@@ -234,7 +234,7 @@ exports.replaceExistingExternalWithNew = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -255,7 +255,7 @@ exports.replaceExistingExternalWithNew = function(config, done){
 exports.add = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
@@ -269,7 +269,7 @@ exports.add = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)
@@ -291,7 +291,7 @@ exports.add = function(config, done){
 exports.shift = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
@@ -305,7 +305,7 @@ exports.shift = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = v.make('obj')
 						v.s.set(obj)
 						_.assertDefined(obj)

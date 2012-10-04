@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,0);function wf(){if(f()){clearInterval(ci
 exports.count = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('count: ' + c.c.value())
@@ -19,7 +19,7 @@ exports.count = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity')
 					})
 				})
@@ -32,7 +32,7 @@ exports.count = function(config, done){
 exports.makeAndForget = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('count: ' + c.c.value())
@@ -43,7 +43,7 @@ exports.makeAndForget = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', true)
 					})
 				})
@@ -56,7 +56,7 @@ exports.makeAndForget = function(config, done){
 exports.type = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('size: ' + c.t.size())
@@ -67,7 +67,7 @@ exports.type = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity')
 					})
 				})
@@ -80,7 +80,7 @@ exports.type = function(config, done){
 exports.idProperty = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('idtest', function(c){
+			client.view('idtest', function(err, c){
 			
 				poll(function(){
 					//console.log('size: ' + c.t.size())
@@ -91,7 +91,7 @@ exports.idProperty = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity')
 					})
 				})
@@ -104,7 +104,7 @@ exports.idProperty = function(config, done){
 exports.max = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('oldest: ' + c.oldestAge.value())
@@ -115,7 +115,7 @@ exports.max = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 13})
 						v.make('entity', {age: 22})
 						v.make('entity', {age: 15})
@@ -129,7 +129,7 @@ exports.max = function(config, done){
 exports.min = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('youngest: ' + c.youngestAge.value())
@@ -140,7 +140,7 @@ exports.min = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 15})
 						v.make('entity', {age: 22})
 						v.make('entity', {age: 13})
@@ -154,7 +154,7 @@ exports.min = function(config, done){
 exports.eachFiltered = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('adults: ' + c.adults.size())
@@ -168,7 +168,7 @@ exports.eachFiltered = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 15})
 						v.make('entity', {age: 22})
 						v.make('entity', {age: 13})
@@ -183,7 +183,7 @@ exports.eachFiltered = function(config, done){
 exports.countOfEachFiltered = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('adults: ' + c.manyAdults.value())
@@ -195,7 +195,7 @@ exports.countOfEachFiltered = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 15})
 						v.make('entity', {age: 22})
 						v.make('entity', {age: 13})
@@ -208,7 +208,7 @@ exports.countOfEachFiltered = function(config, done){
 }
 
 function testAgeThreshold(minnow, port, done){
-	return function(c){
+	return function(err, c){
 			
 		poll(function(){
 			//console.log('adults: ' + c.oldEnough.size())
@@ -222,7 +222,7 @@ function testAgeThreshold(minnow, port, done){
 		})
 
 		minnow.makeClient(port, function(otherClient){
-			otherClient.view('general', function(v){
+			otherClient.view('general', function(err, v){
 				v.make('entity', {age: 15})
 				v.make('entity', {age: 22})
 				v.make('entity', {age: 13})
@@ -276,7 +276,7 @@ exports.nowTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			//console.log('getting view')
-			client.view('nowTest', [], function(v){
+			client.view('nowTest', [], function(err, v){
 				var va = v.beat.value()
 				//console.log('got view: ' + va)
 				setTimeout(function(){
@@ -294,7 +294,7 @@ exports.nowTest = function(config, done){
 exports.mergeTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('mergeTest', function(c){
+			client.view('mergeTest', function(err, c){
 			
 				poll(function(){
 					if(c.allTags.has('big') && c.allTags.has('small') && c.allTags.has('important') && c.allTags.has('trivial')){
@@ -304,7 +304,7 @@ exports.mergeTest = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('tagging', {tags: ['big', 'small']})
 						v.make('tagging', {tags: ['important', 'trivial']})
 					})
@@ -320,7 +320,7 @@ exports.viewMergeTestFlatTags = function(config, done){
 		//console.log('SERVER MADE')
 		minnow.makeClient(config.port, function(client){
 			//console.log('CLIENT MADE')
-			client.view('viewMergeTest', function(c){
+			client.view('viewMergeTest', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.flatTags.toJson()))
@@ -331,7 +331,7 @@ exports.viewMergeTestFlatTags = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						//console.log('making taggings')
 						v.make('tagging', {tags: ['big', 'small']})
 						v.make('tagging', {tags: ['important', 'trivial']})
@@ -346,7 +346,7 @@ exports.viewMergeTestFlatTags = function(config, done){
 exports.viewMergeTestAllTags = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('viewMergeTest', function(c){
+			client.view('viewMergeTest', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.allTags.toJson()))
@@ -363,7 +363,7 @@ exports.viewMergeTestAllTags = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('tagging', {tags: ['big', 'small']})
 						v.make('tagging', {tags: ['important', 'trivial']})
 					})
@@ -377,9 +377,9 @@ exports.viewMergeTestAllTags = function(config, done){
 exports.singlePairedFilterTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('empty', function(c){
+			client.view('empty', function(err, c){
 				var cc = c.make('ageConfiguration', {ageOfMajority: 18}, function(){
-					client.view('pairedFilterTest', [cc], function(pc){
+					client.view('pairedFilterTest', [cc], function(err, pc){
 						var gotTeenager = false
 						var lostTeenager = false
 						poll(function(){
@@ -402,7 +402,7 @@ exports.singlePairedFilterTest = function(config, done){
 						})
 
 						minnow.makeClient(config.port, function(otherClient){
-							otherClient.view('empty', function(v){
+							otherClient.view('empty', function(err, v){
 								var teenager = v.make('entity', {age: 17, name: 'teenager'})
 								teenager.age.set(18)
 								setTimeout(function(){
@@ -421,9 +421,9 @@ exports.singlePairedFilterTest = function(config, done){
 exports.pairedFilterTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 				var cc = c.make('ageConfiguration', {ageOfMajority: 18}, function(){
-					client.view('pairedFilterTest', [cc], function(pc){
+					client.view('pairedFilterTest', [cc], function(err, pc){
 						var gotTeenager = false
 						var lostTeenager = false
 						poll(function(){
@@ -444,7 +444,7 @@ exports.pairedFilterTest = function(config, done){
 						})
 
 						minnow.makeClient(config.port, function(otherClient){
-							otherClient.view('empty', function(v){
+							otherClient.view('empty', function(err, v){
 								var teenager = v.make('entity', {age: 17, name: 'teenager'})
 								v.make('entity', {age: 22})
 								v.make('entity', {age: 13})
@@ -466,7 +466,7 @@ exports.pairedFilterTest = function(config, done){
 exports.crazyPartials = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('crazyPartialMacroTest', function(c){
+			client.view('crazyPartialMacroTest', function(err, c){
 				var lookingFor = [16,21,22,25,26]
 				poll(function(){
 					if(JSON.stringify(c.crazy.toJson().sort()) === JSON.stringify(lookingFor)){
@@ -478,7 +478,7 @@ exports.crazyPartials = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 22, numbers: [3,4]})
 						v.make('entity', {age: 13, numbers: [3,8,9]})
 					})
@@ -492,7 +492,7 @@ exports.crazyPartials = function(config, done){
 exports.nameCollision = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('nameCollisionTest', ['sue'], function(c){
+			client.view('nameCollisionTest', ['sue'], function(err, c){
 				poll(function(){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
@@ -504,7 +504,7 @@ exports.nameCollision = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 22, name: 'brian'})
 						v.make('entity', {age: 13, name: 'sue'})
 					})
@@ -518,7 +518,7 @@ exports.nameCollision = function(config, done){
 exports.booleanSetTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('booleanSetTest', ['sue'], function(c){
+			client.view('booleanSetTest', ['sue'], function(err, c){
 				poll(function(){
 					if(c.truth.size() === 2){
 						var set = c.truth.toJson()
@@ -531,7 +531,7 @@ exports.booleanSetTest = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 22, name: 'brian'})
 						v.make('entity', {age: 13, name: 'sue'})
 					})
@@ -545,7 +545,7 @@ exports.booleanSetTest = function(config, done){
 exports.stringUpdateTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('stringUpdateTest', [], function(c){
+			client.view('stringUpdateTest', [], function(err, c){
 				var gotFirst
 				poll(function(){
 					if(c.name.value() === 'brian'){
@@ -558,7 +558,7 @@ exports.stringUpdateTest = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var e = v.make('entity', {age: 22, name: 'brian'})
 						setTimeout(function(){
 							e.name.set('bill')
@@ -574,7 +574,7 @@ exports.stringUpdateTest = function(config, done){
 exports.objectSubsetProperty = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('objectSetProperty', ['sue'], function(c){
+			client.view('objectSetProperty', ['sue'], function(err, c){
 				poll(function(){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
@@ -589,7 +589,7 @@ exports.objectSubsetProperty = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity', {age: 22, name: 'sue'})
 						v.make('entity', {age: 13, name: 'sue'})
 						v.make('entity', {age: 18, name: 'brian'})

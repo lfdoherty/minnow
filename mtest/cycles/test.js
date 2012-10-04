@@ -19,7 +19,7 @@ function poll(f){
 exports.simplest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('simpleOther', function(c){
+			client.view('simpleOther', function(err, c){
 			
 				poll(function(){
 					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
@@ -33,7 +33,7 @@ exports.simplest = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var obj = c.make('entity', {value: 'test'})
 						//var obj = c.make('membrance', {value: 'test'})
 						
@@ -48,7 +48,7 @@ exports.simplest = function(config, done){
 exports.simpleOther = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('simpleOther2', function(c){
+			client.view('simpleOther2', function(err, c){
 			
 				poll(function(){
 					if(c.has('s')){
@@ -62,7 +62,7 @@ exports.simpleOther = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						var obj = c.make('membrance', {value: 'test2'})
 						c.make('entity', {other: obj})
 					})
@@ -76,7 +76,7 @@ exports.simpleOther = function(config, done){
 exports.complex = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
@@ -92,7 +92,7 @@ exports.complex = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var n = c.make('entity', {value: 'test'})
 						var obj = c.make('membrance', {value: 'test', other: n})
 						n.other.set(obj)

@@ -171,6 +171,7 @@ function moreCont(doneCb){
 			finish()
 		}
 		function fail(e){
+			e = e || new Error('fail called, error unknown')
 			if(donePassed) return
 			log('test failed: ' + t.dirName + '.' + t.name)
 			++failedCount

@@ -137,7 +137,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 			_.assert(edit.value != null)
 			this.obj.push(edit.value);
 			
-			return this.emit(edit, 'add')
+			return this.emit(edit, 'add', edit.value, editId)
 		}else{
 			return stub;
 		}
@@ -145,9 +145,9 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 		if(this.getEditingId() !== syncId){
 
 			_.assert(this.obj.length >= 1);
-			this.obj.shift();
+			var shifted = this.obj.shift();
 
-			return this.emit(edit, 'shift')
+			return this.emit(edit, 'shift', shifted, editId)
 			
 		}else{
 			return stub;
@@ -160,7 +160,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 			}else{
 				this.obj.splice(index, 1);
 				
-				return this.emit(edit, 'remove')
+				return this.emit(edit, 'remove', edit.value, editId)
 			}
 		}		
 		return stub;

@@ -159,7 +159,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	}else if(op === 'replacedNew'){
 
 		if(this.getEditingId() === syncId){
-			var objHandle = this.get(edit.temporary);
+			/*var objHandle = this.get(edit.temporary);
 			if(objHandle === undefined){
 				var gotReal = this.get(edit.newId)
 				if(gotReal) throw new Error('got real but not temporary')
@@ -170,7 +170,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 				}
 			}
 			objHandle.reify(edit.newId)
-			return stub
+			return stub*/
 		}else{
 			var removeId = edit.oldId//path[path.length-1];
 			var objHandle = this.get(removeId);

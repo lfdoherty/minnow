@@ -9,7 +9,7 @@ exports.addNewFromJson = function(config, done){
 	//console.log('destruction config: ' + JSON.stringify(config))
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var added = false
 				poll(function(){
@@ -26,7 +26,7 @@ exports.addNewFromJson = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					//console.log('got client for destroy')
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = c.make('entity', {value: 'test'})
 						setTimeout(function(){
 							obj.del()
@@ -43,13 +43,13 @@ exports.gracefulFailureForDestroyedIdView = function(config, done){
 	//console.log('destruction config: ' + JSON.stringify(config))
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var e = c.make('entity', function(id){
 					e.del()
 					minnow.makeClient(config.port, function(otherClient){
 						console.log('got client for destroy')
-						otherClient.view('specific', [id], function(v){
+						otherClient.view('specific', [id], function(err, v){
 							//console.log(JSON.stringify(v.toJson()))
 							_.assertNot(v.has('e'))
 							done()
@@ -64,16 +64,19 @@ exports.gracefulFailureForDestroyedIdView = function(config, done){
 exports.gracefulFailureNonexistentIdView = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.on('error', function(e){
+			/*client.on('error', function(e){
 				console.log('error: ' + JSON.stringify(e))
 				_.assert(e.code === 'InvalidParamId')//indexOf('invalid object id') !== -1)
 				done()
-			})
-			client.view('specific', [5005], function(v){
+			})*/
+			client.view('specific', [5005], function(err, v){
 				//console.log(JSON.stringify(v.toJson()))
 				//_.assertNot(v.has('e'))
-				//done()
-				done.fail()
+				if(err){
+					done()
+				}else{
+					done.fail()
+				}
 			})
 		})
 	})

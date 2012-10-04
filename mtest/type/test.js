@@ -9,7 +9,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.type = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					if(c.has('v') && c.v.value() === 'entity'){
@@ -19,7 +19,7 @@ exports.type = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						v.make('entity')
 					})
 				})
@@ -32,7 +32,7 @@ exports.type = function(config, done){
 exports.innerTypeSwitch = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('subs', function(c){
+			client.view('subs', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.va.toJson()))
@@ -48,7 +48,7 @@ exports.innerTypeSwitch = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var e = v.make('entity')
 						e.subs.addNew('suba', {name: 'Bill'})
 						e.subs.addNew('subb', {name: 'hidden'})

@@ -9,7 +9,7 @@ function makeWrapper(check, set){
 	return function(config, done){
 		minnow.makeServer(config, function(){
 			minnow.makeClient(config.port, function(client){
-				client.view('general', function(c){
+				client.view('general', function(err, c){
 			
 					poll(function(){
 						if(c.has('v') && check(c)){
@@ -19,7 +19,7 @@ function makeWrapper(check, set){
 					})
 
 					minnow.makeClient(config.port, function(otherClient){
-						otherClient.view('general', function(v){
+						otherClient.view('general', function(err, v){
 							var obj = v.make('entity')
 							v.v.set(obj)
 							set(obj)

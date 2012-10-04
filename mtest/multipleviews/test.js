@@ -10,7 +10,7 @@ exports.updateMadeObject = function(config, done){
 				//console.log('********** got edit: ' + op + ' ' + JSON.stringify(edit))
 			//})
 			
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				var bill = c.make('secondary', {name: 'bill'})
 				
@@ -31,7 +31,7 @@ exports.updateMadeObject = function(config, done){
 					})
 
 					minnow.makeClient(config.port, function(otherClient){
-						otherClient.view('specific', [e1], function(v){
+						otherClient.view('specific', [e1], function(err, v){
 							v.e.ref.name.set('ted')
 						})
 					})

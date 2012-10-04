@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.wrapped = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
@@ -24,7 +24,7 @@ exports.wrapped = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(v){
+					otherClient.view('general', function(err, v){
 						var obj = c.make('entity', {value: 'test'})
 						
 					})
@@ -38,14 +38,14 @@ exports.wrapped = function(config, done){
 exports.wrappedFromObjectSet = function(config, done){
 	minnow.makeServer(config, function(){	
 		minnow.makeClient(config.port, function(otherClient){
-			otherClient.view('empty', function(v){
+			otherClient.view('empty', function(err, v){
 				var obj = v.make('entity', {value: 'test'})
 				var n = v.make('context', function(){
 				
 					
 
 					minnow.makeClient(config.port, function(client){
-						client.view('specific', [n], function(c){
+						client.view('specific', [n], function(err, c){
 						
 							n.entities.add(obj)
 	

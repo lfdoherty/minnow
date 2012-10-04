@@ -8,7 +8,7 @@ function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(c
 exports.emptyArray = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			client.view('general', function(c){
+			client.view('general', function(err, c){
 			
 				poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
@@ -19,7 +19,7 @@ exports.emptyArray = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('empty', function(v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity')
 						var n = v.make('blah')
 						n.names.add('Bill')
