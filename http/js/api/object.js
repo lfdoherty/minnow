@@ -173,7 +173,10 @@ ObjectHandle.prototype.prepare = function(){
 	}
 	
 	//this.log('preparing object: ' + this.typeSchema.name + ' ' + JSON.stringify(this.typeSchema))
-	_.each(this.typeSchema.properties, function(p, name){
+	//_.each(this.typeSchema.properties, function(p, name){
+	var properties = this.typeSchema.properties
+	Object.keys(properties).forEach(function(name){
+		var p = properties[name]
 		if(p.type.type !== 'object' || s.hasProperty(name)){
 			if(s.isReadonlyAndEmpty){
 				//this.log('defining getter')
@@ -668,7 +671,10 @@ ObjectHandle.prototype.toJson = function toJson(already){
 		return 'CIRCULAR REFERENCE'
 	}
 
-	var subAlready = _.extend({}, already)	
+	var subAlready = {}//_.extend({}, already)	
+	Object.keys(already).forEach(function(key){
+		subAlready[key] = true
+	})
 	subAlready[this.objectId] = true
 	
 	//console.log(JSON.stringify(Object.keys(local)))

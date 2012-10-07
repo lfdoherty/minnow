@@ -661,6 +661,10 @@ exports.make = function(schema, ap, broadcaster, ol){
 			var realPath = computeRealPath(path)
 			
 			var objId = realPath[0].edit.id
+			console.log('streaming object: ' + objId)
+			if(!handle.isTopLevelObject(objId)){
+				_.errout('tried to stream, but not top-level object: ' + objId)
+			}
 
 			ol.get(objId, -1, editId, function(edits){
 				makePropertyTypesStream(ol, broadcaster, realPath, edits, editId, cb, continueListening)

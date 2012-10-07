@@ -153,44 +153,50 @@ function wrapParam(v, schemaType, s){
 			_.errout('TODO')
 		}
 	}else if(schemaType.type === 'map'){
-		if(schemaType.value.type === 'primitive'){
-			return function(bindings, editId){
-				var listeners = listenerSet()
+		return function(bindings, editId){
+			var listeners = listenerSet()
 
-				var t = v(bindings, editId)
-				var cachedValues = {}
-				var re = Math.random()
-				s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+			var t = v(bindings, editId)
+			var cachedValues = {}
+			var re = Math.random()
+			s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
-				t.attach({
-					put: function(key, value, oldValue, editId){
-						s.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
-						cachedValues[key] = value
-						listeners.emitChanged(editId)
-					},
-					del: function(key){
-						delete cachedValues[key]
-						listeners.emitChanged(editId)
-					},
-					objectChange: function(){
-						_.errout('TODO')
-					}
-				}, editId)
-				return {
-					name: 'syncplugin-map-primitive-wrapper',
-					attach: function(listener, editId){
-						listeners.add(listener)
-						if(_.size(cachedValues) > 0){
-							listener.changed(editId)
-						}
-					},
-					get: function(){return cachedValues;},
-					oldest: t.oldest
+			t.attach({
+				put: function(key, value, oldValue, editId){
+					s.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
+					cachedValues[key] = value
+					listeners.emitChanged(editId)
+				},
+				del: function(key){
+					delete cachedValues[key]
+					listeners.emitChanged(editId)
+				},
+				objectChange: function(){
+					_.errout('TODO')
 				}
+			}, editId)
+			var handle = {
+				name: 'syncplugin-map-primitive-wrapper',
+				attach: function(listener, editId){
+					listeners.add(listener)
+					if(_.size(cachedValues) > 0){
+						listener.changed(editId)
+					}
+				},
+				get: function(){return cachedValues;},
+				oldest: t.oldest
 			}
+
+			if(schemaType.value.type !== 'primitive'){
+				//TODO?
+			}
+
+			return handle;
+		}
+		/*
 		}else{
 			_.errout('TODO')
-		}
+		}*/
 	}else{
 		_.errout('TODO: ' + JSON.stringify(schemaType))
 	}
@@ -308,6 +314,12 @@ function setupOutputHandler(schemaType, s){
 						//_.assertInt(path[1])
 						s.objectState.streamProperty(path, editId, cb, continueListening)
 					}
+					handle.descendTypes = function(path, editId, cb, continueListening){
+						_.assertFunction(cb)
+						//_.assertInt(path[0])
+						//_.assertInt(path[1])
+						s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
+					}
 				}
 				return handle;
 			}
@@ -327,7 +339,7 @@ function setupOutputHandler(schemaType, s){
 		//}
 	}else if(schemaType.type === 'map'){
 		var keyParser = makeKeyParser(schemaType.key)
-		if(schemaType.value.type === 'primitive'){
+		//if(schemaType.value.type === 'primitive'){
 
 			var f = function(oldest){
 
@@ -339,7 +351,7 @@ function setupOutputHandler(schemaType, s){
 				var r = Math.random()
 				var updating = false
 				return {
-					name: 'syncplugin-map:primitive',
+					name: 'syncplugin-map',
 					update: function(result, editId){
 						_.assertInt(editId)
 						if(_.size(result) === 0 && _size(map) === 0) return
@@ -390,9 +402,9 @@ function setupOutputHandler(schemaType, s){
 				_.errout('TODO')
 			}
 			return f
-		}else{
+		/*}else{
 			_.errout('TODO')
-		}
+		}*/
 	}else{
 		_.errout('TODO')
 	}

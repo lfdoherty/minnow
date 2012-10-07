@@ -104,6 +104,9 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			//_.assertInt(path[1])
 			s.objectState.streamProperty(path, editId, cb, continueListening)
 		},
+		descendTypes: function(path, editId, cb, continueListening){
+			s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
+		},
 		getType: function(v){
 			return s.objectState.getObjectType(v)
 		}

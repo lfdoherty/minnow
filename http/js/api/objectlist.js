@@ -122,15 +122,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	if(op === 'addedNew'){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
-		if(this.getEditingId() === syncId){
-			var objHandle = this.get(temporary);
-			if(objHandle === undefined){
-				console.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
-				return;
-			}
-			objHandle.reify(id)
-			return
-		}else{
+		if(this.getEditingId() !== syncId){
 			_.assertInt(id)
 
 			var res = this.wrapObject(id, edit.typeCode, [], this)
@@ -158,20 +150,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		return stub;
 	}else if(op === 'replacedNew'){
 
-		if(this.getEditingId() === syncId){
-			/*var objHandle = this.get(edit.temporary);
-			if(objHandle === undefined){
-				var gotReal = this.get(edit.newId)
-				if(gotReal) throw new Error('got real but not temporary')
-				if(objHandle === undefined){
-					//_.errout('not got object being replaced')
-					console.log('WARNING: did not reify new inner object created via replace - might already have been removed')
-					return stub;
-				}
-			}
-			objHandle.reify(edit.newId)
-			return stub*/
-		}else{
+		if(this.getEditingId() !== syncId){
 			var removeId = edit.oldId//path[path.length-1];
 			var objHandle = this.get(removeId);
 		

@@ -13,7 +13,8 @@ function StringHandle(typeSchema, obj, part, parent){
 	
 	if(obj === undefined){
 		if(typeSchema.tags){
-			_.each(typeSchema.tags, function(value, tag){
+			//_.each(typeSchema.tags, function(value, tag){
+			Object.keys(typeSchema.tags).forEach(function(tag){
 				if(tag.indexOf('default:') === 0){
 					var defStr = tag.substr(tag.indexOf(':')+1);
 					defStr = JSON.parse(defStr);

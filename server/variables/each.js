@@ -250,6 +250,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 	var elements = contextGetter(bindings, editId)
 
 	if(!_.isFunction(elements.getType))_.errout('no getType: ' + elements.name)
+	//if(!_.isFunction(elements.descendTypes)) _.errout('no descendTypes: ' + elements.name)
 
 	var concreteGetter = exprGetter(bindings, editId)
 	
@@ -361,6 +362,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			}
 		},
 		descend: elements.descend,//TODO this is not necessarily right
+		descendTypes: elements.descendTypes,//TODO this is not necessarily right
 		oldest: oldest,
 		key: key,
 		getType: elements.getType//TODO this is not necessarily right

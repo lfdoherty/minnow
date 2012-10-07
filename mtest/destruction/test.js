@@ -10,7 +10,8 @@ exports.addNewFromJson = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
-			
+				if(err) throw err
+				
 				var added = false
 				poll(function(){
 					if(c.s.size() === 1){
@@ -44,7 +45,8 @@ exports.gracefulFailureForDestroyedIdView = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
-			
+				if(err) throw err
+				
 				var e = c.make('entity', function(id){
 					e.del()
 					minnow.makeClient(config.port, function(otherClient){

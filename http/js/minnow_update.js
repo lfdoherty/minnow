@@ -174,7 +174,7 @@ function establishSocket(appName, schema, host, cb){
 			}
 		})
 	
-		var errorListeners = []
+		//var errorListeners = []
 	
 		var handle = {
 			getSessionId: function(){
@@ -193,13 +193,13 @@ function establishSocket(appName, schema, host, cb){
 				
 				//console.log('getting view: ' + viewName + ' ' + JSON.stringify(params))
 				shared.openView(syncId, api, schema, host, appName, viewName, realParams, sendFacade, function(err,handle){
-					if(err){
+					/*if(err){
 						errorListeners.forEach(function(listener){
 							listener(err)
 						})
 						return
-					}
-					cb(handle)
+					}*/
+					cb(err, handle)
 				})
 			},
 			_openViewWithSnapshots: function(baseTypeCode, lastId, snaps, viewName, params, cb){
@@ -211,7 +211,7 @@ function establishSocket(appName, schema, host, cb){
 					clearTimeout(sendMessageTimeoutHandle)
 				}
 				if(cb) cb()
-			},
+			}/*,
 			on: function(event, listener){
 				//_.errout('TODO')
 				if(event === 'error'){
@@ -219,7 +219,7 @@ function establishSocket(appName, schema, host, cb){
 				}else{
 					_errout('invalid event: ' + event)
 				}
-			}
+			}*/
 		}
 		cb(handle)		
 	})

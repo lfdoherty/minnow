@@ -415,7 +415,9 @@ SyncApi.prototype.objectListener = function(id, edits){
 SyncApi.prototype.addSnapshot = function(snap, typeCode, id){
 	var objs = snap.objects;
 	var local = this
-	_.each(objs, function(obj, idStr){
+	//_.each(objs, function(obj, idStr){
+	Object.keys(objs).forEach(function(idStr){
+		var obj = objs[idStr]
 		
 		var cur = local.snap.objects[idStr]
 		if(cur){
@@ -600,7 +602,7 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
 	//this.log('reifying id ' + temporaryId + ' -> ' + realId)
-	console.log('reifying id ' + temporaryId + ' -> ' + realId + ' for ' + this.getEditingId())
+	//console.log('reifying id ' + temporaryId + ' -> ' + realId + ' for ' + this.getEditingId())
 
 	_.assert(temporaryId < 0)
 	
@@ -614,7 +616,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		delete this.objectApiCache[oldCacheKey];
 		objApi.objectId = realId;
 		objApi.emit({}, 'reify', realId, temporaryId)//()
-		console.log('reified specific object')
+		//console.log('reified specific object')
 	}else{
 		if(this.temporaryCache && this.temporaryCache[oldCacheKey]){
 			var e = this.temporaryCache[oldCacheKey]

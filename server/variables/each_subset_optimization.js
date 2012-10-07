@@ -262,6 +262,9 @@ exports.make = function(s, self, rel, typeBindings){
 			descend: function(path, editId, cb, continueListening){//same as typeset
 				s.objectState.streamProperty(path, editId, cb, continueListening)
 			},
+			descendTypes: function(path, editId, cb, continueListening){
+				s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
+			},
 			getType: function(){
 				_.errout('TODO')
 			}
