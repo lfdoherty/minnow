@@ -39,10 +39,10 @@ exports.getImplementation = function(name){
 
 var log = require('quicklog').make('minnow/schema')
 
-function loadViews(schemaDir, str, schema, synchronousPlugins, cb){
+function loadViews(schemaDirs, str, schema, synchronousPlugins, cb){
 
 	var view = myrtle.parse(str);
-	view = viewMinnowize(schemaDir, view, schema, synchronousPlugins);
+	view = viewMinnowize(schemaDirs, view, schema, synchronousPlugins);
 	
 	_.each(view, function(view, viewName){
 		if(view.schema){
@@ -342,6 +342,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 	
 	var schemaDirs = _.isString(schemaDir) ? [schemaDir] : schemaDir
 	var str = ''
+	//console.log('schemaDirs: ' + JSON.stringify(schemaDirs))
 	_.each(schemaDirs, function(schemaDir){
 		readAllSchemaFiles(schemaDir, function(strs, allFiles){
 			str += strs.join('\n')
@@ -975,9 +976,11 @@ function parseParams(paramsStr){
 	});
 	return params
 }
-function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
+function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	_.assertLength(arguments, 4);
 	_.assertObject(schema);
+
+	//console.log(new Error().stack)
 
 	var takenCodes = {};
 	_.each(schema._byCode, function(value, typeCodeStr){
@@ -1090,7 +1093,8 @@ function viewMinnowize(schemaDir, view, schema, synchronousPlugins){
 			//console.log('not computing schema for: ' + name)
 		}
 	});
-	fs.writeFile(schemaDir + '/view.schema.generated', vsStr, 'utf8');
+	//console.log('wrote generated: ' + schemaDirs[0] + '/view.schema.generated')
+	fs.writeFile(schemaDirs[0] + '/view.schema.generated', vsStr, 'utf8');
 	
 	return result;
 }
