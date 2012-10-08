@@ -102,3 +102,114 @@ exports.removeNonexistent = function(config, done){
 	})
 }
 
+exports.appendAndAll = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('contained', function(err, c){
+			
+				poll(function(){
+				//	console.log(c.has('s'))
+					console.log(JSON.stringify(c.toJson()))
+					if(c.has('all') && c.all.size() === 1){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(err, v){
+						var obj = v.make('entity')
+						v.s.set(obj)
+						_.assertDefined(obj)
+						_.assertDefined(obj.data)
+						obj.data.add('test')
+						
+						var cont = v.make('container')
+						cont.contained.add(obj)
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.appendAndCreateAll = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('contained', function(err, c){
+			
+				poll(function(){
+				//	console.log(c.has('s'))
+					console.log(JSON.stringify(c.toJson()))
+					if(c.has('all') && c.all.size() === 3){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(err, v){
+						var obj = v.make('entity')
+						v.s.set(obj)
+						_.assertDefined(obj)
+						_.assertDefined(obj.data)
+						obj.data.add('test')
+						obj.data.add('test2')
+						
+						var cont = v.make('container')
+						cont.contained.add(obj)
+						
+						cont.contained.addNew('entity', {data: ['test3']})
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.removeAndAll = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('contained', function(err, c){
+			
+				var foundFirst = false
+				poll(function(){
+				//	console.log(c.has('s'))
+					console.log(JSON.stringify(c.toJson()))
+					if(c.has('all') && c.all.size() === 3){
+						foundFirst = true
+					}else if(foundFirst && c.all.size() === 1){
+						_.assertEqual(JSON.stringify(c.all.toJson()), '["test2"]')
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(err, v){
+						var obj = v.make('entity')
+						v.s.set(obj)
+						_.assertDefined(obj)
+						_.assertDefined(obj.data)
+						obj.data.add('test')
+						obj.data.add('test2')
+						
+						var cont = v.make('container')
+						cont.contained.add(obj)
+						
+						var e = cont.contained.addNew('entity', {data: ['test3']})
+						
+						setTimeout(function(){
+							cont.contained.remove(e)
+							obj.data.remove('test')
+						},200)
+					})
+				})
+				
+			})
+		})
+	})
+}
+

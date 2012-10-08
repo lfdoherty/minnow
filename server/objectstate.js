@@ -203,7 +203,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 	var prop;
 
 	log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
-	//console.log('streamProperty got ' + edits.length + ' edits')
+	//console.log('streamProperty got ' + edits.length + ' edits ' + editId)
 		
 	var tracker = makePathTracker(path)
 	
@@ -290,6 +290,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		}
 	})
 	log('streaming ', path, ':', prop)
+	//console.log('streaming ', path, ':', prop)
 	cb(prop, editId)
 	
 	broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, editPath, op, edit, syncId, editId){
@@ -310,11 +311,13 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
 				if(edit.value !== prop){
 					prop = edit.value
+					//console.log('got set string: ' + edit.value)
 					cb(prop, editId)
 				}
 			}else if(op === 'setObject'){
 				if(edit.id !== prop){
 					prop = edit.id
+					//console.log('got set object: ' + edit.id)
 					cb(prop, editId)
 				}
 			}else{
@@ -332,6 +335,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				if(prop === undefined) prop = []
 				if(prop.indexOf(edit.value) === -1){
 					prop.push(edit.value)
+					//console.log('got add*: ' + edit.value)
 					cb(prop, editId)
 				}
 			}else if(op === 'addExisting' || op === 'addedNew'){
@@ -357,6 +361,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				var i = prop.indexOf(edit.value)
 				if(i !== -1){
 					prop.splice(i, 1)
+					console.log('removing string')
 					cb(prop, editId)
 				}else{
 					//_.errout('TODO: ' + JSON.stringify([op, edit]))
@@ -661,7 +666,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 			var realPath = computeRealPath(path)
 			
 			var objId = realPath[0].edit.id
-			console.log('streaming object: ' + objId)
+			//console.log('streaming object: ' + objId)
 			if(!handle.isTopLevelObject(objId)){
 				_.errout('tried to stream, but not top-level object: ' + objId)
 			}

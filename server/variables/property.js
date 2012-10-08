@@ -450,7 +450,7 @@ function objectSetPropertyMaker(s, self, rel, typeBindings){
 	
 	var isObjectProperty
 	if(property.type.type === 'set' || property.type.type === 'list'){
-		if(rel.schemaType.members.type !== 'primitive') _.errout('TODO: handl wrapAsSet for non-primitives')
+		//if(rel.schemaType.members.type !== 'primitive') _.errout('TODO: handl wrapAsSet for non-primitives')
 		c = svgObjectSetCollectionValue
 		isObjectProperty = property.type.members.type === 'object'
 	}else if(property.type.type === 'map'){
@@ -1116,35 +1116,67 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		handle.descend = function(path, editId, cb){
 			_.assertEqual(path[0].op, 'selectObject')
 			var id = innerLookup[path[0].edit.id]
+			//console.log('getting: ' + path[0].edit.id + '-> ?')
+			//console.log(JSON.stringify(innerLookup))
+			_.assertInt(id)
 			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
 	
+	//var uid = Math.random()
+	
 	elements.attach({
 		add: function(id, outerEditId){
 			wait(outerEditId)
-			s.log('got add $$$$$$$$$$$$$$$$$$$$$$: ', id, ' ', editId, ' ', propertyCode)
-			//TODO listen for changes to object
+			//console.log('got add $$$$$$$$$$$$$$$$$$$$$$: ', id, ' ', outerEditId, ' ', propertyCode)
+
 			var first = true
+			var currentV
 			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
-				editId, function(v, editId){
-				if(isObjectProperty){
-					innerLookup[v] = id
+				outerEditId, function(v, editId){
+				if(currentV !== undefined){
+					currentV.forEach(function(pv){
+						//console.log('currentV: ' + pv)
+						if(v.indexOf(pv) === -1){
+							--pvCounts[pv]
+							//console.log('pvCounts: ' + JSON.stringify(pvCounts) + ' ' + pv)
+							if(pvCounts[pv] === 0){
+								//console.log('calling remove: ' + pv)
+								listeners.emitRemove(pv, editId)
+								delete pvCounts[pv]
+								propertyValues.splice(propertyValues.indexOf(pv), 1)
+								if(isObjectProperty){
+									_.assertEqual(innerLookup[pv], id)
+									delete innerLookup[pv]
+								}
+							}
+						}
+					})
 				}
 				if(v !== undefined){
+					//console.log(id + ' got v: ' + JSON.stringify(v) + '\t\t' + uid)
 					_.assertArray(v)
 					v.forEach(function(pv){
+
+						if(isObjectProperty){
+							innerLookup[pv] = id
+						}
+
 						if(pvCounts[pv] === undefined){
 							pvCounts[pv] = 1
 							propertyValues.push(pv)
-							s.log('calling add')
+							//console.log('calling add: ' + pv)
 							listeners.emitAdd(pv, editId)
 						}else{
 							++pvCounts[pv]
 						}
 					})
+				}else{
+					console.log('descend got undefined')
+					_.assertUndefined(currentV)
 				}
+				currentV = [].concat(v)
 				if(first){
 					first = false
 					resume(outerEditId)
@@ -1160,7 +1192,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 					resume(editId)
 					return
 				}
-				//console.log('remov..')
+				//console.log('remov.. ' + JSON.stringify(v))
 				v.forEach(function(pv){
 					if(pvCounts[pv] === 1){
 						delete pvCounts[pv]
