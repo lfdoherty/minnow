@@ -152,6 +152,12 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			return function objectValueDetacher(editId){rel.detach(h, editId);}
 		}
 	}else if(relSchema.type === 'primitive'){//rel.type.type === 'set' || rel.type.type === 'list') && rel.type.members.type === 'object'){
+		var checkType
+		if(relSchema.primitive === 'string') checkType = function(v){_.assertString(v);}
+		else if(relSchema.primitive === 'int') checkType = function(v){_.assertInt(v);}
+		else if(relSchema.primitive === 'real') checkType = function(v){_.assertNumber(v);}
+		else checkType = function(v){}
+		
 		return function(listener, rel, viewId, editId){
 			_.assertFunction(listener.objectChange)
 			var ts = typeSuffix[relSchema.primitive]
@@ -160,6 +166,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			var h = {
 				set: function(value, oldValue, editId){
 					_.assertInt(editId)
+					checkType(value)
 					var edit = {value: value}
 					_.assertPrimitive(value)
 					//console.log('here: ' + JSON.stringify([viewTypeCode, viewId, viewTypeCode, viewId, [relCode], 'set', edit, -1, editId]))

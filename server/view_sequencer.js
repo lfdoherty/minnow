@@ -82,10 +82,15 @@ function serializeViewObject(w, codes, writers, list){
 	
 	for(var j=0;j<list.length;++j){
 		var e = list[j]
+		_.assertString(e.op)
 		w.putByte(codes[e.op])
 		_.assertInt(e.editId)
 		w.putInt(e.editId)
-		writers[e.op](w, e.edit)
+		try{
+			writers[e.op](w, e.edit)
+		}catch(err){
+			throw new Error('error writing op: (' + e.op + ') ' + JSON.stringify(e.edit)+'\n'+err)
+		}	
 	}
 }
 exports.serializeViewObject = serializeViewObject

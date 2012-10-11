@@ -14,4 +14,8 @@ exports.plugins = {
 	inKeys: require('./inKeys'),
 	intersection: require('./intersection'),
 	relativeComplement: require('./relativeComplement')
+	//,cast: require('./cast')
+	//TODO if we can figure out how to descend properly here, we can make cast a sync op
+	//The problem is that when we get an object id from a sync plugin, we don't know
+	//how to descend into it.
 }

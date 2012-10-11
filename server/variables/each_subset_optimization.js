@@ -110,6 +110,10 @@ function makeSynchronousFunction(s, pes, typeBindings, objSchema, implicits, e){
 		return function(){
 			return e.value
 		}
+	}else if(e.type === 'value'){
+		return function(){
+			return e.value
+		}
 	}else{
 		_.errout('TODO: ' + JSON.stringify(e))
 	}

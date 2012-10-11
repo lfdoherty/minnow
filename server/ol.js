@@ -337,6 +337,24 @@ Ol.prototype.getVersions = function(id, cb){
 		cb(versions)
 	})
 }
+Ol.prototype.getLastVersion = function(id, cb){
+	this.get(id, -1, -1, function(edits){
+		var version
+		//var has = {}
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(isPathOp(e.op)) continue
+			/*var version = e.editId
+			if(has[version] === undefined){
+				has[version] = true
+				//console.log('adding version: ' + JSON.stringify(e))
+				versions.push(version)
+			}*/
+			version = e.editId
+		}
+		cb(version)
+	})
+}
 Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 	_.assertNumber(timestamp)
 	if(op === 'make'){

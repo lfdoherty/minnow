@@ -122,9 +122,6 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			idList.push(id)
 			s.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
 			
-			//process.exit(0)
-			//listeners.emitObjectChange(typeCode, id, typeCode, id, [], 'made', {typeCode: typeCode}, -1, editId)
-			//listeners.emitShould(id, true, editId)
 			listeners.emitAdd(id, editId)
 		}
 		function listenDeleted(typeCode, id, editId){
@@ -140,18 +137,10 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			s.broadcaster.listenForNew(objSchema.code, listenCreated)
 			s.broadcaster.listenForDeleted(objSchema.code, listenDeleted)
 		})		
-		/*s.broadcaster.listenByType(typeCode, function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-			//console.log('type emitting change ' + op + ' ' + editId)
-			//process.exit(0)
-			//for(var i=0;i<path.length;++i){_.assert(path[i] > 0);}
-
-			listeners.emitObjectChange(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
-		})*/
 		
 		var currentEditId = handle.oldest()
 
 		idList.forEach(function(id){
-			//listeners.emitShould(id, true, currentEditId)
 			listeners.emitAdd(id, currentEditId)
 		})
 	})

@@ -105,7 +105,7 @@ function svgSessions(s, cache, elementGetter, bindings, editId){
 						}
 						oldSyncIds = syncIds						
 						ongoingEditId = undefined
-						s.broadcaster.listenByObject(v, function(subjTypeCode, subjId, typeCode, id, editPath, op, edit, syncId, editId){
+						s.broadcaster.listenByObject(v, function(typeCode, id, editPath, op, edit, syncId, editId){
 							if(syncIds.indexOf(syncId) === -1){
 								syncIds.push(syncId)
 								listeners.emitAdd(syncId, editId)

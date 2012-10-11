@@ -66,10 +66,10 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 	
 	var oldest = s.objectState.getCurrentEditId
 	
-	function updateNow(){
+	function updateNow(givenEditId){
 		var newTime = Date.now()
 		s.log('(' + key + ')(' + rr + ') emitting time: ' + newTime)
-		oldEditId = s.objectState.syntheticEditId()
+		oldEditId = givenEditId || s.objectState.syntheticEditId()
 		listeners.emitSet(newTime, oldTime, oldEditId);
 		oldTime = newTime
 	}
@@ -117,13 +117,15 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 		name: 'now',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			if(oldTime !== undefined){
+			if(Date.now() > oldTime && editId > oldEditId){
+				updateNow(editId)
+			}else{//updateNow will emit for all listeners, hence the else
 				listener.set(oldTime, undefined, oldEditId)
 			}
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
-			if(oldAgo !== undefined){
+			if(oldTime !== undefined){
 				listener.set(undefined, oldTime, oldEditId)
 			}
 		},

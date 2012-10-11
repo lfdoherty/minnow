@@ -241,6 +241,58 @@ function setupOutputHandler(schemaType, s){
 			return fixedPrimitive.make(s)(v, {}, editId);
 		}
 		return f
+	}else if(schemaType.type === 'object'){
+		var f = function(oldest){
+
+			var listeners = listenerSet()
+			_.assertFunction(oldest)
+			var objId;
+			var updating = false
+			var handle = {
+				name: 'syncplugin-object',
+				update: function(result, editId){
+					if(result !== objId){
+						updating = true
+						var old = objId
+						objId = result
+						listeners.emitSet(result, old, editId)
+						updating = false
+					}
+				},
+				attach: function(listener, editId){
+					listeners.add(listener)
+					_.assertFunction(listener.set)
+					if(objId !== undefined){
+						listener.set(objId, undefined, editId)
+					}
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId && objId !== undefined){
+						listener.set(undefined, objId, editId)
+					}
+				},
+				oldest: oldest,
+				key: Math.random(),
+				getType: function(id){//TODO? more complicated than this?
+					return s.objectState.getObjectType(id)
+				},
+				descend: function(path, editId, cb, continueListening){
+					_.assertFunction(cb)
+					s.objectState.streamProperty(path, editId, cb, continueListening)
+				},
+				descendTypes: function(path, editId, cb, continueListening){
+					_.assertFunction(cb)
+					s.objectState.streamPropertyTypes(path, editId, cb, continueListening)				
+				}
+			}
+			return handle;
+		}
+		var fo = fixedObject.make(s)
+		f.wrapAsSet = function(v, editId, context){
+			return fo(v, editId, context)
+		}		
+		return f
 	}else if(schemaType.type === 'set'){
 		//if(schemaType.members.type === 'primitive'){
 			var f = function(oldest){
@@ -406,7 +458,7 @@ function setupOutputHandler(schemaType, s){
 			_.errout('TODO')
 		}*/
 	}else{
-		_.errout('TODO')
+		_.errout('TODO: ' + JSON.stringify(schemaType))
 	}
 }
 

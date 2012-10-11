@@ -3,8 +3,17 @@ var _ = require('underscorem')
 
 exports.type = function(paramTypes){
 	_.assertDefined(paramTypes)
-	_.assert(paramTypes[0].primitive)//TODO use real if some are real, etc.
-	return paramTypes[0].primitive//'set:'+paramTypes[0].members.primitive;
+	_.assert(paramTypes[0].primitive)
+	var type = paramTypes[0].primitive
+	for(var i=1;i<paramTypes.length;++i){
+		if(type === 'int' && paramTypes[i].primitive === 'long'){
+			type = 'long'
+		}
+		if(paramTypes[i].primitive === 'real'){
+			type = 'real'
+		}
+	}
+	return type
 }
 exports.minParams = 2
 exports.maxParams = -1

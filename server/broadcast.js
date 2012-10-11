@@ -47,55 +47,55 @@ exports.make = function(){
 	
 	var all = []
 	
-	function notifyChanged(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
-		_.assertLength(arguments, 9);
+	function notifyChanged(typeCode, id, path, op, edit, syncId, editId){
+		_.assertLength(arguments, 7);
 		_.assertArray(path);
 		_.assertInt(syncId);
 		_.assertInt(editId);
 
-		_.assertInt(subjTypeCode);
-		_.assertInt(subjId);
+		//_.assertInt(subjTypeCode);
+		//_.assertInt(subjId);
 
-		var t = byType[subjTypeCode];
+		var t = byType[typeCode];
 		if(t !== undefined){
 			for(var i=0;i<t.length;++i){
 				var listener = t[i];
 				
 				//note that subjTypeCode and subjId are for the object of the type this listener is listening to,
 				//whereas typeCode and id might be for any object related by an FK
-				listener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId);
+				listener(typeCode, id, path, op, edit, syncId, editId);
 			}
 		}
 		var ob = byObject
-		var obj = ob[subjId];
+		var obj = ob[id];
 		if(obj !== undefined){
 			for(var i=0;i<obj.length;++i){
 				var listener = obj[i];
-				listener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId);
+				listener(typeCode, id, path, op, edit, syncId, editId);
 			}
 		}
 		
 		for(var i=0;i<bySet.length;++i){
 			var bh = bySet[i]
-			if(bh.has(subjId)){
-				bh.listener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId)
+			if(bh.has(id)){
+				bh.listener(typeCode, id, path, op, edit, syncId, editId)
 			}
 		}
 	}
 	
 	//note that the object referred to will always be the most local normalized object (and the path will be relative to that.)
-	function objectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId){
-		_.assertLength(arguments, 9);
+	function objectChanged(typeCode, id, path, op, edit, syncId, editId){
+		_.assertLength(arguments, 7);
 		var already = {}
-		internalObjectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId, already)
+		internalObjectChanged(typeCode, id, path, op, edit, syncId, editId, already)
 	}
-	function internalObjectChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId, already){
-		_.assertLength(arguments, 10);
+	function internalObjectChanged(typeCode, id, path, op, edit, syncId, editId, already){
+		_.assertLength(arguments, 8);
 		_.assertInt(editId);
 		_.assertInt(syncId);
 		_.assertString(op)
 		
-		notifyChanged(destTypeCode, destId, typeCode, id, path, op, edit, syncId, editId);
+		notifyChanged(typeCode, id, path, op, edit, syncId, editId);
 	}
 	
 	var setListenerIdCounter = 1
@@ -133,7 +133,7 @@ exports.make = function(){
 				all.forEach(function(listener){
 					listener(typeCode, id, path, op, edit, syncId, editId);
 				})
-				objectChanged(typeCode, id, typeCode, id, path, op, edit, syncId, editId);
+				objectChanged(typeCode, id, path, op, edit, syncId, editId);
 			},
 			objectDeleted: function(typeCode, id, editId){
 				var c = delByType[typeCode];

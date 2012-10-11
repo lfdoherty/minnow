@@ -88,7 +88,8 @@ function svg(s, cache, elementGetter, bindings, editId){
 	var oldName;
 	element.attach({
 		add: function(v, editId){
-			//console.log('added: ' + v)
+			_.assertInt(v)
+			_.assert(v > 0)
 			var ts = s.objectState.getVersionTimestamp(v)
 			timestamps[v] = ts
 			versions.push(v)

@@ -40,6 +40,7 @@ VariableListeners.prototype.emitRemove = function(value, editId){
 	}
 }
 VariableListeners.prototype.emitSet = function(value, oldValue, editId){
+	//console.log('listeners: ' + this.listeners.length)
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
 		listener.set(value, oldValue, editId)

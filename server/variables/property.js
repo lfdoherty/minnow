@@ -516,6 +516,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			//console.log('property getting attach: ' + propertyCode + ' ' + isObjectProperty)
 			listeners.add(listener)
 			//console.log('attaching to property ' + propertyCode + ' ' + value + ' ' + editId)
+			//if(propertyCode === 100) console.log(new Error().stack)
 			//console.log('^'+JSON.stringify(Object.keys(listener)))
 			if(value !== undefined){
 				listener.set(value, undefined, editId)
@@ -545,6 +546,8 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		}
 	}
 	
+	var uid = Math.random()
+	
 	elements.attach({
 		set: function(id, oldId, editId){
 			if(ongoingEditId === undefined) ongoingEditId = editId
@@ -553,21 +556,23 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			_.assertInt(id)
 			_.assertInt(editId)
 
-			s.log('GETTING(' + id + ') PBOJECR: ' + propertyCode)
-			s.log(elements.name + ': '+elements)
-			s.log(Object.keys(elements))
+			//s.log('GETTING(' + id + ') PBOJECR: ' + propertyCode)
+			//s.log(elements.name + ': '+elements)
+			//s.log(Object.keys(elements))
 			_.assertInt(id)
 			//console.log(id + ' ' + editId)
 			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
 				editId, function(pv, editId){
-				//console.log('got pv: ' + JSON.stringify(pv))
+				//console.log(key + ' ' + uid+' got pv(' + id+','+propertyCode + '): ' + JSON.stringify(pv) + ' ' + value)
 				if(pv !== undefined){
 					if(pv !== value){
 						if(isObjectProperty){
 							innerLookup[pv] = id;
 						}
-						listeners.emitSet(pv, value, editId)
+						var oldValue = value
 						value = pv
+						//console.log('emitting value')
+						listeners.emitSet(pv, oldValue, editId)
 					}
 				}
 				ongoingEditId = undefined

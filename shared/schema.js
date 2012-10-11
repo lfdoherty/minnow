@@ -327,7 +327,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 					paramTypes.push(p.schemaType)
 				})
 				//console.log('parsing plugin: ' + pluginName)
-				return keratin.parseType(plugin.type(paramTypes))
+				return keratin.parseType(plugin.type(paramTypes, rel.params))
 			},
 			implementation: plugin.compute,
 			minParams: plugin.minParams,
@@ -612,6 +612,9 @@ function parseViewExpr(expr){
 				}*/else if(expr === '[]'){
 					path.push({type: 'array', value: []})
 					break;
+				}else if(expr === 'false' || expr === 'true'){
+					path.push({type: 'value', value: expr === 'true'})
+					break;
 				}else{
 					checkAlphanumericOnly(expr, 'parameter name must contain only alphanumeric characters, or be & or $ (' + expr + ')');
 					path.push({type: 'param', name: expr});
@@ -744,9 +747,9 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			if(p.name === rel.name) return true;
 		})
 		if(vv === undefined){
-			log('param: ' + JSON.stringify(rel))
-			log('binding names: ' + JSON.stringify(Object.keys(bindingTypes)))
-			log('bindings: ' + JSON.stringify(bindingTypes))
+			console.log('param: ' + JSON.stringify(rel))
+			console.log('binding names: ' + JSON.stringify(Object.keys(bindingTypes)))
+			console.log('bindings: ' + JSON.stringify(bindingTypes))
 			_.errout('cannot find param: ' + rel.name + ' (' + JSON.stringify(v.params) + ')');
 		}
 		_.assertObject(vv.type);
@@ -857,6 +860,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		if(_.isString(rel.value)) return rel.schemaType = {type: 'primitive', primitive: 'string'}
 		else if(_.isInt(rel.value)) return rel.schemaType = {type: 'primitive', primitive: 'int'}
 		else if(_.isNumber(rel.value)) return rel.schemaType = {type: 'primitive', primitive: 'real'}
+		else if(rel.value === false || rel.value === true) return rel.schemaType = {type: 'primitive', primitive: 'boolean'}
 		else{
 			_.errout('TODO: ' + JSON.stringify(rel))
 		}

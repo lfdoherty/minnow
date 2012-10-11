@@ -12,7 +12,7 @@ var _ = require('underscorem')
 
 function topByValuesType(rel){
 	if(rel.params[1].schemaType.type !== 'map') throw new Error('topByValues parameter 2 must be a map: ' + JSON.stringify(rel.params[1].type))
-	if(rel.params[1].schemaType.value.type !== 'primitive') throw new Error('topByValues parameter 2 must be a map with primitive values')
+	if(rel.params[1].schemaType.value.type !== 'primitive') throw new Error('topByValues parameter 2 must be a map with primitive values: ' + JSON.stringify(rel.params[1].schemaType))
 	return rel.params[1].schemaType
 }
 schema.addFunction('topByValues', {

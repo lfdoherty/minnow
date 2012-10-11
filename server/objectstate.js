@@ -293,7 +293,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 	//console.log('streaming ', path, ':', prop)
 	cb(prop, editId)
 	
-	broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, editPath, op, edit, syncId, editId){
+	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
 		//if(path.length > 1) return
 		var fullPath = [{op:'selectObject', edit: {id: id}}].concat(editPath)//[id].concat(path)
 		
@@ -427,7 +427,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 	log('streaming ', path, ':', prop)
 	cb(prop, editId)
 	
-	broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, editPath, op, edit, syncId, editId){
+	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
 		//if(path.length > 1) return
 		var fullPath = [{op:'selectObject', edit: {id: id}}].concat(editPath)//[id].concat(path)
 		
@@ -505,7 +505,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 	}
 	cb(getType, editId)
 	
-	broadcaster.output.listenByObject(objId, function(subjTypeCode, subjId, typeCode, id, editPath, op, edit, syncId, editId){
+	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
 		//if(path.length > 1) return
 		var fullPath = [{op: 'selectObject', edit: {id: id}}].concat(editPath)//[id].concat(path)
 		
@@ -648,6 +648,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 		},
 		getVersions: function(id, cb){
 			ol.getVersions(id, cb)
+		},
+		getLastVersion: function(id, cb){
+			ol.getLastVersion(id, cb)
 		},
 		getVersionTimestamp: function(id){
 			return ol.getVersionTimestamp(id)
