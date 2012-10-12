@@ -18,14 +18,16 @@ exports.type = function(paramTypes){
 exports.minParams = 2
 exports.maxParams = -1
 exports.syntax = 'add(number,number,...)'
+exports.nullsOk = true
 
-//var log = require('quicklog').make('intersection')
+var log = require('quicklog').make('add')
 
 exports.compute = function(paramValues){
-	
 	var v = 0
 	for(var i=0;i<paramValues.length;++i){
+		if(paramValues[i] == null) continue
 		v += paramValues[i]
 	}
+	//console.log('added ' + JSON.stringify(paramValues) + ' -> ' + v)
 	return v
 }

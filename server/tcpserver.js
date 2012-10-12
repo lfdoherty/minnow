@@ -434,7 +434,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
 				s.getAllSnapshots(e, function(err, res){
 					if(err){
-						w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
+						w.requestError({err: ''+err, requestId: e.requestId, code: err.code||'UNKNOWN'})
 						return
 					}
 					res.requestId = e.requestId;

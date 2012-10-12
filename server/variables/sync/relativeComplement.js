@@ -3,7 +3,7 @@ var _ = require('underscorem')
 
 exports.type = function(paramTypes){
 	_.assertDefined(paramTypes)
-	console.log(JSON.stringify(paramTypes))
+	//console.log(JSON.stringify(paramTypes))
 	_.assertDefined(paramTypes[0].members)
 	_.assertDefined(paramTypes[1].members)
 	if(paramTypes[0].members.type === 'object'){

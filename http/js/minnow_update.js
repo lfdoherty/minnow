@@ -191,6 +191,10 @@ function establishSocket(appName, schema, host, cb){
 					if(_.isObject(params[i])) realParams[i] = params[i].id()
 				}
 				
+				var manyParams = schema[viewName].viewSchema.params.length
+				if(manyParams !== params.length){
+					_.errout('wrong number of params for ' + viewName + ' view (should be ' + manyParams + ', but is ' + params.length)
+				}
 				//console.log('getting view: ' + viewName + ' ' + JSON.stringify(params))
 				shared.openView(syncId, api, schema, host, appName, viewName, realParams, sendFacade, function(err,handle){
 					/*if(err){

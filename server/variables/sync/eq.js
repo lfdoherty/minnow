@@ -7,11 +7,12 @@ exports.type = function(paramTypes){
 exports.minParams = 2
 exports.maxParams = 2
 exports.syntax = 'eq(*,*)'
+exports.nullsOk = true
 
 //var log = require('quicklog').make('intersection')
 
 exports.compute = function(paramValues){
-	
+
 	/*if(paramValues[0] !== paramValues[1]){
 		console.log('eq: ' + JSON.stringify(paramValues))
 		console.log(new Error().stack)

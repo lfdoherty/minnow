@@ -194,11 +194,15 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 	if(property.type.type === 'set' || property.type.type === 'list'){
 		c = svgObjectCollectionValue
 		isObjectValue = property.type.members.type === 'object'
+	}else if(property.type.type === 'map'){
+		//_.errout('TODO')
+		c = svgObjectSingleMapValue
+		isObjectValue = property.type.value.type === 'object'
 	}else{
 		c = svgObjectSingleValue
 		isObjectValue = property.type.type === 'object'
 	}
-	var f = c.bind(undefined, s, cache, contextGetter, isObjectValue, propertyCode)
+	var f = c.bind(undefined, s, cache, contextGetter, isObjectValue, propertyCode, rel)
 	if(c === svgObjectSingleValue){
 		f.wrapAsSet = function(v, editId){
 			var res
@@ -487,7 +491,7 @@ function objectSetPropertyMaker(s, self, rel, typeBindings){
 var ccc = 0
 
 
-function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
+function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propertyCode, metadata, bindings, editId){
 	_.assertInt(editId)
 	var elements = contextGetter(bindings, editId)
 
@@ -513,6 +517,8 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		name: 'property-of-object',
 		attach: function(listener, editId){
 			_.assertInt(editId)
+			//console.log(JSON.stringify(metadata))			
+			_.assertFunction(listener.set)
 			//console.log('property getting attach: ' + propertyCode + ' ' + isObjectProperty)
 			listeners.add(listener)
 			//console.log('attaching to property ' + propertyCode + ' ' + value + ' ' + editId)
@@ -584,7 +590,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 }
 
 
-function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
+function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, propertyCode, metadata, bindings, editId){
 	_.assertInt(editId)
 	var elements = contextGetter(bindings, editId)
 
@@ -741,6 +747,176 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 	return cache.store(key, handle)
 }
 
+function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, propertyCode, metadata, bindings, editId){
+	_.assertInt(editId)
+	var elements = contextGetter(bindings, editId)
+
+	var key = elements.key
+	if(cache.has(key)) return cache.get(key)
+	
+	//console.log('making object collection variable: ' + key)
+	
+	var listeners = listenerSet()
+
+	var values = {}
+	
+	var ongoingEditId
+	var latestEditId
+	
+	function oldest(){
+		var oldestEditId = elements.oldest()
+		//console.log('h: ' + oldestEditId + ' ' + ongoingEditId)
+		if(ongoingEditId !== undefined) return Math.min(oldestEditId, ongoingEditId)
+		else return oldestEditId
+	}
+	
+	var handle = {
+		name: 'property-of-object-map',
+		attach: function(listener, editId){
+			_.assertInt(editId)
+			listeners.add(listener)
+			//console.log('#attaching to property ' + propertyCode + ' ' + JSON.stringify(values))
+			Object.keys(values).forEach(function(key){
+				var v = values[key]
+				listener.put(key, v, undefined, editId)
+			})
+		},
+		detach: function(listener, editId){
+			listeners.remove(listener)
+			if(editId){
+				Object.keys(values).forEach(function(key){
+					listener.del(key, editId)
+				})
+			}
+		},
+		oldest: oldest,
+		key: key,
+		descend: function(){_.errout('TODO?')},
+		getType: function(v){
+			//_.errout('TODO')
+			if(!isObjectProperty) _.errout('internal error')
+			return oldTypeGetter(v)
+		}
+	}
+	//TODO listen for changes
+	
+	if(isObjectProperty){
+		//var innerLookup = {}
+		var currentId
+		handle.descend = function(path, editId, cb){
+			_.assertEqual(path[0].op, 'selectObject')
+			var id = currentId//innerLookup[path[0].edit.id]
+			if(id === undefined){
+				s.log(JSON.stringify(innerLookup))
+				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
+			}
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
+		}
+		handle.descendTypes = function(path, editId, cb){
+			_.assertEqual(path[0].op, 'selectObject')
+			var id = currentId//innerLookup[path[0].edit.id]
+			if(id === undefined){
+				s.log(JSON.stringify(innerLookup))
+				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
+			}
+			elements.descendTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
+		}
+	}
+	
+	//var oldPv
+	var oldTypeGetter
+	
+	var previousStreamListener
+	elements.attach({
+		set: function(id, oldId, editId){
+			if(ongoingEditId === undefined) ongoingEditId = editId
+			latestEditId = editId
+			_.assertInt(id)
+			_.assertInt(editId)
+			
+			if(isObjectProperty){
+				currentId = id
+			}
+			//TODO stop streaming previous
+			if(previousStreamListener){
+				//s.objectState.stopStreamingProperty(id, propertyCode, previousStreamListener)
+				_.errout('TODO')
+			}
+			function streamListener(pv, editId){
+				ongoingEditId = undefined
+				
+				pv = pv || {}
+				//console.log('streaming object property: ' + JSON.stringify(pv))
+
+				if(values !== undefined){
+					//console.log('cleaning up oldPv ' + JSON.stringify(oldPv) + ' -> ' + JSON.stringify(pv))
+					//console.log('counts: ' + JSON.stringify(counts))
+					Object.keys(values).forEach(function(key){
+						var v = values[key]
+						if(pv[key] === undefined){//.indexOf(v) === -1){
+							//--counts[v]
+							//if(counts[v] === 0){
+								//console.log('emitting remove')
+								listeners.emitDel(key, editId)
+							//}
+						}
+					})
+				}
+
+				/*if(isObjectProperty && pv !== undefined){
+					//_.assertInt(pv)
+					Object.keys(pv).forEach(function(v){
+						innerLookup[v] = id
+					})
+				}*/
+				s.log('streaming property(', propertyCode, '): ', pv)
+				//console.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
+				//var pv = obj[propertyCode]
+				if(pv !== undefined){
+					Object.keys(pv).forEach(function(key){
+						var v = pv[key]
+						
+						if(values[key] !== v){
+							listeners.emitPut(key, v, values[key], editId)
+						}
+						/*if(!counts[v]){
+							counts[v] = 1
+							values.push(v)
+							s.log('emitting add: ', v)
+							//console.log('emitting add')
+							listeners.emitAdd(v, editId)
+						}else if(oldPv.indexOf(v) === -1){
+							++counts[v]
+						}*/
+					})
+				}
+
+				values = {}
+				Object.keys(pv).forEach(function(key){values[key] = pv[key];})
+
+			}
+			previousStreamListener = streamListener
+
+			if(isObjectProperty){
+				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+					oldTypeGetter = typeGetter
+				}, true)
+			}
+			
+			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
+				editId, streamListener)
+			
+		},
+		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+			//TODO?
+			_.errout('TODO')
+		}
+	}, editId)
+	
+	return cache.store(key, handle)
+}
 
 function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, propertyCode, bindings, editId){
 	var elements = contextGetter(bindings, editId)
@@ -850,7 +1026,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			//_.errout('TODO stream property state')
 			var cur;
 			var first = true
-			console.log('added id: ' + id)
+			//console.log('added id: ' + id)
 			//s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
 			
 			if(isObjectProperty){

@@ -7,6 +7,8 @@ var listenerSet = require('./../variable_listeners')
 
 var log = require('quicklog').make('minnow/view-variable')
 
+var util = require('./util')
+
 //TODO in principle, the call site of a view shouldn't affect its caching - they should all share
 //right now, we have a different cache for each call site (including the top-level call site.)
 //Note however that if the parameters are different variables, the view variable will end up as
@@ -122,14 +124,6 @@ function values(obj, f){
 	Object.keys(obj).forEach(function(key){f(obj[key])})
 }
 
-var typeSuffix = {
-	int: 'Int',
-	long: 'Long',
-	string: 'String',
-	boolean: 'Boolean',
-	real: 'Real',
-	timestamp: 'Long'
-}
 function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 
 	_.assertObject(relSchema)
@@ -160,16 +154,15 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 		
 		return function(listener, rel, viewId, editId){
 			_.assertFunction(listener.objectChange)
-			var ts = typeSuffix[relSchema.primitive]
-			if(ts === undefined) _.errout('TODO: ' + relSchema.primitive)
-			var opName = 'set'+ts
+			var opName = util.setOp(relSchema)
 			var h = {
 				set: function(value, oldValue, editId){
 					_.assertInt(editId)
 					checkType(value)
 					var edit = {value: value}
 					_.assertPrimitive(value)
-					//console.log('here: ' + JSON.stringify([viewTypeCode, viewId, viewTypeCode, viewId, [relCode], 'set', edit, -1, editId]))
+					//console.log('here: ' + JSON.stringify([viewTypeCode, viewId, [relCode], 'set', edit, -1, editId]))
+					//console.log(new Error().stack)
 					listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], opName, edit, -1, editId)
 				}
 			}
@@ -213,10 +206,10 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						}
 					}
 				}else{
-					var ts = typeSuffix[relSchema.value.members.primitive]
-					var putAddOpName = 'putAdd'+ts
-					var putRemoveOpName = 'putRemove'+ts
-					var selectOpName = 'select'+(typeSuffix[relSchema.key.primitive]||'Int')+'Key'
+					//var ts = typeSuffix[relSchema.value.members.primitive]
+					var putAddOpName = util.putAddOp(relSchema)//'putAdd'+ts
+					var putRemoveOpName = util.putRemoveOp(relSchema)//'putRemove'+ts
+					var selectOpName = util.selectKeyOp(relSchema)//'select'+(typeSuffix[relSchema.key.primitive]||'Int')+'Key'
 					var h = {
 						putAdd: function(key, value, editId){
 							_.assertInt(editId)
@@ -244,13 +237,13 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				return function objectSetDetacher(editId){rel.detach(h, editId);}
 			}
 		}else{
-			var ts = typeSuffix[relSchema.value.primitive]
-			if(ts === undefined) _.errout('TODO: ' + JSON.stringify(relSchema))
-			var ks = relSchema.key.type === 'object'? 'Object' : typeSuffix[relSchema.key.primitive]
-			if(ks === undefined) _.errout('TODO: ' + JSON.stringify(relSchema))//relSchema.key.primitive)
-			var putOpName = 'put'+ts
-			var keyOpName = 'select'+ks+'Key'
-			var delOpName = 'del'+ks+'Key'
+			//var ts = typeSuffix[relSchema.value.primitive]
+			//if(ts === undefined) _.errout('TODO: ' + JSON.stringify(relSchema))
+			//var ks = relSchema.key.type === 'object'? 'Object' : typeSuffix[relSchema.key.primitive]
+			//if(ks === undefined) _.errout('TODO: ' + JSON.stringify(relSchema))//relSchema.key.primitive)
+			var putOpName = util.putOp(relSchema)//'put'+ts
+			var keyOpName = util.selectKeyOp(relSchema)//'select'+ks+'Key'
+			//var delOpName = util.delKeyOp(relSchema)//'del'+ks+'Key'
 
 			return function(listener, rel, viewId, editId){
 				_.assertInt(editId)
@@ -264,7 +257,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						//console.log('*got put')
 						//listener.objectChange(viewTypeCode, viewId, viewTypeCode, viewId, [relCode], keyOpName, 
 						//	{key: key}, -1, editId)
-						if(ks === 'Object' && listener.includeObject) listener.includeObject(key, editId)
+						if(relSchema.key.type === 'object' && listener.includeObject) listener.includeObject(key, editId)
 						listener.objectChange(/*viewTypeCode, viewId, */viewTypeCode, viewId, 
 							[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: keyOpName, edit: {key: key}}], 
 							putOpName, edit, -1, editId)
@@ -377,10 +370,10 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				_.assertFunction(listener.objectChange)
 				//_.assertFunction(listener.shouldHaveObject)
 
-				var ts = typeSuffix[relSchema.members.primitive]
-				if(ts === undefined) _.errout('TODO: ' + relSchema.members.primitive)
-				var addOpName = 'add'+ts
-				var removeOpName = 'remove'+ts
+				//var ts = typeSuffix[relSchema.members.primitive]
+				//if(ts === undefined) _.errout('TODO: ' + relSchema.members.primitive)
+				var addOpName = util.addOp(relSchema)//'add'+ts
+				var removeOpName = util.removeOp(relSchema)//'remove'+ts
 
 				var h = {
 					add: function(value, editId){

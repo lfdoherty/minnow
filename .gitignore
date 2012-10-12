@@ -13,3 +13,4 @@ bench/*/*/
 *.txt
 .coverage_data
 minnow_data
+.temp_schema_file*

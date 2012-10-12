@@ -257,6 +257,9 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			editBuffer.add({order: ++orderingIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId})
 		}
 	}
+
+	detachViewVariable = viewVariable.attach(viewListeners, endEditId)
+	_.assertFunction(detachViewVariable)
 	
 	var intervalHandle = setInterval(function(){
 
@@ -277,7 +280,6 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		}
 	}, 0)
 
-	detachViewVariable = viewVariable.attach(viewListeners, endEditId)
 }
 
 var fs = require('fs')

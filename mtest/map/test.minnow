@@ -22,3 +22,6 @@ innerCv(c container){
 }
 containerValuesView() 104
 	vs each(*container, {innerCv(~)}) 100
+	
+stringForContained(key string) 105
+	names each(*container, {mapValue(~.members,key)}).name 1

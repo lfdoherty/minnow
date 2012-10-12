@@ -112,6 +112,11 @@ function translateParamObjects(s, params){
 	var viewSchema = s.viewSchema
 	//console.log(JSON.stringify(viewSchema))
 	if(viewSchema.params.length === 0) return []
+
+	var manyParams = viewSchema.params.length
+	if(manyParams !== params.length){
+		_.errout('wrong number of params for ' + viewName + ' view (should be ' + manyParams + ', but is ' + params.length)
+	}	
 	
 	var res = []
 	viewSchema.params.forEach(function(p, i){

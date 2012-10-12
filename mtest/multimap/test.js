@@ -9,6 +9,7 @@ exports.index = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
+				if(err) throw err
 			
 				poll(function(){
 
@@ -43,6 +44,7 @@ exports.removeValue = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
+				if(err) throw err
 			
 				var gotFull
 			
@@ -92,6 +94,7 @@ exports.reverseIndex = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
+				if(err) throw err
 			
 				poll(function(){
 
@@ -111,6 +114,7 @@ exports.reverseIndex = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
+						if(err) throw err
 
 						v.make('entity', {name: 'jim', tags: ['young', 'tall']})
 						v.make('entity', {name: 'mary', tags: ['old', 'tall']})
@@ -126,7 +130,7 @@ exports.reverseIndexDedup = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
-			
+				if(err) throw err
 				poll(function(){
 
 					if(c.reverseIndex.count() !== 2) return
@@ -155,3 +159,4 @@ exports.reverseIndexDedup = function(config, done){
 		})
 	})
 }
+

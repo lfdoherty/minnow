@@ -15,10 +15,19 @@ var util = require('util');
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
 	'is', 'and', 'or', 'id',
 	'div', 'add', 'sub', 'mul'];
-	
+
 var builtinFunctions = {}
 exports.addFunction = function(name, def){
+	//console.log('added built-in: ' + name)
 	builtinFunctions[name] = def
+	var oldSchemaType = def.schemaType
+	def.schemaType = function(rel, ch){
+		var paramTypes = []
+		rel.params.forEach(function(p){
+			paramTypes.push(p.schemaType)
+		})
+		return {schemaType: oldSchemaType(rel,ch), paramTypes: paramTypes}
+	}
 }
 var syncPlugins
 
@@ -327,12 +336,17 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 					paramTypes.push(p.schemaType)
 				})
 				//console.log('parsing plugin: ' + pluginName)
-				return keratin.parseType(plugin.type(paramTypes, rel.params))
+				var res = keratin.parseType(plugin.type(paramTypes, rel.params))
+				_.assertObject(res)
+				//res.paramTypes = paramTypes
+				return {schemaType: res, paramTypes: paramTypes}
 			},
 			implementation: plugin.compute,
 			minParams: plugin.minParams,
 			maxParams: plugin.maxParams,
-			callSyntax: plugin.syntax
+			callSyntax: plugin.syntax,
+			descender: plugin.descender,
+			nullsOk: plugin.nullsOk
 		}
 	})
 
@@ -840,8 +854,8 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 				if(p.schemaType === undefined) throw new Error('failed to compute schemaType for rel: ' + JSON.stringify(p))
 			}
 		})
-		_.assertObject(res)
-		return rel.schemaType = res;
+		_.assertObject(res.schemaType)
+		return rel.schemaType = res.schemaType;
 		
 	}else if(rel.type === 'typeset'){
 		var t = schema[rel.name];
