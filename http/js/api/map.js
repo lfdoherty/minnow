@@ -414,6 +414,16 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 			res.prepare()
 			return this.emit(edit, 'put', key, res, old, editId)
 		}
+	}else if(op === 'putViewObject'){
+		var id = edit.id
+		_.assertString(id)
+
+		var res = this.getObjectApi(id);
+		var old = this.obj[key]
+		this.obj[key] = res
+		res.prepare()
+		return this.emit(edit, 'put', key, res, old, editId)
+		
 	}else if(op.indexOf('put') === 0){
 		var old = this.obj[key]
 		this.obj[key] = edit.value;

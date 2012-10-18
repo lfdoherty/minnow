@@ -195,7 +195,7 @@ exports.make = function(){
 				return true
 			}
 		},
-		destroy: function(id){
+		/*destroy: function(id){
 			if(cache[id]){
 				order[order.indexOf(id)] = -1
 				delete cache[id]
@@ -203,7 +203,7 @@ exports.make = function(){
 			if(!ob.isNew(id)){
 				ob.destroy(id)
 			}
-		},
+		},*/
 		assertUnknown: function(id){
 			_.assert(ob.isNew(id))
 		}

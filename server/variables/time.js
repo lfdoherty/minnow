@@ -33,21 +33,41 @@ function copyBindings(bindings){
 	return newBindings
 }
 
+var cache = new Cache()
+
+function walkAndRemove(n, cb){
+	var keys = Object.keys(n)
+	keys.forEach(function(p){
+		if(cb(n,p) === true){
+			delete n[p]
+		}else{
+			if(_.isObject(n[p])){
+				walkAndRemove(n[p], cb)
+			}
+		}
+	})
+}
+
 function nowMaker(s, self, rel, typeBindings){
 
 	var delayGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache()
 	//console.log('now maker')
 	//console.log(new Error().stack)
-	return svgNow.bind(undefined, s, cache, delayGetter, rel.params[0].implicits)
+	var dkp = JSON.parse(JSON.stringify(rel.params[0]))
+	walkAndRemove(dkp, function(n,p){
+		return p === 'implicits' || p === 'schemaType'
+	})
+	var delayKey = JSON.stringify(dkp)
+	
+	return svgNow.bind(undefined, s, cache, delayGetter, delayKey, rel.params[0].implicits)
 }
 
-function svgNow(s, cache, delayGetter, implicits, bindings, editId){
+function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 
 	var concreteDelayGetter = delayGetter(bindings, editId)
 
-	var key = concreteDelayGetter.key
+	var key = concreteDelayGetter.key+delayKey
 	if(cache.has(key)){
 		s.log('already got now: ' + key)
 		return cache.get(key)
@@ -69,7 +89,14 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 	function updateNow(givenEditId){
 		var newTime = Date.now()
 		s.log('(' + key + ')(' + rr + ') emitting time: ' + newTime)
+		if(givenEditId && oldEditId > givenEditId){
+			_.errout('out of order edit')
+		}
 		oldEditId = givenEditId || s.objectState.syntheticEditId()
+
+		//console.log(rr+' ' + key + ' emitting timed update ' + givenEditId + ' ' + oldEditId)
+		//console.log(new Error().stack)
+		
 		listeners.emitSet(newTime, oldTime, oldEditId);
 		oldTime = newTime
 	}
@@ -100,14 +127,12 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 			var nextUpdateTime = oldTime + delayValue
 			if(timeoutHandle) clearTimeout(timeoutHandle)
 			var now = Date.now()
-			if(oldTime <= now){
+			if(nextUpdateTime <= now){
 				updateNow()
-				s.log('immediate - set timeout to ' + (nextUpdateTime - now))
-				timeoutHandle = setTimeout(update, nextUpdateTime - now)
-			}else{
-				s.log('later - set timeout to ' + delayValue)
-				timeoutHandle = setTimeout(update, delayValue)
 			}
+
+			s.log('set timeout to ' + delayValue)
+			timeoutHandle = setTimeout(update, delayValue)
 		}
 	}
 	
@@ -117,7 +142,7 @@ function svgNow(s, cache, delayGetter, implicits, bindings, editId){
 		name: 'now',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			if(Date.now() > oldTime && editId > oldEditId){
+			if(Date.now() > oldTime && editId + 1 === oldest()){
 				updateNow(editId)
 			}else{//updateNow will emit for all listeners, hence the else
 				listener.set(oldTime, undefined, oldEditId)

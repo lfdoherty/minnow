@@ -117,6 +117,10 @@ function mapMaker(s, self, rel, typeBindings){
 		}else{
 			return svgMapKeySingleValueMultiple.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
 		}
+	}else if(t.type === 'map'){
+		_.errout('cannot make map with maps as values')
+		////_.errout('TODO')		
+		//return svgMapSingleMaps.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
 	}else{//if the result of the values macro is a single value
 		var hasObjectValues = t.type === 'object'
 		if(kt.type === 'set' || kt.type === 'list'){
@@ -383,10 +387,12 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				function keyListener(value, oldValue, editId){
 					kv.key = value	
 					if(value === undefined){
+						//console.log('got undefined value , old: ' + oldValue)
 						if(oldValue !== undefined){
 							var oldKvValue = state[oldValue]
 							if(oldKvValue !== undefined){
 								delete state[oldValue]
+								//console.log('emitting del')
 								listeners.emitDel(oldValue, editId)
 							}
 						}
@@ -416,12 +422,15 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				}
 				
 				var kl = {
-					set: keyListener,
-					shouldHaveObject: stub
+					set: keyListener
 				}
 				var vl = {
 					set: valueListener,
-					shouldHaveObject: stub
+					//TODO cache object changes?
+					objectChange: function(typeCode, id, path, op, edit, syncId, editId){
+						//_.errout('TODO: ' + JSON.stringify(arguments))
+						listeners.emitObjectChange(typeCode, id, path, op, edit, syncId, editId)
+					}
 				}
 				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: kl, valueListener: vl}
@@ -431,6 +440,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
+				//console.log('detaching from map')
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
@@ -462,7 +472,6 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 		
 	return cache.store(key, handle)
 }
-
 
 function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond, bindings, editId){
 	var elements = contextGetter(bindings, editId)
@@ -636,8 +645,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 				}
 				var vl = {
 					add: valueAddListener,
-					remove: valueRemoveListener,
-					//shouldHaveObject: stub
+					remove: valueRemoveListener
 				}
 				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: kl, valueListener: vl}
@@ -815,14 +823,10 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
+				//console.log('*detaching from map')
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			/*shouldHaveObject: function(id, flag, editId){
-				if(hasObjectValues){
-					_.errout('TODO')
-				}
-			},*/
 			objectChange: stub
 		}, editId)
 	}else{
@@ -868,23 +872,16 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
 
 				newKeyVariable.attach({
-					set: keyListener,
-					shouldHaveObject: stub
+					set: keyListener
 				}, editId)
 				newValueVariable.attach({
-					set: valueListener,
-					shouldHaveObject: stub
+					set: valueListener
 				}, editId)
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
-			},
-			shouldHaveObject: function(id, flag, editId){
-				if(hasObjectValues){
-					_.errout('TODO')
-				}
 			},
 			objectChange: stub
 		}, editId)*/

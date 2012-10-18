@@ -200,6 +200,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 							_.assertArray(up.path)
 							var newPath = [].concat(up.path)
 							pathmerger.editToMatch(curPath, newPath, function(op, edit){
+
 								listenerCb(op, edit, up.editId)					
 							})
 							curPath = newPath
@@ -269,7 +270,18 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					_.assertLength(arguments, 1);
 					//_.assertInt(e.typeCode)
 					//log('e: ', e)
+					//console.log(JSON.stringify(e))
+
 					//console.log(new Error().stack)
+					if(e.path){
+						e.path.forEach(function(ep){
+							if(ep.op === 'selectObjectKey'){
+								//console.log("selecting object key")
+								includeObjectCb(ep.edit.key, e.editId)
+							}
+						})
+					}
+							
 					if(sentBuffer.length > 0){
 						sentBuffer.push(e)
 					}else{

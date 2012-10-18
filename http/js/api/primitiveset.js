@@ -35,6 +35,17 @@ var typeSuffix = {
 	long: 'Long',
 	boolean: 'Boolean'
 }
+
+PrimitiveSetHandle.prototype.toggle = function(value){
+	_.assertDefined(value)
+	
+	if(this.obj.indexOf(value) === -1){
+		this.add(value)
+	}else{
+		this.remove(value)
+	}
+}
+
 PrimitiveSetHandle.prototype.add = function(value){
 	this.assertMemberType(value)
 

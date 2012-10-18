@@ -229,6 +229,8 @@ didPutNew 110
 		
 putExisting 30
 	id int 2
+putViewObject 112
+	id string 1
 	
 shift 20
 

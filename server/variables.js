@@ -57,6 +57,7 @@ require('./variables/timestamp')
 var fixedPrimitive = require('./fixed/primitive')
 var fixedObject = require('./fixed/object')
 var fixedSet = require('./fixed/set')
+var fixedMap = require('./fixed/map')
 var macroCall = require('./variables/macrocall')
 var schema = require('./../shared/schema')
 var syncplugins = require('./variables/syncplugins')
@@ -149,6 +150,8 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 			paramGetters[i] = fixedPrimitive.make(s)
 		}else if(param.type.type === 'object'){
 			paramGetters[i] = fixedObject.make(s)
+		}else if(param.type.type === 'map'){
+			paramGetters[i] = fixedMap.make(s)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(param))
 		}

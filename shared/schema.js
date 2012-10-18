@@ -318,6 +318,8 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 	_.assertLength(arguments, 3)
 
 	schemaDir = schemaDir || process.cwd();
+
+	var schema;
 	
 	var osp = synchronousPlugins
 	synchronousPlugins = {}
@@ -336,7 +338,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 					paramTypes.push(p.schemaType)
 				})
 				//console.log('parsing plugin: ' + pluginName)
-				var res = keratin.parseType(plugin.type(paramTypes, rel.params))
+				var res = keratin.parseType(plugin.type(paramTypes, rel.params, schema))
 				_.assertObject(res)
 				//res.paramTypes = paramTypes
 				return {schemaType: res, paramTypes: paramTypes}
@@ -363,9 +365,9 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			cdl()
 		})
 	})
+
 		
 	var cdl = _.latch(schemaDirs.length, function(){
-		var schema;
 		try{
 			schema = keratin.parse(str, reservedTypeNames);
 		}catch(e){

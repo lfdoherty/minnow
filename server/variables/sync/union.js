@@ -1,12 +1,24 @@
 
 var _ = require('underscorem')
 
-exports.type = function(paramTypes){
+var util = require('./../util')
+
+exports.type = function(paramTypes, params, schema){
 	_.assertDefined(paramTypes)
 	if(paramTypes[0].members.type === 'primitive'){
 		return 'set:'+paramTypes[0].members.primitive;
 	}else if(paramTypes[0].members.type === 'object'){
-		return 'set:'+paramTypes[0].members.object;
+		//_.errout('TODO find common parent type of objects')
+		var names = []
+		paramTypes.forEach(function(v){
+			names.push(v.members.object)
+		})
+		try{
+			return 'set:'+util.computeSharedObjectType(schema, names)//paramTypes[0].members.object;
+		}catch(e){
+			console.log(JSON.stringify(paramTypes))
+			throw e
+		}
 	}else{
 		_.errout('TODO?')
 	}

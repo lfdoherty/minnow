@@ -96,7 +96,7 @@ function Ol(){
 	
 	this.idsByType = {}
 	this.objectTypeCodes = {}
-	this.destroyed = {}//for better bug reporting
+	this.destroyed = {}
 	
 	this.timestamps = {}//TODO optimize
 	
@@ -141,6 +141,7 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	return {id: this.idCounter, editId: editId}
 }
+
 Ol.prototype.isDeleted = function(id){
 	return this.destroyed[id]
 }
@@ -148,12 +149,12 @@ Ol.prototype._destroy = function(id){
 
 	//console.log('destroying')
 
-	this.olc.destroy(id)
+	//this.olc.destroy(id)
 
 	//console.log('destroying...')
 	
 	//_.each(idsByType, function(arr, tcStr){
-	var keys = Object.keys(this.idsByType)
+	/*var keys = Object.keys(this.idsByType)
 	for(var i=0;i<keys.length;++i){
 		var arr = this.idsByType[keys[i]]
 		var index = arr.indexOf(id)
@@ -161,7 +162,7 @@ Ol.prototype._destroy = function(id){
 		if(index !== -1){
 			arr.splice(index, 1)
 		}
-	}
+	}*/
 	//console.log('done destroying')
 	this.destroyed[id] = true
 }
@@ -240,9 +241,9 @@ Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertInt(endEditId)
 	_.assertInt(id)
 	
-	if(this.destroyed[id]){
+	/*(if(this.destroyed[id]){
 		_.errout('object has been destroyed, cannot get: ' + id)
-	}
+	}*/
 	
 	var edits = this.olc.get(id)
 	var actual = []
@@ -420,7 +421,7 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 	_.assertLength(arguments, 6)
 	_.assert(id >= 0)
 	
-	if(this.destroyed[id]) _.errout('object has been destroyed: ' + id)
+	//if(this.destroyed[id]) _.errout('object has been destroyed: ' + id)
 	
 	if(already[id]){
 		log('already got: ' + id)
@@ -465,9 +466,9 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 	})
 }
 Ol.prototype.getObjectMetadata = function(id, cb){
-	if(this.destroyed[id]){
+	/*if(this.destroyed[id]){
 		_.errout('id already destroyed: ' + id)
-	}
+	}*/
 	var pu = pathsplicer.make()
 	this.get(id, -1, -1, function(edits){
 		pu.updateAll(edits)
@@ -498,7 +499,14 @@ Ol.prototype.getAllIdsOfType = function(typeCode, cb){//gets a read-only copy of
 	_.assertLength(arguments, 2)
 	var ids = this.idsByType[typeCode] || [];
 	//console.log('ol getting ids(' + typeCode + '): ' + JSON.stringify(ids))
-	cb(ids)
+	var res = []
+	for(var i=0;i<ids.length;++i){
+		var id = ids[i]
+		if(!this.destroyed[id]){
+			res.push(id)
+		}
+	}
+	cb(res)
 }
 Ol.prototype.getAllOfType = function(typeCode, cb){//gets a read-only copy of all objects of that type
 	_.assertLength(arguments, 2)
@@ -522,6 +530,10 @@ Ol.prototype.getAllObjectsOfType = function(typeCode, cb, doneCb){
 	})
 	for(var i=0;i<ids.length;++i){
 		var id = ids[i]
+		if(this.destroyed[id]){
+			cdl()
+			continue
+		}
 		this.get(id, -1, -1, function(obj){
 			cb(id, obj)
 			cdl()

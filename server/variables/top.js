@@ -98,6 +98,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		name: 'topByValues',
 		attach: function(listener, editId){
 			listeners.add(listener)
+			//console.log(JSON.stringify(Object.keys(listener)))
 			_.assertFunction(listener.put)
 			_.assertFunction(listener.del)
 			_.assertInt(editId)
@@ -236,7 +237,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		del: function(key, editId){
 		
 			s.log(uid+' top got del: ' + key)
-			//console.log(uid+' top got del: ' + key)
+			console.log(uid+' top got del: ' + key)
 			delete top[key]
 			
 			if(bottomHeap.size() > 0){
@@ -248,9 +249,11 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 					topHeap.remove(kv)
 					listeners.emitDel(kv.key, editId)
 					var rkv = bottomHeap.removeRoot()
-					topHeap.add(rkv)				
+					topHeap.add(rkv)
+					console.log('replacing removed: ' + listeners.many())
 					listeners.emitPut(rkv.key, rkv.value, undefined, editId)
 				}else{
+					console.log('removed from bottom: ' + key)
 					bottomHeap.data.forEach(function(kvv){
 						if(kvv.key === key){kv = kvv}
 					})
@@ -268,7 +271,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				var before = topHeap.size()
 				topHeap.remove(kv)
 				var after = topHeap.size()
-				//console.log(before + ' -- ' + after)
+				console.log(before + ' -- ' + after)
 				//console.log(variableKey)
 				//console.log(uid+ ' top emitted del: ' + kv.key)
 				listeners.emitDel(kv.key, editId)

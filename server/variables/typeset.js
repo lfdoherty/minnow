@@ -7,8 +7,6 @@ var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
 
-//var object = require('./object')
-
 var fixedObject = require('./../fixed/object')
 
 
@@ -30,22 +28,14 @@ function typeMaker(s, self, rel){
 	var typeName = rel.params[0].value
 	if(s.schema[typeName] === undefined) _.errout('cannot recognize type: ' + typeName)
 	var typeCode = s.schema[typeName].code
-	
-	//object.make(s, self, s.schema[typeName])
-	
+
 	var fixedObjGetter = fixedObject.make(s)
 	var nf = svgGeneralType.bind(undefined, s, cache, typeCode)
-	//nf.implName = 'type'
+
 	nf.wrapAsSet = function(id, editId, context){
 		_.assertInt(editId)
 		return fixedObjGetter(id, editId, context)
 	}
-	/*nf.getDescender = function(){
-		//_.errout('TODO')
-		return function(id, propertyCode, editId, cb){
-			s.objectState.streamProperty(id, propertyCode, editId, cb)
-		}
-	}*/
 
 	return nf
 }
@@ -125,13 +115,10 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			listeners.emitAdd(id, editId)
 		}
 		function listenDeleted(typeCode, id, editId){
-			//console.log('got deleted: ' + id)
+			console.log('got deleted: ' + id)
 			idList.splice(idList.indexOf(id), 1)
 			listeners.emitRemove(id, editId)
-			//listeners.emitShould(id, false, editId)
 		}
-		
-		//console.log('\n\n\n'+JSON.stringify(s.schema._byCode[typeCode]))
 		
 		s.getAllSubtypes(typeCode).forEach(function(objSchema){
 			s.broadcaster.listenForNew(objSchema.code, listenCreated)
@@ -141,6 +128,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		var currentEditId = handle.oldest()
 
 		idList.forEach(function(id){
+			_.assert(!s.objectState.isDeleted(id))
 			listeners.emitAdd(id, currentEditId)
 		})
 	})

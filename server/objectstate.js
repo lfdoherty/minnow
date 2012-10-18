@@ -779,6 +779,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 			function computeMap(id, res){
 				var pu = pathsplicer.make()
 				var map = {}
+
+				//_.assert(!ol.isDeleted(id))
+				
 				for(var i=0;i<res.length;++i){
 					var e = res[i]
 					var ignorable = pu.update(e)
@@ -790,7 +793,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 						if(e.op === 'setInt' || e.op === 'setString' || e.op === 'setBoolean'){
 							map[pc] = e.edit.value
 						}else if(e.op === 'setObject'){
-							map[pc] = e.edit.id
+							if(!ol.isDeleted(e.edit.id)){
+								map[pc] = e.edit.id
+							}
 						}else if(e.op === 'addInt'){
 							if(map[pc] === undefined) map[pc] = []
 							map[pc].push(e.edit.value)
@@ -798,7 +803,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 							var list = map[pc]
 							list.splice(list.indexOf(e.edit.value), 1)
 						}else if(e.op === 'destroy'){
-							destroyedCb(id)
+							console.log('destroyed included: ' + id)
+							destroyedCb(id, e.editId)
 						}else{
 							_.errout('TODO: ' + JSON.stringify(e))
 						}
@@ -816,23 +822,31 @@ exports.make = function(schema, ap, broadcaster, ol){
 				cb(id, map, res.length > 0 ? res[res.length-1].editId : -1)
 			}
 			
-			function eventListener(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
+			function eventListener(typeCode, id, path, op, edit, syncId, editId){
 				
+				
+				//console.log('op: ' + op)
+				if(op === 'destroy'){
+					destroyedCb(id, editId)
+					return//TODO?
+				}
+
 				++outstandingEditCount
 
 				if(outstandingEditCount === 1){
 					liveCb(false, editId)
 				}
-				
-				ol.get(subjId, -1, -1, function(res){
-				
+			
+				ol.get(id, -1, -1, function(res){
+			
 					--outstandingEditCount
-					
-					computeMap(subjId, res)
+				
+					computeMap(id, res)
 					liveCb(true)
 				})
 			}
 			ol.getAllObjectsOfType(objTypeCode, computeMap, function(){
+				//console.log('got all objects of type')
 				liveCb(true)				
 				broadcaster.output.listenByType(objTypeCode, eventListener)
 			})

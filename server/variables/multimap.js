@@ -74,13 +74,15 @@ function multimapMaker(s, self, rel, typeBindings){
 			return svgMapValueMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
 		}
 		//return svgMapMultiple.bind(undefined, s, cache, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+	}else if(t.type === 'map'){
+		_.errout('cannot make multimap with map values: ' + JSON.stringify(t))
 	}else{//if the result of the values macro is a single value
 		var hasObjectValues = t.type === 'object'
 		if(kt.type === 'set' || kt.type === 'list'){
 			return svgMapKeyMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
 		}else{
 			//return svgMapSingle.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
-			_.errout('TODO')
+			_.errout('TODO: ' + JSON.stringify(kt) + '\n' + JSON.stringify(t))
 		}
 	}
 }
@@ -134,7 +136,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 	elements.attach({
 		add: function(v, editId){
-			console.log('ADDED: ' + v)
+			//console.log('ADDED: ' + v)
 			
 			var newBindingsKey = copyBindings(bindings)
 			var newBindingsValue = copyBindings(bindings)
@@ -147,7 +149,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 			function addKey(k, editId){
 				keys.push(k)
-				console.log('ADD KEY: ' + k + ' ' + value)
+				//console.log('ADD KEY: ' + k + ' ' + value)
 				if(value !== undefined){
 					var kvk = k+':'+value
 					if(multiCounts[kvk] === undefined){
@@ -175,7 +177,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			function valueListener(v, oldValue, editId){
 				_.assertInt(editId)
 				value = v
-				console.log('GOT VALUE: ' + v)
+				//console.log('GOT VALUE: ' + v)
 				if(oldValue !== undefined){
 					for(var i=0;i<keys.length;++i){
 						var k = keys[i]
@@ -220,9 +222,6 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			r.key.detach(r.keyListener, editId)
 			r.value.detach(r.valueListener, editId)
 		},
-		/*shouldHaveObject: function(id, flag, editId){
-
-		},*/
 		objectChange: stub
 	}, editId)
 

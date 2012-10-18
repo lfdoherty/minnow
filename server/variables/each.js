@@ -28,15 +28,22 @@ function eachType(rel, ch){
 	//console.log('each reduced bindings to: ' + JSON.stringify(newBindings))
 	//console.log('each: ' + JSON.stringify(rel))
 	//_.assertDefined(rel.params[1].schemaType)
-	var valueType = ch.computeMacroType(rel.params[1], ch.bindingTypes, newBindings, implicits)
-
+	var realValueType = ch.computeMacroType(rel.params[1], ch.bindingTypes, newBindings, implicits)
+	var valueType = realValueType
+	
 	if(valueType.type === 'set' || valueType.type === 'list'){
 		valueType = valueType.members;
 	}
 	if(inputType.type === 'set'){
 		return {type: 'set', members: valueType}
 	}else if(inputType.type === 'list'){
-		return {type: 'list', members: valueType}
+		if(realValueType.type === 'primitive' || realValueType.type === 'object'){
+			//console.log(JSON.stringify(valueType))
+			//console.log(JSON.stringify(rel.params[1]))
+			return {type: 'list', members: valueType}
+		}else{
+			return {type: 'set', members: valueType}//if merging is part of the each result, it must lose its ordering
+		}
 	}else{
 		_.errout('TODO?: ' + JSON.stringify(rel))
 	}

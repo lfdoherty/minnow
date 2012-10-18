@@ -27,11 +27,11 @@ function sfgObject(s, id, editId, context){
 	
 	var listeners = listenerSet()
 	
-	s.broadcaster.listenForDeleted(function(typeCode, delId, editId){
+	/*s.broadcaster.listenForDeleted(function(delId, editId){
 		if(id === delId){
 			console.log('WARNING: TODO: destroy dependent view, is no longer valid, param id was destroyed: ' + id)
 		}
-	})
+	})*/
 	
 	var handle = {
 		name: 'object-fixed',

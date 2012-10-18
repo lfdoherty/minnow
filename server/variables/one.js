@@ -93,9 +93,6 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 				listeners.emitSet(value, v, editId)
 			}
 		},
-		/*shouldHaveObject: function(id, flag, editId){
-			listeners.emitShould(id, flag, editId)
-		},*/
 		objectChange: listeners.emitObjectChange.bind(listeners)//Unfortunately, there's no easy way to optimize this
 
 	}, editId)

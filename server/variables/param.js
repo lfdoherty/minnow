@@ -56,7 +56,10 @@ exports.make = function(s, setExpr, typeBindings){
 			f.wrappers = typeBinding.wrappers
 			f.wrapAsSet = function(v){_.errout('TODO');}
 			_.assertFunction(typeBinding.getDescender)
-			//fo.getDescender = typeBinding.getDescender
+		}else if(typeBinding.type === 'map'){
+			f.wrappers = typeBinding.wrappers
+			f.wrapAsSet = function(v){_.errout('TODO');}
+			//_.assertFunction(typeBinding.getDescender)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(typeBinding))
 		}

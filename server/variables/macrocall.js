@@ -49,10 +49,6 @@ function svgMacroCall(s, computeKey, mGetter, bindings, editId){
 	
 	//TODO use only the keys of bindings that are referred to within the macro
 	f.key = computeKey(bindings)
-	
-	/*''
-	_.each(bindings, function(v, key){
-		f.key += v.key+';'
-	})*/
+
 	return f
 }

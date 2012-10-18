@@ -177,6 +177,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		}else if(e.op === 'setObject'){
 			ensureHasObject(e.edit.id, e.editId)
 		}else if(e.op === 'putExisting'){
+			if(e.edit.id == null) _.errout('invalid e: ' + JSON.stringify(e))
 			ensureHasObject(e.edit.id, e.editId)
 		}else if(e.op === 'putAddExisting'){
 			ensureHasObject(e.edit.id, e.editId)
@@ -261,10 +262,15 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 	detachViewVariable = viewVariable.attach(viewListeners, endEditId)
 	_.assertFunction(detachViewVariable)
 	
+	var lastOldest = viewVariable.oldest()
 	var intervalHandle = setInterval(function(){
 
+		var oldest = viewVariable.oldest()
+		if(oldest < lastOldest) _.errout('oldest must increase monotonically: ' + oldest + ' < ' + lastOldest)
+		lastOldest = oldest
+
 		advanceEdits()
-		if(manyObjectsOut === 0 && viewVariable.oldest() > endEditId){
+		if(manyObjectsOut === 0 && oldest > endEditId){
 			clearInterval(intervalHandle)
 			editBuffer = undefined
 			detachViewVariable()
@@ -272,11 +278,11 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 
 			var snapshot = serializeSnapshot(startEditId, endEditId,fp.codes, fp.writers, objectEditBuffers, viewObjectEditBuffers)
 			_.assertBuffer(snapshot)
-			log('SNAP READY: ', [viewVariable.oldest(), startEditId, endEditId])
+			log('SNAP READY: ', [oldest, startEditId, endEditId])
 
 			readyCb(snapshot)
 		}else{
-			log('waiting for snapshot ' + manyObjectsOut + ' ' + viewVariable.oldest() + ' <? ' + endEditId + ' ' + objectState.getCurrentEditId() + ' ' + viewId)
+			log('waiting for snapshot ' + manyObjectsOut + ' ' + oldest + ' <? ' + endEditId + ' ' + objectState.getCurrentEditId() + ' ' + viewId)
 		}
 	}, 0)
 
@@ -290,6 +296,7 @@ function filterInclusions(op, edit, editId, includeObjectCb){
 
 	if(_.isInt(edit.id)){//for view objects, we require that the constructing variables correctly include them
 		if(op === 'addExisting'){
+			
 			includeObjectCb(edit.id, editId)
 		}else if(op === 'setObject'){
 			log('intercepted setObject *************: ' + edit.id)
@@ -410,6 +417,8 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 		_.assertString(op)
 		_.assertInt(syncId)
 		
+		_.assertDefined(shared.editSchema[op])
+		
 		if(!editBuffer){
 			console.log('WARNING: editBuffer gone, seq already closed *')
 			console.log(new Error().stack)
@@ -494,6 +503,8 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 					_.assertString(id)
 					_.assertInt(syncId)
 					
+					//console.log('edit change: ' + JSON.stringify([typeCode, id, path, op, edit, syncId, editId]))
+					
 					if(editBuffer === undefined){
 						console.log('WARNING: editBuffer gone, seq already closed')
 						console.log(new Error().stack)
@@ -534,6 +545,8 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 						if(editId < latestSent){
 							_.errout('really out-of-order edit got: ' + latestSent + ' > ' + editId + ': ' + JSON.stringify(e))
 						}
+
+						_.assertDefined(shared.editSchema[op])
 
 						editBuffer.add(e)
 					}else{

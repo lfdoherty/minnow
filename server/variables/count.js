@@ -114,8 +114,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 			reportCountChangeEventually(editId)
 			//listeners.emitSet(count, count+1, editId)
 		},
-		objectChange: stub/*,
-		shouldHaveObject: stub*/
+		objectChange: stub
 	}, editId)
 	
 	return cache.store(key, handle)

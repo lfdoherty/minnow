@@ -303,8 +303,10 @@ exports.make = function(s, self, rel, typeBindings){
 			//console.log('has streamed all initial object property values: ' + live + ' ' + editId)
 			streamUpToDate = live
 			streamLast = editId
-		}, function(id){
+		}, function(id, editId){
+			_.assertInt(editId)
 			if(has[id]){
+				console.log('deleting id')
 				delete has[id]
 				ids.splice(i, 1)
 				listeners.emitRemove(id, editId)

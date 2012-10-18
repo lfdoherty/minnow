@@ -86,6 +86,7 @@ VariableListeners.prototype.emitDel = function(key, editId){
 VariableListeners.prototype.emitObjectChange = function(typeCode, id, path, op, edit, syncId, editId){
 	_.assertLength(arguments, 7)
 	_.assert(this instanceof VariableListeners)
+	//console.log('emitting object changes: ' + this.listeners.length)
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
 		listener.objectChange(typeCode, id, path, op, edit, syncId, editId)
