@@ -34,12 +34,20 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id){
 
 	//this.currentHandle = this
 	//_.assertObject(this.currentHandle)
+	//this.uid = Math.random()
+	
+	//console.log('making TopObject ' + id + ' ' + edits.length + ' ' + this.uid + ' '+this.getEditingId())
 	
 	this.lastEditId = -1
 	
 	this.edits.forEach(function(e){
 		_.assertInt(e.editId)
 	})
+	
+	
+	
+	//if(typeSchema.code === 12 && edits.length < 5) _.errout('got edits: ' + JSON.stringify(edits))
+	
 	this.log = this.parent.log
 }
 
@@ -108,6 +116,8 @@ TopObjectHandle.prototype._getVersions = function(path){
 
 TopObjectHandle.prototype.prepare = function prepare(){
 	//console.log('*prepare')
+	//console.log(new Error().stack)
+	
 	if(this.isReadonlyAndEmpty) return
 	if(this.prepared) return;
 	if(this._destroyed){
@@ -185,7 +195,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	if(s.typeSchema.properties){
 		var keys = Object.keys(s.typeSchema.properties);
 		keys.forEach(function(name){
-			//this.log('preparing: ' + name)
+			//console.log('preparing: ' + name)
 			var p = s.typeSchema.properties[name];
 			var v = s.property(name);
 			v.prepare();
@@ -416,6 +426,8 @@ TopObjectHandle.prototype.changeListenerElevated = ObjectHandle.prototype.change
 function updatePath(local, op, edit, editId){
 	_.assertLength(arguments, 4)
 
+	if(local.pathEdits === undefined) local.pathEdits = []
+
 	if(op === 'reset'){
 		//local.path = []
 		var dif = -local.pathEdits.length
@@ -541,13 +553,15 @@ function maintainPath(local, op, edit, syncId, editId){
 			}
 		}else{
 			var currentHandle = descend(local, local.pathEdits)
+			_.assertObject(currentHandle)
+			
 			if(currentHandle === undefined){
 				local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
 				return
 			}
 			if(currentHandle === local){
-				console.log('YY: ' + JSON.stringify(local.edits, null, 2))
-				_.errout('TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(local.pathEdits))
+				console.log(local.uid + ' YY: ' + JSON.stringify(local.edits, null, 2))
+				_.errout(local.getEditingId()+ ' TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(local.pathEdits))
 			}else{
 				//console.log('calling change listener: ' + JSON.stringify(local.pathEdits) + ': ' + op + ' ' + JSON.stringify(edit))
 				currentHandle.changeListener(op, edit, syncId, editId)
@@ -575,21 +589,31 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, is
 		this.pathEdits = undefined
 	}
 
-	//console.log('got edit: ' + JSON.stringify([op, edit, syncId, editId]))
+	//console.log(this.getEditingId() + ': ' + this.objectId + ' got edit: ' + JSON.stringify([op, edit, syncId, editId]))
 	
 	this.currentSyncId = syncId
 	
-	if(!isNotExternal) this.edits.push({op: op, edit: edit, editId: editId})
-	//console.log('op: ' + op)	
+	if(!isNotExternal){
+		//console.log('is external')
+		this.edits.push({op: op, edit: edit, editId: editId})
+	}
+	
+	if(!this.prepared){
+		//console.log('NOT PREPARED')
+		return
+	}
+
 	if(op === 'revert'){
-		//if(syncId !== this.getEditingId()){
-		//console.log('rebuilding')
 		var before = this.edits.length
 		this._rebuild()
 		_.assertEqual(this.edits.length, before)
-		//}
 	}else{
-		//this.edits.push({op: op, edit: edit, editId: editId})
+		if(this.getEditingId() === syncId && !isNotExternal){
+			//console.log('just updating path: ' + op)
+			updatePath(this, op, edit, editId)			
+			return;
+		}
+		//console.log('maintaining path')
 		maintainPath(this, op, edit, syncId, editId)
 	}
 }
@@ -603,6 +627,7 @@ function descend(start, pathEdits){
 		if(pe.op === 'selectProperty' || pe.op === 'reselectProperty'){
 			var oldCh = ch
 			ch = ch.propertyByCode(pe.edit.typeCode)
+			_.assertObject(ch)
 			//console.log('selecting property: ' + pe.edit.typeCode + ' ' + ch.rere + ' ' + ch.objectId + ' ' + JSON.stringify(pathEdits))
 			//console.log('ch: ' + oldCh.objectId)
 		}else if(pe.op === 'selectObject' || pe.op === 'reselectObject'){
@@ -633,6 +658,7 @@ function descend(start, pathEdits){
 			_.assertDefined(ch)
 		}else if(pe.op.indexOf('Key') === pe.op.length-3){
 			ch = ch.get(pe.edit.key)
+			_.assertObject(ch)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(pathEdits))
 		}

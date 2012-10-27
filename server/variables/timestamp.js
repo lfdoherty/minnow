@@ -22,7 +22,7 @@ schema.addFunction('timestamp', {
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var f
 	if(rel.params[0].schemaType.primitive === 'int'){
@@ -94,7 +94,9 @@ function svg(s, cache, elementGetter, bindings, editId){
 			timestamp = ts
 			version = v
 			listeners.emitSet(timestamp, undefined, editId)
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	return cache.store(key, handle)
 }

@@ -141,6 +141,8 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	var serverInstanceUid;
 	
+	var updateReader = fparse.makeReusableSingleReader()
+	
 	var reader = {
 		setup: function(e){
 			serverInstanceUid = e.serverInstanceUid;
@@ -172,8 +174,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			var cb = syncListenersBySyncId[e.destinationSyncId]
 			_.assertFunction(cb.edit);
 			_.assertFunction(cb.object);
-			var r = fparse.makeSingleReader(e.edit)
-			e.edit = fp.readers[e.op](r)
+			
+			//var r = fparse.makeSingleReader(e.edit)
+			//e.edit = fp.readers[e.op](r)
+			updateReader.put(e.edit)
+			e.edit = fp.readers[e.op](updateReader.s)
+			
 			_.assertInt(e.editId)
 			//console.log('tcpclient got response update: ' + e.op + ' ' + JSON.stringify(e.edit) + ' ' + e.editId + ' '  + e.destinationSyncId)
 			cb.edit(e);

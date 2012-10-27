@@ -91,8 +91,10 @@ exports.removeNonexistent = function(config, done){
 						obj.data.add('test')
 						obj.data.add('test2')
 						setTimeout(function(){
-							obj.data.remove('test')
-							obj.data.remove('test2')
+							try{
+								obj.data.remove('test2')
+								obj.data.remove('test')
+							}catch(e){}
 						},200)
 					})
 				})

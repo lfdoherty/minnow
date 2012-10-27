@@ -201,7 +201,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		function sendObject(syncId, ob){
 			_.assertBuffer(ob.edits)
 			ws('sending object: ' + ob.id)
-			//log('sending object: ' + ob.id)
+			//console.log('sending object: ' + ob.id)
 			ob.destinationSyncId = syncId
 			w.updateObject(ob);
 		}
@@ -220,7 +220,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			
 			var destinationSyncId = this.syncId
 			
-			log.info('sending update', [op, edit, editId, destinationSyncId])
+			//log.info('sending update', [op, edit, editId, destinationSyncId])
 
 			if(w === undefined){
 				throw new Error('got update after already disconnected')
@@ -232,7 +232,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 		function sendUpdate(op, edit, editId, destinationSyncId){
 			_.assertLength(arguments, 4)
 			_.assert(destinationSyncId > 0)
-			log('writing edit', op, edit, syncId, editId, destinationSyncId)
+			//console.log('writing edit', op, edit, syncId, editId, destinationSyncId)
+			//console.log(new Error().stack)
+			
 			var binaryEdit = binEdit(op, edit)
 			if(syncId === undefined) syncId = -1
 			_.assertInt(editId)
@@ -247,7 +249,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		}
 		function sendReady(e){
 			//_.assertArray(updatePacket)
-			log('sending ready')
+			//log('sending ready')
 			var msg = {requestId: e.requestId}//)//, updatePacket: JSON.stringify(updatePacket)}
 			w.ready(msg)
 			w.flush();
@@ -262,6 +264,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 		
 		var pathFromClientFor = {}
 		var currentIdFor = {}
+		
+		var reifications = {}
 		
 		var reader = {
 			beginSync: function(e){
@@ -296,58 +300,39 @@ function createTcpServer(appSchema, port, s, readyCb){
 				s.endSync(e.syncId)
 			},
 			persistEdit: function(e){
-				//var r = fparse.makeSingleReader(e.edit)
-				//var r = rrk
+
 				rrk.put(e.edit)
 				var r = rrk.s
 
 				var op = opsByCode[e.op]
 				e.op = op
 				e.edit = fp.readers[op](r)
-
-				//console.log('op: ' + e.op)
-				//console.log(JSON.stringify(e))
 				
 				var syncId = e.syncId
 				
-				//var op = e.op
-				//ws.write('(' + currentId + ') tcpserver got client(' + syncId + ') request persistEdit: ' + JSON.stringify(e).slice(0,300)+'\n')
-				ws.info('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
+				//log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
 				//console.log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
+				//console.log('*path: ' + JSON.stringify(pathFromClientFor[syncId]))
 				if(op === 'selectTopObject'){
 					if(currentIdFor[syncId] === e.edit.id){
 						console.log('WARNING: redundant selectTopObject edit?')//I'm not sure if this is really the case
 					}
-					//if(currentIdFor[syncId] !== e.edit.id){
-					currentIdFor[syncId] = e.edit.id
-					//_.assertInt(currentId)
-					delete pathFromClientFor[syncId]
-					//}
-					return
-				}else if(op === 'selectTopViewObject'){
-					/*//if(currentIdFor[syncId] !== e.edit.id){
-					if(currentIdFor[syncId] === e.edit.id){
-						console.log('WARNING: redundant selectTopViewObject edit')
+					//_.assert(e.edit.id > 0)
+					if(e.edit.id < 0){
+						currentIdFor[syncId] = reifications[e.edit.id]
+						//console.log('reifying: ' + e.edit.id + ' ' + JSON.stringify(reifications))
+						_.assert(currentIdFor[syncId] > 0)
+					}else{
+						currentIdFor[syncId] = e.edit.id
 					}
 					delete pathFromClientFor[syncId]
-					currentIdFor[syncId] = e.edit.id
-						//_.assertInt(currentId)
-					//}
-					return*/
+					return
+				}else if(op === 'selectTopViewObject'){
 					_.errout('cannot modify view objects directly')
 				}
 				
 				var currentId = currentIdFor[syncId]
 
-				//console.log(currentId + ' ' + JSON.stringify(e))
-				
-				//log.info('current id (tcpserver-client): ', currentId)
-				/*
-				var pathKey = syncId+':'+currentId
-				var pu = pathsFromClientById[pathKey]
-				if(pu === undefined){
-					pu = pathsFromClientById[pathKey] = pathsplicer.make([])
-				}*/
 				var pu = pathFromClientFor[syncId]
 				if(pu === undefined){
 					pu = pathFromClientFor[syncId] = pathsplicer.make([])
@@ -358,25 +343,35 @@ function createTcpServer(appSchema, port, s, readyCb){
 					//log.info('processed path update: ', e)
 					//log.info('path now: ', pu.getPath())
 					//console.log(syncId+' path(' + currentId+') now: ', pu.getPath())
+					_.assert(currentId > 0)
+
+					s.updatePath(currentId, pu.getPath(), syncId)
+					
 					return
 				}
 				
 				if(op === 'make') currentId = -1
 				//_.assertInt(currentId)
 
-				var tg = getTemporaryGenerator(syncId)//temporaryGeneratorsBySyncId[syncId]
+				var tg = getTemporaryGenerator(syncId)
 				//_.assertFunction(tg)
 				
 				function reifyCb(temporary, id){
+					_.assert(temporary < 0)
 					var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
+					reifications[temporary] = id
+					//console.log('storing reification ' + temporary + ' -> ' + id)
 					w.reifyObject(msg);
 				}
 				if(op === 'make'){
 
 					pathFromClientFor[syncId] = undefined
-				
-					//TODO remove this cb
+					
 					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+					
+					//console.log('made: ' + id, ' now current id for: ' + syncId + ' ' + lastTemporaryId[syncId])
+					
+					reifications[lastTemporaryId[syncId]] = id
 
 					currentIdFor[syncId] = id//this works because make can be executed synchronously
 					
@@ -385,6 +380,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					if(!e.edit.forget){
 						//_.assertInt(id);
 						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
+						_.assert(lastTemporaryId[syncId] < 0)
 						w.objectMade(msg);
 					}
 				}else{

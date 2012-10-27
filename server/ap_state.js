@@ -101,6 +101,8 @@ function make(schema, ol){
 	function saveEdit(typeCode, id, op, e, syncId, timestamp){
 		_.assertNumber(timestamp)
 		//TODO selectTopObject?
+		
+		//console.log('saving edit: ', id, op, e, syncId)
 
 		if(op === 'selectObject'){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
@@ -119,7 +121,7 @@ function make(schema, ol){
 
 		var n = ol.persist(id, op, e, syncId, timestamp)
 
-		log(n.editId, id, op, e, syncId)
+		//log(n.editId, id, op, e, syncId)
 
 		broadcaster.input.objectUpdated(typeCode, id, op, e, syncId, n.editId)	
 	}

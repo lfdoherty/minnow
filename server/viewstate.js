@@ -30,22 +30,37 @@ function makeGetAllSubtypes(schema){
 	return getAllSubtypes
 }
 exports.makeGetAllSubtypes = makeGetAllSubtypes
-	
+
+var analyticsLog = require('quicklog').make('minnow/analytics')
+
 exports.make = function(schema, globalMacros, broadcaster, objectState){
 	//var variableGetter = variables.makeGetter(schema, objectState, broadcaster)
 	_.assertFunction(broadcaster.output.listenForNew)
-	
-	var selfGetter = variables.makeGetter(schema, globalMacros, objectState, broadcaster.output, log)//variableGetter.bind(undefined, s)
 
-	//cache variable makers for each view type	
-	var viewGettersByTypeCode = {}
 	var s = {schema: schema, globalMacros: globalMacros, broadcaster: broadcaster.output, objectState: objectState}
 	s.log = log
 	_.assertFunction(s.log)
 	
+	s.analytics = variables.makeAnalytics({name: 'make'},{children:[]})
+	s.analytics.cachePut()
+	
+	//var selfGetter = variables.makeGetter(s)//variableGetter.bind(undefined, s)
+
+	//cache variable makers for each view type	
+	var viewGettersByTypeCode = {}
+
+	function scheduleAnalytics(delay){
+		setTimeout(function(){
+			analyticsLog(s.analytics.report())
+			var newDelay = delay*2
+			if(newDelay > 1000*60*30) newDelay = 1000*60*30//maximum analytics logging delay is 30 minutes
+			scheduleAnalytics(newDelay)
+		},delay)	
+	}
+	scheduleAnalytics(500)
+		
 	s.getAllSubtypes = makeGetAllSubtypes(schema)
 	
-	var variableGetter = variableView.makeTopLevel.bind(undefined, s, selfGetter)//, setExpr)
 	Object.keys(schema._byCode).forEach(function(typeCodeStr){
 		var viewSchema = schema._byCode[typeCodeStr]
 		if(viewSchema.isView){
@@ -53,7 +68,11 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			//console.log(JSON.stringify(viewSchema))
 			_.assertString(viewSchema.name)
 			var synthesizedViewCall = {type: 'view', view: viewSchema.name}
-			viewGettersByTypeCode[typeCodeStr] = {getter: variableGetter(synthesizedViewCall), binder: bindingsMaker}
+		
+			var variableGetter = variableView.makeTopLevel.bind(undefined, s, variables.variableGetter)//, setExpr)
+			var getter = variableGetter(synthesizedViewCall)
+
+			viewGettersByTypeCode[typeCodeStr] = {getter: getter, binder: bindingsMaker}
 		}
 	})
 	
@@ -102,7 +121,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				readyPacketCb()
 				//readyPacket = undefined
 			}
-			log('params:', e.params)
+			//log('params:', e.params)
 			_.assertString(e.params)
 			var vg = viewGettersByTypeCode[e.typeCode]
 			
@@ -116,7 +135,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				return
 			}
 		
-			log('beginning view after', e.latestSnapshotVersionId)
+			//log('beginning view after', e.latestSnapshotVersionId)
 		
 			var bindings = vg.binder(parsedParams, e.latestSnapshotVersionId)
 			var viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId()-1)
@@ -128,7 +147,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		getSnapshots: function(typeCode, params, cb){
 			var c = objectState.getCurrentEditId()
 			var realVersions = [c-1]//would be -1, except we want to keep the *previous* editId open for time-triggered appends
-			log('GOT SNAPSHOTS: ', realVersions[0])
+		//	log('GOT SNAPSHOTS: ', realVersions[0])
 			//log(new Error().stack)
 			cb(undefined, realVersions)
 		},
@@ -146,13 +165,13 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotIds[snapshotIds.length-1])
 			var curEditId = objectState.getCurrentEditId()-1
-			log('curEditId: ', curEditId)
+			//log('curEditId: ', curEditId)
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, curEditId)
 
 			var list = [];
-			log('GETTING SNAPSHOT STATES: ',snapshotIds)
+			//log('GETTING SNAPSHOT STATES: ',snapshotIds)
 			var cdl = _.latch(snapshotIds.length, function(){
-				log('GOT ALL SNAPSHOT STATES')
+			//	log('GOT ALL SNAPSHOT STATES')
 				cb({snapshots: list});
 			});
 			_.each(snapshotIds, function(snId, index){
@@ -163,7 +182,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				_.assert(snId === -1 || prevSnId <= snId)
 				//handle.getSnapshotState(typeCode, params, snId, prevSnId, function(snap){
 				viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, prevSnId, snId, _.assureOnce(function(snap){
-					log('GOT A SNAP')
+					//log('GOT A SNAP')
 					_.assertBuffer(snap)
 					list[index] = snap;
 					cdl();

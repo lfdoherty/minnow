@@ -115,7 +115,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				
 				var listenerCb = listenerCbs[e.syncId]
 				_.assertFunction(listenerCb)
-				log('beginView: ', e)
+				//log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
 			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
@@ -127,19 +127,25 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				_.assertInt(syncId);
 				//_.assertFunction(cb)
 				
-				log.info('adding edit: ', [id, path, op, edit, syncId])
+				//log.info('adding edit: ', [id, path, op, edit, syncId])
 				//console.log('adding edit: ', JSON.stringify([id, path, op, edit, syncId]))
 				
 				if(op === 'make'){
 					var id = objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId)
 					if(!edit.forget){
 						//objectSubscribers[syncId](id)//, objectState.getCurrentEditId()-1)
+						//console.log('subscribing ' + syncId + ' ' + id)
 						listenerCbs[syncId].seq.subscribeToObject(id)
+					}else{
+						//console.log('forgetting: ' + edit.forget)
 					}
 					return id
 				}else{
 					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, reifyCb);
 				}
+			},
+			updatePath: function(id, path, syncId){
+				objectState.updatePath(id, path, syncId)
 			},
 			getVersionTimestamps: function(versions, cb){
 				var timestamps = ol.getVersionTimestamps(versions)
@@ -199,6 +205,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 		
 							_.assertArray(up.path)
 							var newPath = [].concat(up.path)
+							//console.log('editing to match: ' + JSON.stringify(curPath) + ' ' + JSON.stringify(newPath))
 							pathmerger.editToMatch(curPath, newPath, function(op, edit){
 
 								listenerCb(op, edit, up.editId)					
@@ -219,6 +226,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 								var ek = e.edits[i]
 								objectCb(ek)
 							}
+							//console.log('sending objects: ' + e.edits.length)
 							if(e.edits.length === 0){
 								log('0 objects actually sent')
 							}
@@ -226,41 +234,52 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						}else if(e.got === false){
 							return;
 						}else{
-							_.assert(e.id === -1 || alreadySent[e.id])
-							log('sending edit: ', e)
+							if(!(e.id === -1 || alreadySent[e.id] || _.isString(e.id))){
+								_.errout('should have already send object we have edit for: ' + e.id)
+							}
+							//log('sending edit: ', e)
+							//console.log('sending edit: ' + JSON.stringify(e))
 							sendEditUpdate(e)
 							sentBuffer.shift()
 						}
 					}
 				}
 				
-				function includeObjectCb(id, editId){
+				function includeObjectCb(id, cb){
 					_.assertInt(id)
+					_.assertFunction(cb)
 					_.assert(id >= 0)
 					if(alreadySent[id]){
-						log('already sent: ' + id)
+						//console.log('already sent: ' + id)
 						return;
 					}else{
-						log(syncId + ' including object: ' + id + ' editId: ' + editId)
+						//console.log('including: ' + id)
+						//log(syncId + ' including object: ' + id + ' editId: ' + editId)
 						//TODO buffer for streaming all the edits for the object and any objects it depends on
 						var pointer = {got: false, edits: []}
 						sentBuffer.push(pointer)
-						_.assertInt(editId)
+						//_.assertInt(editId)
 						_.assertInt(id)
-						objectState.streamObjectState(alreadySent, id, -1, editId, function(id, objEditsBuffer){
+						process.nextTick(function(){
+						
+							objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
 							
-							alreadySent[id] = true
-							_.assertBuffer(objEditsBuffer)
-							pointer.edits.push({id: id, edits: objEditsBuffer})
-							
-						}, function(){
-							log('---- got')
-							pointer.got = true
-							advanceSentBuffer()
-							
-							
+								_.assertBuffer(objEditsBuffer)
+								pointer.edits.push({id: objId, edits: objEditsBuffer})
+								
+							//console.log('streaming object state: ' + objId + ' ' + objEditsBuffer.length)
+								
+								/*if(id === objId){
+									cb()
+								}*/
+							}, function(){
+								cb()
+								//log('---- got')
+								//console.log('finished including: ' + id)
+								pointer.got = true
+								advanceSentBuffer()
+							})
 						})
-						return;
 					}				
 				}
 				function alreadyHasCb(id, editId){
@@ -277,7 +296,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						e.path.forEach(function(ep){
 							if(ep.op === 'selectObjectKey'){
 								//console.log("selecting object key")
-								includeObjectCb(ep.edit.key, e.editId)
+								includeObjectCb(ep.edit.key, function(){//TODO also listen?
+								})
 							}
 						})
 					}

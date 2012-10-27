@@ -6,6 +6,7 @@ var listenerSet = require('./../variable_listeners')
 var fixedPrimitive = require('./../fixed/primitive')
 var schema = require('./../../shared/schema')
 
+function stub(){}
 
 function versionType(rel){
 	if(rel.params[0].schemaType.type === 'object'){
@@ -26,7 +27,7 @@ schema.addFunction('lastVersion', {
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var f
 	if(rel.params[0].schemaType.type === 'object'){
@@ -114,7 +115,9 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 				listeners.emitSet(undefined, oldVersion, editId)
 				oldVersion = undefined
 			}
-		}	
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }
@@ -204,7 +207,9 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 				}
 				s.broadcaster.stopListeningByObject(id, editListener)
 			})
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }

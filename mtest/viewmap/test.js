@@ -167,7 +167,7 @@ exports.topByValuesWithDelAndLimiter = function(config, done){
 									done()
 									return true
 								}else{
-									console.log('value: ' + JSON.stringify(ages))
+									//console.log('value: ' + JSON.stringify(ages))
 								}
 							}else if(gotExpected && c.threeOldest.size() === 2){
 								var ages = _.map(Object.keys(data), function(key){return data[key];})
@@ -177,10 +177,10 @@ exports.topByValuesWithDelAndLimiter = function(config, done){
 									done()
 									return true
 								}else{
-									console.log('*value: ' + JSON.stringify(ages))
+									//console.log('*value: ' + JSON.stringify(ages))
 								}
 							}else{
-								console.log('many: ' + c.threeOldest.size())
+								//console.log('many: ' + c.threeOldest.size())
 							}
 						})
 

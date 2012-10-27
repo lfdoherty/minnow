@@ -28,11 +28,13 @@ schema.addFunction('topByValues', {
 function topByValuesMaker(s, self, rel, typeBindings){
 	var manyGetter = self(rel.params[0], typeBindings)
 	var elementsGetter = self(rel.params[1], typeBindings)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	var f = svgTopByValues.bind(undefined, s, cache, manyGetter, elementsGetter)
 	f.wrapAsSet = elementsGetter.wrapAsSet
 	return f
 }
+
+function stub(){}
 
 function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 
@@ -63,36 +65,40 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		return old
 	}
 	
-	many.attach({set: function(value, oldValue, editId){
-		var oldMany = many
-		manyValue = value
-		s.log('many for top: ' + manyValue)
-		//_.errout('TODO adjust size of top')
-		if(value > oldValue){
-			while(bottomHeap.size() > 0 && topHeap.size() < manyValue){
-				var kv = bottomHeap.removeRoot()
-				topHeap.add(kv)
-				top[kv.key] = kv.value
-				if(oldMany !== undefined){
+	many.attach({
+		set: function(value, oldValue, editId){
+			var oldMany = many
+			manyValue = value
+			//s.log('many for top: ' + manyValue)
+			//_.errout('TODO adjust size of top')
+			if(value > oldValue){
+				while(bottomHeap.size() > 0 && topHeap.size() < manyValue){
+					var kv = bottomHeap.removeRoot()
+					topHeap.add(kv)
+					top[kv.key] = kv.value
+					if(oldMany !== undefined){
+						listeners.emitPut(kv.key, kv.value, undefined, editId)
+					}
+				}
+			}else if(value < oldValue){
+				while(topHeap.size() > manyValue){
+					var kv = topHeap.removeRoot()
+					bottomHeap.add(kv)
+					delete top[kv.key]
+					if(oldMany !== undefined){
+						listeners.emitDel(kv.key, editId)
+					}
+				}
+			}
+			if(oldMany === undefined){
+				topHeap.forEach(function(kv){
 					listeners.emitPut(kv.key, kv.value, undefined, editId)
-				}
+				})			
 			}
-		}else if(value < oldValue){
-			while(topHeap.size() > manyValue){
-				var kv = topHeap.removeRoot()
-				bottomHeap.add(kv)
-				delete top[kv.key]
-				if(oldMany !== undefined){
-					listeners.emitDel(kv.key, editId)
-				}
-			}
-		}
-		if(oldMany === undefined){
-			topHeap.forEach(function(kv){
-				listeners.emitPut(kv.key, kv.value, undefined, editId)
-			})			
-		}
-	}})
+		},
+		includeView: stub,
+		removeView: stub
+	})
 	
 	var handle = {
 		name: 'topByValues',
@@ -111,7 +117,10 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			listeners.remove(listener)
 			//console.log(uid+' detaching from top')
 			if(editId){
-				_.errout('TODO')
+				//_.errout('TODO')
+				topHeap.forEach(function(kv){
+					listener.del(kv.key, editId)
+				})
 			}
 		},
 		oldest: oldest,
@@ -142,14 +151,15 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		_.assertObject(rkv)
 		topHeap.remove(rkv)
 	}
-	elements.attach({
+	
+	var elementListener = {
 		put: function(key, value, oldValue, editId){
 			_.assertInt(editId)
 			_.assertPrimitive(value)
 			_.assertDefined(key)
 			
 			if(value === undefined) return
-			s.log(uid+' top got put: ' + key + ' ' + value)
+			//s.log(uid+' top got put: ' + key + ' ' + value)
 			//console.log(uid+' top got put: ' + key + ' ' + value)
 			if(manyValue === undefined){
 				bottomHeap.add({key: key, value: value})
@@ -157,7 +167,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			}
 			
 			if(top[key] !== undefined){
-				s.log('*already got: ' + key)
+				//s.log('*already got: ' + key)
 				//console.log('already got: ' + top[key])
 				if(bottomHeap.size() > 0){
 					var b = bottomHeap.peek()
@@ -191,10 +201,10 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				}
 			}else{
 				if(topHeap.size() === manyValue){
-					s.log('full: ' + topHeap.size() +'==='+ manyValue)
+					//s.log('full: ' + topHeap.size() +'==='+ manyValue)
 					var t = topHeap.peek()
 					if(t.value < value){
-						s.log('replacing(' + t.key + '->'+key+') ' + t.value + ' ' + value)
+						//s.log('replacing(' + t.key + '->'+key+') ' + t.value + ' ' + value)
 						var kv
 						bottomHeap.data.forEach(function(kvv){
 							if(kvv.key === key){kv = kvv}
@@ -218,7 +228,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 						bottomHeap.add(rkv)							
 						//s.log('replaced ' + t.value + ' ' + rkv.value)
 					}else{
-						s.log('too small: ' + t.value + '>' + value)
+						//s.log('too small: ' + t.value + '>' + value)
 						var kv = {key: key, value: value}
 						bottomHeap.add(kv)
 					}
@@ -226,7 +236,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 					//console.log('topHeap: ' + topHeap.size() + ', bottomHeap: ' + bottomHeap.size())
 					_.assertEqual(bottomHeap.size(), 0)
 					var kv = {key: key, value: value}
-					s.log('adding to top: ' + key)
+					//s.log('adding to top: ' + key)
 					top[key] = value
 					topHeap.add(kv)
 					_.assert(topHeap.size() <= manyValue)
@@ -236,8 +246,8 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		},
 		del: function(key, editId){
 		
-			s.log(uid+' top got del: ' + key)
-			console.log(uid+' top got del: ' + key)
+			//s.log(uid+' top got del: ' + key)
+			//console.log(uid+' top got del: ' + key)
 			delete top[key]
 			
 			if(bottomHeap.size() > 0){
@@ -250,10 +260,10 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 					listeners.emitDel(kv.key, editId)
 					var rkv = bottomHeap.removeRoot()
 					topHeap.add(rkv)
-					console.log('replacing removed: ' + listeners.many())
+					//console.log('replacing removed: ' + listeners.many())
 					listeners.emitPut(rkv.key, rkv.value, undefined, editId)
 				}else{
-					console.log('removed from bottom: ' + key)
+					//console.log('removed from bottom: ' + key)
 					bottomHeap.data.forEach(function(kvv){
 						if(kvv.key === key){kv = kvv}
 					})
@@ -271,15 +281,19 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				var before = topHeap.size()
 				topHeap.remove(kv)
 				var after = topHeap.size()
-				console.log(before + ' -- ' + after)
+				//console.log(before + ' -- ' + after)
 				//console.log(variableKey)
 				//console.log(uid+ ' top emitted del: ' + kv.key)
 				listeners.emitDel(kv.key, editId)
 			}
 		},
-		objectChange: listeners.emitObjectChange.bind(listeners)//Unfortunately, there's no easy way to optimize this
-
-	}, editId)
+		objectChange: listeners.emitObjectChange.bind(listeners),//Unfortunately, there's no easy way to optimize this
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
+	}
+	
+	elements.attach(elementListener, editId)
+	
 	return cache.store(key, handle)
 }
 

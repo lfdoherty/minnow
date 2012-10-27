@@ -98,7 +98,7 @@ function mapMaker(s, self, rel, typeBindings){
 		reduceGetter = self(rel.params[3], newTypeBindingsReduce)
 	}
 
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
@@ -236,12 +236,18 @@ function reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cRe
 		var cur = arr[0].value
 		for(var i=1;i<arr.length;++i){
 			var nv = arr[i].value
-			var newBindingsReduce = copyBindings(bindings)
+			/*var newBindingsReduce = copyBindings(bindings)
 			newBindingsReduce[reduceImplicitFirst] = valueGetter.wrapAsSet(cur)
 			newBindingsReduce[reduceImplicitSecond] = valueGetter.wrapAsSet(nv)
 			//s.log(''+valueGetter.wrapAsSet)
 			_.assertObject(newBindingsReduce[reduceImplicitFirst])
-			_.assertObject(newBindingsReduce[reduceImplicitSecond])
+			_.assertObject(newBindingsReduce[reduceImplicitSecond])*/
+			
+			//TODO for performance, use sync wrapper when possible
+			_.assert(cReduceGetter.isSyncMacro)
+			cur = cReduceGetter(cur, nv)
+			
+			/*
 			var newMerge = cReduceGetter(newBindingsReduce, editId)					
 			var newResult
 			var did = false
@@ -252,11 +258,11 @@ function reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cRe
 				}
 			})
 			if(!did) _.errout('reduce operation must be synchronous (this may be relaxed in future versions of minnow.)')
-			cur = newResult
+			cur = newResult*/
 		}
-		if(newResult !== old){
-			_.assertPrimitive(newResult)
-			listeners.emitPut(key, newResult, old, editId)
+		if(cur !== old){
+			_.assertPrimitive(cur)
+			listeners.emitPut(key, cur, old, editId)
 		}
 	}
 }
@@ -276,10 +282,11 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 	var cValueGetter = valueGetter(bindings, editId)
 	var cReduceGetter;
 	if(reduceGetter !== undefined){
-		cReduceGetter = reduceGetter(bindings, editId)
+		cReduceGetter = reduceGetter.asSyncMacro(bindings, editId)
 	}
 	
 	var key = elements.key+cKeyGetter.key+cValueGetter.key
+	console.log('single map key: ' + key)
 	if(reduceGetter !== undefined) key += cReduceGetter.key
 	
 	if(cache.has(key)) return cache.get(key)
@@ -359,15 +366,25 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
 
-				newKeyVariable.attach({set: keyListener}, editId)
-				newValueVariable.attach({set: valueListener}, editId)
+				newKeyVariable.attach({
+					set: keyListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
+				}, editId)
+				newValueVariable.attach({
+					set: valueListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
+				}, editId)
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			objectChange: stub
+			objectChange: stub,
+			includeView: listeners.emitIncludeView.bind(listeners),
+			removeView: listeners.emitRemoveView.bind(listeners)
 		}, editId)
 	}else{
 		elements.attach({
@@ -422,15 +439,19 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				}
 				
 				var kl = {
-					set: keyListener
+					set: keyListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
 				}
 				var vl = {
 					set: valueListener,
 					//TODO cache object changes?
 					objectChange: function(typeCode, id, path, op, edit, syncId, editId){
-						//_.errout('TODO: ' + JSON.stringify(arguments))
+						_.errout('TODO: ' + JSON.stringify(arguments))
 						listeners.emitObjectChange(typeCode, id, path, op, edit, syncId, editId)
-					}
+					},
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
 				}
 				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: kl, valueListener: vl}
@@ -444,7 +465,9 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			objectChange: stub
+			objectChange: stub,
+			includeView: listeners.emitIncludeView.bind(listeners),
+			removeView: listeners.emitRemoveView.bind(listeners)
 		}, editId)
 	}
 	
@@ -572,15 +595,25 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
 
-				newKeyVariable.attach({set: keyListener}, editId)
-				newValueVariable.attach({set: valueListener}, editId)
+				newKeyVariable.attach({
+					set: keyListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
+				}, editId)
+				newValueVariable.attach({
+					set: valueListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
+				}, editId)
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			objectChange: stub
+			objectChange: stub,
+			includeView: listeners.emitIncludeView.bind(listeners),
+			removeView: listeners.emitRemoveView.bind(listeners)
 		}, editId)
 	}else{
 		elements.attach({
@@ -641,11 +674,15 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 				}
 				
 				var kl = {
-					set: keyListener
+					set: keyListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
 				}
 				var vl = {
 					add: valueAddListener,
-					remove: valueRemoveListener
+					remove: valueRemoveListener,
+					includeView: listeners.emitIncludeView.bind(listeners),
+					removeView: listeners.emitRemoveView.bind(listeners)
 				}
 				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: kl, valueListener: vl}
@@ -658,7 +695,9 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			objectChange: stub
+			objectChange: stub,
+			includeView: listeners.emitIncludeView.bind(listeners),
+			removeView: listeners.emitRemoveView.bind(listeners)
 		}, editId)
 	}
 	
@@ -827,7 +866,9 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},
-			objectChange: stub
+			objectChange: stub,
+			includeView: listeners.emitIncludeView.bind(listeners),
+			removeView: listeners.emitRemoveView.bind(listeners)
 		}, editId)
 	}else{
 		_.errout('TODO?')

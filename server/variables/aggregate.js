@@ -34,6 +34,7 @@ function minFunction(a, b){
 	return a - b
 }
 
+function stub(){}
 
 function aggregateMaker(compareFunction, s, self, expr, typeBindings){
 	var defaultValue
@@ -45,7 +46,7 @@ function aggregateMaker(compareFunction, s, self, expr, typeBindings){
 		elementsGetterList.push(elementsGetter)
 	})
 
-	var cache = new Cache()		
+	var cache = new Cache(s.analytics)		
 	return svgGeneralAggregate.bind(undefined, s, cache, compareFunction, defaultValue, elementsGetterList)//, elementsGetter)
 }
 
@@ -100,7 +101,9 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 					//heap.data.splice(i, 1)
 					heap.remove(v)
 				}
-			}
+			},
+			includeView: stub,
+			removeView: stub
 		}, editId)
 	})
 	

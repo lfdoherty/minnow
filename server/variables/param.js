@@ -68,6 +68,9 @@ exports.make = function(s, setExpr, typeBindings){
 }
 
 function svgParam(s, paramName, bindings, editId){
+
+	s.analytics.cachePut()
+
 	if(bindings[paramName] === undefined){
 		//console.log('got: ' + JSON.stringify(bindings))
 		throw new Error('binding not found: ' + paramName)

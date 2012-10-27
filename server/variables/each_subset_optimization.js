@@ -164,7 +164,7 @@ function makeBindingWrappersFunction(s, self, e, typeBindings){
 
 exports.make = function(s, self, rel, typeBindings){
 
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	if(rel.params[0].type !== 'view' || rel.params[0].view !== 'typeset') return //must involve a *<type> input set
 	_.assert(rel.params[1].type === 'macro')

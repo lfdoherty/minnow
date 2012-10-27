@@ -91,7 +91,9 @@ setString 77
 	value string 1
 setBoolean 78
 	value boolean 1
-
+setReal 141
+	value string 1
+	
 setObject 21 
 	id int 1
 clearObject 73

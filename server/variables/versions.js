@@ -26,7 +26,7 @@ schema.addFunction('versions', {
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var f
 	if(rel.params[0].schemaType.type === 'object'){
@@ -42,6 +42,8 @@ function maker(s, self, rel, typeBindings){
 }
 
 var isPathOp = require('./../editutil').isPathOp
+
+function stub(){}
 
 function svgObject(s, cache, elementGetter, bindings, editId){
 
@@ -136,7 +138,9 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 				}
 				oldVersions = undefined
 			}
-		}	
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }
@@ -232,7 +236,9 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 				}
 				s.broadcaster.stopListeningByObject(id, editListener)
 			})
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }

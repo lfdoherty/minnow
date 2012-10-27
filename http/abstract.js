@@ -79,9 +79,9 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 	function objectListener(sh, id, edits){
 		_.assertLength(arguments, 3);
 		
-		log('$got object e: ' + JSON.stringify([id, edits]).slice(0, 300));
+		//log('$got object e: ' + JSON.stringify([id, edits]).slice(0, 300));
 		
-		log('sending message for sync ' + sh.id)
+		//log('sending message for sync ' + sh.id)
 		//_.assertInt(id)
 		_.assertArray(edits)
 		var msg = ['object', id, edits];
@@ -93,11 +93,11 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 	function syncListener(sh, e){
 		_.assertLength(arguments, 2);
 		
-		log('$got e: ' + JSON.stringify(e).slice(0, 300));
+		//log('$got e: ' + JSON.stringify(e).slice(0, 300));
 		
 		_.assertString(e.op)
 		
-		log('sending message for sync ' + sh.id + ': ' + JSON.stringify(e));
+		//log('sending message for sync ' + sh.id + ': ' + JSON.stringify(e));
 
 		var msg = ['edit', e.op, e.edit, e.editId];
 

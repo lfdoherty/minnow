@@ -206,6 +206,7 @@ function makeClient(host, port, clientCb){
 	}
 	function objectListenerWrapper(id, edits){
 		//console.log(JSON.stringify(e))
+		//console.log('client got object: ' + id)
 		api.objectListener(id, edits);
 	}
 	
@@ -336,6 +337,7 @@ function makeClient(host, port, clientCb){
 				//_.assertFunction(versionTimestamps)
 				_.assertFunction(cb)
 				function makeCbWrapper(id, requestId, temporary){
+					_.assert(temporary < 0)
 					makeCb(temporary, id)
 				}
 				cc.beginSync(listenerCb, objectCb, makeCbWrapper, reifyCb, function(syncId, syncHandle){

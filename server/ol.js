@@ -21,7 +21,7 @@ function serializeEdits(fp, edits){
 		_.assertString(e.op)
 		var code = fp.codes[e.op]
 		_.assert(code > 0)
-		console.log('code: ' + code + ' ' + e.editId)
+		//console.log('code: ' + code + ' ' + e.editId)
 		w.putByte(code)
 		w.putInt(e.editId)
 		fp.writers[e.op](w, e.edit)
@@ -43,7 +43,7 @@ function OlReaders(ol){
 OlReaders.prototype.make = function(e, timestamp){
 	var n = this.ol._make(e, timestamp, this.currentSyncId)//TODO
 	this.currentId = n.id
-	log('got make', e.typeCode, ':', this.currentId)
+	//log('got make', e.typeCode, ':', this.currentId)
 	//console.log('loading make '+ e.typeCode+ ':'+ this.currentId)
 }
 OlReaders.prototype.setSyncId = function(e){
@@ -66,7 +66,7 @@ OlReaders.prototype.destroy = function(){
 },
 OlReaders.prototype.madeSyncId = function(){
 	++this.manySyncIdsMade
-	log('made sync id')
+	//log('made sync id')
 }
 
 _.each(shared.editSchema._byCode, function(objSchema){
@@ -81,7 +81,7 @@ _.each(shared.editSchema._byCode, function(objSchema){
 			//console.log(new Error().stack)
 			//console.log('args: ' + JSON.stringify(arguments))
 			//appendEdit(name, edit)
-			log('edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
+			//log('edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
 			//console.log('loading edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
 			this.ol.persist(this.currentId, name, edit, this.currentSyncId, timestamp)
 		}//appendEdit.bind(undefined, name)
@@ -120,7 +120,7 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	++this.readers.lastVersionId
 	
-	log('wrote object ', this.idCounter)
+	//log('wrote object ', this.idCounter)
 	
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
@@ -177,6 +177,12 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 			var e = de[i]
 			if(e.op === 'setExisting' || e.op === 'addExisting' || e.op === 'setObject'){
 				var id = e.edit.id
+				if(!has[id]){
+					ids.push(id)
+					has[id] = true
+				}
+			}else if(e.op === 'replaceExternalExisting' || e.op === 'replaceInternalExisting'){
+				var id = e.edit.newId
 				if(!has[id]){
 					ids.push(id)
 					has[id] = true
@@ -424,20 +430,23 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 	//if(this.destroyed[id]) _.errout('object has been destroyed: ' + id)
 	
 	if(already[id]){
-		log('already got: ' + id)
+		//log('already got: ' + id)
 		endCb()
 		return
 	}
 	already[id] = true
 
+	var sourceRes
 	var gCdl = _.latch(2, function(){
+		if(sourceRes) cb(id, sourceRes)
 		endCb()
 	})
 	//try{
 		this.getAsBuffer(id, startEditId, endEditId, function(res){
 			if(res){
 			//_.assertDefined(res)
-				cb(id, res)
+				sourceRes = res
+				//cb(id, res)
 			}
 			gCdl()
 		})

@@ -24,6 +24,7 @@ schema.addFunction('now', {
 	callSyntax: 'now(refresh-macro)'
 })
 
+function stub(){}
 
 function copyBindings(bindings){
 	var newBindings = Object.create(null)
@@ -33,7 +34,8 @@ function copyBindings(bindings){
 	return newBindings
 }
 
-var cache = new Cache()
+var variables = require('./../variables')
+var cache = new Cache(variables.makeAnalytics({}, {children:[]}, 'time-global'))
 
 function walkAndRemove(n, cb){
 	var keys = Object.keys(n)
@@ -69,11 +71,11 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 
 	var key = concreteDelayGetter.key+delayKey
 	if(cache.has(key)){
-		s.log('already got now: ' + key)
+		//s.log('already got now: ' + key)
 		return cache.get(key)
-	}else{
-		s.log('not already got: ' + key)
-	}
+	}//else{
+		//s.log('not already got: ' + key)
+	//}
 	
 	var rr = Math.random()
 	
@@ -88,7 +90,7 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 	
 	function updateNow(givenEditId){
 		var newTime = Date.now()
-		s.log('(' + key + ')(' + rr + ') emitting time: ' + newTime)
+		//s.log('(' + key + ')(' + rr + ') emitting time: ' + newTime)
 		if(givenEditId && oldEditId > givenEditId){
 			_.errout('out of order edit')
 		}
@@ -108,7 +110,7 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 		intervalHandle = setInterval(updateNow, delayValue)
 	}
 	function update(){
-		s.log('updating later')
+		//s.log('updating later')
 		updateNow()
 		recomputeDelay()
 	}
@@ -122,7 +124,7 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 	}
 	var delayListener = {
 		set: function(value, oldValue, editId){
-			s.log('got delay set: ' + value)
+			//s.log('got delay set: ' + value)
 			delayValue = value
 			var nextUpdateTime = oldTime + delayValue
 			if(timeoutHandle) clearTimeout(timeoutHandle)
@@ -131,9 +133,11 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 				updateNow()
 			}
 
-			s.log('set timeout to ' + delayValue)
+			//s.log('set timeout to ' + delayValue)
 			timeoutHandle = setTimeout(update, delayValue)
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}
 	
 	recomputeDelay()
@@ -142,11 +146,12 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 		name: 'now',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			if(Date.now() > oldTime && editId + 1 === oldest()){
-				updateNow(editId)
-			}else{//updateNow will emit for all listeners, hence the else
-				listener.set(oldTime, undefined, oldEditId)
-			}
+			//if(Date.now() > oldTime && editId + 1 === oldest()){
+			//	updateNow(editId)
+			//}else{//updateNow will emit for all listeners, hence the else
+				//listener.set(oldTime, undefined, oldEditId)
+				listener.set(Date.now(), undefined, oldEditId)
+			//}
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
@@ -155,6 +160,7 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 			}
 		},
 		oldest: oldest,
+		neverGetsOld: true,
 		key: key
 	}
 	

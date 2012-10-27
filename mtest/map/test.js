@@ -92,7 +92,7 @@ exports.del = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1){
 						if(c.s.data.value('testKey') === 'testValueTwo'){
 							done()

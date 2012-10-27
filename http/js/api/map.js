@@ -271,6 +271,9 @@ MapHandle.prototype.get = function(desiredKey){
 			idOrValue.prepare()
 			return idOrValue
 		}
+	}else if(this.schema.type.value.type === 'view'){
+		idOrValue.prepare()
+		return idOrValue
 	}else if(this.schema.type.value.type === 'primitive'){
 		//TODO should provide a handler with operations like 'set'
 		//return idOrValue;

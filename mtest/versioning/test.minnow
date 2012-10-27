@@ -19,3 +19,12 @@ generalWithManyVersions() 104
 generalWithTimestamps() 103
 	e one(*entity) 1
 	et timestamps(versions(one(*entity))) 2
+	
+generalWithLastVersion() 105
+	e one(*entity) 1
+	ev lastVersion(one(*entity)) 2
+
+generalWithSingleTimestamp() 106
+	e one(*entity) 1
+	et timestamp(lastVersion(one(*entity))) 2
+

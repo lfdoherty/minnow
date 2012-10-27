@@ -6,6 +6,7 @@ var listenerSet = require('./../variable_listeners')
 var fixedPrimitive = require('./../fixed/primitive')
 var schema = require('./../../shared/schema')
 
+function stub(){}
 
 function timestampsType(rel){
 	return {type: 'map', key: {type: 'primitive', primitive: 'int'}, value: {type: 'primitive', primitive: 'long'}}
@@ -22,7 +23,7 @@ schema.addFunction('timestamps', {
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var f
 	if(rel.params[0].schemaType.members.primitive === 'int'){
@@ -100,7 +101,9 @@ function svg(s, cache, elementGetter, bindings, editId){
 			delete timestamps[v]
 			versions.splice(versions.indexOf(v), 1)
 			listeners.emitDel(v, editId)
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }

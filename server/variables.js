@@ -12,14 +12,72 @@ edit are less than or equal to the result of calling oldest() on the variable.
 
 var _ = require('underscorem')
 
+function tabs(depth){var str = '';for(var i=0;i<depth;++i){str+='\t';}return str;}
+
+function makeAnalytics(expr, parent, name){
+	
+	var counts = {
+		hit: 0,
+		put: 0,
+		evict: 0
+	}
+
+	var exprName = expr.view || expr.type || expr.name || expr.value
+	if(exprName === undefined) console.log(JSON.stringify(expr))
+	var handle = {
+		cacheHit: function(){
+			++counts.hit
+		},
+		cachePut: function(){
+			++counts.put
+		},
+		cacheEvict: function(){
+			++counts.evict
+		},
+		children: [],
+		counts: counts,
+		parent: parent,
+		report: report,
+		name: (name?name+'^':'') + exprName
+	}
+	
+	_.assertString(handle.name)
+	_.assert(handle.name != 'undefined')
+	
+	//console.log('made analytics: ' + (expr.view || expr.type) + ' < ' + parent.name)
+
+	function report(depth){
+		depth = depth || 0
+		var str = ''
+		var sum = counts.hit+counts.put+counts.evict
+		str += tabs(depth) + handle.name + ' -- hit: ' + counts.hit+', put: '+counts.put+', evict: '+counts.evict+'\n'
+		if(sum > 0){
+			handle.children.forEach(function(a){
+				str += a.report(depth+1)
+			})
+		}else if(handle.children.length > 0){str += tabs(depth+1)+'...\n'}
+		return str
+	}
+	
+	parent.children.push(handle)
+	
+	return handle
+}
+
+exports.makeAnalytics = makeAnalytics
+
+
 var viewstate = require('./viewstate')
 
-function makeGetter(schema, globalMacros, objectState, broadcaster, log){
-	_.assertFunction(log)
+function makeGetter(s){
+	//_.assertFunction(log)
 	
-	var s = {schema: schema, globalMacros:globalMacros, objectState: objectState, broadcaster: broadcaster}
-	s.getAllSubtypes = viewstate.makeGetAllSubtypes(schema)
-	s.log = log
+	//var s = {schema: schema, globalMacros:globalMacros, objectState: objectState, broadcaster: broadcaster}
+	//s.getAllSubtypes = viewstate.makeGetAllSubtypes(s.schema)
+	//s.log = log
+	
+	//s.analytics = makeAnalytics({name: 'getter'}, {children:[]})
+	
 	var f = variableGetter.bind(undefined, s);
 	return f;
 }
@@ -43,7 +101,7 @@ require('./variables/multimap')
 require('./variables/top')
 require('./variables/switch')
 require('./variables/type')
-require('./variables/cast')
+//require('./variables/cast')
 //require('./variables/values')
 require('./variables/filter')
 require('./variables/each')
@@ -64,15 +122,101 @@ var syncplugins = require('./variables/syncplugins')
 
 function isView(expr, name){return expr.type === 'view' && expr.view === name;}
 
+function asSync(s, expr, typeBindings, parameterBindings){
+	//_.errout('TODO')
+	if(expr.type === 'macro'){
+		//return macroCall.make(s, self, setExpr, typeBindings)
+		throw new Error('TODO: ' + JSON.stringify(expr))
+	}else if(expr.type === 'param'){
+		//return variableParam.make(s, setExpr, typeBindings)
+		throw new Error('TODO')
+	}else if(expr.type === 'value'){
+		return function(){return setExpr.value;}
+	}else if(expr.type === 'int'){
+		return function(){return setExpr.value;}
+	}else if(expr.type === 'concrete-specialization'){
+		//return specialization.make(s, self, setExpr, typeBindings)
+		throw new Error('TODO?')
+	}else if(expr.type === 'array'){
+		return function(){return setExpr.value;}
+	}else{
+		var viewName = expr.view
+		var impl = schema.getImplementation(viewName)
+		checkImpl(impl, expr, viewName)
+		if(impl.isSynchronousPlugin){
+
+			var f;
+
+			if(expr.params.length === parameterBindings.length){
+				var missing = false
+				var paramMap = {}
+				var isLinear = true
+				parameterBindings.forEach(function(b, bIndex){
+					var found = false
+					expr.params.forEach(function(param, pIndex){
+						if(param.name === b){
+							paramMap[bIndex] = pIndex
+							if(bIndex !== pIndex) isLinear = false
+							found = true
+						}
+					})
+					if(!found) missing = true
+				})
+				//console.log('missing: ' + missing)
+				if(!missing){
+					var f
+					if(isLinear){
+						f = function(){
+							return impl.implementation(arguments)
+						}						
+					}else{
+						f = function(){
+							var params = []
+							params.length = parameterBindings.length
+							for(var i=0;i<parameterBindings.length;++i){
+								params[paramMap[i]] = arguments[i]
+							}
+							return impl.implementation(params)
+						}
+					}
+					f.isPure = true
+					f.key = 'pure:'+JSON.stringify(expr)
+					f.isSyncMacro = true
+					
+					var nf = function(/*bindings, editId*/){
+						return f
+					}
+					nf.isSyncMacro = true
+					return nf
+				}
+			}
+				
+			throw new Error('TODO: ' + JSON.stringify([expr.params, parameterBindings, missing]))
+		}else{
+			throw new Error('TODO: ' + JSON.stringify(expr))
+		}
+	}
+}
+
+
+
 function variableGetter(s, setExpr, typeBindings){
 	_.assertObject(typeBindings)
 	_.assertDefined(setExpr)
 	_.assertFunction(s.log)
+	_.assertObject(s.analytics)
+	
+	var ns = _.extend({}, s)
+	ns.analytics = makeAnalytics(setExpr, s.analytics)
+	s = ns
 	
 	var self = variableGetter.bind(undefined, s)
 	
+	self.asSync = asSync.bind(undefined, s)
+	
 	if(setExpr.type === 'property'){
-		return variableProperty.make(s, self, setExpr, typeBindings)
+		//return variableProperty.make(s, self, setExpr, typeBindings)
+		_.errout('ERROR???')
 	}else if(setExpr.type === 'macro'){
 		return macroCall.make(s, self, setExpr, typeBindings)
 	}else if(setExpr.type === 'param'){
@@ -104,23 +248,8 @@ function variableGetter(s, setExpr, typeBindings){
 			}
 		}else{
 			var impl = schema.getImplementation(viewName)
-			if(!_.isInt(impl.minParams)) throw new Error(viewName + ' missing minParams setting')
-			if(!_.isInt(impl.maxParams)) throw new Error(viewName + ' missing maxParams setting')
-			if(impl.maxParams !== 0 && !_.isString(impl.callSyntax)) throw new Error(viewName + ' missing callSyntax setting')
-			if(impl.maxParams === 0 && setExpr.params.length !== 0){
-				throw new Error(setExpr.params.length + ' is too many parameters for ' + viewName + '()');
-			}else{
-				if(setExpr.params.length < impl.minParams) throw new Error(setExpr.params.length + ' is too few params for ' + impl.callSyntax)
-				if(impl.maxParams !== -1){
-					if(setExpr.params.length > impl.maxParams) throw new Error(setExpr.params.length + ' is too many params for ' + impl.callSyntax)
-				}
-			}
+			checkImpl(impl, setExpr, viewName)
 			if(impl.isSynchronousPlugin){
-				//_.errout('TODO')
-				//_.assertString(impl.syntax)
-				if(impl.callSyntax === undefined){
-					_.errout('sync plugin has no callSyntax: ' + require('util').inspect(impl))
-				}
 				return syncplugins.wrap(s, self, setExpr, typeBindings, impl)
 			}else{
 				//console.log('setExpr: ' + JSON.stringify(setExpr))
@@ -129,6 +258,27 @@ function variableGetter(s, setExpr, typeBindings){
 				implFunc.implName = viewName
 				return implFunc
 			}
+		}
+	}
+}
+
+exports.variableGetter = variableGetter
+
+function checkImpl(impl, setExpr, viewName){
+	if(!_.isInt(impl.minParams)) throw new Error(viewName + ' missing minParams setting')
+	if(!_.isInt(impl.maxParams)) throw new Error(viewName + ' missing maxParams setting')
+	if(impl.maxParams !== 0 && !_.isString(impl.callSyntax)) throw new Error(viewName + ' missing callSyntax setting')
+	if(impl.maxParams === 0 && setExpr.params.length !== 0){
+		throw new Error(setExpr.params.length + ' is too many parameters for ' + viewName + '()');
+	}else{
+		if(setExpr.params.length < impl.minParams) throw new Error(setExpr.params.length + ' is too few params for ' + impl.callSyntax)
+		if(impl.maxParams !== -1){
+			if(setExpr.params.length > impl.maxParams) throw new Error(setExpr.params.length + ' is too many params for ' + impl.callSyntax)
+		}
+	}
+	if(impl.isSynchronousPlugin){
+		if(impl.callSyntax === undefined){
+			_.errout('sync plugin has no callSyntax: ' + require('util').inspect(impl))
 		}
 	}
 }
@@ -155,7 +305,6 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 		}else{
 			_.errout('TODO: ' + JSON.stringify(param))
 		}
-		//variableGetter(
 	}
 	
 	var topLevel = {

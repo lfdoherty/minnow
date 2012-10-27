@@ -24,7 +24,7 @@ schema.addFunction('typeset', {
 })
 
 function typeMaker(s, self, rel){
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	var typeName = rel.params[0].value
 	if(s.schema[typeName] === undefined) _.errout('cannot recognize type: ' + typeName)
 	var typeCode = s.schema[typeName].code
@@ -50,7 +50,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 	var listeners = listenerSet()
 	var idList
 	
-	s.log('creating new typeset-general: ' + typeCode)
+	//s.log('creating new typeset-general: ' + typeCode)
 	
 	var handle = {
 		name: 'typeset-general',
@@ -105,17 +105,17 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 	s.objectState.getAllIdsOfType(typeCode, function(ids){
 		
 		idList = [].concat(ids)
-		s.log('TYPE got all ids', ids)
+		//s.log('TYPE got all ids', ids)
 		//console.log('TYPE got all ids', ids)
 		
 		function listenCreated(typeCode, id, editId){
 			idList.push(id)
-			s.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
+		//	s.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
 			
 			listeners.emitAdd(id, editId)
 		}
 		function listenDeleted(typeCode, id, editId){
-			console.log('got deleted: ' + id)
+			//console.log('got deleted: ' + id)
 			idList.splice(idList.indexOf(id), 1)
 			listeners.emitRemove(id, editId)
 		}

@@ -19,6 +19,8 @@ exports.make = function(s, self, setExpr, typeBindings){
 	return f
 }
 
+function stub(){}
+
 function sfgObject(s, idExpr, bindings, editId){
 	
 	var idVariable = idExpr(bindings, editId)
@@ -36,7 +38,9 @@ function sfgObject(s, idExpr, bindings, editId){
 			//s.log('got id')
 			//s.log(new Error().stack)
 			listeners.emitSet(id)
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	//console.log('TODO LISTEN FOR CHANGES %%%%%%%%%%%%%%%%%5: ' + id)
 	
@@ -56,6 +60,7 @@ function sfgObject(s, idExpr, bindings, editId){
 			}
 		},
 		oldest: s.objectState.getCurrentEditId,
+		neverGetsOld: true,
 		key: key,
 		descend: function(path, editId, cb){
 			s.objectState.streamProperty(path, editId, cb)

@@ -123,11 +123,11 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	
 	if(op === 'addExisting'){
 		//console.log('added to set: ' + edit.id);
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			var addedObj = this.getObjectApi(edit.id)
 			this.obj.push(addedObj);
 			return this.emit(edit, 'add', addedObj)
-		}
+		//}
 	}/*else if(op === 'addNew'){
 		_.errout('TODO reimplement')
 		var temporary = edit.temporary
@@ -151,7 +151,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	}*/else if(op === 'addedNew'){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
-		if(this.getEditingId() === syncId){
+		//if(this.getEditingId() === syncId){
 			/*var objHandle = this.get(temporary);
 			if(objHandle === undefined){
 				this.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
@@ -159,18 +159,18 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			}
 			objHandle.reify(id)
 			return*/
-		}else{
+		//}else{
 			_.assertInt(id)
 
 			var res = this.wrapObject(id, edit.typeCode, [], this)
 			this.obj.push(res)
 			res.prepare()
 			return this.emit(edit, 'add', res, editId)
-		}
+		//}
 	}else if(op === 'remove'){
-		if(this.getEditingId() === syncId){
+		/*if(this.getEditingId() === syncId){
 			return stub;
-		}
+		}*/
 		var removedObj = u.findObj(this.obj, edit.id)//this.getObjectApi(edit.id)
 		var i = this.obj.indexOf(removedObj)
 		_.assert(i >= 0)

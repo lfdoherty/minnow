@@ -31,7 +31,7 @@ Note that the delay-optimization here is a good demonstration of how editIds and
 
 function countMaker(s, self, rel, typeBindings){
 	var elementsExpr = rel.params[0]
-	var cache = new Cache()	
+	var cache = new Cache(s.analytics)	
 	
 	if(elementsExpr.type === 'view' && elementsExpr.view === 'typeset'){//optimization to avoid loading all the object ids into memory just to count them
 		var typeName = elementsExpr.params[0].value
@@ -40,11 +40,11 @@ function countMaker(s, self, rel, typeBindings){
 		return svgTypeCount.bind(undefined, s, cache, typeCode)
 	}else{
 		var elementsGetter = self(elementsExpr, typeBindings)
-		return svgGeneralCount.bind(undefined, s, cache, elementsGetter)
+		return svgGeneralCount.bind(undefined, s, cache, elementsGetter, rel)
 	}
 }
 
-function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
+function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 
 	var elements = elementsExprGetter(bindings, editId)
 
@@ -100,23 +100,42 @@ function svgGeneralCount(s, cache, elementsExprGetter, bindings, editId){
 			listeners.emitSet(count, oldCount, currentOldest)
 		}
 	}
-
-	elements.attach({
-		add: function(value, editId){
-			++count
-			//console.log('count increased: ' + count)
-			reportCountChangeEventually(editId)
-			//listeners.emitSet(count, count-1, editId)
-		},
-		remove: function(value, editId){
-			--count
-			//console.log('count decreased: ' + count)
-			reportCountChangeEventually(editId)
-			//listeners.emitSet(count, count+1, editId)
-		},
-		objectChange: stub
-	}, editId)
-	
+	//console.log(JSON.stringify(rel.params[0].schemaType))
+	if(rel.params[0].schemaType.type === 'map'){
+		elements.attach({
+			put: function(key, value, oldValue, editId){
+				_.assertDefined(value)
+				if(oldValue === undefined){
+					++count
+					reportCountChangeEventually(editId)
+				}
+			},
+			del: function(key, editId){
+				--count
+				reportCountChangeEventually(editId)
+			},
+			objectChange: stub
+		}, editId)
+	}else{
+		elements.attach({
+			add: function(value, editId){
+				++count
+				//console.log('count increased: ' + count)
+				reportCountChangeEventually(editId)
+				//listeners.emitSet(count, count-1, editId)
+			},
+			remove: function(value, editId){
+				--count
+				//console.log('count decreased: ' + count)
+				reportCountChangeEventually(editId)
+				//listeners.emitSet(count, count+1, editId)
+			},
+			objectChange: stub,
+			includeView: stub,
+			removeView: stub
+		}, editId)
+	}
+		
 	return cache.store(key, handle)
 }
 

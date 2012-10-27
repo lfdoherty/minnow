@@ -21,7 +21,7 @@ schema.addFunction('one', {
 
 function oneMaker(s, self, rel, typeBindings){
 	var elementsGetter = self(rel.params[0], typeBindings)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	var f = svgGeneralOne.bind(undefined, s, cache, elementsGetter)
 	//f.getDescender = elementsGetter.getDescender
 	
@@ -93,8 +93,9 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 				listeners.emitSet(value, v, editId)
 			}
 		},
-		objectChange: listeners.emitObjectChange.bind(listeners)//Unfortunately, there's no easy way to optimize this
-
+		objectChange: listeners.emitObjectChange.bind(listeners),//Unfortunately, there's no easy way to optimize this
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	return cache.store(key, handle)
 }

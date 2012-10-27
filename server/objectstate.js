@@ -107,7 +107,7 @@ function makePathTracker(path){
 			lastPathOpWasKey = true
 		}else if(op === 'reselectProperty'){
 			if(matchingDepth >= depth-1){
-				log('reselecting: ', path, e.edit.typeCode, depth)
+				//log('reselecting: ', path, e.edit.typeCode, depth)
 				if(path[depth-1].edit.typeCode === e.edit.typeCode){
 					matchingDepth = depth
 				}else{
@@ -154,8 +154,8 @@ function makePathTracker(path){
 		_.assert(depth >= 0)
 		
 		if(matchingDepth > depth) matchingDepth = depth
-		log(matchingDepth + ' -(' + depth + ')- ' + path.length)
-		log(JSON.stringify(e))
+		//log(matchingDepth + ' -(' + depth + ')- ' + path.length)
+		//log(JSON.stringify(e))
 		
 		if(depth === matchingDepth && matchingDepth === path.length) return true
 		if(depth-1 === matchingDepth && matchingDepth === path.length && lastPathOpWasKey){
@@ -202,7 +202,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 
 	var prop;
 
-	log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
+	//log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
 	//console.log('streamProperty got ' + edits.length + ' edits ' + editId)
 		
 	var tracker = makePathTracker(path)
@@ -216,7 +216,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		var op = e.op
 		var matching = tracker(e)
 
-		log(matching, path, ' <- ', e)
+		//log(matching, path, ' <- ', e)
 		if(op.indexOf('Key') !== -1){
 			lastKey = e.edit.key
 		}
@@ -289,7 +289,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			prop[lastKey] = (e.edit.id)
 		}
 	})
-	log('streaming ', path, ':', prop)
+	//log('streaming ', path, ':', prop)
 	//console.log('streaming ', path, ':', prop)
 	cb(prop, editId)
 	
@@ -300,12 +300,12 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		var matched = false
 
 		if(differentPaths(path, fullPath)){
-			log('edit does not match: ' + JSON.stringify(fullPath) + ' ' + JSON.stringify(path) + ' ' + JSON.stringify([op, edit]))
+			//log('edit does not match: ' + JSON.stringify(fullPath) + ' ' + JSON.stringify(path) + ' ' + JSON.stringify([op, edit]))
 			return//id ===objId && path.length === 1 && path[0] === propertyCode){
 		}
 		
-		log('broadcaster provided edit matching property filter: ', path, ':', fullPath)
-		log(op, edit)
+		//log('broadcaster provided edit matching property filter: ', path, ':', fullPath)
+		//log(op, edit)
 	
 		if(op.indexOf('set') === 0){
 			if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
@@ -361,7 +361,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				var i = prop.indexOf(edit.value)
 				if(i !== -1){
 					prop.splice(i, 1)
-					console.log('removing string')
+					//console.log('removing string')
 					cb(prop, editId)
 				}else{
 					//_.errout('TODO: ' + JSON.stringify([op, edit]))
@@ -404,7 +404,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 
 	var prop;
 
-	log('streamProperty got ' + edits.length + ' edits')
+	//log('streamProperty got ' + edits.length + ' edits')
 	//console.log('streamProperty got ' + edits.length + ' edits')
 		
 	var tracker = makePathTracker(path)
@@ -416,7 +416,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 		var op = e.op
 		var matching = tracker(e)
 
-		log(matching, path, ' <- ',e)
+		//log(matching, path, ' <- ',e)
 
 		if(!matching) return
 		
@@ -424,7 +424,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 			_.errout('TODO')
 		}
 	})
-	log('streaming ', path, ':', prop)
+	//log('streaming ', path, ':', prop)
 	cb(prop, editId)
 	
 	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
@@ -434,12 +434,12 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 		var matched = false
 
 		if(differentPaths(path, fullPath)){
-			log('edit does not match:', fullPath, path, [op, edit])
+			//log('edit does not match:', fullPath, path, [op, edit])
 			return//id ===objId && path.length === 1 && path[0] === propertyCode){
 		}
 		
-		log('broadcaster provided edit matching property filter:',path,':',fullPath)
-		log(op, edit)
+		//log('broadcaster provided edit matching property filter:',path,':',fullPath)
+		//log(op, edit)
 	
 		if(op.indexOf('put') === 0){
 			_.errout('TODO')
@@ -456,7 +456,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 
 	var prop = {}
 
-	log('streamPropertyTypes got ' + edits.length + ' edits')
+	//log('streamPropertyTypes got ' + edits.length + ' edits')
 	//console.log('streamPropertyTypes got ' + edits.length + ' edits')
 	//console.log(JSON.stringify(edits))
 	
@@ -467,7 +467,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 		var op = e.op
 		var matching = tracker(e)
 
-		log(matching, path, ' <- ', e)
+		//log(matching, path, ' <- ', e)
 		//console.log(matching + ' ' + JSON.stringify(path) + ' <- ' + JSON.stringify(e))
 
 		if(!matching) return
@@ -497,7 +497,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 			prop[e.edit.id] = e.edit.typeCode
 		}
 	})
-	log('streaming types ', path, ':', prop)
+	//log('streaming types ', path, ':', prop)
 	function getType(id, undefOk){
 		var typeCode = prop[id]
 		if(!undefOk && typeCode === undefined) _.errout('requested type code of unknown id: ' + id + ', only got: ' + JSON.stringify(prop))
@@ -512,14 +512,14 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 		var matched = false
 
 		if(differentPaths(path, fullPath)){
-			log('edit does not match: ' + JSON.stringify(fullPath) + ' ' + JSON.stringify(path))
+			//log('edit does not match: ' + JSON.stringify(fullPath) + ' ' + JSON.stringify(path))
 			return//id ===objId && path.length === 1 && path[0] === propertyCode){
 		}
 		
 		//console.log(JSON.stringify(path) + ' <- ' + JSON.stringify(fullPath))
 		
-		log('broadcaster provided edit matching property filter:', path, ':', fullPath)
-		log(op, edit)
+		//log('broadcaster provided edit matching property filter:', path, ':', fullPath)
+		//log(op, edit)
 	
 		if(op.indexOf('set') === 0){
 			if(op === 'setObject'){
@@ -632,6 +632,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 				_.assert(id > 0)
 				pm(id, path, op, edit, syncId, computeTemporary, reifyCb)
 			}
+		},
+		updatePath: function(id, path, syncId){
+			pm.updatePath(id, path, syncId)
 		},
 		translateTemporaryId: function(id, syncId){
 			_.assertInt(id)

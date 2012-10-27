@@ -10,6 +10,8 @@ var _ = require('underscorem')
 
 require('./case')
 
+function stub(){}
+
 function switchType(rel, ch){
 
 	var types = []
@@ -147,7 +149,9 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 					return
 				}
 			}
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return handle//cache.store(key, handle)
 }

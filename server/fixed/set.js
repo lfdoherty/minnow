@@ -31,6 +31,7 @@ function sfgSet(s, value, bindings, editId){
 			}*/
 		},
 		oldest: s.objectState.getCurrentEditId,
+		neverGetsOld: true,
 		key: key
 	}
 	return handle

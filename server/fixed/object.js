@@ -50,6 +50,7 @@ function sfgObject(s, id, editId, context){
 			}
 		},
 		oldest: s.objectState.getCurrentEditId,
+		neverGetsOld: true,
 		key: key,
 		wrapAsSet: function(idToWrap){
 			_.assertEqual(idToWrap, id)
@@ -57,7 +58,7 @@ function sfgObject(s, id, editId, context){
 		},
 		descend: function(path, editId, cb){
 			//s.objectState.streamProperty(path, editId, cb)
-			s.log('context: ' + context.name)
+			//s.log('context: ' + context.name)
 			//console.log('context: ' + context.name)
 			context.descend(path, editId, cb)
 		},

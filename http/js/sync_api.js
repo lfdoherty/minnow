@@ -16,10 +16,10 @@ var jsonutil = require('./jsonutil')
 function setPropertyValue(obj, code, value){
 	obj[code] = value;
 }
-
+/*
 function _delayEmit(local, args){
 	this.parent._delayEmit(local, args)
-}
+}*/
 function emit(e, eventName){
 
 	var args = Array.prototype.slice.call(arguments, 0)
@@ -50,6 +50,31 @@ function _doEmit(e, eventName){
 	//console.log('emitting ' + eventName)
 	
 	var args = Array.prototype.slice.call(arguments, 2)
+	/*
+	if(eventName === 'set'){
+		var value = args[1]
+		if(_.isObject(value)) value.prepare()
+	}else if(eventName === 'add'){
+		var value = args[0]
+		if(_.isObject(value)) value.prepare()
+	}else if(eventName === 'remove'){
+		var value = args[0]
+		if(_.isObject(value)) value.prepare()
+	}else if(eventName === 'put'){
+		var key = args[0]
+		var value = args[1]
+		var oldValue = args[2]
+		if(_.isObject(key)) key.prepare()
+		if(_.isObject(value)) value.prepare()
+		if(_.isObject(oldValue)) oldValue.prepare()
+	}else if(eventName === 'put-add'){
+
+	}else if(eventName === 'put-remove'){
+		var key = args[0]
+		var value = args[1]
+		if(_.isObject(key)) key.prepare()
+		if(_.isObject(value)) value.prepare()
+	}*/
 	
 	var t = this
 	function callListener(listener){
@@ -391,8 +416,31 @@ SyncApi.prototype.hasView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
-	//console.log('working: ' + id + ' ' + JSON.stringify(edits))
+	//console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
+		var obj = this.objectApiCache[id]
+		var curSyncId = -1
+		//console.log(obj.edits)
+		if(obj.edits.length > 0 && obj.edits[0].editId === -2){
+			if(obj.edits.length === edits.length-2){
+				return
+			}else{
+				edits = edits.slice(obj.edits.length+2)
+			}
+		}else{
+			edits = edits.slice(obj.edits.length)
+			//_.assert(obj.edits.length === 0)//TODO?
+		}
+		if(obj.pathEdits === undefined) obj.pathEdits = []//TODO?
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(e.op === 'setSyncId'){
+				curSyncId = e.edit.syncId
+			}else{
+				//console.log('e; ' + JSON.stringify(e))
+				obj.changeListener(e.op, e.edit, curSyncId, e.editId)
+			}
+		}
 		return
 		//_.errout('TODO:')
 	}
@@ -591,6 +639,8 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	}
 	
 	this.currentObjectId = temporary//TODO only if !forget?
+	
+	//console.log(new Error().stack)
 	
 	if(!forget){
 		var t = this.schema[typeName]

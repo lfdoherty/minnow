@@ -320,6 +320,34 @@ exports.versionsQuery = function(config, done){
 	})
 }
 
+exports.lastVersionQuery = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('generalWithLastVersion', function(err, c){
+			
+				poll(function(){
+					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.ev.toJson()))
+					if(c.has('ev') && c.ev.value() > 0){
+						//_.assert(ts > 0)
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('entity')
+						e.text.set('test1')
+						e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	
+					})
+				})
+				
+			})
+		})
+	})
+}
 exports.versionsQueryMany = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -386,3 +414,34 @@ exports.versionTopTimestamp = function(config, done){
 	})
 }
 
+
+exports.lastVersionTimestamp = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('generalWithSingleTimestamp', function(err, c){
+			
+				poll(function(){
+					//if(c.has('e')) console.log('timestamps: ' + JSON.stringify(c.et.toJson()))
+					if(c.has('et') && c.et.value() > 0 && Date.now() - c.et.value() < 60*1000){
+						//var ts = c.et.toJson()[1]						
+						//_.assert(ts > 0)
+						//_.assert(Date.now() - ts < 60*1000)
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('entity')
+						e.text.set('test1')
+						e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	
+					})
+				})
+				
+			})
+		})
+	})
+}

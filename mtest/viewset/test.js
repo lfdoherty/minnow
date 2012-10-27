@@ -40,11 +40,12 @@ exports.wrapped = function(config, done){
 			client.view('wrapped', function(err, c){
 			
 				poll(function(){
+					//console.log(c.s.size())
 					if(c.s.size() === 1){
 						var d;
 						//console.log('got 1')
 						c.s.each(function(dd){d = dd;})
-						//console.log(': ' + JSON.stringify(c.toJson()))
+						console.log(': ' + JSON.stringify(c.toJson()))
 						if(d.value.value() === 'test'){
 							done()
 							return true
@@ -87,7 +88,7 @@ exports.wrappedRemoval = function(config, done){
 						var cont = c.make('container', {members: [obj]})
 						
 						setTimeout(function(){
-							//console.log('removing')
+							console.log('removing')
 							cont.members.remove(obj)
 						},500)
 					})

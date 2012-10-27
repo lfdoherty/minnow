@@ -1,8 +1,10 @@
 
 var _ = require('underscorem')
 
-function Cache(){
+function Cache(analytics){
+	_.assertObject(analytics)
 	this.cache = Object.create(null)
+	this.analytics = analytics
 }
 Cache.prototype.has = function(key){
 	var has = !!this.cache[key]
@@ -10,11 +12,14 @@ Cache.prototype.has = function(key){
 	return has
 }
 Cache.prototype.get = function(key){
+	this.analytics.cacheHit()
 	return this.cache[key]
 }
 Cache.prototype.store = function(key, value){
 	_.assertFunction(value.attach)
 	//_.assertFunction(value.detach)
+
+	this.analytics.cachePut()
 	
 	var cache = this.cache
 	cache[key] = value
@@ -26,11 +31,14 @@ Cache.prototype.store = function(key, value){
 		++count
 		return res
 	}
+	var local = this
 	value.detach = function(listener, editId){
 		//console.log('here: ' + oldDetach)
 		oldDetach(listener, editId)
 		--count
 		if(count === 0){//TODO wait a bit, see if anyone uses it?
+			//console.log('zeroed, evicting')
+			local.analytics.cacheEvict()
 			delete cache[key]//de-cache
 		}
 	}

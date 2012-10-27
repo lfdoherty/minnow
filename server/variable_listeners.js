@@ -12,6 +12,9 @@ function VariableListeners(){
 
 VariableListeners.prototype.add = function(listener){
 	_.assertObject(listener)
+	_.assertFunction(listener.includeView)
+	_.assertFunction(listener.removeView)
+	
 	_.assert(this.listeners.indexOf(listener) === -1)
 	if(listener instanceof VariableListeners) _.errout('err')
 	this.listeners.push(listener)
@@ -24,6 +27,22 @@ VariableListeners.prototype.remove = function(listener){
 	}
 	//_.assert(i !== -1)
 	this.listeners.splice(i, 1)
+}
+VariableListeners.prototype.emitIncludeView = function(viewId, handle, editId){
+	//if(this.listeners.length === 0) _.errout('no this.listeners')
+	for(var i=0;i<this.listeners.length;++i){
+		var listener = this.listeners[i]
+		//console.log('calling listener add: ' + listener.add)
+		listener.includeView(viewId, handle, editId)
+	}
+}
+VariableListeners.prototype.emitRemoveView = function(viewId, handle, editId){
+	//if(this.listeners.length === 0) console.log('no this.listeners')
+	for(var i=0;i<this.listeners.length;++i){
+		var listener = this.listeners[i]
+		//console.log('calling listener add: ' + listener.add)
+		listener.removeView(viewId, handle, editId)
+	}
 }
 VariableListeners.prototype.emitAdd = function(value, editId){
 	//if(this.listeners.length === 0) console.log('no this.listeners')

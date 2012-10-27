@@ -35,9 +35,6 @@ if(WebSocket === undefined){
 function establishSocket(appName, schema, host, cb){
 	if(arguments.length !== 4) throw new Error(arguments.length)
 	
-	//_.assertInt(syncId)
-	//console.log('socket.io loaded, ready to begin socket.io connection');
-	
 	var closed = false
 	var connected = false
 
@@ -49,11 +46,8 @@ function establishSocket(appName, schema, host, cb){
 	var msgBuf = []
 	ws.onopen = function() {
 
+		console.log('websocket connection opened')
 		
-		//ws._socket.on('error', function(e){	
-		//	console.log('caught error directly: ' + e)
-		//});
-
 		ws.send(getCookieToken())
 		msgBuf.forEach(function(msg){
 			ws.send(msg)
@@ -150,6 +144,7 @@ function establishSocket(appName, schema, host, cb){
 		persistEdit: function(op, edit){
 			_.assertString(op)
 			_.assertObject(edit)
+			console.log('sending edit: ' + JSON.stringify({op: op, edit: edit}))
 			send({data: {op: op, edit: edit}});
 		},
 		make: function(type, json, forget, cb, temporary){

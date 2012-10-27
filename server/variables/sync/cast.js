@@ -16,3 +16,10 @@ exports.syntax = 'cast(typename,object)'
 exports.compute = function(paramValues){
 	return paramValues[1]
 }
+
+exports.descender = function(paramTypes){
+	return function(paramValues){
+		return {prefix: [], index: 1}
+	}
+}
+

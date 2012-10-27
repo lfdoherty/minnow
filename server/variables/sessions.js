@@ -22,13 +22,15 @@ schema.addFunction('sessions', {
 function sessionsMaker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	var f = svgSessions.bind(undefined, s, cache, elementGetter)
 	
 	f.wrapAsSet = function(v, editId, context){return fixedPrimitive.make(s)(v, {}, editId);}
 	
 	return f
 }
+
+function stub(){}
 
 function svgSessions(s, cache, elementGetter, bindings, editId){
 
@@ -120,7 +122,9 @@ function svgSessions(s, cache, elementGetter, bindings, editId){
 				}
 				oldSyncIds = undefined
 			}
-		}	
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }

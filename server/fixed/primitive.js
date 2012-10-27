@@ -11,7 +11,7 @@ exports.make = function(s, value){
 }
 
 function sfgPrimitive(s, value, bindings, editId){
-	s.log('value: ' + JSON.stringify(value))
+	//s.log('value: ' + JSON.stringify(value))
 	var key = value+''
 	
 	var listeners = listenerSet()
@@ -29,6 +29,7 @@ function sfgPrimitive(s, value, bindings, editId){
 			}
 		},
 		oldest: s.objectState.getCurrentEditId,
+		neverGetsOld: true,
 		key: key
 	}
 	return handle

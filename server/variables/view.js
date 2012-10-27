@@ -9,6 +9,8 @@ var log = require('quicklog').make('minnow/view-variable')
 
 var util = require('./util')
 
+var variables = require('./../variables')
+
 //TODO in principle, the call site of a view shouldn't affect its caching - they should all share
 //right now, we have a different cache for each call site (including the top-level call site.)
 //Note however that if the parameters are different variables, the view variable will end up as
@@ -18,7 +20,7 @@ var util = require('./util')
 exports.make = function(s, self, callExpr, typeBindings){
 	_.assertFunction(s.log)
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var localTypeBindings = {}
 
@@ -75,10 +77,14 @@ exports.make = function(s, self, callExpr, typeBindings){
 	}
 	return f
 }
-exports.makeTopLevel = function(s, self, callExpr){
-	_.assertFunction(s.log)
+exports.makeTopLevel = function(s, variableGetter, callExpr){
+	//_.assertFunction(s.log)
 	
-	var cache = new Cache()
+	var ns = _.extend({}, s)
+	ns.analytics = variables.makeAnalytics(callExpr,s.analytics)//{children: [], counts: {hit:0,put:0,evict:0}}
+	s = ns
+	
+	var cache = new Cache(s.analytics)
 
 	var viewObjectSchema = s.schema[callExpr.view];
 	_.assertDefined(viewObjectSchema)
@@ -96,13 +102,17 @@ exports.makeTopLevel = function(s, self, callExpr){
 	Object.keys(viewSchema.rels).forEach(function(relName){
 		var rel = viewSchema.rels[relName];
 		log('making for rel: ' + relName + ' ' + rel.code)
-		var relFunc = relSets[rel.code] = self(rel, paramBindings)
+
+		var ns = _.extend({}, s)
+		ns.analytics = variables.makeAnalytics(rel,s.analytics, relName)
+
+		var relFunc = relSets[rel.code] = variableGetter(ns, rel, paramBindings)
 		var relSchema = viewObjectSchema.properties[relName]
 		
 		if(relSchema.type.type !== rel.schemaType.type){
 			_.errout('param and rel type do not match ' + JSON.stringify(relSchema) + ' !== ' + JSON.stringify(rel.schemaType))
 		}
-		attachRelFuncs[rel.code] = makeAttachFunction(s, viewSchema.code, relFunc, relSchema.type, rel.code);
+		attachRelFuncs[rel.code] = makeAttachFunction(ns, viewSchema.code, relFunc, relSchema.type, rel.code);
 	})
 	
 	var f = internalView.bind(undefined, s, cache, relSets, viewSchema.code, attachRelFuncs)
@@ -117,6 +127,9 @@ exports.makeTopLevel = function(s, self, callExpr){
 	f.getDescender = function(){
 		_.errout('TODO')
 	}
+	
+	f.analytics = s.analytics
+	
 	return f
 }
 
@@ -130,6 +143,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 	if(relSchema.type === 'object'){
 		return function(listener, rel, viewId, editId){
 			_.assertFunction(listener.objectChange)
+			s.analytics.cachePut()
 			var h = {
 				set: function(value, oldValue, editId){
 					if(value === undefined){
@@ -140,10 +154,16 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						log('view translating set id to setObject')
 						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'setObject', edit, -1, editId)
 					}
-				}
+				},
+				objectChange: listener.objectChange.bind(listener),
+				includeView: listener.includeView.bind(listener),
+				removeView: listener.removeView.bind(listener)
 			}
 			rel.attach(h, editId)
-			return function objectValueDetacher(editId){rel.detach(h, editId);}
+			return function objectValueDetacher(editId){
+				s.analytics.cacheEvict()
+				rel.detach(h, editId);
+			}
 		}
 	}else if(relSchema.type === 'primitive'){
 		var checkType
@@ -155,25 +175,40 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 		return function(listener, rel, viewId, editId){
 			_.assertFunction(listener.objectChange)
 			var opName = util.setOp(relSchema)
+			s.analytics.cachePut()
 			var h = {
 				set: function(value, oldValue, editId){
 					_.assertInt(editId)
-					checkType(value)
-					var edit = {value: value}
-					_.assertPrimitive(value)
-					//console.log('here: ' + JSON.stringify([viewTypeCode, viewId, [relCode], 'set', edit, -1, editId]))
-					//console.log(new Error().stack)
-					listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], opName, edit, -1, editId)
-				}
+					if(value !== undefined){
+						checkType(value)
+						var edit = {value: value}
+						if(opName === 'setReal') edit.value = value+''
+						_.assertPrimitive(value)
+						//console.log('here: ' + JSON.stringify([viewTypeCode, viewId, [relCode], 'set', edit, -1, editId]))
+						//console.log(new Error().stack)
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], opName, edit, -1, editId)
+					}else{
+						var edit = {}
+						_.assertPrimitive(value)
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'clearProperty', edit, -1, editId)
+					}
+				},
+				objectChange: listener.objectChange.bind(listener),
+				includeView: listener.includeView.bind(listener),
+				removeView: listener.removeView.bind(listener)
 			}
 			rel.attach(h, editId)
-			return function primitiveValueDetacher(editId){rel.detach(h, editId);}
+			return function primitiveValueDetacher(editId){
+				s.analytics.cacheEvict()
+				rel.detach(h, editId);
+			}
 		}
 	}else if(relSchema.type === 'map'){
 		//console.log(JSON.stringify(relSchema.type))
 		if(relSchema.value.type === 'object'){
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
+				s.analytics.cachePut()
 				var h = {
 					put: function(key, value, editId){
 						_.assertInt(editId)
@@ -183,15 +218,22 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						listener.objectChange(viewTypeCode, viewId, 
 							[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: 'selectIntKey', edit: {key: key}}], 
 							'putExisting', edit, -1, editId)
-					}
+					},
+					objectChange: listener.objectChange.bind(listener),
+					includeView: listener.includeView.bind(listener),
+					removeView: listener.removeView.bind(listener)
 				}
 				//console.log('view attaching to: ' + viewTypeCode + ' ' + relSchema.name)
 				rel.attach(h, editId)
-				return function objectMapDetacher(editId){rel.detach(h, editId);}
+				return function objectMapDetacher(editId){
+				s.analytics.cacheEvict()
+					rel.detach(h, editId);
+				}
 			}
 		}else if(relSchema.value.type === 'set'){
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
+				s.analytics.cachePut()
 				if(relSchema.value.members.type === 'object'){
 					var h = {
 						putAdd: function(key, value, editId){
@@ -203,7 +245,10 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: 'selectIntKey', edit: {key: key}}], 
 								'putAddExisting', edit, -1, editId)
-						}
+						},
+						objectChange: listener.objectChange.bind(listener),
+						includeView: listener.includeView.bind(listener),
+						removeView: listener.removeView.bind(listener)
 					}
 				}else{
 					var putAddOpName = util.putAddOp(relSchema)
@@ -227,13 +272,18 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								putRemoveOpName, edit, -1, editId)
-						}
+						},
+						includeView: listener.includeView.bind(listener),
+						removeView: listener.removeView.bind(listener)
 					}
 					
 				}
 				//console.log('view attaching to: ' + viewTypeCode + ' ' + relSchema.name)
 				rel.attach(h, editId)
-				return function objectSetDetacher(editId){rel.detach(h, editId);}
+				return function objectSetDetacher(editId){
+					s.analytics.cacheEvict()
+					rel.detach(h, editId);
+				}
 			}
 		}else{
 			var putOpName = util.putOp(relSchema)
@@ -244,6 +294,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				
 				_.assertFunction(listener.objectChange)
 				//_.assertFunction(listener.shouldHaveObject)
+				s.analytics.cachePut()
 				var h = {
 					put: function(key, value, oldValue, editId){
 						_.assertInt(editId)
@@ -268,28 +319,39 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							'delKey', edit, -1, editId)
 					},
 					//just forward property changes if our rels are themselves views or sets of views
-					objectChange: listener.objectChange.bind(listener)
+					objectChange: listener.objectChange.bind(listener),
+					includeView: listener.includeView.bind(listener),
+					removeView: listener.removeView.bind(listener)
 				}
 				rel.attach(h, editId)
-				return function primitiveMapDetacher(editId){rel.detach(h, editId);}
+				return function primitiveMapDetacher(editId){
+					s.analytics.cacheEvict()
+					rel.detach(h, editId);
+				}
 			}
 		}
 	}else if(relSchema.type === 'view'){
 		return function(listener, rel, viewId, editId){
 			_.assertFunction(listener.objectChange)
 			//_.assertFunction(listener.shouldHaveObject)
+			s.analytics.cachePut()
 			var h = {
 				set: function(value, oldValue, editId){
 					_.assertString(value)
 					var edit = {id: value}
 					//console.log('view translating set id to setObject')
-					listener.objectChange(/*viewTypeCode, viewId, */viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'setViewObject', edit, -1, editId)
+					listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'setViewObject', edit, -1, editId)
 				},
 				//just forward property changes if our rels are themselves views or sets of views
-				objectChange: listener.objectChange.bind(listener)
+				objectChange: listener.objectChange.bind(listener),
+				includeView: listener.includeView.bind(listener),
+				removeView: listener.removeView.bind(listener)
 			}
 			rel.attach(h, editId)
-			return function(editId){rel.detach(h, editId);}
+			return function(editId){
+				s.analytics.cacheEvict()
+				rel.detach(h, editId);
+			}
 		}
 	}else{
 		//console.log(JSON.stringify(relSchema))
@@ -297,6 +359,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
 				//_.assertFunction(listener.shouldHaveObject)
+				s.analytics.cachePut()
 				var h = {
 					add: function(value, editId){
 						//log('got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
@@ -305,24 +368,27 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id
 						if(_.isInt(value)) _.assert(value >= 0)
 						var edit = {id: value}
-						listener.objectChange(/*viewTypeCode, viewId, */viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'addExisting', edit, -1, editId)
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'addExisting', edit, -1, editId)
 					},
 					remove: function(value, editId){
 						//console.log('remove ---')
 						_.assert(_.isString(value) || _.isInt(value))
 						if(editId){
 							var edit = {id: value}
-							listener.objectChange(/*viewTypeCode, viewId, */viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'remove', edit, -1, editId)
+							listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'remove', edit, -1, editId)
 						}
 					},
 					//just forward property changes if our rels are themselves views or sets of views
-					objectChange: listener.objectChange.bind(listener)
+					objectChange: listener.objectChange.bind(listener),
+					includeView: listener.includeView.bind(listener),
+					removeView: listener.removeView.bind(listener)
 				}
 				//console.log('view attaching to: ' + viewTypeCode + ' ' + relSchema.name)
 				rel.attach(h, editId)
 				var alreadyDid = false
 				return function objectCollectionDetacher(editId){
 					//console.log('detaching ---')
+					s.analytics.cacheEvict()
 					if(alreadyDid) throw new Error('detached more than once')
 					alreadyDid = true
 					rel.detach(h, editId);
@@ -332,6 +398,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
 				//_.assertFunction(listener.shouldHaveObject)
+				s.analytics.cachePut()
 				var h = {
 					add: function(value, editId){
 						_.assertInt(editId)
@@ -341,21 +408,24 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id
 						var edit = {id: value}
 						//console.log('did add')
-						listener.objectChange(/*viewTypeCode, viewId,*/ viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'addExistingViewObject', edit, -1, editId)
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'addExistingViewObject', edit, -1, editId)
 					},
 					remove: function(value, editId){
 						_.assert(_.isString(value) || _.isInt(value))
 						var edit = {id: value}
 						//console.log('remove -- ')
-						listener.objectChange(/*viewTypeCode, viewId,*/ viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'removeViewObject', edit, -1, editId)
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], 'removeViewObject', edit, -1, editId)
 					},
 					//just forward property changes if our rels are themselves views or sets of views
-					objectChange: listener.objectChange.bind(listener)
+					objectChange: listener.objectChange.bind(listener),
+					includeView: listener.includeView.bind(listener),
+					removeView: listener.removeView.bind(listener)
 				}
 				//console.log('view attaching to: ' + viewTypeCode + ' ' + relSchema.name)
 				rel.attach(h, editId)
 				return function viewCollectionDetacher(editId){
 					//console.log('detaching ***')
+					s.analytics.cacheEvict()
 					rel.detach(h, editId);
 				}
 			}
@@ -371,6 +441,8 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				var addOpName = util.addOp(relSchema)//'add'+ts
 				var removeOpName = util.removeOp(relSchema)//'remove'+ts
 
+				s.analytics.cachePut()
+				
 				var h = {
 					add: function(value, editId){
 						_.assertInt(editId)
@@ -379,17 +451,22 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						//console.log('LISTENER: ' + require('util').inspect(listener))
 						//console.log('GENERIC ADD HERE: ' + relCode)
 						//console.log(JSON.stringify(relSchema))
-						listener.objectChange(/*viewTypeCode, viewId, */viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], addOpName, edit, -1, editId)
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], addOpName, edit, -1, editId)
 					},
 					remove: function(value, editId){
 						var edit = {value: value}
-						listener.objectChange(/*viewTypeCode, viewId,*/ viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], removeOpName, edit, -1, editId)					
+						listener.objectChange(viewTypeCode, viewId, [{op: 'selectProperty', edit: {typeCode: relCode}}], removeOpName, edit, -1, editId)					
 					},
 					//just forward property changes if our rels are themselves views or sets of views
-					objectChange: listener.objectChange.bind(listener)
+					objectChange: listener.objectChange.bind(listener),
+					includeView: listener.includeView.bind(listener),
+					removeView: listener.removeView.bind(listener)
 				}
 				rel.attach(h, editId)
-				return function primitiveCollectionDetacher(editId){rel.detach(h, editId);}
+				return function primitiveCollectionDetacher(editId){
+					s.analytics.cacheEvict()
+					rel.detach(h, editId);
+				}
 			}
 		}
 	}
@@ -435,27 +512,66 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 	
 	var ourDetachKey = Math.random()+''
 	
+	var cachedViewIncludes = {}
+	var viewCounts = {}
+	
 	var handle = {
 		name: 'view',
 		attach: function(listener, editId){
-			//_.assertFunction(listener.objectChange)
-			//_.assertFunction(listener.shouldHaveObject)
-			listeners.add(listener)
+			//listeners.add(listener)
+			/*if(typeCode === 122){
+				console.log('attaching to: ' + key)
+				console.log(JSON.stringify(Object.keys(cachedViewIncludes)))
+				console.log(new Error().stack)
+			}*/
 			_.assertInt(editId)
-			var detachers = []
-			//console.log('attached to view')
+			Object.keys(cachedViewIncludes).forEach(function(key){
+				listener.includeView(key, cachedViewIncludes[key], editId)
+			})
+			listener.includeView(key, handle, editId)
 			listener.set(key, undefined, editId)
+			
+		},
+		include: function(listener, editId){			
+			var detachers = []
+			
+			//console.log('including: ' + key)
+			
+			var wrapper = _.extend({}, listener)
+			wrapper.includeView = function(viewId, handle, editId){
+				//console.log('including view?: ' + viewId)
+				if(viewCounts[viewId] === undefined){
+				//	console.log('caching view id: ' + viewId)
+					cachedViewIncludes[viewId] = handle
+					viewCounts[viewId] = 0
+					listener.includeView(viewId, handle, editId)
+				}
+				++viewCounts[viewId]
+			}
+			wrapper.removeView = function(viewId, handle, editId){
+				--viewCounts[viewId]
+				if(viewCounts[viewId] === 0){
+					listener.removeView(viewId, handle, editId)
+					delete cachedViewIncludes[viewId]
+					delete viewCounts[viewId]
+				}
+			}
+			
+			//console.log('attached to view')
 			Object.keys(rels).forEach(function(relCode){
 				var rel = rels[relCode]
 				//console.log('view attaching to rel ' + relCode)
-				var d = attachRelFuncs[relCode](listener, rel, key, editId)
+				var d = attachRelFuncs[relCode](wrapper, rel, key, editId)
 				detachers.push(d)
 			})
 			var alreadyDid = false
 			return listener[ourDetachKey] = function(editId){
-				if(alreadyDid) _.errout('detached more than once')
+				if(alreadyDid) _.errout('detached more than once: ' + key)
 				alreadyDid = true
-				//console.log('detaching: ' + detachers.length)
+				/*if(typeCode === 122){
+					console.log('detaching: ' + key + ' ' + detachers.length)
+					//console.log(new Error().stack)
+				}*/
 				detachers.forEach(function(d){
 					//console.log('d: ' + d)
 					d(editId);
@@ -463,19 +579,11 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			}
 		},
 		detach: function(listener, editId){
-			//console.log('detaching: ' + listener[ourDetachKey])
+			//_.assertInt(editId)
 			if(editId){
-				listener.set('', key, editId)
+				listener.set(undefined, key, editId)
 			}
-			//listener[ourDetachKey](editId)
-			/*listeners.remove(listener)
-			if(editId){
-				//TODO detach rel functions as reverse of attach
-				Object.keys(rels).forEach(function(relCode){
-					var rel = rels[relCode]
-					detachRelFuncs[relCode](listener, rel, key, editId)
-				})
-			}*/
+			listener.removeView(key, handle, editId)
 		},
 		oldest: function(){
 			var old = s.objectState.getCurrentEditId();

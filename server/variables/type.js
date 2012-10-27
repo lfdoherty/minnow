@@ -18,10 +18,11 @@ schema.addFunction('type', {
 	callSyntax: 'type(object)'
 })
 
+function stub(){}
 
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	var f = svgGeneral.bind(undefined, s, cache, elementGetter)
 	return f
 }
@@ -84,7 +85,9 @@ function svgGeneral(s, cache, elementGetter, bindings, editId){
 
 				*/
 			}
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
 }

@@ -18,7 +18,7 @@ PathUpdater.prototype.update = function update(e){
 	_.assertDefined(this)
 	this.edits.push(e)
 	var op = e.op
-	//console.log(JSON.stringify(e))
+	//console.log('pe: ' + JSON.stringify(e))
 	if(op === 'made'){
 		this.typeCode = e.edit.typeCode
 	}else if(op === 'setSyncId'){

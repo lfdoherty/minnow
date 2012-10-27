@@ -7,12 +7,20 @@ function stub(){}
 
 var log = require('quicklog').make('minnow/pathmerger')
 
+function editsAreDifferent(op, a, b){
+	if(op === 'selectStringKey' || op === 'selectObjectKey' || op === 'selectIntKey' || op === 'reselectStringKey') return a.key !== b.key
+	else if(op === 'selectProperty' || op === 'reselectProperty') return a.typeCode !== b.typeCode
+	else if(op === 'selectObject') return a.id !== b.id
+	console.log(op)
+	return JSON.stringify(a) !== JSON.stringify(b)
+}
+
 function differentPathEdits(a, b){
 	var opsDifferent = a.op !== b.op
 	if(opsDifferent && a.op.substr(0,2) === 're') opsDifferent = a.op.substr(2) === b.op
 	if(opsDifferent && b.op.substr(0,2) === 're') opsDifferent = b.op.substr(2) === a.op
 	//&& (a.op.substr(0,2) === 're' && a.op.substr(2) !== b.op) && b.op.substr(2) !== a.op)
-	if(opsDifferent || JSON.stringify(a.edit) !== JSON.stringify(b.edit)) return true
+	if(opsDifferent || editsAreDifferent(a.op, a.edit, b.edit)) return true//JSON.stringify(a.edit) !== JSON.stringify(b.edit)) return true
 }
 
 function editToMatch(curPath, newPath, cb){
@@ -103,8 +111,9 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 			curPath = [].concat(e.path)
 			
 			//console.log('advancing: ' + JSON.stringify(e))
-			
-			callAp(typeCode, e.id, curPath, e.op, e.edit, e.syncId, e.computeTemporary, Date.now(), e.reifyCb)//TODO address serialization issue with timestamp
+			if(e.edit){
+				callAp(typeCode, e.id, curPath, e.op, e.edit, e.syncId, e.computeTemporary, Date.now(), e.reifyCb)//TODO address serialization issue with timestamp
+			}
 		})
 		delete olMap[id]
 	}
@@ -120,11 +129,16 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 			olMap[id] = [e]
 			//console.log('taking: ' + JSON.stringify(e))
 			ol.getObjectMetadata(id, function(typeCode, path, syncId){
-				//log.info('GOT OBJECT METADATA', [id, path])
+				//console.log('GOT OBJECT METADATA', [id, path])
 				_.assertInt(typeCode)
 				advance(id, typeCode, path, syncId)
 			})
 		}
+	}
+	
+	take.updatePath = function(id, path, syncId){
+		_.assert(id > 0)
+		take(id, path, undefined, undefined, syncId)
 	}
 	
 	take.forgetTemporary = function(real, temporary, syncId){

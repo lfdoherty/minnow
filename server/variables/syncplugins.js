@@ -31,7 +31,9 @@ function wrapParam(v, schemaType, s){
 				set: function(v, oldV, editId){
 					cachedValue = v
 					listeners.emitChanged(editId)
-				}
+				},
+				includeView: stub,
+				removeView: stub
 			}, editId)
 			return {
 				name: 'syncplugin-primitive-wrapper',
@@ -57,7 +59,9 @@ function wrapParam(v, schemaType, s){
 				set: function(v, oldV, editId){
 					cachedValue = v
 					listeners.emitChanged(editId)
-				}
+				},
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
 			return {
 				name: 'syncplugin-object-wrapper',
@@ -69,49 +73,51 @@ function wrapParam(v, schemaType, s){
 					}
 				},
 				get: function(){return cachedValue;},
-				oldest: t.oldest
+				oldest: t.oldest,
+				descend: function(path, editId, cb, continueListening){
+					_.assertFunction(cb)
+					t.descend(path, editId, cb, continueListening)
+				},
+				descendTypes: function(path, editId, cb, continueListening){
+					_.assertFunction(cb)
+					t.descendTypes(path, editId, cb, continueListening)
+				}
 			}
 		}
 	}else if(schemaType.type === 'set'){
-		//if(schemaType.members.type === 'primitive'){
-			return function(bindings, editId){
-				var listeners = listenerSet()
+		return function(bindings, editId){
+			var listeners = listenerSet()
 
-				var t = v(bindings, editId)
-				var cachedValues = []
-				var re = Math.random()
-				s.log('attaching ' + re + ' ' + t.attach)
+			var t = v(bindings, editId)
+			var cachedValues = []
+			var re = Math.random()
 
-				t.attach({
-					name: 'syncplugin-set-primitive-wrapper',
-					add: function(v, editId){
-						//console.log(re + ' cachedValues: ' + JSON.stringify(cachedValues))
-						//console.log('adding: ' + v)
-						_.assert(cachedValues.indexOf(v) === -1)
-						cachedValues.push(v)
-						listeners.emitChanged(editId)
-					},
-					remove: function(v, editId){
-						//console.log('removed: ' + v)
-						cachedValues.splice(cachedValues.indexOf(v), 1)
-						listeners.emitChanged(editId)
-					},
-					objectChange: function(){_.errout('TODO?');}
-				}, editId)
-				return {
-					attach: function(listener, editId){
-						listeners.add(listener)
-						if(cachedValues.length > 0){
-							listener.changed(editId)
-						}
-					},
-					get: function(){return cachedValues;},
-					oldest: t.oldest
-				}
+			t.attach({
+				name: 'syncplugin-set-wrapper',
+				add: function(v, editId){
+					_.assert(cachedValues.indexOf(v) === -1)
+					cachedValues.push(v)
+					listeners.emitChanged(editId)
+				},
+				remove: function(v, editId){
+					cachedValues.splice(cachedValues.indexOf(v), 1)
+					listeners.emitChanged(editId)
+				},
+				objectChange: function(){_.errout('TODO?');},
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
+			}, editId)
+			return {
+				attach: function(listener, editId){
+					listeners.add(listener)
+					if(cachedValues.length > 0){
+						listener.changed(editId)
+					}
+				},
+				get: function(){return cachedValues;},
+				oldest: t.oldest
 			}
-		//}else{
-		//	_.errout('TODO')
-		//}
+		}
 	}else if(schemaType.type === 'list'){
 		if(schemaType.members.type === 'primitive'){
 			return function(bindings, editId){
@@ -120,7 +126,7 @@ function wrapParam(v, schemaType, s){
 				var t = v(bindings, editId)
 				var cachedValues = []
 				var re = Math.random()
-				s.log('attaching ' + re + ' ' + t.attach)
+				//s.log('attaching ' + re + ' ' + t.attach)
 
 				t.attach({
 					add: function(v, editId){
@@ -135,7 +141,9 @@ function wrapParam(v, schemaType, s){
 					},
 					objectChange: function(){
 						_.errout('TODO')
-					}
+					},
+					includeView: stub,
+					removeView: stub
 				}, editId)
 				return {
 					name: 'syncplugin-list-primitive-wrapper',
@@ -159,11 +167,11 @@ function wrapParam(v, schemaType, s){
 			var t = v(bindings, editId)
 			var cachedValues = {}
 			var re = Math.random()
-			s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+			//s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
 			t.attach({
 				put: function(key, value, oldValue, editId){
-					s.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
+					//s.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
 					cachedValues[key] = value
 					listeners.emitChanged(editId)
 				},
@@ -173,7 +181,9 @@ function wrapParam(v, schemaType, s){
 				},
 				objectChange: function(){
 					_.errout('TODO')
-				}
+				},
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
 			var handle = {
 				name: 'syncplugin-map-primitive-wrapper',
@@ -518,7 +528,7 @@ exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 		a)  Every time any of the parameter wrapper's value changes, call the plugin.implementation function with the value array
 	*/
 	
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	//1. one set for each parameter
 	var paramSets = []
@@ -558,11 +568,13 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 		changed: function(editId){
 			_.assertInt(editId)
 			_.assertNot(recomputing)
-			s.log('recomputing: ' + plugin.callSyntax)
+			//s.log('recomputing: ' + plugin.callSyntax)
 			recomputing = true
 			recompute(editId)
 			recomputing = false
-		}
+		},
+		includeView: stub,
+		removeView: stub
 	}
 
 	_.assert(paramSets.length > 0)
@@ -573,9 +585,14 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 		_.assertDefined(ps)
 		params.push(ps)
 	}
+
+	var valueArray = []
+	valueArray.length = params.length
 	
 	outputHandler.descenders = []
 	outputHandler.typeDescenders = []
+
+	var oldestParams = []
 
 	params.forEach(function(p, i){
 		p.attach(listener, editId)
@@ -594,13 +611,19 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 				_.errout('no type descender specified for variable ' + p.name)
 			}
 		}
+		
+		if(!p.neverGetsOld){
+			oldestParams.push(p)
+		}
 	})
+	
+
 	
 	function oldest(){
 		//console.log(new Error().stack)
 		var o = s.objectState.getCurrentEditId()
-		for(var i=0;i<params.length;++i){
-			var p = params[i]
+		for(var i=0;i<oldestParams.length;++i){
+			var p = oldestParams[i]
 			var old = p.oldest()
 			if(old < o) o = old
 		}
@@ -609,8 +632,9 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 	
 	var result;
 	var nr = Math.random()
+	
+	
 	function recompute(editId){
-		var valueArray = []
 		for(var i=0;i<params.length;++i){
 			valueArray[i] = params[i].get()
 			//_.assertDefined(valueArray[i])
@@ -619,6 +643,7 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 				return
 			}
 		}
+		//console.log('value array: ' + JSON.stringify(valueArray))
 		outputHandler.lastInputs = valueArray
 		
 		//console.log('recomputing with: ' + JSON.stringify(valueArray))

@@ -122,16 +122,16 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	if(op === 'addedNew'){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			_.assertInt(id)
 
 			var res = this.wrapObject(id, edit.typeCode, [], this)
 			this.obj.push(res)
 			res.prepare()
 			return this.emit(edit, 'add', res)
-		}
+		//}
 	}else if(op === 'replaceExternalExisting'){
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 
 			//var removeId = edit.oldId//path[path.length-1];
 			var objHandle = this.getObjectApi(edit.oldId)//u.findObj(this.obj, removeId)
@@ -146,11 +146,11 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 
 				return this.emit(edit, 'replace', objHandle, newObj)
 			}
-		}
-		return stub;
+		//}
+		//return stub;
 	}else if(op === 'replacedNew'){
 
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			var removeId = edit.oldId//path[path.length-1];
 			var objHandle = this.get(removeId);
 		
@@ -162,20 +162,20 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			objHandle.prepare()
 
 			return this.emit(edit, 'replace', objHandle, res)				
-		}	
+		//}	
 	}else if(op === 'shift'){
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 
 			_.assert(this.obj.length >= 1);
 			var res = this.obj.shift();
 
 			res.prepare()
 			return this.emit(edit, 'shift', res)
-		}else{
+		/*}else{
 			return stub;
-		}
+		}*/
 	}else if(op === 'remove'){
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			var res = this.get(edit.id);
 			var index = this.obj.indexOf(res)
 			if(index === -1){
@@ -186,20 +186,21 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 				res.prepare()
 				return this.emit(edit, 'remove', res)
 			}
-		}		
-		return stub;
+		//}		
+		//return stub;
 	}else if(op === 'addExisting' || op === 'addExistingViewObject'){
-		if(this.getEditingId() !== syncId){
+	//	if(this.getEditingId() !== syncId){
 			//_.errout('^TODO implement op: ' + JSON.stringify(edit));
 		//	console.log('addExistingEdit: ' + JSON.stringify(edit))
 			var addedObj = this.getObjectApi(edit.id)
+			_.assertDefined(addedObj)
 			this.obj.push(addedObj)
 			addedObj.prepare()
 			return this.emit(edit, 'add', addedObj)
-		}	
-		return stub;
+		//}	
+	//	return stub;
 	}else if(op === 'replaceInternalExisting' || op === 'replaceExternalExisting'){
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			//_.errout('^TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 			var removeId = edit.oldId//path[path.length-1];
 			var objHandle = this.get(removeId);
@@ -212,18 +213,18 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			objHandle.prepare()
 
 			return this.emit(edit, 'replace', objHandle, res)
-		}
-		return stub;
+		//}
+		//return stub;
 	}else if(op === 'setObject'){
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			_.errout('&TODO implement op: ' + JSON.stringify(edit));
-		}	
-		return stub;
+		//}	
+		//return stub;
 	}else if(op === 'set'){
-		if(this.getEditingId() !== syncId){
+		//if(this.getEditingId() !== syncId){
 			_.errout('*TODO implement op: ' + JSON.stringify(edit));
-		}	
-		return stub;
+		//}	
+		//return stub;
 	}else{
 		_.errout('+TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}
@@ -233,6 +234,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 function doListReplace(list, objHandle, newObj){
 	_.assertLength(arguments, 3)
 	_.assertObject(objHandle)
+	_.assertObject(newObj)
 	
 	var id = objHandle._internalId()
 

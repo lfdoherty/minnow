@@ -68,9 +68,7 @@ exports.make = function(authenticateByToken, local){
 								syncId = theSyncId
 
 								senders[syncId] = send
-								
-								//console.log('syncId: ' + syncId)
-			
+
 								ws.send(JSON.stringify([{syncId: syncId}]))
 								authBuffer.forEach(send)
 							})
@@ -100,10 +98,6 @@ exports.make = function(authenticateByToken, local){
 						return
 					}
 					try{
-						//ws.send({type: 'transaction', size: msgs.length})
-						//for(var i=0;i<msgs.length;++i){
-						//	ws.send(JSON.stringify(msg))
-						//}
 						ws.send(JSON.stringify(msgs))
 					}catch(e){
 						log.warn(e)

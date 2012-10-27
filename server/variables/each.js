@@ -4,6 +4,7 @@ var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
+var viewInclude = require('./../viewinclude')
 
 var _ = require('underscorem')
 
@@ -66,7 +67,7 @@ function eachMaker(s, self, rel, typeBindings){
 		throw new Error('each param 1 must be a collection, not: ' + JSON.stringify(rel.params[0].schemaType))
 	}
 
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	s = _.extend({}, s)
 	s.outputType = rel//.params[1].schemaType
 	if(rel.params[1].type === 'macro' || rel.params[1].type === 'partial-application' || rel.params[1].type === 'param'){
@@ -179,7 +180,9 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			var e = [typeCode, id, path, op, edit, syncId, editId]
 			cachedObjectChanges.push(e)
 			listeners.emitObjectChange(typeCode, id, path, op, edit, syncId, editId)
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}
 	
 	function oldest(){
@@ -211,8 +214,10 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 			removedSet.detach(resultSetListener, editId)
 		},
 		objectChange: function(typeCode, id, path, op, edit, syncId, editId){
-			//_.errout('TODO')
-		}
+			_.errout('TODO?')
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	var handle = {
@@ -270,8 +275,10 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 	var counts = {}
 	var values = []
 	
-	var cachedObjectChanges = []
+	//var cachedObjectChanges = []
 
+	var vi = viewInclude.make(listeners)
+	
 	//console.log('name: ' + elements.name)
 	//_.assertFunction(elements.descend)
 	
@@ -304,12 +311,15 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		objectChange: function(subjTypeCode, subjId,/* typeCode, id, */path, op, edit, syncId, editId){
 			//console.log('each passing on objectChange to ' + listeners.many() + ': ' + JSON.stringify([op, edit, syncId, editId]))
 			//console.log(new Error().stack)
-			_.assert(editId < s.objectState.getCurrentEditId())
-			var e = [subjTypeCode, subjId,/* typeCode, id,*/ path, op, edit, syncId, editId]
-			cachedObjectChanges.push(e)
-			listeners.emitObjectChange(subjTypeCode, subjId, /*typeCode, id,*/ path, op, edit, syncId, editId)
+			//_.assert(editId < s.objectState.getCurrentEditId())
+			//var e = [subjTypeCode, subjId,/* typeCode, id,*/ path, op, edit, syncId, editId]
+			//cachedObjectChanges.push(e)
+			//listeners.emitObjectChange(subjTypeCode, subjId, /*typeCode, id,*/ path, op, edit, syncId, editId)
 			//_.errout('TODO: ' + op + ' ' + JSON.stringify(edit))
-		}
+			_.errout('TODO REMOVE')
+		},
+		includeView: vi.includeView,//function(viewId, editId){listeners.emitIncludeView(viewId, editId)},
+		removeView: vi.removeView//listeners.emitRemoveView.bind(listeners)
 	}
 	
 	function oldest(){
@@ -327,7 +337,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		add: function(v, editId){
 			var newBindings = copyBindings(bindings)
 			//console.log(JSON.stringify(Object.keys(elements)))
-			s.log('key: ' + elements.key + ' ' + v + ' ' + editId)
+			//s.log('key: ' + elements.key + ' ' + v + ' ' + editId)
 			//console.log('attach: ' + elements.attach)
 			//console.log('add')
 			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId, elements)
@@ -342,7 +352,9 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			//console.log('remove &&&& ' + removedSet.detach)
 			removedSet.detach(resultSetListener, editId)
 		},
-		objectChange: stub//ignore object changes - that's the result set listener's job?
+		objectChange: stub,//ignore object changes - that's the result set listener's job?
+		includeView: vi.includeView,//listeners.emitIncludeView.bind(listeners),
+		removeView: vi.includeView//listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	var handle = {
@@ -351,12 +363,13 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			listeners.add(listener)
 			//console.log('attached to each: ' + JSON.stringify(s.outputType))
 			//_.assertFunction(listener.shouldHaveObject)
-			if(cachedObjectChanges.length > 0) _.assertFunction(listener.objectChange)
+			/*if(cachedObjectChanges.length > 0) _.assertFunction(listener.objectChange)
 
 			//console.log('sending cached to attached: ' + cachedObjectChanges.length)
 			cachedObjectChanges.forEach(function(v){
 				listener.objectChange.apply(undefined, v)
-			})
+			})*/
+			vi.include(listener, editId)
 			
 			values.forEach(function(v){listener.add(v, editId)})
 

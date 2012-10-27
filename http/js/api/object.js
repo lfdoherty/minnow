@@ -298,10 +298,8 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 			}
 
 			this.obj[descentCode] = setObj;
-			//if(this.prepared){
-				setObj.prepare()
-				this[ps.name] = setObj
-			//}
+			setObj.prepare()
+			this[ps.name] = setObj
 			this.emit(edit, 'set', ps.name, setObj)			
 		}
 	}else if(op === 'clearObject' || op === 'clearProperty'){
@@ -418,6 +416,7 @@ ObjectHandle.prototype.setPropertyToNew = function(propertyName, newType){
 ObjectHandle.prototype.replaceObjectHandle = function(oldHandle, newHandle, part){
 	var property = this.typeSchema.propertiesByCode[part[0]]
 	//this.parent.cachedProperties[property.name] = newValue;
+	_.assertObject(newHandle)
 	this[property.name] = newHandle
 }
 
@@ -590,7 +589,9 @@ ObjectHandle.prototype.propertyByCode = function property(propertyCode){
 	//console.log('type: ' + this.typeSchema.name)
 	//console.log(JSON.stringify(this.typeSchema.propertiesByCode))
 	var propertyName = this.typeSchema.propertiesByCode[propertyCode].name
-	return this.property(propertyName)
+	var handle = this.property(propertyName)
+	_.assertObject(handle)
+	return handle
 }
 
 //TODO invert this per-property for performance and readability improvement
@@ -653,8 +654,12 @@ ObjectHandle.prototype.property = function property(propertyName){
 			n = new c(pt, pv, pt.code, this, this.typeSchema.isView);
 		}
 		_.assertDefined(n)
+		_.assertObject(n)
 		this[propertyName] = n//.cachedProperties[propertyName] = n;
 	}
+
+	_.assertObject(n)
+	
 	return n;
 }
 ObjectHandle.prototype.toJson = function toJson(already){

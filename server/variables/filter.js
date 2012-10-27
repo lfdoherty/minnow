@@ -7,6 +7,8 @@ var listenerSet = require('./../variable_listeners')
 
 var _ = require('underscorem')
 
+function stub(){}
+
 function filterType(rel, ch){
 	return rel.params[0].schemaType
 }
@@ -19,7 +21,7 @@ schema.addFunction('filter', {
 })
 
 function filterMaker(s, self, rel, typeBindings){
-	var cache = new Cache()	
+	var cache = new Cache(s.analytics)	
 	var inputGetter = self(rel.params[0], typeBindings)
 	var f = svgFilter.bind(undefined, s, cache, inputGetter, self(rel.params[1], typeBindings))
 	//console.log(JSON.stringify(rel.params[0]))
@@ -44,7 +46,11 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 	var passedValue = passedGetter(bindings, editId)
 	
 	var key = inputValue.key+passedValue.key
-	if(cache.has(key)) return cache.get(key)
+	if(cache.has(key)){
+		return cache.get(key)
+	}
+
+	//s.analytics.creation()
 	
 	var listeners = listenerSet()
 	
@@ -58,29 +64,35 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 	inputValue.attach({
 		set: function(v, oldV, editId){
 			value = v
-			s.log('set ' + v + ', passed: ' + passed)
+			//s.log('set ' + v + ', passed: ' + passed)
 			if(passed){
 				listeners.emitSet(value, oldV, editId)
 			}else{
 			}
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
-	passedValue.attach({set: function(newPassed, oldPassed, editId){
-		_.assertNot(_.isInt(newPassed))
-		//_.assertBoolean(newPassed)
-		s.log('*passed: ' + newPassed)
-		if(value){
-			if(newPassed){
-				listeners.emitSet(value, undefined, editId)
-			}else{
-				if(passed){
-					listeners.emitSet(undefined, value, editId)
+	passedValue.attach({
+		set: function(newPassed, oldPassed, editId){
+			_.assertNot(_.isInt(newPassed))
+			//_.assertBoolean(newPassed)
+			//s.log('*passed: ' + newPassed)
+			if(value){
+				if(newPassed){
+					listeners.emitSet(value, undefined, editId)
+				}else{
+					if(passed){
+						listeners.emitSet(undefined, value, editId)
+					}
 				}
 			}
-		}
-		passed = newPassed
-	}})
+			passed = newPassed
+		},
+		includeView: stub,
+		removeView: stub
+	})
 	
 	var handle = {
 		name: 'filter',

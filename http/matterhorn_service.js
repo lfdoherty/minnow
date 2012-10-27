@@ -26,12 +26,19 @@ var serviceModule = require('./service')
 
 var log = require('quicklog').make('minnow/matterhorn-service')
 
-function sendData(res, data){
-	res.setHeader('Content-Encoding', 'gzip');
-	res.setHeader('Content-Length', data.length);
+function sendData(req, res, data, zippedData){
+	var compHeader = req.header('Accept-Encoding');
 	res.setHeader('Content-Type', 'text/javascript');
 	res.setHeader('Cache-Control', 'max-age=2592000');
-	res.end(data);
+	if(compHeader && compHeader.indexOf('gzip') !== -1){
+		//console.log('sending zipped 
+		res.setHeader('Content-Encoding', 'gzip');
+		res.setHeader('Content-Length', zippedData.length);
+		res.end(zippedData);
+	}else{	
+		res.setHeader('Content-Length', data.length);
+		res.end(data);
+	}
 }
 
 exports.make = function(appName, schema, local, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
@@ -123,7 +130,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				
 						//bb[key] = data;
 				
-						sendData(res, data);
+						sendData(req, res, jsStr, data);
 					});
 				});
 			}

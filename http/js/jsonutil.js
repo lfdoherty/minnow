@@ -121,6 +121,9 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 				assertPrimitiveType(v,p.type.primitive, p.name);
 				//var ts = getTypeSuffix(p.type.primitive)
 				if(setOp[p.type.primitive] === undefined) _.errout('TODO: ' + p.type.primitive)
+				if(p.type.primitive === 'real'){
+					value = value+''
+				}
 				edits.push({op: setOp[p.type.primitive],  edit: {value: v}})
 				
 			}else if(p.type.type === 'map'){

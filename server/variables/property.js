@@ -54,18 +54,22 @@ function propertyType(rel, ch){
 		return p.type
 	}else{
 		if(st.members.type === 'object'){
-			var objName = st.members.object
-			var objSchema = ch.schema[objName]
-			if(objSchema === undefined) throw new Error('cannot find object type: ' + objName + ' ' + JSON.stringify(st))
-			var p = objSchema.properties[propertyName].type
-			if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
-			if(p.type === 'set' || p.type === 'list'){
-				p = p.members
+			if(propertyName === 'id'){
+				return {type: 'set', members: {type: 'primitive', primitive: 'int'}}
+			}else{
+				var objName = st.members.object
+				var objSchema = ch.schema[objName]
+				if(objSchema === undefined) throw new Error('cannot find object type: ' + objName + ' ' + JSON.stringify(st))
+				var p = objSchema.properties[propertyName].type
+				if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
+				if(p.type === 'set' || p.type === 'list'){
+					p = p.members
+				}
+				if(p.type === 'map'){
+					return p
+				}
+				return {type: st.type, members: p};
 			}
-			if(p.type === 'map'){
-				return p
-			}
-			return {type: st.type, members: p};
 		}else{
 			var objName = st.members.view
 			var objSchema = ch.viewMap[objName].schema
@@ -126,7 +130,7 @@ function viewPropertyMaker(s, self, rel, typeBindings){
 	var property = objSchema.properties[rel.params[0].value]
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	
 //	_.errout('TODO')
 
@@ -152,12 +156,17 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 		var f = function(bindings, editId){
 			var context = contextGetter(bindings, editId)
 			//console.log('context: ' + JSON.stringify(Object.keys(context)))
+			s.analytics.cachePut()
+			
 			var listeners = listenerSet()
 			var value
-			context.attach({set: function(v, oldV, editId){
-				value = v
-				listeners.emitSet(value, oldV||-1, editId)
-			},
+			context.attach({
+				set: function(v, oldV, editId){
+					value = v
+					listeners.emitSet(value, oldV||-1, editId)
+				},
+				includeView: stub,
+				removeView: stub
 			}, editId)
 			var handle = {
 				name: 'object-property-handle?',
@@ -186,7 +195,7 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var isObjectValue
 	
@@ -240,7 +249,7 @@ function mapValuesPropertyMaker(s, self, rel, typeBindings){
 
 	var propertyCode = property.code
 	//_.assertInt(propertyCode)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 
 	var isObjectProperty = false
 	if(property.type.value.type === 'object'){
@@ -435,6 +444,8 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 				
 			})
 		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 
 	
@@ -446,10 +457,57 @@ function objectSetPropertyMaker(s, self, rel, typeBindings){
 	var contextGetter = self(rel.params[1], typeBindings)
 	
 	var objSchema = s.schema[rel.params[1].schemaType.members.object]
+	
+	if(rel.params[0].value === 'id'){
+		var f = function(bindings, editId){
+			var context = contextGetter(bindings, editId)
+			//console.log('context: ' + JSON.stringify(Object.keys(context)))
+			var listeners = listenerSet()
+			var ids = []
+			s.analytics.cachePut()
+			context.attach({
+				add: function(v, editId){
+					ids.push(v)
+					//listeners.emitSet(value, oldV||-1, editId)
+					listeners.emitAdd(v, editId)
+				},
+				remove: function(v, editId){
+					ids.splice(ids.indexOf(v), 1)
+					listeners.emitRemove(v, editId)
+				}
+			}, editId)
+			var handle = {
+				name: 'object-set-ids',
+				attach: function(listener, editId){
+					listeners.add(listener)
+					//if(value !== undefined) listener.set(value, -1, editId)
+					ids.forEach(function(v){
+						listener.add(v, editId)
+					})
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId){
+						//listener.set(-1, value, editId)
+						ids.forEach(function(v){
+							listener.remove(v, editId)
+						})
+					}
+				},
+				oldest: context.oldest
+			}
+			return handle
+		}
+		f.wrapAsSet = function(v, editId){
+			return fixedPrimitive.make(s)(v, editId)
+		}
+		return f
+	}
+	
 	var property = objSchema.properties[rel.params[0].value]
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	var c;
 	
 	var isObjectProperty
@@ -583,7 +641,9 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 				}
 				ongoingEditId = undefined
 			})
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	return cache.store(key, handle)
@@ -618,6 +678,8 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		name: 'property-of-object-collection',
 		attach: function(listener, editId){
 			_.assertInt(editId)
+			_.assertFunction(listener.includeView)
+			
 			listeners.add(listener)
 			//console.log('#attaching to property ' + propertyCode + ' ' + JSON.stringify(values))
 			values.forEach(function(v){
@@ -709,7 +771,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 						innerLookup[v] = id
 					})
 				}
-				s.log('streaming property(', propertyCode, '): ', pv)
+				//s.log('streaming property(', propertyCode, '): ', pv)
 				//console.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
 				//var pv = obj[propertyCode]
 				if(pv !== undefined){
@@ -717,7 +779,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 						if(!counts[v]){
 							counts[v] = 1
 							values.push(v)
-							s.log('emitting add: ', v)
+							//s.log('emitting add: ', v)
 							//console.log('emitting add')
 							listeners.emitAdd(v, editId)
 						}else if(oldPv.indexOf(v) === -1){
@@ -741,7 +803,9 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	return cache.store(key, handle)
@@ -871,7 +935,7 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 						innerLookup[v] = id
 					})
 				}*/
-				s.log('streaming property(', propertyCode, '): ', pv)
+				//s.log('streaming property(', propertyCode, '): ', pv)
 				//console.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
 				//var pv = obj[propertyCode]
 				if(pv !== undefined){
@@ -912,7 +976,9 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	return cache.store(key, handle)
@@ -1094,7 +1160,9 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	return cache.store(key, handle)
@@ -1238,7 +1306,9 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	return cache.store(key, handle)
@@ -1389,7 +1459,9 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
 			_.errout('TODO')
-		}
+		},
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 	
 	return cache.store(key, handle)

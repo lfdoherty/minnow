@@ -60,7 +60,7 @@ function multimapMaker(s, self, rel, typeBindings){
 	var keyGetter = self(rel.params[1], newTypeBindingsKey)
 	var valueGetter = self(rel.params[2], newTypeBindingsValue)
 
-	var cache = new Cache()
+	var cache = new Cache(s.analytics)
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
@@ -209,12 +209,16 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 
 			newKeyVariable.attach({
 				add: addKey, 
-				remove: removeKey
+				remove: removeKey,
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
 			
 			newValueVariable.attach({
 				set: valueListener, 
-				shouldHaveObject: stub
+				shouldHaveObject: stub,
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
 		},
 		remove: function(v, editId){
@@ -222,7 +226,9 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 			r.key.detach(r.keyListener, editId)
 			r.value.detach(r.valueListener, editId)
 		},
-		objectChange: stub
+		objectChange: stub,
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 
 	
@@ -363,11 +369,15 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 			
 
 			var keyListener = {
-				set: setKey
+				set: setKey,
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
 			}
 			var valueListener = {
 				add: addValue,
-				remove: removeValue
+				remove: removeValue,
+				includeView: listeners.emitIncludeView.bind(listeners),
+				removeView: listeners.emitRemoveView.bind(listeners)
 			}
 
 			allSets[inputSetValue] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
@@ -381,7 +391,9 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 			r.value.detach(r.valueListener, editId)
 			delete allSets[v]
 		},
-		objectChange: stub
+		objectChange: stub,
+		includeView: listeners.emitIncludeView.bind(listeners),
+		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 
 	var handle = {
