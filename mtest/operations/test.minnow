@@ -1,0 +1,9 @@
+
+entity 1
+	truth boolean 1
+	friends set:entity 2
+			
+general() 100
+
+specific(e entity) 101
+	truly or(e.truth,e.friends.truth) 1
