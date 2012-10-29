@@ -4,6 +4,9 @@ entity 2
 	value string 2
 	age int 3
 
+container 4
+	members string:entity 1
+	
 empty() 102
 
 general() 100
@@ -26,3 +29,6 @@ mapReduce() 103
 	
 syncInputSetRemoval() 104
 	manyStrings count(union(*entity.key,*entity.value)) 1
+	
+merged() 106
+	byKeys mapMerge(map(*entity,{~.key},{~}),*container.members) 1

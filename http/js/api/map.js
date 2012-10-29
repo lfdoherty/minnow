@@ -80,6 +80,8 @@ MapHandle.prototype.each = function(cb){
 	}else{
 		Object.keys(this.obj).forEach(function(key){
 			var idOrValue = local.obj[key];
+			console.log(key + ' ' + JSON.stringify(Object.keys(local.obj)))
+			_.assertDefined(idOrValue)
 			if(typeof(idOrValue) === 'number'){
 				var a = local.apiCache[idOrValue];
 				if(a === undefined) a = local.getObjectApi(id);
@@ -348,6 +350,7 @@ MapHandle.prototype.toJson = function(){
 		}
 	}else{
 		this.each(function(key, value){
+				console.log(key + '->'+value)
 			result[key] = value.toJson();
 		});
 	}
@@ -368,6 +371,8 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 	if(syncId === this.getEditingId()){
 		return stub;//TODO deal with local/global priority
 	}
+	
+	//console.log(JSON.stringify([key, op, edit, syncId, editId]))
 
 	if(op.indexOf('putAddExisting') === 0){
 		//_.errout('TODO')
@@ -384,8 +389,8 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		var list = this.obj[key]
 		list.splice(list.indexOf(edit.value), 1)//.push(edit.value)
 		//this.log('key: ' + key)
-		console.log('put-removed: ' + edit.value)
-		console.log(JSON.stringify(this.obj))
+		//console.log('put-removed: ' + edit.value)
+		//console.log(JSON.stringify(this.obj))
 		if(list.length === 0){
 			delete this.obj[key]
 		}
@@ -427,8 +432,24 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		res.prepare()
 		return this.emit(edit, 'put', key, res, old, editId)
 		
+	}else if(op === 'putExisting'){
+		var old = this.obj[key]
+		//console.log(op + ' ' + this.keyOp + ' ' + edit.id)
+	//	_.assertDefined(edit.value)
+		var value = this.obj[key] = this.getObjectApi(edit.id);
+		_.assertDefined(value)
+		//this.log('key: ' + key)
+		if(this.keyOp === 'selectObjectKey'){
+			var wrappedKey = this.getObjectApi(key);
+			wrappedKey.prepare()
+			return this.emit(edit, 'put', wrappedKey, value, old, editId)
+		}else{
+			return this.emit(edit, 'put', key, value, old, editId)
+		}
 	}else if(op.indexOf('put') === 0){
 		var old = this.obj[key]
+		//console.log(op + ' ' + this.keyOp)
+		_.assertDefined(edit.value)
 		this.obj[key] = edit.value;
 		//this.log('key: ' + key)
 		if(this.keyOp === 'selectObjectKey'){

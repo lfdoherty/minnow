@@ -15,8 +15,8 @@ exports.plugins = {
 	intersection: require('./intersection'),
 	relativeComplement: require('./relativeComplement'),
 	mapValue: require('./mapValue'),
-	cast: require('./cast')
-	//TODO if we can figure out how to descend properly here, we can make cast a sync op
-	//The problem is that when we get an object id from a sync plugin, we don't know
-	//how to descend into it.
+	cast: require('./cast'),
+	concat: require('./concat'),
+	'if': require('./if'),
+	mapMerge: require('./mapMerge')
 }

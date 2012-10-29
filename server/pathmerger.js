@@ -10,7 +10,7 @@ var log = require('quicklog').make('minnow/pathmerger')
 function editsAreDifferent(op, a, b){
 	if(op === 'selectStringKey' || op === 'selectObjectKey' || op === 'selectIntKey' || op === 'reselectStringKey') return a.key !== b.key
 	else if(op === 'selectProperty' || op === 'reselectProperty') return a.typeCode !== b.typeCode
-	else if(op === 'selectObject') return a.id !== b.id
+	else if(op === 'selectObject' || op === 'reselectObject') return a.id !== b.id
 	console.log(op)
 	return JSON.stringify(a) !== JSON.stringify(b)
 }

@@ -236,3 +236,30 @@ exports.testSyncInputSetRemoval = function(config, done){
 	})
 }
 
+exports.mapMerge = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('merged', function(err, c){
+
+				poll(function(){
+					console.log('many: ' + c.byKeys.count() + ' ' + JSON.stringify(c.toJson()))
+					if(c.byKeys.count() === 4){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var a = v.make('entity', {key: 'tim', value:'bill'})
+						var b = v.make('entity', {key: 'bruce', value: 'bill'})
+						var ca = v.make('entity', {key: 'leo', value: 'bill'})
+						var cont = v.make('container')
+						cont.members.put('sally', ca)
+					})
+				})
+			})
+		})
+	})
+}
+

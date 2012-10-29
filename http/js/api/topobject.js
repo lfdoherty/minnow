@@ -444,7 +444,7 @@ function updatePath(local, op, edit, editId){
 		//local.path.push(edit.id)
 		local.pathEdits.push({op: op, edit: edit})
 	}else if(op === 'reselectObject'){
-		_.assert(local.path.length > 0)
+		_.assert(local.pathEdits.length > 0)
 		//local.path[local.path.length-1] = edit.id
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){

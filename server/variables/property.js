@@ -1252,12 +1252,30 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 					innerLookup[v] = id
 				}
 				if(!first){
-					_.errout('TODO remove old?')
+					//_.errout('TODO remove old?')
+					if(old){
+						Object.keys(old).forEach(function(key){
+							if(v && v[key] !== undefined) return
+							
+							key = keyParser(key)
+							var value = v[key]
+							if(keyCounts[key] === 1){
+								delete keyCounts[key]
+								keyValues.splice(keyValues.indexOf(key), 1)
+								delete values[key]
+								listeners.emitDel(key, editId)
+							}else{
+								--keyCounts[pv]
+							}
+						})
+					}
 				}
 				if(v !== undefined){
 					_.assertObject(v)
 					//console.log('got: ' + JSON.stringify(v))
 					Object.keys(v).forEach(function(key){
+						if(old && old[key] !== undefined) return
+						
 						key = keyParser(key)
 						var value = v[key]
 						if(keyCounts[key] === undefined){

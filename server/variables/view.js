@@ -205,18 +205,20 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 		}
 	}else if(relSchema.type === 'map'){
 		//console.log(JSON.stringify(relSchema.type))
+		var selectOpName = util.selectKeyOp(relSchema)
 		if(relSchema.value.type === 'object'){
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
 				s.analytics.cachePut()
 				var h = {
-					put: function(key, value, editId){
+					put: function(key, value, oldValue, editId){
 						_.assertInt(editId)
 						_.assertInt(value)
 						var edit = {id: value}
 						//console.log('got put')
+						_.assertDefined(key)
 						listener.objectChange(viewTypeCode, viewId, 
-							[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: 'selectIntKey', edit: {key: key}}], 
+							[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 							'putExisting', edit, -1, editId)
 					},
 					objectChange: listener.objectChange.bind(listener),
@@ -231,6 +233,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				}
 			}
 		}else if(relSchema.value.type === 'set'){
+			var selectOpName = util.selectKeyOp(relSchema)
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
 				s.analytics.cachePut()
@@ -243,7 +246,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							//console.log('got put-add: ' + key + ' ' + value)
 							_.assertInt(value)
 							listener.objectChange(viewTypeCode, viewId, 
-								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: 'selectIntKey', edit: {key: key}}], 
+								[{op: 'selectProperty', edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								'putAddExisting', edit, -1, editId)
 						},
 						objectChange: listener.objectChange.bind(listener),
