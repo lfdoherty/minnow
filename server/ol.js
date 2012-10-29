@@ -175,7 +175,7 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 		//console.log('getting foreign edits in: ' + JSON.stringify(edits))
 		for(var i=0;i<de.length;++i){
 			var e = de[i]
-			if(e.op === 'setExisting' || e.op === 'addExisting' || e.op === 'setObject'){
+			if(e.op === 'setExisting' || e.op === 'addExisting' || e.op === 'setObject' || e.op === 'putExisting'){
 				var id = e.edit.id
 				if(!has[id]){
 					ids.push(id)
