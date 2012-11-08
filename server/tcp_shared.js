@@ -31,6 +31,123 @@ exports.editFp = editFp
 
 exports.clientRequests = fparse.makeFromSchema(clientSchema)
 exports.serverResponses = fparse.makeFromSchema(responsesSchema)
+
+var lookup = require('./../http/js/lookup')
+
+Object.keys(lookup).forEach(function(key){
+	editFp[key] = lookup[key]
+})
+/*
+var isKeyCode = {}
+isKeyCode[editFp.codes.selectStringKey] = true
+isKeyCode[editFp.codes.reselectStringKey] = true
+isKeyCode[editFp.codes.selectIntKey] = true
+isKeyCode[editFp.codes.reselectIntKey] = true
+isKeyCode[editFp.codes.selectLongKey] = true
+isKeyCode[editFp.codes.reselectLongKey] = true
+isKeyCode[editFp.codes.selectBooleanKey] = true
+isKeyCode[editFp.codes.reselectBooleanKey] = true
+isKeyCode[editFp.codes.selectObjectKey] = true
+isKeyCode[editFp.codes.reselectObjectKey] = true
+editFp.isKeyCode = isKeyCode
+
+var isKeySelectCode = {}
+isKeySelectCode[editFp.codes.selectStringKey] = true
+isKeySelectCode[editFp.codes.selectIntKey] = true
+isKeySelectCode[editFp.codes.selectLongKey] = true
+isKeySelectCode[editFp.codes.selectBooleanKey] = true
+isKeySelectCode[editFp.codes.selectObjectKey] = true
+editFp.isKeySelectCode = isKeySelectCode
+
+var isKeyReselectCode = {}
+Object.keys(isKeyCode).forEach(function(key){
+	if(!isKeySelectCode[key]){
+		isKeyReselectCode[key] = true
+	}
+})
+editFp.isKeyReselectCode = isKeyReselectCode
+
+var isPrimitiveSetCode = {}
+isPrimitiveSetCode[editFp.codes.setString] = true
+isPrimitiveSetCode[editFp.codes.setLong] = true
+isPrimitiveSetCode[editFp.codes.setInt] = true
+isPrimitiveSetCode[editFp.codes.setBoolean] = true
+isPrimitiveSetCode[editFp.codes.setReal] = true
+editFp.isPrimitiveSetCode = isPrimitiveSetCode
+
+var isSetCode = {}
+isSetCode[editFp.codes.setString] = true
+isSetCode[editFp.codes.setLong] = true
+isSetCode[editFp.codes.setInt] = true
+isSetCode[editFp.codes.setBoolean] = true
+isSetCode[editFp.codes.setReal] = true
+isSetCode[editFp.codes.setObject] = true
+editFp.isSetCode = isSetCode
+
+var isPrimitiveAddCode = {}
+isPrimitiveAddCode[editFp.codes.addString] = true
+isPrimitiveAddCode[editFp.codes.addLong] = true
+isPrimitiveAddCode[editFp.codes.addInt] = true
+isPrimitiveAddCode[editFp.codes.addBoolean] = true
+isPrimitiveAddCode[editFp.codes.addReal] = true
+editFp.isPrimitiveAddCode = isPrimitiveAddCode
+
+var isAddCode = {}
+isAddCode[editFp.codes.addString] = true
+isAddCode[editFp.codes.addLong] = true
+isAddCode[editFp.codes.addInt] = true
+isAddCode[editFp.codes.addBoolean] = true
+isAddCode[editFp.codes.addReal] = true
+isAddCode[editFp.codes.addExisting] = true
+isAddCode[editFp.codes.addedNew] = true
+editFp.isAddCode = isAddCode
+
+var isRemoveCode = {}
+isRemoveCode[editFp.codes.removeString] = true
+isRemoveCode[editFp.codes.removeLong] = true
+isRemoveCode[editFp.codes.removeInt] = true
+isRemoveCode[editFp.codes.removeBoolean] = true
+isRemoveCode[editFp.codes.removeReal] = true
+isRemoveCode[editFp.codes.remove] = true
+editFp.isRemoveCode = isRemoveCode
+
+var isPrimitiveRemoveCode = {}
+isPrimitiveRemoveCode[editFp.codes.removeString] = true
+isPrimitiveRemoveCode[editFp.codes.removeLong] = true
+isPrimitiveRemoveCode[editFp.codes.removeInt] = true
+isPrimitiveRemoveCode[editFp.codes.removeBoolean] = true
+isPrimitiveRemoveCode[editFp.codes.removeReal] = true
+editFp.isPrimitiveRemoveCode = isPrimitiveRemoveCode
+
+var isPutCode = {}
+isPutCode[editFp.codes.putString] = true
+isPutCode[editFp.codes.putLong] = true
+isPutCode[editFp.codes.putInt] = true
+isPutCode[editFp.codes.putBoolean] = true
+isPutCode[editFp.codes.putReal] = true
+isPutCode[editFp.codes.didPutNew] = true
+editFp.isPutCode = isPutCode
+
+var flipType = {}
+flipType[editFp.codes.selectObject] = editFp.codes.reselectObject
+flipType[editFp.codes.selectProperty] = editFp.codes.reselectProperty
+flipType[editFp.codes.reselectObject] = editFp.codes.selectObject
+flipType[editFp.codes.reselectProperty] = editFp.codes.selectProperty
+
+flipType[editFp.codes.selectStringKey] = editFp.codes.reselectStringKey
+flipType[editFp.codes.selectIntKey] = editFp.codes.reselectIntKey
+flipType[editFp.codes.selectLongKey] = editFp.codes.reselectLongKey
+flipType[editFp.codes.selectBooleanKey] = editFp.codes.reselectBooleanKey
+flipType[editFp.codes.selectObjectKey] = editFp.codes.reselectObjectKey
+
+flipType[editFp.codes.reselectStringKey] = editFp.codes.selectStringKey
+flipType[editFp.codes.reselectIntKey] = editFp.codes.selectIntKey
+flipType[editFp.codes.reselectLongKey] = editFp.codes.selectLongKey
+flipType[editFp.codes.reselectBooleanKey] = editFp.codes.selectBooleanKey
+flipType[editFp.codes.reselectObjectKey] = editFp.codes.selectObjectKey
+
+editFp.flipType = flipType
+*/
 /*
 function findDifferenceIndex(cp, p){
 	var m = Math.min(cp.length, p.length)

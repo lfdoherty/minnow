@@ -8,6 +8,11 @@ function TimestampHandle(typeSchema, obj, part, parent){
 	this.obj = obj;
 	this.parent = parent;
 	_.assertObject(parent);
+
+	if(this.isView()){
+		this.set = u.viewReadonlyFunction
+		this.setNow = u.viewReadonlyFunction
+	}
 }
 
 TimestampHandle.prototype.changeListener = u.primitiveChangeListener;

@@ -8,6 +8,9 @@ var jsonutil = require('./../jsonutil')
 
 var TopObjectHandle = require('./topobject')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 function stub(){}
 function readonlyError(){_.errout('readonly');}
 
@@ -23,7 +26,7 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 	_.assertNot(obj === null);
 	
 	this.readonly = isReadonly;
-	if(isReadonly){
+	if(this.isView()){
 		this.remove = readonlyError;
 		this.add = readonlyError;
 		this.replaceNew = readonlyError;
@@ -67,7 +70,7 @@ ObjectListHandle.prototype.remove = function(objHandle){
 			this.getObjectTypeCode(),
 			this.getObjectId(), 
 			this.getPath().concat([id]),
-			'remove',
+			editCodes.remove,
 			e,
 			this.getEditingId());
 
@@ -119,7 +122,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 
 	var local = this;
 	
-	if(op === 'addedNew'){
+	if(op === editCodes.addedNew){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
 		//if(this.getEditingId() !== syncId){
@@ -130,7 +133,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			res.prepare()
 			return this.emit(edit, 'add', res)
 		//}
-	}else if(op === 'replaceExternalExisting'){
+	}else if(op === editCodes.replaceExternalExisting){
 		//if(this.getEditingId() !== syncId){
 
 			//var removeId = edit.oldId//path[path.length-1];
@@ -148,7 +151,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			}
 		//}
 		//return stub;
-	}else if(op === 'replacedNew'){
+	}else if(op === editCodes.replacedNew){
 
 		//if(this.getEditingId() !== syncId){
 			var removeId = edit.oldId//path[path.length-1];
@@ -163,7 +166,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 
 			return this.emit(edit, 'replace', objHandle, res)				
 		//}	
-	}else if(op === 'shift'){
+	}else if(op === editCodes.shift){
 		//if(this.getEditingId() !== syncId){
 
 			_.assert(this.obj.length >= 1);
@@ -174,7 +177,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		/*}else{
 			return stub;
 		}*/
-	}else if(op === 'remove'){
+	}else if(op === editCodes.remove){
 		//if(this.getEditingId() !== syncId){
 			var res = this.get(edit.id);
 			var index = this.obj.indexOf(res)
@@ -188,7 +191,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			}
 		//}		
 		//return stub;
-	}else if(op === 'addExisting' || op === 'addExistingViewObject'){
+	}else if(op === editCodes.addExisting || op === editCodes.addExistingViewObject){
 	//	if(this.getEditingId() !== syncId){
 			//_.errout('^TODO implement op: ' + JSON.stringify(edit));
 		//	console.log('addExistingEdit: ' + JSON.stringify(edit))
@@ -199,7 +202,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			return this.emit(edit, 'add', addedObj)
 		//}	
 	//	return stub;
-	}else if(op === 'replaceInternalExisting' || op === 'replaceExternalExisting'){
+	}else if(op === editCodes.replaceInternalExisting || op === editCodes.replaceExternalExisting){
 		//if(this.getEditingId() !== syncId){
 			//_.errout('^TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 			var removeId = edit.oldId//path[path.length-1];
@@ -215,12 +218,12 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			return this.emit(edit, 'replace', objHandle, res)
 		//}
 		//return stub;
-	}else if(op === 'setObject'){
+	}else if(op === editCodes.setObject){
 		//if(this.getEditingId() !== syncId){
 			_.errout('&TODO implement op: ' + JSON.stringify(edit));
 		//}	
 		//return stub;
-	}else if(op === 'set'){
+	}else if(op === editCodes.set){
 		//if(this.getEditingId() !== syncId){
 			_.errout('*TODO implement op: ' + JSON.stringify(edit));
 		//}	
@@ -273,9 +276,9 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 	
 	//console.log('doing replaceNew')
 	if(objHandle.isInner()){
-		this.saveEdit('replaceInternalNew', e)
+		this.saveEdit(editCodes.replaceInternalNew, e)
 	}else{
-		this.saveEdit('replaceExternalNew', e)
+		this.saveEdit(editCodes.replaceExternalNew, e)
 
 	}
 	
@@ -312,9 +315,9 @@ ObjectListHandle.prototype.replaceExisting = function(oldObjHandle, newObjHandle
 	var e = {oldId: oldId, newId: id, newType: newObjHandle.typeSchema.code}
 
 	if(oldObjHandle.isInner()){
-		this.saveEdit('replaceInternalExisting', e)
+		this.saveEdit(editCodes.replaceInternalExisting, e)
 	}else{
-		this.saveEdit('replaceExternalExisting', e)
+		this.saveEdit(editCodes.replaceExternalExisting, e)
 
 	}	
 
@@ -326,7 +329,7 @@ ObjectListHandle.prototype.shift = function(){
 	if(this.obj.length === 0) _.errout('cannot shift empty list')
 	
 	var e = {}
-	this.saveEdit('shift', e);
+	this.saveEdit(editCodes.shift, e);
 
 	var v = this.obj.shift();
 		
@@ -348,7 +351,7 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);
 	
-	this.saveEdit('addNew', {typeCode: type.code})
+	this.saveEdit(editCodes.addNew, {typeCode: type.code})
 
 	var n = this._makeAndSaveNew(json, type)
 	_.assertObject(n)
@@ -366,7 +369,7 @@ ObjectListHandle.prototype.add = function(objHandle){
 	
 	var e = {id: objHandle._internalId(), typeCode: objHandle.typeSchema.code}
 	
-	this.saveEdit('addExisting',e);
+	this.saveEdit(editCodes.addExisting,e);
 	
 	this.obj.push(objHandle);
 		

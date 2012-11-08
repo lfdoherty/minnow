@@ -13,6 +13,10 @@ var pathsplicer = require('./pathsplicer')
 
 var isPathOp = require('./editutil').isPathOp
 
+var editFp = require('./tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+/*
 function couldHaveForeignKey(objSchema){
 	return _.any(objSchema.properties, function(p){
 		if(p.type.type === 'object') return true;
@@ -21,7 +25,7 @@ function couldHaveForeignKey(objSchema){
 			return p.type.members.type === 'object';
 		}
 	});
-}
+}*/
 
 var log = require('quicklog').make('minnow/objectstate')
 
@@ -90,7 +94,7 @@ function makePathTracker(path){
 	return function(e){
 		var op = e.op
 		//console.log(depth + ' ' + JSON.stringify(e))
-		if(op === 'selectProperty'){
+		if(op === editCodes.selectProperty){
 			if(matchingDepth === depth && path.length > depth){
 				if(e.edit.typeCode === path[depth].edit.typeCode){
 					++matchingDepth
@@ -98,14 +102,14 @@ function makePathTracker(path){
 			}
 			++depth
 			lastPathOpWasKey = false
-		}else if(op.indexOf('Key') !== -1){
-			if(op.indexOf('select') === 0){
+		}else if(editFp.isKeyCode[op]){
+			if(editFp.isKeySelectCode[op]){
 				++depth
 			}else{
 				//reselect, no depth change
 			}
 			lastPathOpWasKey = true
-		}else if(op === 'reselectProperty'){
+		}else if(op === editCodes.reselectProperty){
 			if(matchingDepth >= depth-1){
 				//log('reselecting: ', path, e.edit.typeCode, depth)
 				if(path[depth-1].edit.typeCode === e.edit.typeCode){
@@ -115,14 +119,14 @@ function makePathTracker(path){
 				}
 			}
 			lastPathOpWasKey = false
-		}else if(op === 'selectObject' || op === 'made'){
+		}else if(op === editCodes.selectObject || op === editCodes.made){
 			//console.log('dd: ' + matchingDepth + ' ' + depth + ' ' + JSON.stringify(path))
-			if(matchingDepth === depth && path.length > depth && path[depth].op === 'selectObject' && path[depth].edit.id === e.edit.id){
+			if(matchingDepth === depth && path.length > depth && path[depth].op === editCodes.selectObject && path[depth].edit.id === e.edit.id){
 				++matchingDepth
 			}
 			++depth
 			lastPathOpWasKey = false
-		}else if(op === 'reselectObject'){
+		}else if(op === editCodes.reselectObject){
 			if(matchingDepth >= depth-1){
 				if(path[depth-1].edit.id === e.edit.id){
 					matchingDepth = depth
@@ -131,22 +135,22 @@ function makePathTracker(path){
 				}
 			}
 			lastPathOpWasKey = false
-		}else if(op === 'ascend1'){
+		}else if(op === editCodes.ascend1){
 			depth -= 1
 			lastPathOpWasKey = false
-		}else if(op === 'ascend2'){
+		}else if(op === editCodes.ascend2){
 			depth -= 2
 			lastPathOpWasKey = false
-		}else if(op === 'ascend3'){
+		}else if(op === editCodes.ascend3){
 			depth -= 3
 			lastPathOpWasKey = false
-		}else if(op === 'ascend4'){
+		}else if(op === editCodes.ascend4){
 			depth -= 4
 			lastPathOpWasKey = false
-		}else if(op === 'ascend5'){
+		}else if(op === editCodes.ascend5){
 			depth -= 5
 			lastPathOpWasKey = false
-		}else if(op === 'ascend'){
+		}else if(op === editCodes.ascend){
 			depth -= e.edit.many
 			lastPathOpWasKey = false
 		}
@@ -165,16 +169,21 @@ function makePathTracker(path){
 		return false
 	}
 }
-
+/*
 function differentOps(a, b){
+	_.assertString(a)
+	_.assertString(b)
 	return a !== b && 're'+a !== b && 're'+b !== a
-}
+}*/
+/*
 function differentPathEdits(a, b){
 	if(differentOps(a.op, b.op) || JSON.stringify(a.edit) !== JSON.stringify(b.edit)) return true
-}
+}*/
+
+var differentPathEdits = require('./pathmerger').differentPathEdits
 
 function differentPaths(a,b){
-	if(a.length === b.length-1 && b[b.length-1].op.indexOf('Key') !== -1){
+	if(a.length === b.length-1 && editFp.isKeyCode[b[b.length-1].op]){
 		for(var i=0;i<a.length;++i){
 			var av = a[i];
 			var bv = b[i]
@@ -202,9 +211,10 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 
 	var prop;
 
-	//log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
-	//console.log('streamProperty got ' + edits.length + ' edits ' + editId)
-		
+	//console.log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
+	//console.log('streamProperty got ' + edits.length + ' edits ' + editId + ' ' + objId + ' ' + propertyCode)
+	//console.log(JSON.stringify(edits))
+	
 	var tracker = makePathTracker(path)
 	
 	//console.log(JSON.stringify(edits))
@@ -216,46 +226,49 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		var op = e.op
 		var matching = tracker(e)
 
-		//log(matching, path, ' <- ', e)
-		if(op.indexOf('Key') !== -1){
+		_.assertInt(op)
+		
+		//console.log(matching, path, ' <- ', editNames[e.op] + ' ' + JSON.stringify(e.edit))
+		if(editFp.isKeyCode[op]){
 			lastKey = e.edit.key
 		}
 
 		if(!matching) return
 		
-		//console.log('op: ' + op)
+		//console.log('op: ' + editNames[op] + ' ' + JSON.stringify(e))
 		
-		if(op.indexOf('set') === 0){
-			if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+		if(editFp.isSetCode[op]){//op.indexOf('set') === 0){
+			if(editFp.isPrimitiveSetCode[op]){//op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
 				if(e.edit.value !== prop){
 					prop = e.edit.value
 				}
-			}else if(op === 'setExisting' || op === 'setObject'){
+			}else if(op === editCodes.setExisting || op === editCodes.setObject){
 				if(e.edit.id !== prop){
 					prop = e.edit.id
 				}
-			}else if(op === 'setSyncId'){
+			}else if(op === editCodes.setSyncId){
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op === 'wasSetToNew'){
+		}else if(op === editCodes.wasSetToNew){
 			//_.errout('TODO')
 			prop = e.edit.id
-		}else if(op.indexOf('add') === 0){
+		}else if(editFp.isAddCode[op]){//op.indexOf('add') === 0){
 			if(prop === undefined) prop = []
-			if(op === 'addString' || op === 'addLong' || op === 'addInt'){
+			if(editFp.isPrimitiveAddCode[op]){//op === 'addString' || op === 'addLong' || op === 'addInt'){
 				if(prop.indexOf(e.edit.value) === -1){
+					//console.log('added primitive: ' + e.edit.value)
 					prop.push(e.edit.value)
 				}
-			}else if(op === 'addExisting' || op === 'addedNew'){
+			}else if(op === editCodes.addExisting || op === editCodes.addedNew){
 				if(prop.indexOf(e.edit.id) === -1){
 					prop.push(e.edit.id)
 				}
 			}else{
 				_.errout('TODO: ' + JSON.stringify(e))
 			}
-		}else if(op.indexOf('remove') === 0){
-			if(op === 'remove'){
+		}else if(editFp.isRemoveCode[op]){//op.indexOf('remove') === 0){
+			if(op === editCodes.remove){
 				var i = prop.indexOf(e.edit.id)
 				if(i !== -1){
 					//console.log('removing object from property')
@@ -263,7 +276,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				}else{
 					log('warning: removed object not in set: ' + e.edit.id)
 				}							
-			}else if(op === 'removeString' || op === 'removeInt' || op === 'removeLong' || op === 'removeBoolean'){
+			}else if(editFp.isPrimitiveRemoveCode[op]){//op === 'removeString' || op === 'removeInt' || op === 'removeLong' || op === 'removeBoolean'){
 				var i = prop.indexOf(e.edit.value)
 				if(i !== -1){
 					prop.splice(i, 1)
@@ -273,20 +286,20 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op.indexOf('put') === 0){
+		}else if(op === editCodes.didPutNew){
 			//_.errout('TODO: put')
 			if(prop === undefined) prop = {}
-			if(op === 'putExisting'){
+			prop[lastKey] = (e.edit.id)
+		}else if(editFp.isPutCode[op]){//op.indexOf('put') === 0){
+			//_.errout('TODO: put')
+			if(prop === undefined) prop = {}
+			if(op === editCodes.putExisting){
 				prop[lastKey] = (e.edit.id)
 			}else{
 				_.assertDefined(e.edit.value)
 				prop[lastKey] = e.edit.value
 				//_.errout('TODO: ' + op)
 			}
-		}else if(op === 'didPutNew'){
-			//_.errout('TODO: put')
-			if(prop === undefined) prop = {}
-			prop[lastKey] = (e.edit.id)
 		}
 	})
 	//log('streaming ', path, ':', prop)
@@ -295,26 +308,25 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 	
 	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
 		//if(path.length > 1) return
-		var fullPath = [{op:'selectObject', edit: {id: id}}].concat(editPath)//[id].concat(path)
+		var fullPath = [{op: editCodes.selectObject, edit: {id: id}}].concat(editPath)
 		
 		var matched = false
 
 		if(differentPaths(path, fullPath)){
-			//log('edit does not match: ' + JSON.stringify(fullPath) + ' ' + JSON.stringify(path) + ' ' + JSON.stringify([op, edit]))
-			return//id ===objId && path.length === 1 && path[0] === propertyCode){
+			//console.log('edit does not match:\n' + JSON.stringify(fullPath) + '\n' + JSON.stringify(path) + ' ' + JSON.stringify([op, edit]))
+			return
 		}
 		
-		//log('broadcaster provided edit matching property filter: ', path, ':', fullPath)
+		//console.log('broadcaster provided edit matching property filter: ', path, ':', fullPath)
 		//log(op, edit)
-	
-		if(op.indexOf('set') === 0){
-			if(op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+		if(editFp.isSetCode[op]){
+			if(editFp.isPrimitiveSetCode[op]){
 				if(edit.value !== prop){
 					prop = edit.value
 					//console.log('got set string: ' + edit.value)
 					cb(prop, editId)
 				}
-			}else if(op === 'setObject'){
+			}else if(op === editCodes.setObject){
 				if(edit.id !== prop){
 					prop = edit.id
 					//console.log('got set object: ' + edit.id)
@@ -323,23 +335,21 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op === 'wasSetToNew'){
+		}else if(op === editCodes.wasSetToNew){
 			//_.errout('TODO')
 			if(edit.id !== prop){
 				prop = edit.id
 				cb(prop, editId)
 			}
-		}else if(op.indexOf('add') === 0){
-			//_.errout('TODO: ' + op)
-			if(op === 'addString' || op === 'addInt' || op === 'addLong' || op === 'addBoolean'){
-				if(prop === undefined) prop = []
+		}else if(editFp.isAddCode[op]){
+			if(prop === undefined) prop = []
+			if(editFp.isPrimitiveAddCode[op]){
 				if(prop.indexOf(edit.value) === -1){
 					prop.push(edit.value)
 					//console.log('got add*: ' + edit.value)
 					cb(prop, editId)
 				}
-			}else if(op === 'addExisting' || op === 'addedNew'){
-				if(prop === undefined) prop = []
+			}else if(op === editCodes.addExisting || op === editCodes.addedNew){
 				if(prop.indexOf(edit.id) === -1){
 					prop.push(edit.id)
 					cb(prop, editId)
@@ -347,8 +357,8 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op.indexOf('remove') === 0){
-			if(op === 'remove'){
+		}else if(editFp.isRemoveCode[op]){
+			if(op === editCodes.remove){
 				var i = prop.indexOf(edit.id)
 				if(i !== -1){
 					//console.log('removing object from property')
@@ -357,7 +367,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				}else{
 					_.errout('TODO: ' + JSON.stringify([op, edit]))
 				}
-			}else if(op === 'removeString' || op === 'removeInt' || op === 'removeLong' || op === 'removeBoolean'){
+			}else if(editFp.isPrimitiveRemoveCode[op]){
 				var i = prop.indexOf(edit.value)
 				if(i !== -1){
 					prop.splice(i, 1)
@@ -370,10 +380,16 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op.indexOf('put') === 0){
+		}else if(op === editCodes.didPutNew){
 			//_.errout('TODO: put')
 			if(prop === undefined) prop = {}
-			if(op === 'putExisting'){
+			var key = editPath[editPath.length-1].edit.key
+			prop[key] = edit.id
+			cb(prop, editId)
+		}else if(editFp.isPutCode[op]){
+			//_.errout('TODO: put')
+			if(prop === undefined) prop = {}
+			if(op === editCodes.putExisting){
 				var key = editPath[editPath.length-1].edit.key
 				prop[key] = edit.id
 				_.assert(edit.id > 0)
@@ -385,12 +401,12 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				cb(prop, editId)
 				//console.log('used put: ' + key + ' -> ' + edit.value)
 			}
-		}else if(op === 'didPutNew'){
-			//_.errout('TODO: put')
-			if(prop === undefined) prop = {}
+		}else if(op === editCodes.delKey){
 			var key = editPath[editPath.length-1].edit.key
-			prop[key] = edit.id
-			cb(prop, editId)
+			delete prop[key]
+			cb(prop, editId)		
+		}else{
+			_.errout('TODO: ' + editNames[op])
 		}
 	})
 }
@@ -420,7 +436,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 
 		if(!matching) return
 		
-		if(op.indexOf('put') === 0){
+		if(editFp.isPutCode[op]){
 			_.errout('TODO')
 		}
 	})
@@ -429,7 +445,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 	
 	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
 		//if(path.length > 1) return
-		var fullPath = [{op:'selectObject', edit: {id: id}}].concat(editPath)//[id].concat(path)
+		var fullPath = [{op: editCodes.selectObject, edit: {id: id}}].concat(editPath)//[id].concat(path)
 		
 		var matched = false
 
@@ -441,7 +457,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 		//log('broadcaster provided edit matching property filter:',path,':',fullPath)
 		//log(op, edit)
 	
-		if(op.indexOf('put') === 0){
+		if(editFp.isPutCode[op]){
 			_.errout('TODO')
 		}
 	})
@@ -450,7 +466,7 @@ function makeMapPropertyStream(broadcaster, path, edits, editId, cb, continueLis
 function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, continueListening){
 
 	//if(path.length !== 2) _.errout('TODO: ' + JSON.stringify(path))	
-	_.assertEqual(path[0].op, 'selectObject')
+	_.assertEqual(path[0].op, editCodes.selectObject)
 	var objId = path[0].edit.id
 	_.assertInt(objId)
 
@@ -472,27 +488,27 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 
 		if(!matching) return
 		
-		if(op.indexOf('set') === 0){
-			if(op === 'setExisting' || op === 'setObject'){
+		if(editFp.isSetCode[op]){//op.indexOf('set') === 0){
+			if(op === editCodes.setExisting || op === editCodes.setObject){
 				if(e.edit.id !== prop){
 					prop[e.edit.id] = ol.getObjectType(e.edit.id)//e.edit.id
 				}
-			}else if(op === 'setSyncId'){
+			}else if(op === editCodes.setSyncId){
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op.indexOf('add') === 0){
-			if(op === 'addExisting'){
+		}else if(editFp.isAddCode[op]){//op.indexOf('add') === 0){
+			if(op === editCodes.addExisting){
 				prop[e.edit.id] = ol.getObjectType(e.edit.id)
-			}else if(op === 'addedNew'){
+			}else if(op === editCodes.addedNew){
 				prop[e.edit.id] = e.edit.typeCode
 			}else{
 				_.errout('TODO: ' + JSON.stringify(e))
 			}
-		}else if(op.indexOf('remove') === 0){
+		}else if(editFp.isRemoveCode[op]){//op.indexOf('remove') === 0){
 			//TODO deal with
 			
-		}else if(op === 'wasSetToNew'){
+		}else if(op === editCodes.wasSetToNew){
 			//_.errout('TODO')
 			prop[e.edit.id] = e.edit.typeCode
 		}
@@ -507,7 +523,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 	
 	broadcaster.output.listenByObject(objId, function(typeCode, id, editPath, op, edit, syncId, editId){
 		//if(path.length > 1) return
-		var fullPath = [{op: 'selectObject', edit: {id: id}}].concat(editPath)//[id].concat(path)
+		var fullPath = [{op: editCodes.selectObject, edit: {id: id}}].concat(editPath)//[id].concat(path)
 		
 		var matched = false
 
@@ -521,8 +537,8 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 		//log('broadcaster provided edit matching property filter:', path, ':', fullPath)
 		//log(op, edit)
 	
-		if(op.indexOf('set') === 0){
-			if(op === 'setObject'){
+		if(editFp.isSetCode[op]){//op.indexOf('set') === 0){
+			if(op === editCodes.setObject){
 				if(prop[edit.id] === undefined){
 					prop[edit.id] = ol.getObjectType(edit.id)
 					cb(getType, editId)
@@ -530,20 +546,20 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op === 'wasSetToNew'){
+		}else if(op === editCodes.wasSetToNew){
 			if(prop[edit.id] === undefined){
 				prop[edit.id] = edit.typeCode
 				cb(prop, editId)
 			}
-		}else if(op.indexOf('add') === 0){
-			if(op === 'addExisting'){
-			}else if(op === 'addedNew'){
+		}else if(editFp.isAddCode[op]){//op.indexOf('add') === 0){
+			if(op === editCodes.addExisting){
+			}else if(op === editCodes.addedNew){
 				prop[edit.id] = edit.typeCode
 				cb(getType, editId)
 			}else{
 				_.errout('TODO: ' + op)
 			}
-		}else if(op.indexOf('remove') === 0){
+		}else if(editFp.isRemoveCode[op]){//op.indexOf('remove') === 0){
 			//_.errout('TODO')
 			//TODO
 			/*if(op === 'remove'){
@@ -616,12 +632,12 @@ exports.make = function(schema, ap, broadcaster, ol){
 		},
 		addEdit: function(id, op, path, edit, syncId, computeTemporary, reifyCb){
 			//_.assertLength(arguments, 7);
-			if(op !== 'make' && op !== 'forgetTemporary') _.assertInt(id);
+			if(op !== editCodes.make && op !== editCodes.forgetTemporary) _.assertInt(id);
 			_.assertInt(syncId);
-			_.assertString(op)
+			_.assertInt(op)
 			//TODO support merge models
 			
-			if(op === 'make'){
+			if(op === editCodes.make){
 				return ap.persistEdit(-1, -1, [], op, edit, syncId, computeTemporary, Date.now())//TODO this timestamp is inconsistent with what will be serialized
 			}else{
 				_.assert(id < -1 || id > 0)
@@ -667,7 +683,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 
 			_.assert(path.length >= 2)
 			
-			_.assertEqual(path[0].op, 'selectObject')
+			_.assertEqual(path[0].op, editCodes.selectObject)
 
 			var realPath = computeRealPath(path)
 			
@@ -694,7 +710,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 
 			var realPath = computeRealPath(path)
 			
-			_.assertEqual(realPath[0].op, 'selectObject')
+			_.assertEqual(realPath[0].op, editCodes.selectObject)
 			
 			//console.log(JSON.stringify(realPath))
 			
@@ -717,7 +733,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 
 			var realPath = computeRealPath(path)
 			
-			_.assertEqual(realPath[0].op, 'selectObject')
+			_.assertEqual(realPath[0].op, editCodes.selectObject)
 			
 			var objId = realPath[0].edit.id
 			//console.log(JSON.stringify(path))
@@ -743,12 +759,12 @@ exports.make = function(schema, ap, broadcaster, ol){
 			
 			
 			
-			ol.get(objId, -1, -1, function(res){
+			ol.getAll(objId, function(res){
 				//var pu = pathsplicer.make()
 				var typeCode = ol.getObjectType(objId)
 				var syncId
 				res.forEach(function(e){
-					if(e.op === 'setSyncId'){//TODO do not provide this at all?
+					if(e.op === editCodes.setSyncId){//TODO do not provide this at all?
 						syncId = e.edit.syncId
 					}
 					//var ignorable = pu.update(e)
@@ -779,57 +795,11 @@ exports.make = function(schema, ap, broadcaster, ol){
 			
 			var objSchema = schema._byCode[objTypeCode]
 			
-			function computeMap(id, res){
-				var pu = pathsplicer.make()
-				var map = {}
-
-				//_.assert(!ol.isDeleted(id))
-				
-				for(var i=0;i<res.length;++i){
-					var e = res[i]
-					var ignorable = pu.update(e)
-
-					
-					if(!ignorable && pu.getPath().length === 1){
-						var pc = pu.getPath()[0].edit.typeCode
-						if(!isPc[pc]) continue
-						if(e.op === 'setInt' || e.op === 'setString' || e.op === 'setBoolean'){
-							map[pc] = e.edit.value
-						}else if(e.op === 'setObject'){
-							if(!ol.isDeleted(e.edit.id)){
-								map[pc] = e.edit.id
-							}
-						}else if(e.op === 'addInt'){
-							if(map[pc] === undefined) map[pc] = []
-							map[pc].push(e.edit.value)
-						}else if(e.op === 'removeInt'){
-							var list = map[pc]
-							list.splice(list.indexOf(e.edit.value), 1)
-						}else if(e.op === 'destroy'){
-							console.log('destroyed included: ' + id)
-							destroyedCb(id, e.editId)
-						}else{
-							_.errout('TODO: ' + JSON.stringify(e))
-						}
-					}
-				}
-				for(var i=0;i<propertyCodes.length;++i){
-					var pc = propertyCodes[i]
-					if(map[pc] === undefined){
-						var t = objSchema.propertiesByCode[pc].type
-						if(t.type === 'set' || t.type === 'list'){
-							map[pc] = []
-						}
-					}
-				}
-				cb(id, map, res.length > 0 ? res[res.length-1].editId : -1)
-			}
-			
 			function eventListener(typeCode, id, path, op, edit, syncId, editId){
 				
 				
 				//console.log('op: ' + op)
-				if(op === 'destroy'){
+				if(op === editCodes.destroy){
 					destroyedCb(id, editId)
 					return//TODO?
 				}
@@ -840,21 +810,108 @@ exports.make = function(schema, ap, broadcaster, ol){
 					liveCb(false, editId)
 				}
 			
-				ol.get(id, -1, -1, function(res){
+				ol.getAll(id, function(res){
 			
 					--outstandingEditCount
 				
-					computeMap(id, res)
+					computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)
 					liveCb(true)
 				})
 			}
-			ol.getAllObjectsOfType(objTypeCode, computeMap, function(){
+			ol.getAllObjectsOfType(objTypeCode, function(id, res){
+				computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)				
+			}, function(){
 				//console.log('got all objects of type')
 				liveCb(true)				
 				broadcaster.output.listenByType(objTypeCode, eventListener)
 			})
 		},
-		
+		streamAllPropertyValuesForSet: function(objTypeCode, propertyCodes, cb, liveCb, destroyedCb){
+
+			_.assertFunction(destroyedCb)
+			
+			var outstandingEditCount = 0
+			var isListening = false
+
+			var isPc = {}
+			for(var i=0;i<propertyCodes.length;++i){
+				isPc[propertyCodes[i]] = true
+			}			
+			
+			var objSchema = schema._byCode[objTypeCode]
+
+			var ids = {}
+			
+			function eventListener(typeCode, id, path, op, edit, syncId, editId){
+			
+				if(!ids[id]) return
+				
+				if(op === editCodes.destroy){
+					destroyedCb(id, editId)
+					return//TODO?
+				}
+
+				++outstandingEditCount
+
+				if(outstandingEditCount === 1){
+					liveCb(false, editId)
+				}
+			
+				ol.getAll(id, function(res){
+			
+					--outstandingEditCount
+
+					if(ids[id]){
+						computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)
+					}
+					
+					if(outstandingEditCount === 0){
+						liveCb(true)
+					}
+				})
+			}
+
+			broadcaster.output.listenByType(objTypeCode, eventListener)
+			
+			liveCb(true)
+			
+			var adding = {}
+			
+			var setListener = {
+				add: function(id, editId){
+					++outstandingEditCount
+					if(outstandingEditCount === 1){
+						liveCb(false, editId)
+					}
+					adding[id] = true
+					process.nextTick(function(){//wait a bit so edits can happen, to avoid unnecessary thrashing of property states (especially during the initial make transactoin)
+						ol.getAll(id, function(res){
+							if(!adding[id]) return
+							ids[id] = true
+							--outstandingEditCount
+							if(ids[id]){
+								computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)
+							}
+							if(outstandingEditCount === 0){
+								liveCb(true)
+							}
+						})
+					})
+				},
+				remove: function(id, editId){
+					delete adding[id]
+					delete ids[id]
+				}
+			}
+			
+			return setListener
+			
+			/*ol.getAllObjectsOfType(objTypeCode, computeMap, function(){
+				//console.log('got all objects of type')
+				liveCb(true)				
+				broadcaster.output.listenByType(objTypeCode, eventListener)
+			})*/
+		},
 		//Note that these method's implementations will always return a result that is up-to-date,
 		//by fetching the async parts and then synchronously merging them with the AP parts
 		getManyOfType: function(typeCode){
@@ -887,40 +944,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 			ol.getAllIdsOfType(typeCode, cb)
 		},
 		getAllObjects: function(typeCode, cb){
-			ol.getAllOfType(typeCode, cb)//function(objs){
-				//cb(objs)
-			//})
+			ol.getAllOfType(typeCode, cb)
 		},
-		//Returns the set of permutations of values for the given descent path, 
-		//and the means for retrieving the objects belonging to each member of that set (i.e. each partition)
-		//the descent paths must terminate in a primitive value for each object.
-		//Effectively, we run each filter on the little bits of the objects it needs rather than the entire
-		//object, but if those bits are the same for many objects we need only run the filter once,
-		//and we can store the bits->ids mapping in an index.
-		/*selectByPropertyConstraint: function(typeCode, descentPath, filterFunction, cb){
-		
-			handle.selectByMultiplePropertyConstraints(typeCode, [descentPath], [filterFunction], function(result){
-				//console.log('result: ' + JSON.stringify(result))
-				cb(result[0]);
-			});
-		},
-		//selectByMultiplePropertyConstraints: selectByMultiplePropertyConstraints,
-		getManyObjectsPassing: function(typeCode, filter, filterIsAsync, cb){
-			_.assertLength(arguments, 4);
-			handle.getAllObjectsPassing(typeCode, filter, filterIsAsync, function(objs){
-				cb(objs.length);
-			});
-		},
-		getAllObjectIdsPassing: function(typeCode, filter, filterIsAsync, cb){
-			handle.getAllObjectsPassing(typeCode, filter, filterIsAsync, function(objs){
-				var ids = [];
-				for(var i=0;i<objs.length;++i){
-					var obj = objs[i];
-					ids.push([ obj.meta.typeCode, obj.meta.id ]);
-				}
-				cb(ids);
-			});
-		},*/
 		getObjectType: function(id){
 			_.assertLength(arguments, 1)
 			return ol.getObjectType(id)
@@ -929,3 +954,155 @@ exports.make = function(schema, ap, broadcaster, ol){
 	
 	return handle;
 }
+
+function computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc){
+	_.assertObject(isPc)
+	//var pu = pathsplicer.make()
+	var map = {}
+
+	var depth = 0
+	var isInPc = false
+	var pc
+	
+	for(var i=0;i<res.length;++i){
+		var e = res[i]
+		//var ignorable = pu.update(e)
+		var op = e.op
+		
+		if(op === editCodes.selectProperty){
+			if(depth === 0 && isPc[e.edit.typeCode]){
+				pc = e.edit.typeCode
+				isInPc = true
+			}else{
+				isInPc = false
+			}
+			++depth
+			continue	
+		}else if(op === editCodes.reselectProperty){
+			if(depth === 1 && isPc[e.edit.typeCode]){
+				pc = e.edit.typeCode
+				isInPc = true
+			}else{
+				isInPc = false
+			}
+			continue	
+		}else if(op === editCodes.ascend1){
+			--depth
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend){
+			depth -= e.edit.many
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend2){
+			depth -= 2
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend3){
+			depth -= 3
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend4){
+			depth -= 4
+			isInPc = false
+			continue	
+		}else if(op === 'ascend5'){
+			depth -= 5
+			isInPc = false
+			continue	
+		}else if(op === editCodes.selectObject){
+			++depth
+			continue
+		}else if(op === editCodes.reselectObject){
+			continue
+		}else if(editFp.isKeySelectCode[op]){//op === 'selectStringKey' || op === 'selectLongKey' || op === 'selectIntKey' || op === 'selectBooleanKey' || op==='selectObjectKey'){
+			++depth
+			continue
+		}else if(editFp.isKeyReselectCode[op]){//op === 'reselectStringKey' || op === 'reselectLongKey' || op === 'reselectIntKey' || op === 'reselectBooleanKey' || op === 'reselectObjectKey'){
+			continue
+		}else if(op === editCodes.setSyncId){
+			continue
+		}
+		
+		if(isInPc){
+			if(editFp.isPrimitiveSetCode[op]){//op === 'setInt' || op === 'setString' || op === 'setBoolean'){
+				map[pc] = e.edit.value
+			}else if(op === editCodes.setObject){
+				if(!ol.isDeleted(e.edit.id)){
+					map[pc] = e.edit.id
+				}
+			}else if(op === editCodes.addInt){
+				if(map[pc] === undefined) map[pc] = []
+				map[pc].push(e.edit.value)
+			}else if(op === editCodes.removeInt){
+				var list = map[pc]
+				list.splice(list.indexOf(e.edit.value), 1)
+			}else if(op === editCodes.destroy){
+				console.log('destroyed included: ' + id)
+				destroyedCb(id, e.editId)
+			}else{
+				_.errout('TODO: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			}
+		}
+	}
+	for(var i=0;i<propertyCodes.length;++i){
+		var pc = propertyCodes[i]
+		if(map[pc] === undefined){
+			var t = objSchema.propertiesByCode[pc].type
+			if(t.type === 'set' || t.type === 'list'){
+				map[pc] = []
+			}
+		}
+	}
+	//console.log(JSON.stringify(map))
+	cb(id, map, res.length > 0 ? res[res.length-1].editId : -1)
+}
+
+/*
+function computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc){
+	var pu = pathsplicer.make()
+	var map = {}
+
+	//_.assert(!ol.isDeleted(id))
+	
+	for(var i=0;i<res.length;++i){
+		var e = res[i]
+		var ignorable = pu.update(e)
+
+		
+		if(!ignorable && pu.getPath().length === 1){
+			var pc = pu.getPath()[0].edit.typeCode
+			if(!isPc[pc]) continue
+			if(e.op === 'setInt' || e.op === 'setString' || e.op === 'setBoolean'){
+				map[pc] = e.edit.value
+			}else if(e.op === 'setObject'){
+				if(!ol.isDeleted(e.edit.id)){
+					map[pc] = e.edit.id
+				}
+			}else if(e.op === 'addInt'){
+				if(map[pc] === undefined) map[pc] = []
+				map[pc].push(e.edit.value)
+			}else if(e.op === 'removeInt'){
+				var list = map[pc]
+				list.splice(list.indexOf(e.edit.value), 1)
+			}else if(e.op === 'destroy'){
+				console.log('destroyed included: ' + id)
+				destroyedCb(id, e.editId)
+			}else{
+				_.errout('TODO: ' + JSON.stringify(e))
+			}
+		}
+	}
+	for(var i=0;i<propertyCodes.length;++i){
+		var pc = propertyCodes[i]
+		if(map[pc] === undefined){
+			var t = objSchema.propertiesByCode[pc].type
+			if(t.type === 'set' || t.type === 'list'){
+				map[pc] = []
+			}
+		}
+	}
+	//console.log(JSON.stringify(map))
+	cb(id, map, res.length > 0 ? res[res.length-1].editId : -1)
+}
+*/

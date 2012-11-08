@@ -31,6 +31,11 @@ var jsonutil = require('./../http/js/jsonutil')
 
 exports.module = module
 
+
+var editFp = require('./../server/tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
 var log = require('quicklog').make('minnow/client')
 
 function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
@@ -164,12 +169,12 @@ function makeClient(host, port, clientCb){
 
 	wrapper.persistEdit = function(op, edit){//, temporaryId){
 		//.assertLength(arguments, 2)
-		_.assertString(op)
+		_.assertInt(op)
 		_.assertObject(edit)
 		
 		var requestId = cc.getDefaultSyncHandle().persistEdit(op, edit, listeningSyncId);
 
-		if(op === 'make'){// && !edit.forget){
+		if(op === editCodes.make){// && !edit.forget){
 			_.errout('TODO')
 			//_.assertInt(temporaryId)
 			//_.assert(temporaryId < -1)
@@ -201,7 +206,7 @@ function makeClient(host, port, clientCb){
 		var op = e.op
 		var edit = e.edit
 		var editId = e.editId;
-		_.assertString(op);
+		_.assertInt(op);
 		api.changeListener(op, edit, editId);
 	}
 	function objectListenerWrapper(id, edits){
@@ -246,7 +251,7 @@ function makeClient(host, port, clientCb){
 		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, makeTemporary)
 		
 		var dsh = cc.getDefaultSyncHandle()
-		var requestId = dsh.persistEdit('make', {typeCode: st.code, forget: forget}, listeningSyncId)
+		var requestId = dsh.persistEdit(editCodes.make, {typeCode: st.code, forget: forget}, listeningSyncId)
 		if(cb){
 			_.assertInt(requestId)
 			_.assertFunction(cb)
@@ -400,6 +405,9 @@ function makeClient(host, port, clientCb){
 				if(cb === true){
 					forget = true
 				}
+				
+				json = json || {}
+				_.assertObject(json)
 				//doMake(type, json, forget, cb)
 				return api.createNewExternalObject(type, json, forget, cb)
 			},
@@ -440,6 +448,7 @@ var sync = require('./../server/variables/sync/index')
 exports.makeServer = function(config, cb){
 	_.assertLength(arguments, 2)
 	_.assert(_.isString(config.schemaDir) || _.isArray(config.schemaDir))
+	//console.log('here')
 	//_.assertString(config.dataDir)
 	_.assertInt(config.port)
 	if(config.synchronousPlugins !== undefined) _.assertObject(config.synchronousPlugins)

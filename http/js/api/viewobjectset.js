@@ -5,6 +5,9 @@
 Note that this is a set of objects (view or not) that is a property of a view - not necessarily a set of objects which ARE views.
 */
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 var u = require('./util')
 var _ = require('underscorem')
 var jsonutil = require('./../jsonutil')
@@ -67,9 +70,9 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 //TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
 //if it doesn't that's a client error
 ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
-	_.assertString(op)
+	_.assertInt(op)
 	//console.log(JSON.stringify([op, edit, syncId, editId]))
-	if(op === 'addExistingViewObject' || op === 'addExisting'){
+	if(op === editCodes.addExistingViewObject || op === editCodes.addExisting){
 		//_.assertString(edit.id)
 		var addedObjHandle = this.getObjectApi(edit.id);
 		if(addedObjHandle === undefined){
@@ -81,7 +84,7 @@ ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId
 			addedObjHandle.on('del', this.delListener)
 			return this.emit(edit, 'add', addedObjHandle)
 		}
-	}else if(op === 'removeViewObject' || op === 'remove'){//TODO why do we need to support remove here?
+	}else if(op === editCodes.removeViewObject || op === editCodes.remove){//TODO why do we need to support remove here?
 	//	_.assertString(edit.id)
 		//console.log('REMOVING')
 		//try{

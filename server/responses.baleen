@@ -13,7 +13,7 @@ open 1
 	
 update 2
 	editId int 1
-	op string 5
+	op byte 5
 	edit binary 2
 	destinationSyncId int 3
 

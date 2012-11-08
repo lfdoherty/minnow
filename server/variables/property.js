@@ -11,6 +11,10 @@ var fixedObject = require('./../fixed/object')
 
 var makeKeyParser = require('./map').makeKeyParser
 
+var editFp = require('./../tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
 function propertyType(rel, ch){
 
 	_.assertLength(rel.params, 2)
@@ -212,6 +216,7 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 		isObjectValue = property.type.type === 'object'
 	}
 	var f = c.bind(undefined, s, cache, contextGetter, isObjectValue, propertyCode, rel)
+	rel.blah = property
 	if(c === svgObjectSingleValue){
 		f.wrapAsSet = function(v, editId){
 			var res
@@ -314,7 +319,7 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 		},
 		detach: function singleObjectPropertyValue(listener, editId){
 			listeners.remove(listener)
-			if(editId){f
+			if(editId){
 				for(var i=0;i<values.length;++i){
 					listener.remove(values[i], editId)
 				}
@@ -337,10 +342,10 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 				}else{
 					//_.assertDefined(key)
 					var np = [
-						{op: 'selectObject', edit: {id: rootId}},
-						{op: 'selectProperty', edit: {typeCode: propertyCode}},
+						{op: editCodes.selectObject, edit: {id: rootId}},
+						{op: editCodes.selectProperty, edit: {typeCode: propertyCode}},
 						//{op: 'selectKey', edit: {key: key}}
-						{op: 'selectObject', edit: {id: id}}
+						{op: editCodes.selectObject, edit: {id: id}}
 						]
 					_.assert(path.length >= 2)
 					np = np.concat(path.slice(1))
@@ -367,10 +372,10 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 				}else{
 					//_.assertDefined(key)
 					var np = [
-						{op: 'selectObject', edit: {id: rootId}},
-						{op: 'selectProperty', edit: {typeCode: propertyCode}},
+						{op: editCodes.selectObject, edit: {id: rootId}},
+						{op: editCodes.selectProperty, edit: {typeCode: propertyCode}},
 						//{op: 'selectKey', edit: {key: key}}
-						{op: 'selectObject', edit: {id: id}}
+						{op: editCodes.selectObject, edit: {id: id}}
 						]
 					_.assert(path.length >= 2)
 					np = np.concat(path.slice(1))
@@ -420,14 +425,14 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 			}
 
 			if(isObjectProperty){
-				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+				s.objectState.streamPropertyTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
 					oldTypeGetter = typeGetter
 				}, true)
 			}
 			
 			var path = [
-				{op: 'selectObject', edit: {id: id}}, 
-				{op: 'selectProperty', edit: {typeCode: propertyCode}}
+				{op: editCodes.selectObject, edit: {id: id}}, 
+				{op: editCodes.selectProperty, edit: {typeCode: propertyCode}}
 			]
 
 			elements.descend(path, editId, function(pv, editId){
@@ -605,7 +610,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			_.assertInt(path[0].edit.id)
 			var id = innerLookup[path[0].edit.id]
 			_.assertInt(id)
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -625,7 +630,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			//s.log(Object.keys(elements))
 			_.assertInt(id)
 			//console.log(id + ' ' + editId)
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				editId, function(pv, editId){
 				//console.log(key + ' ' + uid+' got pv(' + id+','+propertyCode + '): ' + JSON.stringify(pv) + ' ' + value)
 				if(pv !== undefined){
@@ -635,7 +640,8 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 						}
 						var oldValue = value
 						value = pv
-						//console.log('emitting value')
+						//console.log('emitting value: ' + pv)
+						//console.log(JSON.stringify(metadata.blah))
 						listeners.emitSet(pv, oldValue, editId)
 					}
 				}
@@ -708,23 +714,23 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
+			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
 			if(id === undefined){
 				s.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 		handle.descendTypes = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
+			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
 			if(id === undefined){
 				s.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descendTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -791,12 +797,12 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			previousStreamListener = streamListener
 
 			if(isObjectProperty){
-				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+				s.objectState.streamPropertyTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
 					oldTypeGetter = typeGetter
 				}, true)
 			}
 			
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}],
 				editId, streamListener)
 			
 		},
@@ -862,34 +868,31 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 			return oldTypeGetter(v)
 		}
 	}
-	//TODO listen for changes
 	
 	if(isObjectProperty){
-		//var innerLookup = {}
 		var currentId
 		handle.descend = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
-			var id = currentId//innerLookup[path[0].edit.id]
+			_.assertEqual(path[0].op, editCodes.selectObject)
+			var id = currentId
 			if(id === undefined){
 				s.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 		handle.descendTypes = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
-			var id = currentId//innerLookup[path[0].edit.id]
+			_.assertEqual(path[0].op, editCodes.selectObject)
+			var id = currentId
 			if(id === undefined){
 				s.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descendTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
 	
-	//var oldPv
 	var oldTypeGetter
 	
 	var previousStreamListener
@@ -919,25 +922,12 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 					//console.log('counts: ' + JSON.stringify(counts))
 					Object.keys(values).forEach(function(key){
 						var v = values[key]
-						if(pv[key] === undefined){//.indexOf(v) === -1){
-							//--counts[v]
-							//if(counts[v] === 0){
-								//console.log('emitting remove')
-								listeners.emitDel(key, editId)
-							//}
+						if(pv[key] === undefined){
+							listeners.emitDel(key, editId)
 						}
 					})
 				}
 
-				/*if(isObjectProperty && pv !== undefined){
-					//_.assertInt(pv)
-					Object.keys(pv).forEach(function(v){
-						innerLookup[v] = id
-					})
-				}*/
-				//s.log('streaming property(', propertyCode, '): ', pv)
-				//console.log('streaming property(' + propertyCode + '): ' + JSON.stringify(pv))
-				//var pv = obj[propertyCode]
 				if(pv !== undefined){
 					Object.keys(pv).forEach(function(key){
 						var v = pv[key]
@@ -945,15 +935,6 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 						if(values[key] !== v){
 							listeners.emitPut(key, v, values[key], editId)
 						}
-						/*if(!counts[v]){
-							counts[v] = 1
-							values.push(v)
-							s.log('emitting add: ', v)
-							//console.log('emitting add')
-							listeners.emitAdd(v, editId)
-						}else if(oldPv.indexOf(v) === -1){
-							++counts[v]
-						}*/
 					})
 				}
 
@@ -964,14 +945,12 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 			previousStreamListener = streamListener
 
 			if(isObjectProperty){
-				s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+				s.objectState.streamPropertyTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
 					oldTypeGetter = typeGetter
 				}, true)
 			}
 			
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
-				editId, streamListener)
-			
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, streamListener)
 		},
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
@@ -1019,7 +998,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		name: 'object-set-single-value-property',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^6')
+			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^ ' + propertyCode)
 			propertyValues.forEach(function(v){listener.add(v,editId);})
 		},
 		detach: function(listener, editId){
@@ -1055,31 +1034,24 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
+			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
 			_.assertInt(id)
 			//console.log('descending')
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
-				.concat(path), editId, cb)
+			elements.descend(
+				[{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}].concat(path), 
+				editId, 
+				cb)
 		}
 		
 		handle.descendTypes = function(path, editId, cb, continueListening){
 			var id = path[0].edit.id
 			var id = innerLookup[path[0].edit.id]
 			_.assertInt(id)
-			elements.descendTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
-				.concat(path), editId, cb)
-				/*
-			var np = [
-				{op: 'selectObject', edit: {id: rootId}},
-				{op: 'selectProperty', edit: {typeCode: propertyCode}},
-				{op: 'selectObject', edit: {id: id}}
-				]
-			_.assert(path.length >= 2)
-			np = np.concat(path.slice(1))
-			elements.descendTypes(np, editId, function(pv, editId){
-				cb(pv, editId)
-			}, continueListening)*/
+			elements.descendTypes(
+				[{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}].concat(path), 
+				editId, 
+				cb)
 		}
 	}
 
@@ -1093,19 +1065,17 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			var cur;
 			var first = true
 			//console.log('added id: ' + id)
-			//s.objectState.streamProperty(id, propertyCode, editId, function(pv, editId){
 			
 			if(isObjectProperty){
-				//s.objectState.streamPropertyTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
-				elements.descendTypes([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
+				elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
 					oldTypeGetters.push(typeGetter)
 				}, true)
 			}
 			
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				outerEditId, function(pv, editId){
-				//console.log('GOT PROPERTY VALUE: ' + id + ' ' + pv + ' ' + editId + ' ' + propertyCode)
-				//console.log(new Error().stack)
+				
+				//console.log(propertyCode + ' descending result: ' + JSON.stringify(pv))
 				if(!first){
 					if(pvCounts[cur] === 1){
 						delete pvCounts[cur]
@@ -1145,7 +1115,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		remove: function(id, editId){
 			wait(editId)
 			//console.log('removing value of: ' + id)
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				editId, function(pv, editId){//TODO stop listening after first get
 				if(pvCounts[pv] === 1){
 					delete pvCounts[pv]
@@ -1227,9 +1197,9 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
+			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -1243,7 +1213,7 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 			var first = true
 			var old;
 			
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}],
 				editId, function(v, editId){
 				
 				_.assertInt(editId)
@@ -1282,11 +1252,7 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 							keyCounts[key] = 1
 							keyValues.push(key)
 							values[key] = value
-							//s.log('calling add')
-							//listeners.emitAdd(pv, editId)
-							//if(values[key] !== value){
-								listeners.emitPut(key, value, undefined, editId)
-							//}
+							listeners.emitPut(key, value, undefined, editId)
 						}else{
 							++keyCounts[pv]
 						}
@@ -1302,7 +1268,7 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 		remove: function(id, editId){
 			wait(editId)
 			//console.log('remov..')
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				editId, function(v, editId){
 				if(v === undefined){
 					resume(editId)
@@ -1344,6 +1310,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 	var pvCounts = {}
 	var ongoingEditIds = {}
 	
+	
 	function wait(editId){
 		ongoingEditIds[editId] = 1 + (ongoingEditIds[editId] || 0)
 	}
@@ -1360,12 +1327,15 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		})
 		return oldestEditId
 	}
+
+	var oldTypeGetters = []
 	
 	var handle = {
 		name: 'property-of-object-set-collection',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^6')
+			console.log(JSON.stringify(propertyValues))
 			propertyValues.forEach(function(v){listener.add(v,editId);})
 		},
 		detach: function(listener, editId){
@@ -1377,18 +1347,28 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		getType: function(v){
+			var res
+			for(var i=0;i<oldTypeGetters.length;++i){
+				res = oldTypeGetters[i](v, true)
+				if(res) break;
+			}
+			if(res === undefined) _.errout('cannot find type of id: ' + v)
+			return res
+		}
 	}
+	
 	
 	if(isObjectProperty){
 		var innerLookup = {}
 		handle.descend = function(path, editId, cb){
-			_.assertEqual(path[0].op, 'selectObject')
+			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
 			//console.log('getting: ' + path[0].edit.id + '-> ?')
 			//console.log(JSON.stringify(innerLookup))
 			_.assertInt(id)
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}]
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -1400,13 +1380,24 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 			wait(outerEditId)
 			//console.log('got add $$$$$$$$$$$$$$$$$$$$$$: ', id, ' ', outerEditId, ' ', propertyCode)
 
+			if(isObjectProperty){
+				elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
+					oldTypeGetters.push(typeGetter)
+				}, true)
+			}
+			
 			var first = true
 			var currentV
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}],
+			
+			//TODO use a descendCollection method to allow us to get incremental updates?
+			
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}],
 				outerEditId, function(v, editId){
 				if(currentV !== undefined){
-					currentV.forEach(function(pv){
-						//console.log('currentV: ' + pv)
+					//console.log('currentV: ' + JSON.stringify(currentV))
+					//currentV.forEach(function(pv){
+					for(var i=0;i<currentV.length;++i){
+						var pv = currentV[i]
 						if(v.indexOf(pv) === -1){
 							--pvCounts[pv]
 							//console.log('pvCounts: ' + JSON.stringify(pvCounts) + ' ' + pv)
@@ -1421,10 +1412,10 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 								}
 							}
 						}
-					})
+					}
 				}
 				if(v !== undefined){
-					//console.log(id + ' got v: ' + JSON.stringify(v) + '\t\t' + uid)
+					//console.log(id + ' got v: ' + JSON.stringify(v))
 					_.assertArray(v)
 					v.forEach(function(pv){
 
@@ -1442,7 +1433,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 						}
 					})
 				}else{
-					console.log('descend got undefined')
+					//console.log('descend got undefined')
 					_.assertUndefined(currentV)
 				}
 				currentV = [].concat(v)
@@ -1455,7 +1446,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		remove: function(id, editId){
 			wait(editId)
 			//console.log('remov..')
-			elements.descend([{op: 'selectObject', edit: {id: id}}, {op: 'selectProperty', edit: {typeCode: propertyCode}}], 
+			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				editId, function(v, editId){
 				if(v === undefined){
 					resume(editId)

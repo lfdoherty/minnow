@@ -4,6 +4,10 @@ var u = require('./util')
 var _ = require('underscorem')
 module.exports = PrimitiveSetHandle
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+var editNames = lookup.names
+
 function PrimitiveSetHandle(typeSchema, obj, part, parent){
 	this.part = part;
 	this.obj = obj || [];
@@ -12,6 +16,11 @@ function PrimitiveSetHandle(typeSchema, obj, part, parent){
 
 	this.assertMemberType = u.getPrimitiveCollectionAssertion('list', typeSchema)
 
+	if(this.isView()){
+		this.toggle = u.viewReadonlyFunction
+		this.add = u.viewReadonlyFunction
+		this.remove = u.viewReadonlyFunction
+	}
 }
 
 PrimitiveSetHandle.prototype.count = function(){
@@ -58,7 +67,7 @@ PrimitiveSetHandle.prototype.add = function(value){
 	var e = {value: value}
 	var ts = typeSuffix[this.schema.type.members.primitive]
 	_.assertString(ts)
-	this.saveEdit('add'+ts, e);
+	this.saveEdit(editCodes['add'+ts], e);
 		
 	this.emit(e, 'add', value)//()
 }
@@ -72,26 +81,26 @@ PrimitiveSetHandle.prototype.remove = function(value){
 	var e = {value: value}
 	var ts = typeSuffix[this.schema.type.members.primitive]
 	_.assertString(ts)
-	this.saveEdit('remove'+ts, e);
+	this.saveEdit(editCodes['remove'+ts], e);
 	
 	this.emit(e, 'remove', value)//()
 }
 
 PrimitiveSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
-	_.assertString(op)
+	_.assertInt(op)
 
 	//console.log('primitive set handle changeListener')
 
 	//if(path.length > 0) _.errout('invalid path, cannot descend into primitive set: ' + JSON.stringify(path))
 	
-	if(op.indexOf('add') === 0){
+	if(lookup.isPrimitiveAddCode[op]){//op.indexOf('add') === 0){
 		var arr = this.obj
 		if(arr === undefined) arr = this.obj = [];
 		arr.push(edit.value);
 
 		return this.emit(edit, 'add')
-	}else if(op.indexOf('remove') === 0){
+	}else if(lookup.isPrimitiveRemoveCode[op]){//op.indexOf('remove') === 0){
 		var i = this.obj.indexOf(edit.value)
 		this.obj.splice(i, 1)
 

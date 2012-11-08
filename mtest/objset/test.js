@@ -135,3 +135,27 @@ exports.removeTemporariedExternalObject = function(config, done){
 	})
 }
 
+exports.plus = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('adder', function(err, c){
+				if(err) throw err
+				
+				poll(function(){
+					if(c.has('plussed') && c.plussed.size() === 3){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(err, v){
+						v.make('blah', {numbers: [4,5,3]})
+						
+					})
+				})
+				
+			})
+		})
+	})
+}

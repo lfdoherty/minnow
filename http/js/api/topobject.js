@@ -7,6 +7,13 @@ var jsonutil = require('./../jsonutil')
 
 var ObjectHandle = require('./object')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+var editNames = lookup.names
+_.assertObject(editCodes)
+_.assertObject(editNames)
+
+
 function TopObjectHandle(schema, typeSchema, edits, parent, id){
 	_.assertInt(edits.length)
 	_.assertObject(parent)
@@ -44,6 +51,13 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id){
 		_.assertInt(e.editId)
 	})
 	
+	if(this.isView()){
+		//console.log('is view object: ' + typeSchema.name)
+		this.clearProperty = u.viewReadonlyFunction
+		this.setProperty = u.viewReadonlyFunction
+		this.del = u.viewReadonlyFunction
+		this.revert = u.viewReadonlyFunction
+	}
 	
 	
 	//if(typeSchema.code === 12 && edits.length < 5) _.errout('got edits: ' + JSON.stringify(edits))
@@ -64,11 +78,13 @@ TopObjectHandle.prototype.isDefined = function(){return true;}
 TopObjectHandle.prototype.getTopObject = function(){return this;}
 
 function samePath(a, b){
+	//_.errout('TODO')
 	if(a.length !== b.length) return false
 	for(var i=0;i<a.length;++i){
 		var av = a[i]
 		var bv = b[i]
-		if(av.op !== bv.op && 're'+av.op !== bv.op && av.op !== 're'+bv.op) return false
+		//if(av.op !== bv.op && 're'+av.op !== bv.op && av.op !== 're'+bv.op) return false
+		if(av.op !== bv.op && lookup.flipType[av.op] !== bv.op) return false
 		if(JSON.stringify(av.edit) !== JSON.stringify(bv.edit)) return false
 	}
 	return true
@@ -98,7 +114,7 @@ TopObjectHandle.prototype._getVersions = function(path){
 		var did = updatePath(fakeObject, e.op, e.edit, e.editId)
 		if(!did){
 			//console.log(JSON.stringify([same, versions, e]))
-			if(e.op === 'made'){//symbolic of the first, empty state
+			if(e.op === editCodes.made){//symbolic of the first, empty state
 				versions.push(e.editId)
 			}
 			
@@ -143,7 +159,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	var realEdits = []//edits without reverts or reverted
 	for(var i=this.edits.length-1;i>=0;--i){//note how we go backwards to ensure that we can revert reversions as well.
 		var e = this.edits[i]
-		if(e.op === 'revert'){
+		if(e.op === editCodes.revert){
 			reverts.push({version: e.edit.version, path: e.path})
 			//console.log('reverting')
 		}else{
@@ -180,11 +196,11 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	s.currentSyncId=-1
 	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
 	realEdits.forEach(function(e, index){
-		if(e.op === 'setSyncId'){
+		if(e.op === editCodes.setSyncId){
 			s.currentSyncId = e.edit.syncId
-		}else if(e.op === 'madeViewObject'){
+		}else if(e.op === editCodes.madeViewObject){
 			//s.log('ignoring view object creation')
-		}else if(e.op === 'made'){
+		}else if(e.op === editCodes.made){
 			//s.log('ignoring object creation')
 		}else{
 			s.changeListener(e.op, e.edit, s.currentSyncId, e.editId, true)
@@ -271,18 +287,18 @@ TopObjectHandle.prototype.adjustPath = function(source){
 	//this.log('adjust top path: ' + JSON.stringify(currentPath) + ' -> ' + source)
 	
 	if(currentPath.length === 0){
-		this.persistEdit('selectProperty', {typeCode: source})
+		this.persistEdit(editCodes.selectProperty, {typeCode: source})
 		return []
 	}else if(currentPath[0] !== source){
 		if(currentPath.length > 1){
 			//this.reduceBy(currentPath.length-1)
 			if(currentPath.length-1 <= 5){
-				this.persistEdit('ascend'+(currentPath.length-1), {})
+				this.persistEdit(editCodes['ascend'+(currentPath.length-1)], {})
 			}else{
-				this.persistEdit('ascend', {many: currentPath.length-1})
+				this.persistEdit(editCodes.ascend, {many: currentPath.length-1})
 			}
 		}
-		this.persistEdit('reselectProperty', {typeCode: source})
+		this.persistEdit(editCodes.reselectProperty, {typeCode: source})
 		return []
 	}else{
 		return this.currentPath.slice(1)
@@ -292,34 +308,34 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 	//this.log('here: ' + this.getObjectId())
 	//console.log('persisting: ' + op + ' ' + JSON.stringify(edit))
 	_.assertInt(this.getObjectId())
+	_.assertInt(op)
 	
-	if(op === 'reset'){
+	if(op === editCodes.reset){
 		this.currentPath = []
-	}else if(op === 'selectProperty'){
+	}else if(op === editCodes.selectProperty){
 		this.currentPath.push(edit.typeCode)
-	}else if(op === 'reselectProperty'){
+	}else if(op === editCodes.reselectProperty){
 		this.currentPath[this.currentPath.length-1] = edit.typeCode
-	}else if(op === 'selectObject'){
+	}else if(op === editCodes.selectObject){
 		this.currentPath.push(edit.id)
-	}else if(op === 'reselectObject'){
+	}else if(op === editCodes.reselectObject){
 		this.currentPath[this.currentPath.length-1] = edit.id
-	}else if(op === 'selectStringKey' || op === 'selectLongKey' || op === 'selectIntKey' || op === 'selectBooleanKey'){
+	}else if(lookup.isKeySelectCode[op]){//op === 'selectStringKey' || op === 'selectLongKey' || op === 'selectIntKey' || op === 'selectBooleanKey'){
 		this.currentPath.push(edit.key)
-	}else if(op === 'reselectStringKey' || op === 'reselectLongKey' || op === 'reselectIntKey' || op === 'reselectBooleanKey'){
+	}else if(lookup.isKeyReselectCode[op]){//op === 'reselectStringKey' || op === 'reselectLongKey' || op === 'reselectIntKey' || op === 'reselectBooleanKey'){
 		this.currentPath[this.currentPath.length-1] = edit.key
-	}else if(op === 'ascend1'){
+	}else if(op === editCodes.ascend1){
 		this.currentPath.pop()
-	}else if(op === 'ascend2'){
+	}else if(op === editCodes.ascend2){
 		this.currentPath.pop()
 		this.currentPath.pop()
-	}else if(op === 'ascend3'){
-		this.currentPath.pop()
+	}else if(op === editCodes.ascend3){
 		this.currentPath = this.currentPath.slice(0, this.currentPath.length-3)
-	}else if(op === 'ascend4'){
+	}else if(op === editCodes.ascend4){
 		this.currentPath = this.currentPath.slice(0, this.currentPath.length-4)
-	}else if(op === 'ascend5'){
+	}else if(op === editCodes.ascend5){
 		this.currentPath = this.currentPath.slice(0, this.currentPath.length-5)
-	}else if(op === 'ascend'){
+	}else if(op === editCodes.ascend){
 		this.currentPath = this.currentPath.slice(0, this.currentPath.length-edit.many)
 	}else{
 		//this.log('here: ' + op)
@@ -345,7 +361,6 @@ TopObjectHandle.prototype.registerSourceParent = function(sourceParent){
 		//this.log('registered source parent for ' + this.typeSchema.name + ' ' + this.objectId);
 	}
 }
-//TopObjectHandle.prototype.basicDoRefresh = u.doRefresh
 
 TopObjectHandle.prototype.doRefresh = function(already, sourceOfRefresh, e){
 	var cbs = [];
@@ -363,20 +378,6 @@ TopObjectHandle.prototype.doRefresh = function(already, sourceOfRefresh, e){
 		}
 	}
 }
-
-/*TopObjectHandle.prototype.setObjectToJson = function(typeName, id, json){
-
-	var obj = jsonutil.convertJsonToObject(this.schema, typeName, json);
-	
-	var edit = {object: obj};
-
-	this.getSh().persistEdit(
-		id, 
-		[],
-		'setObjectToJson',
-		edit,
-		this.getEditingId());
-}*/
 
 //TODO provide handle with temporary id for objects created this way
 TopObjectHandle.prototype.make = function(typeName, json,cb){
@@ -428,48 +429,40 @@ function updatePath(local, op, edit, editId){
 
 	if(local.pathEdits === undefined) local.pathEdits = []
 
-	if(op === 'reset'){
+	//console.log(JSON.stringify([op, edit, editId]))
+	//console.log(new Error().stack)
+	
+	if(op === editCodes.reset){
 		//local.path = []
 		var dif = -local.pathEdits.length
 		local.pathEdits = []
-	}else if(op === 'selectProperty'){
+	}else if(op === editCodes.selectProperty){
 		//local.path.push(edit.typeCode)
 		//console.log(local.uid + ' selected property: ' + edit.typeCode)
 		local.pathEdits.push({op: op, edit: edit})
-	}else if(op === 'reselectProperty'){
+	}else if(op === editCodes.reselectProperty){
 		_.assert(local.pathEdits.length > 0)
-		//local.path[local.path.length-1] = edit.typeCode
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
-	}else if(op === 'selectObject'){
-		//local.path.push(edit.id)
+	}else if(op === editCodes.selectObject){
 		local.pathEdits.push({op: op, edit: edit})
-	}else if(op === 'reselectObject'){
+	}else if(op === editCodes.reselectObject){
 		_.assert(local.pathEdits.length > 0)
-		//local.path[local.path.length-1] = edit.id
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
-	}else if(op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
-		//local.path.push(edit.key)
+	}else if(lookup.isKeySelectCode[op]){//op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
 		local.pathEdits.push({op: op, edit: edit})		
-	}else if(op.indexOf('reselect') === 0 && op.indexOf('Key') === op.length-3){
-		//local.path[local.path.length-1] = edit.key
+	}else if(lookup.isKeyReselectCode[op]){//op.indexOf('reselect') === 0 && op.indexOf('Key') === op.length-3){
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
-	}else if(op === 'ascend1'){
-		//local.path.pop()
+	}else if(op === editCodes.ascend1){
 		local.pathEdits.pop()
-	}else if(op === 'ascend2'){
-		//local.path = local.path.slice(0, local.path.length-2)
+	}else if(op === editCodes.ascend2){
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-2)
-	}else if(op === 'ascend3'){
-		//local.path = local.path.slice(0, local.path.length-3)
+	}else if(op === editCodes.ascend3){
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-3)
-	}else if(op === 'ascend4'){
-		//local.path = local.path.slice(0, local.path.length-4)
+	}else if(op === editCodes.ascend4){
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-4)
-	}else if(op === 'ascend5'){
-		//local.path = local.path.slice(0, local.path.length-5)
+	}else if(op === editCodes.ascend5){
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-5)
-	}else if(op === 'ascend'){
-		//local.path = local.path.slice(0, local.path.length-edit.many)
+	}else if(op === editCodes.ascend){
 		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-edit.many)
 	}else{
 		return false
@@ -483,6 +476,8 @@ function maintainPath(local, op, edit, syncId, editId){
 	//console.log(local.uid + ' current path(' + local.objectId + '): ' + JSON.stringify(local.pathEdits))
 	//console.log(JSON.stringify([op, edit, syncId, editId]))
 	//console.log(new Error().stack)
+	
+	_.assertInt(op)
 
 	if(local.lastEditId !== undefined && editId < local.lastEditId && editId >= 0){
 		console.log('HERE**: ' + JSON.stringify(local.edits))
@@ -501,8 +496,8 @@ function maintainPath(local, op, edit, syncId, editId){
 		return
 	}
 	
-	else if(op === 'made'){
-	}else if(op === 'wasSetToNew' && local.pathEdits.length === 1){
+	else if(op === editCodes.made){
+	}else if(op === editCodes.wasSetToNew && local.pathEdits.length === 1){
 
 		
 		var code = local.pathEdits[0].edit.typeCode
@@ -525,20 +520,23 @@ function maintainPath(local, op, edit, syncId, editId){
 		local[property.name] = n
 		
 	}else{
-		if(op === 'delKey' || op === 'setObject' || op === 'clearObject' || op === 'clearProperty' || op === 'setViewObject' || op.indexOf('put') === 0 || op === 'removeExisting' || op === 'del' || op === 'didPutNew'){
+		if(op === editCodes.delKey || op === editCodes.setObject || op === editCodes.clearObject || 
+				op === editCodes.clearProperty || op === editCodes.setViewObject || lookup.isPutCode[op] || lookup.isPutAddCode[op] || lookup.isPutRemoveCode[op] ||
+				op === editCodes.removeExisting || op === editCodes.del || op === editCodes.didPutNew){
 			_.assert(local.pathEdits.length > 0)
 			var lastCode
 			var lastEdit = local.pathEdits[local.pathEdits.length-1]
-			if(lastEdit.op === 'selectProperty'){
+			if(lastEdit.op === editCodes.selectProperty){
 				lastCode = lastEdit.edit.typeCode
-			}else if(lastEdit.op === 'reselectProperty'){
+			}else if(lastEdit.op === editCodes.reselectProperty){
 				lastCode = lastEdit.edit.typeCode
-			}else if(lastEdit.op === 'selectObject'){
+			}else if(lastEdit.op === editCodes.selectObject){
 				lastCode = lastEdit.edit.id
-			}else if(lastEdit.op.indexOf('Key') !== -1){
+			}else if(lookup.isKeyCode[lastEdit.op]){//lastEdit.op.indexOf('Key') !== -1){
 				lastCode = lastEdit.edit.key
 			}else{
-				_.errout('TODO: ' + JSON.stringify(lastEdit))
+				console.log(JSON.stringify(lookup.isKeyCode))
+				_.errout('TODO: ' + op + ' ' + JSON.stringify(lastEdit))
 			}
 			//this.log('here: ' + local.currentHandle.constructor)
 			var ch = descend(local, local.pathEdits.slice(0, local.pathEdits.length-1))
@@ -579,7 +577,7 @@ exports.maintainPath = maintainPath
 
 
 TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, isNotExternal){
-	_.assertString(op)
+	_.assertInt(op)
 	_.assertObject(edit)
 	_.assertInt(syncId)
 	_.assertInt(editId)
@@ -603,7 +601,7 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, is
 		return
 	}
 
-	if(op === 'revert'){
+	if(op === editCodes.revert){
 		var before = this.edits.length
 		this._rebuild()
 		_.assertEqual(this.edits.length, before)
@@ -624,13 +622,13 @@ function descend(start, pathEdits){
 	//console.log(JSON.stringify(pathEdits))
 	for(var i=0;i<pathEdits.length;++i){
 		var pe = pathEdits[i]
-		if(pe.op === 'selectProperty' || pe.op === 'reselectProperty'){
+		if(pe.op === editCodes.selectProperty || pe.op === editCodes.reselectProperty){
 			var oldCh = ch
 			ch = ch.propertyByCode(pe.edit.typeCode)
 			_.assertObject(ch)
 			//console.log('selecting property: ' + pe.edit.typeCode + ' ' + ch.rere + ' ' + ch.objectId + ' ' + JSON.stringify(pathEdits))
 			//console.log('ch: ' + oldCh.objectId)
-		}else if(pe.op === 'selectObject' || pe.op === 'reselectObject'){
+		}else if(pe.op === editCodes.selectObject || pe.op === editCodes.reselectObject){
 			_.assert(pe.edit.id > 0)
 			if(ch.getObjectValue){//map descent
 				ch = ch.getObjectValue(pe.edit.id)
@@ -656,7 +654,7 @@ function descend(start, pathEdits){
 			}
 			//this.log('id: ' + pe.edit.id)
 			_.assertDefined(ch)
-		}else if(pe.op.indexOf('Key') === pe.op.length-3){
+		}else if(lookup.isKeyCode[pe.op]){//pe.op.indexOf('Key') === pe.op.length-3){
 			ch = ch.get(pe.edit.key)
 			_.assertObject(ch)
 		}else{
@@ -746,18 +744,18 @@ TopObjectHandle.prototype.version = function(editId){
 		n.currentSyncId=-1
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
-			if(e.op === 'setSyncId'){
+			if(e.op === editCodes.setSyncId){
 				n.currentSyncId = e.edit.syncId
 			}
 		}
 		for(var i=0;i<newEdits.length;++i){
 			var e = newEdits[i]
 
-			if(e.op === 'setSyncId'){
+			if(e.op === editCodes.setSyncId){
 				n.currentSyncId = e.edit.syncId
-			}else if(e.op === 'madeViewObject'){
+			}else if(e.op === editCodes.madeViewObject){
 				//this.log('ignoring view object creation')
-			}else if(e.op === 'made'){
+			}else if(e.op === editCodes.made){
 				//this.log('ignoring object creation')
 			}else{
 				n.changeListener(e.op, e.edit, n.currentSyncId, e.editId, true)
@@ -778,7 +776,7 @@ TopObjectHandle.prototype.versions = function(){
 		var e = this.edits[i]
 		var did = updatePath(fakeObject, e.op, e.edit, e.editId)
 		if(!did && e.editId !== versions[versions.length-1]){
-			if(e.op === 'setSyncId') continue
+			if(e.op === editCodes.setSyncId) continue
 			//console.log('* ' + JSON.stringify(e))
 			versions.push(e.editId)
 		}
@@ -811,11 +809,11 @@ TopObjectHandle.prototype.revert = function(editId){
 	//TODO adjust path
 	if(this.currentPath && this.currentPath.length > 0){
 		//console.log('htere')
-		this.persistEdit('ascend', {many: this.currentPath.length})
+		this.persistEdit(editCodes.ascend, {many: this.currentPath.length})
 		this.currentPath = []
 	}
 	//console.log('here*')
-	this.persistEdit('revert', {version: editId})
+	this.persistEdit(editCodes.revert, {version: editId})
 	//this._rebuild()
 }
 

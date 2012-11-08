@@ -166,12 +166,12 @@ function wrapParam(v, schemaType, s){
 
 			var t = v(bindings, editId)
 			var cachedValues = {}
-			var re = Math.random()
+			//var re = Math.random()
 			//s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
 			t.attach({
 				put: function(key, value, oldValue, editId){
-					//s.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
+					//console.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
 					cachedValues[key] = value
 					listeners.emitChanged(editId)
 				},

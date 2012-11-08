@@ -17,6 +17,10 @@ var bin = require('./../util/bin')
 var bufw = require('./../util/bufw')
 var fp = shared.editFp
 
+
+var editCodes = fp.codes
+var editNames = fp.names
+
 function deserializeSnapshotVersionIds(buf){
 	var versions = []
 	var many = buf[0]
@@ -28,20 +32,20 @@ function deserializeSnapshotVersionIds(buf){
 	}
 	return versions
 }
-function deserializeAllSnapshots(readers, names, snapshots){
+function deserializeAllSnapshots(readers, readersByCode, names, snapshots){
 	_.assertBuffer(snapshots)
 	var r = fparse.makeSingleReader(snapshots)
 	var manySnaps = r.readByte()//readInt()
 	var snaps = []
 	//log('many snaps: ' + manySnaps)
 	for(var i=0;i<manySnaps;++i){
-		var objects = deserializeSnapshotInternal(readers, names, r)
+		var objects = deserializeSnapshotInternal(readers, readersByCode, names, r)
 		snaps.push(objects)
 	}
 	return snaps
 }
 
-function deserializeSnapshotInternal(readers, names, rs){
+function deserializeSnapshotInternal(readers, readersByCode, names, rs){
 	var startEditId = rs.readInt()
 	var endEditId = rs.readInt()
 	
@@ -63,12 +67,12 @@ function deserializeSnapshotInternal(readers, names, rs){
 		for(var j=0;j<many;++j){
 			var code = rs.readByte()
 			var editId = rs.readInt()
-			var name = names[code]
+			//var name = names[code]
 			//console.log('getting name(' + code + '): ' + name + ' ' + editId)
 			//_.assertString(name)
-			var e = readers[name](rs)
+			var e = readersByCode[code](rs)
 			//console.log('got e: ' + JSON.stringify(e))
-			edits.push({op: name, edit: e, editId: editId})
+			edits.push({op: code, edit: e, editId: editId})
 		}
 	}
 	var manyViewObjects = rs.readInt()
@@ -83,18 +87,18 @@ function deserializeSnapshotInternal(readers, names, rs){
 		for(var j=0;j<many;++j){
 			var code = rs.readByte()
 			var editId = rs.readInt()
-			var name = names[code]
+			//var name = names[code]
 			//console.log(JSON.stringify(names))
-			if(name === undefined) _.errout(editId + ' cannot find name for code: ' + code)
-			var e = readers[name](rs)
-			edits.push({op: name, edit: e, editId: editId})
+			//if(name === undefined) _.errout(editId + ' cannot find name for code: ' + code)
+			var e = readersByCode[code](rs)
+			edits.push({op: code, edit: e, editId: editId})
 		}
 	}
 	return {startVersion: startEditId, endVersion: endEditId, objects: objects}
 }
-function deserializeSnapshot(readers, names, snap){
+function deserializeSnapshot(readers, readersByCode, names, snap){
 	var rs = fparse.makeSingleReader(snap)
-	return deserializeSnapshotInternal(readers, names, rs)
+	return deserializeSnapshotInternal(readers, readersByCode, names, rs)
 }
 function make(host, port, defaultChangeListener, defaultObjectListener, defaultMakeListener, defaultReifyListener, readyCb){
 	_.assertLength(arguments, 7);
@@ -178,7 +182,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//var r = fparse.makeSingleReader(e.edit)
 			//e.edit = fp.readers[e.op](r)
 			updateReader.put(e.edit)
-			e.edit = fp.readers[e.op](updateReader.s)
+			e.edit = fp.readersByCode[e.op](updateReader.s)
 			
 			_.assertInt(e.editId)
 			//console.log('tcpclient got response update: ' + e.op + ' ' + JSON.stringify(e.edit) + ' ' + e.editId + ' '  + e.destinationSyncId)
@@ -197,9 +201,9 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			var edits = []
 			//console.log('many: ' + many)
 			for(var i=0;i<many;++i){
-				var op = fp.names[r.readByte()]
+				var op = r.readByte()
 				var editId = r.readInt()
-				var edit = fp.readers[op](r)
+				var edit = fp.readersByCode[op](r)
 				edits.push({op: op, edit: edit, editId: editId})
 			}
 			//log([e.id, edits])
@@ -219,9 +223,9 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			var edits = []
 			//console.log('many: ' + many)
 			for(var i=0;i<many;++i){
-				var op = fp.names[r.readByte()]
+				var op = r.readByte()
 				var editId = r.readInt()
-				var edit = fp.readers[op](r)
+				var edit = fp.readersByCode[op](r)
 				edits.push({op: op, edit: edit, editId: editId})
 			}
 			//log([e.id, edits])
@@ -415,6 +419,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	var nkw = fparse.makeTemporaryBufferWriter(1024*1024)
 	function serializeEdit(op, edit){
+		_.assertInt(op)
 		fp.writers[op](nkw.w, edit)
 		return nkw.get()
 	}
@@ -439,14 +444,15 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				w.endView(e);
 			},
 			persistEdit: function(op, edit, sourceSyncId){
-				_.assertString(op)
+				_.assertInt(op)
 				
-				var es = shared.editSchema[op]
+				var es = editNames[op]//shared.editSchema[op]
+				//console.log(JSON.stringify(editCodes))
 				if(es === undefined) _.errout('unknown edit op: ' + op)
-				var editTypeCode = es.code
+				var editTypeCode = op//es.code
 				
 				var requestId
-				if(op === 'make' && !edit.forget){
+				if(op === editCodes.make && !edit.forget){
 					requestId = makeRequestId()
 				}
 				
@@ -456,7 +462,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				bw.putByte(editTypeCode)
 				try{
 					bw.startLength()
-					fp.writers[op](bw, edit)
+					fp.writersByCode[op](bw, edit)
 					bw.endLength()
 				}catch(e){
 					console.log(e)
@@ -466,21 +472,8 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				}
 				bw.putInt(syncId)
 				
-				/*
-				var e = {
-					op: editTypeCode,
-					edit: serializeEdit(op, edit),
-					syncId: sourceSyncId,
-					requestId: requestId
-				}
-
-				try{
-					w.persistEdit(e);
-				}catch(e){
-					console.log(e)
-					console.log('invalid edit received and not sent to server: ' + JSON.stringify(e));
-					delete callbacks[e.requestId];
-				}*/
+				//if(bw.position > 4*1024) w.flush()
+				
 				return requestId
 			},
 			forgetLastTemporary: function(sourceSyncId){
@@ -561,7 +554,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				}
 				console.log(res)
 				console.log(str)*/
-				res.snapshots = deserializeAllSnapshots(fp.readers, fp.names, res.snapshots)
+				res.snapshots = deserializeAllSnapshots(fp.readers, fp.readersByCode, fp.names, res.snapshots)
 				//log('deserialized: ' + JSON.stringify(res).slice(0,500))
 				cb(undefined, res)
 			});
@@ -576,7 +569,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 					cb(err)
 					return
 				}
-				res.snap = deserializeSnapshot(fp.readers, fp.names, res.snap)
+				res.snap = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snap)
 				cb(undefined, res)
 			});
 			w.getSnapshot(e);

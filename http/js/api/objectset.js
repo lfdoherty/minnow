@@ -6,6 +6,9 @@ var _ = require('underscorem')
 
 var ObjectHandle = require('./object')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 module.exports = ObjectSetHandle
 
 function ObjectSetHandle(typeSchema, obj, part, parent){
@@ -16,6 +19,12 @@ function ObjectSetHandle(typeSchema, obj, part, parent){
 	this.log = this.parent.log
 	
 	this.obj = u.wrapCollection(this, obj)
+
+	if(this.isView()){
+		this.add = u.viewReadonlyFunction
+		this.addNew = u.viewReadonlyFunction
+		this.remove = u.viewReadonlyFunction
+	}
 }
 
 ObjectSetHandle.prototype.count = function(){return this.obj.length;}
@@ -73,7 +82,7 @@ ObjectSetHandle.prototype.remove = function(objHandle){
 			'remove',
 			e,
 			this.getEditingId());*/
-		this.saveEdit('remove', {id: objHandle._internalId()})
+		this.saveEdit(editCodes.remove, {id: objHandle._internalId()})
 	
 		this.emit(e, 'remove', objHandle)//()
 	/*}else{
@@ -94,7 +103,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 	//if(path.length > 0) _.errout('TODO implement');
 	//this.log('object set handle changeListener')
-	_.assertString(op)
+	_.assertInt(op)
 /*
 	if(path.length === 1 && op === 'remove'){
 		if(this.getEditingId() !== syncId){
@@ -121,7 +130,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		return a.changeListener(path.slice(1), op, edit, syncId);
 	}*/
 	
-	if(op === 'addExisting'){
+	if(op === editCodes.addExisting){
 		//console.log('added to set: ' + edit.id);
 		//if(this.getEditingId() !== syncId){
 			var addedObj = this.getObjectApi(edit.id)
@@ -148,7 +157,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			res.prepare()
 			return this.emit(edit, 'add', res)
 		}
-	}*/else if(op === 'addedNew'){
+	}*/else if(op === editCodes.addedNew){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
 		//if(this.getEditingId() === syncId){
@@ -167,7 +176,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			res.prepare()
 			return this.emit(edit, 'add', res, editId)
 		//}
-	}else if(op === 'remove'){
+	}else if(op === editCodes.remove){
 		/*if(this.getEditingId() === syncId){
 			return stub;
 		}*/
@@ -217,7 +226,7 @@ ObjectSetHandle.prototype.add = function(objHandle){
 	_.assert(id > 0 || id < -1)
 	var ee = {id: id, typeCode: objHandle.typeSchema.code}
 	
-	this.saveEdit('addExisting', ee);
+	this.saveEdit(editCodes.addExisting, ee);
 	
 	this.obj.push(objHandle);
 
@@ -236,7 +245,7 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);	
 	
-	this.saveEdit('addNew', {typeCode: type.code})
+	this.saveEdit(editCodes.addNew, {typeCode: type.code})
 
 	var n = this._makeAndSaveNew(json, type)
 	

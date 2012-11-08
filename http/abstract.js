@@ -95,7 +95,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		
 		//log('$got e: ' + JSON.stringify(e).slice(0, 300));
 		
-		_.assertString(e.op)
+		_.assertInt(e.op)
 		
 		//log('sending message for sync ' + sh.id + ': ' + JSON.stringify(e));
 

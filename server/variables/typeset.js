@@ -63,6 +63,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			//console.log('attached to type ************ ' + JSON.stringify(idList) + ' ' + typeCode)
 			//s.log(new Error().stack)
 			if(idList){
+				//console.log('adding ids: ' + idList.length)
 				idList.forEach(function(id){
 					listener.add(id, editId)
 				})
@@ -110,7 +111,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		
 		function listenCreated(typeCode, id, editId){
 			idList.push(id)
-		//	s.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
+			//console.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
 			
 			listeners.emitAdd(id, editId)
 		}
@@ -121,6 +122,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		}
 		
 		s.getAllSubtypes(typeCode).forEach(function(objSchema){
+			//console.log('listening for new')
 			s.broadcaster.listenForNew(objSchema.code, listenCreated)
 			s.broadcaster.listenForDeleted(objSchema.code, listenDeleted)
 		})		

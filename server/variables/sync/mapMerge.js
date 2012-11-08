@@ -41,6 +41,6 @@ exports.compute = function(paramValues){
 		}
 	}
 
-	log('mapMerge ' /*+ JSON.stringify(a) + '\n             ' + JSON.stringify(b) + '\n -> '*/ + JSON.stringify(results))
+	log('mapMerge ' + JSON.stringify(results))
 	return results
 }

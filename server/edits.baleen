@@ -130,7 +130,9 @@ addString 80
 	value string 1
 addBoolean 81
 	value boolean 1
-
+addReal 92
+	value string 1
+	
 addNew 11
 	typeCode int 1
 addedNew 96

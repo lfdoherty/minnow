@@ -9,38 +9,6 @@ var N = 10*1000*1000
 
 require('quicklog').setLevelErr()
 
-/*
-exports.count = function(dir, serverDir, port, done){
-	
-	minnow.makeServer(dir, serverDir, port, function(server){
-		minnow.makeClient(port, function(client){
-			client.view('general', function(c){
-			
-				poll(function(){
-					if(c.c.value() === N){
-						client.close(function(){
-							server.close(function(){
-								console.log('got all closed')
-								done()
-							})
-						})
-						return true
-					}
-				})
-
-				minnow.makeClient(port, function(otherClient){
-					otherClient.view('general', function(v){
-						for(var i=0;i<N;++i){
-							v.make('entity', true)
-						}
-					})
-				})
-				
-			})
-		})
-	})
-}*/
-
 function rand(n){return Math.floor(Math.random()*n)}
 
 var RATIO = .0001

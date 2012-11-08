@@ -4,7 +4,16 @@ var _ = require('underscorem')
 
 //exports.makeTemporaryId = makeTemporaryId
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+var editNames = lookup.names
+
 function stub(){}
+
+function viewReadonlyFunction(){
+	throw new Error('cannot modify a view object')
+}
+exports.viewReadonlyFunction = viewReadonlyFunction
 
 exports.genericObjectTypes = function types(){
 	var fullSchema = this.getFullSchema();
@@ -76,7 +85,7 @@ exports.primitiveChangeListener = function changeListener(op, edit, syncId, edit
 		this.edits.push({op: op, edit: edit, syncId: syncId, editId: editId})
 	}*/
 	
-	if(op.indexOf('set') === 0){
+	if(lookup.isSetCode[op]){//op.indexOf('set') === 0){
 		this.obj = edit.value;
 		//console.log('primitive value set to: ' + this.obj)
 		return this.emit(edit, 'set', edit.value, editId)
@@ -160,29 +169,38 @@ var typeSuffix = {
 exports.getAddOperator = function(schema){
 	var ts = typeSuffix[schema.type.members.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
-	return 'add' + ts
+	return editCodes['add' + ts]
 }
 exports.getRemoveOperator = function(schema){
 	var ts = typeSuffix[schema.type.members.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
-	return 'remove' + ts
+	return editCodes['remove' + ts]
 }
 exports.getPutOperator = function(schema){
 	var ts = typeSuffix[schema.type.value.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
-	return 'put' + ts
+	return editCodes['put' + ts]
 }
 exports.getKeyOperator = function(schema){
 	if(schema.type.key.type === 'primitive'){
 		var ts = typeSuffix[schema.type.key.primitive]
 	}else{
-		return 'selectObjectKey'
+		return editCodes.selectObjectKey
 	}
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
-	return 'select' + ts + 'Key'
+	return editCodes['select' + ts + 'Key']
+}
+exports.getKeyReOperator = function(schema){
+	if(schema.type.key.type === 'primitive'){
+		var ts = typeSuffix[schema.type.key.primitive]
+	}else{
+		return editCodes.reselectObjectKey
+	}
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return editCodes['reselect' + ts + 'Key']
 }
 exports.getSetOperator = function(schema){
 	var ts = typeSuffix[schema.type.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
-	return 'set' + ts
+	return editCodes['set' + ts]
 }

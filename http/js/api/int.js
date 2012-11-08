@@ -3,12 +3,19 @@
 var u = require('./util')
 var _ = require('underscorem')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 function IntHandle(typeSchema, obj, part, parent){
 	//_.assertInt(part)
 	
 	this.part = part;
 	this.obj = obj;
 	this.parent = parent;
+
+	if(this.isView()){
+		this.set = u.viewReadonlyFunction
+	}
 }
 IntHandle.prototype.value = function(){
 	return this.obj;
@@ -21,7 +28,7 @@ IntHandle.prototype.set = function(v){
 	this.obj = v;
 
 	var e = {value: this.obj}
-	this.saveEdit('setInt', e);
+	this.saveEdit(editCodes.setInt, e);
 		
 	this.emit(e, 'set', v)//()
 }

@@ -5,6 +5,11 @@ TODO standardize edit names (e.g. remove, addExisting)
 
 var _ = require('underscorem')
 
+var editFp = require('./../tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
+
 var typeSuffix = {
 	int: 'Int',
 	long: 'Long',
@@ -18,9 +23,9 @@ exports.setOp = function(t){
 	if(t.type === 'primitive'){
 		var ts = typeSuffix[t.primitive]
 		if(ts === undefined) _.errout('TODO: ' + t.primitive)
-		return 'set'+ts
+		return editCodes['set'+ts]
 	}else{
-		return 'setObject'
+		return editCodes.setObject
 	}
 }
 
@@ -28,12 +33,12 @@ exports.putOp = function(t){
 	if(t.value.type === 'primitive'){
 		var ts = typeSuffix[t.value.primitive]
 		if(ts === undefined) _.errout('TODO: ' + t.value.primitive)
-		return 'put'+ts
+		return editCodes['put'+ts]
 	}else{
 		if(t.value.type === 'view'){
-			return 'putViewObject'
+			return editCodes.putViewObject
 		}else{
-			return 'putExisting'
+			return editCodes.putExisting
 		}
 	}
 }
@@ -41,33 +46,33 @@ exports.putOp = function(t){
 exports.putAddOp = function(t){
 	_.assertDefined(t.value.members.primitive)
 	var ts = typeSuffix[t.value.members.primitive]
-	return 'putAdd'+ts
+	return editCodes['putAdd'+ts]
 }
 exports.putRemoveOp = function(t){
 	_.assertDefined(t.value.members.primitive)
 	var ts = typeSuffix[t.value.members.primitive]
-	return 'putRemove'+ts
+	return editCodes['putRemove'+ts]
 }
 exports.selectKeyOp = function(t){
-	return 'select'+(typeSuffix[t.key.primitive]||'Object')+'Key'
+	return editCodes['select'+(typeSuffix[t.key.primitive]||'Object')+'Key']
 }
 
 exports.addOp = function(t){
 	if(t.members.type === 'primitive'){
 		var ts = typeSuffix[t.members.primitive]
 		if(ts === undefined) _.errout('TODO: ' + t.members.primitive)
-		return 'add'+ts
+		return editCodes['add'+ts]
 	}else{
-		return 'addExisting'
+		return editCodes.addExisting
 	}
 }
 exports.removeOp = function(t){
 	if(t.members.type === 'primitive'){
 		var ts = typeSuffix[t.members.primitive]
 		if(ts === undefined) _.errout('TODO: ' + t.members.primitive)
-		return 'remove'+ts
+		return editCodes['remove'+ts]
 	}else{
-		return 'remove'
+		return editCodes.remove
 	}
 }
 

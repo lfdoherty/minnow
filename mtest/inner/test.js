@@ -11,7 +11,7 @@ exports.inner = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
+					console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s') && c.s.size() === 1){
 						var d;
 						//console.log('got s to 1')
@@ -29,7 +29,6 @@ exports.inner = function(config, done){
 						var obj = n.other.setNew('membrance', {value: 'test2', other: n})
 					})
 				})
-				
 			})
 		})
 	})

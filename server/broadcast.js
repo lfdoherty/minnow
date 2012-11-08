@@ -93,8 +93,8 @@ exports.make = function(){
 		_.assertLength(arguments, 8);
 		_.assertInt(editId);
 		_.assertInt(syncId);
-		_.assertString(op)
-		
+		_.assertInt(op)
+				
 		notifyChanged(typeCode, id, path, op, edit, syncId, editId);
 	}
 	
@@ -123,16 +123,14 @@ exports.make = function(){
 				_.assertLength(arguments, 7);
 				_.assertInt(syncId);
 				_.assertInt(editId);
-				_.assertString(op)
+				_.assertInt(op)
 				_.assertInt(typeCode)
 				_.assert(id > 0)
 				
-				//console.log('broadcasting: ' + JSON.stringify(path))
-				//for(var i=0;i<path.length;++i){_.assert(_.isString(path[i]) || path[i] > 0);}
-				
-				all.forEach(function(listener){
+				for(var i=0;i<all.length;++i){
+					var listener = all[i]
 					listener(typeCode, id, path, op, edit, syncId, editId);
-				})
+				}
 				objectChanged(typeCode, id, path, op, edit, syncId, editId);
 			},
 			objectDeleted: function(typeCode, id, editId){
@@ -177,6 +175,7 @@ exports.make = function(){
 				var list = lazyArray(byObject, id)
 				list.push(listener);
 				//console.log('byObject: ' + list.length)
+				//console.log(new Error().stack)
 			},
 			stopListeningByObject: function(/*typeCode, */id, listener){
 				_.assertLength(arguments, 2)

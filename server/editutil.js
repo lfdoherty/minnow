@@ -1,4 +1,8 @@
 
+var editFp = require('./tcp_shared').editFp
+var editCodes = editFp.codes
+
+var _ = require('underscorem')
 
 var pathOps = ['setSyncId', 'selectObject', 'selectProperty', 'reselectObject', 'reselectProperty', 
 	'selectStringKey', 'reselectStringKey', 'selectIntKey', 'reselectIntKey', 'selectLongKey', 'reselectLongKey','selectBooleanKey', 'reselectBooleanKey',
@@ -6,7 +10,10 @@ var pathOps = ['setSyncId', 'selectObject', 'selectProperty', 'reselectObject', 
 	]
 var pathOpsLookup = {}
 pathOps.forEach(function(op){
-	pathOpsLookup[op] = true
+	pathOpsLookup[editCodes[op]] = true
 })
 
-exports.isPathOp = function(op){return pathOpsLookup[op];}
+exports.isPathOp = function(op){
+	_.assertInt(op)
+	return pathOpsLookup[op];
+}

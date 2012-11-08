@@ -15,10 +15,11 @@ function serializeFrame(edits, w){
 	//edits.forEach(function(e){
 	for(var i=0;i<edits.length;++i){
 		var e = edits[i]
-		w.putByte(fp.codes[e.op])
+		_.assertInt(e.op)
+		w.putByte(e.op)//fp.codes[e.op])
 		//console.log('code: ' + fp.codes[e.op] + ' ' + e.editId)
 		w.putInt(e.editId)
-		fp.writers[e.op](w, e.edit)
+		fp.writersByCode[e.op](w, e.edit)
 	}
 }
 
@@ -36,7 +37,7 @@ function deserializeFrame(frame){
 		_.assert(b > 0)
 		var editId = r.readInt()
 		var e = readersByCode[b](r)
-		edits.push({op: fp.names[b], edit: e, editId: editId})
+		edits.push({op: b, edit: e, editId: editId})
 	}
 	rs.assertEmpty()
 	return edits
@@ -77,9 +78,9 @@ function appendSerializeFrame(rest, edits, w){
 	//edits.forEach(function(e){
 	for(var i=0;i<edits.length;++i){
 		var e = edits[i]
-		w.putByte(fp.codes[e.op])
+		w.putByte(e.op)//fp.codes[e.op])
 		w.putInt(e.editId)
-		fp.writers[e.op](w, e.edit)
+		fp.writersByCode[e.op](w, e.edit)
 	}
 	
 	

@@ -39,10 +39,11 @@ function extractMacroPropertyExpressions(e, implicits){
 	}else if(e.type === 'value'){
 	}else if(e.type === 'int'){
 	}else{
-		throw new Error('each_subset_optimization not possible')
+		throw new Error('each_subset_optimization not possible: ' + JSON.stringify(e))
 	}
 	return res
 }
+exports.extractMacroPropertyExpressions = extractMacroPropertyExpressions
 
 /*
 two types of inputs: 
@@ -83,10 +84,10 @@ function makeSynchronousFunction(s, pes, typeBindings, objSchema, implicits, e){
 			//_.assert(impl.isSynchronousPlugin)
 			var implFunc = impl.implementation//(s, self, e, typeBindings)
 
-			return function(bindings, propertiesMap){
+			return function(bindings, propertiesMap, macroParams){
 				var inputs = []
 				for(var i=0;i<funcs.length;++i){
-					inputs[i] = funcs[i](bindings, propertiesMap)
+					inputs[i] = funcs[i](bindings, propertiesMap, macroParams)
 				}
 				//console.log('computing: ' + e.view + JSON.stringify(inputs))
 				var res = implFunc(inputs)
@@ -95,9 +96,20 @@ function makeSynchronousFunction(s, pes, typeBindings, objSchema, implicits, e){
 			}
 		}
 	}else if(e.type === 'param'){
+		for(var i=0;i<implicits.length;++i){
+			if(implicits[i] === e.name){
+				return function(bindings, propertiesMap, macroParams){
+					//console.log('returning ' + i + ' ' + macroParams[i])
+					return macroParams[i]
+				}
+			}
+		}
 		return function(bindings, propertiesMap){
 			//_.errout('TODO get binding wrapper value')
 			_.assertString(e.name)
+			if(bindings[e.name] === undefined){
+				_.errout('binding is missing: ' + JSON.stringify(e) + ' ' + JSON.stringify(bindings))
+			}
 			var v = bindings[e.name].get()
 			//console.log('got param ' + e.name + ' value: ' + v)
 			if(v === undefined){
@@ -118,6 +130,7 @@ function makeSynchronousFunction(s, pes, typeBindings, objSchema, implicits, e){
 		_.errout('TODO: ' + JSON.stringify(e))
 	}
 }
+exports.makeSynchronousFunction = makeSynchronousFunction
 
 function extractParams(e, implicits){
 	
@@ -127,7 +140,9 @@ function extractParams(e, implicits){
 			res = res.concat(extractParams(p, implicits))
 		})
 	}else if(e.type === 'param'){
+		//console.log('examining param: ' + JSON.stringify([e, implicits]))
 		if(implicits.indexOf(e.name) === -1){
+			//console.log('did extract: ' + e.name)
 			res.push(e)
 		}
 	}else if(e.type === 'value'){
@@ -161,6 +176,8 @@ function makeBindingWrappersFunction(s, self, e, typeBindings){
 		return bindingWrappers
 	}
 }
+
+exports.makeBindingWrappersFunction = makeBindingWrappersFunction
 
 exports.make = function(s, self, rel, typeBindings){
 
@@ -199,16 +216,7 @@ exports.make = function(s, self, rel, typeBindings){
 
 
 	function f(bindings, editId){
-	
-		//_.errout('TODO')
-	
-	
-		var ids = []
-		var has = {}
-		
-		var bindingWrappers = makeBindingWrappers(bindings, editId)
-		var bindingWrapperKeys = Object.keys(bindingWrappers)
-		
+			
 		var streamingEditId = -1
 		
 		var key = ''
@@ -226,6 +234,13 @@ exports.make = function(s, self, rel, typeBindings){
 		}else{
 			//console.log('keys different: ' + key)
 		}
+	
+		var ids = []
+		var has = {}
+
+		var bindingWrappers = makeBindingWrappers(bindings, editId)
+		var bindingWrapperKeys = Object.keys(bindingWrappers)
+
 		
 		function oldest(){
 			var old = s.objectState.getCurrentEditId()

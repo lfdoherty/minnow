@@ -7,6 +7,10 @@ function RealHandle(typeSchema, obj, part, parent){
 	this.part = part;
 	this.obj = obj;
 	this.parent = parent;
+
+	if(this.isView()){
+		this.set = u.viewReadonlyFunction
+	}
 }
 RealHandle.prototype.value = function(){
 	return this.obj;

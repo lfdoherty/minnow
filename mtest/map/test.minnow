@@ -25,3 +25,9 @@ containerValuesView() 104
 	
 stringForContained(key string) 105
 	names each(*container, {mapValue(~.members,key)}).name 1
+
+objkeys() 106
+	s one(*objkeyer) 1
+		
+objkeyer 3
+	members entity:string 202

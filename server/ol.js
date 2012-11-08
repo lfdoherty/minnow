@@ -32,6 +32,8 @@ function serializeEdits(fp, edits){
 var log = require('quicklog').make('minnow/ol')
 
 var fp = shared.editFp
+var editCodes = fp.codes
+var editNames = fp.names
 
 function OlReaders(ol){
 	this.ol = ol
@@ -75,6 +77,7 @@ _.each(shared.editSchema._byCode, function(objSchema){
 		readers[name] = appendEdit.bind(undefined, name)
 	}*/
 	if(OlReaders.prototype[name] === undefined){
+		var code = objSchema.code
 		OlReaders.prototype[name] = function(edit, timestamp){
 			_.assertNumber(timestamp)
 			//console.log('loading timestamp: ' + timestamp)
@@ -83,7 +86,7 @@ _.each(shared.editSchema._byCode, function(objSchema){
 			//appendEdit(name, edit)
 			//log('edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
 			//console.log('loading edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
-			this.ol.persist(this.currentId, name, edit, this.currentSyncId, timestamp)
+			this.ol.persist(this.currentId, code, edit, this.currentSyncId, timestamp)
 		}//appendEdit.bind(undefined, name)
 	}
 })
@@ -125,8 +128,8 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
 	_.assert(syncId > 0)
-	this.olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: editId})
-	this.olc.addEdit(id, {op: 'made', edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
+	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
+	this.olc.addEdit(id, {op: editCodes.made, edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
 	//setObjectCurrentSyncId(id, syncId)
 	this.objectCurrentSyncId[id] = syncId
 	
@@ -175,14 +178,21 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 		//console.log('getting foreign edits in: ' + JSON.stringify(edits))
 		for(var i=0;i<de.length;++i){
 			var e = de[i]
-			if(e.op === 'setExisting' || e.op === 'addExisting' || e.op === 'setObject' || e.op === 'putExisting'){
+			if(e.op === editCodes.setExisting || e.op === editCodes.addExisting || e.op === editCodes.setObject || 
+					e.op === editCodes.putExisting){
 				var id = e.edit.id
 				if(!has[id]){
 					ids.push(id)
 					has[id] = true
 				}
-			}else if(e.op === 'replaceExternalExisting' || e.op === 'replaceInternalExisting'){
+			}else if(e.op === editCodes.replaceExternalExisting || e.op === editCodes.replaceInternalExisting){
 				var id = e.edit.newId
+				if(!has[id]){
+					ids.push(id)
+					has[id] = true
+				}
+			}else if(e.op === editCodes.selectObjectKey || e.op === editCodes.reselectObjectKey){
+				var id = e.edit.key
 				if(!has[id]){
 					ids.push(id)
 					has[id] = true
@@ -241,6 +251,30 @@ Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optim
 	cb(actual)*/
 
 }
+Ol.prototype.getAll = function(id, cb){//TODO optimize away
+	_.assertLength(arguments, 2)
+	//_.assertInt(startEditId)
+	//_.assertInt(endEditId)
+	_.assertInt(id)
+	
+	/*(if(this.destroyed[id]){
+		_.errout('object has been destroyed, cannot get: ' + id)
+	}*/
+	
+	var edits = this.olc.get(id)
+	//var actual = []
+	//edits.forEach(function(e){
+	/*for(var i=0;i<edits.length;++i){
+		var e = edits[i]
+		_.assertInt(e.editId)
+		if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+			actual.push(e)
+		}
+	}
+	//})*/
+	cb(edits)
+	
+}
 Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertLength(arguments, 4)
 	_.assertInt(startEditId)
@@ -253,12 +287,15 @@ Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	
 	var edits = this.olc.get(id)
 	var actual = []
-	edits.forEach(function(e){
+	//edits.forEach(function(e){
+	for(var i=0;i<edits.length;++i){
+		var e = edits[i]
 		_.assertInt(e.editId)
 		if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
 			actual.push(e)
 		}
-	})
+	}
+	//})
 	cb(actual)
 	
 }
@@ -286,6 +323,9 @@ Ol.prototype.syntheticEditId = function(){
 Ol.prototype.getVersionTimestamp = function(v){
 	_.assert(v > 0)
 	var t = this.timestamps[v]
+	if(t === undefined){
+		_.errout('no timestamp found for version: ' + v)
+	}
 	_.assertNumber(t)
 	_.assert(t > 0)
 	return t
@@ -313,7 +353,7 @@ Ol.prototype.getSyncIds = function(id, cb){
 		//console.log(JSON.stringify(edits))
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
-			if(e.op === 'setSyncId'){
+			if(e.op === editCodes.setSyncId){
 				var syncId = e.edit.syncId
 				if(has[syncId] === undefined){
 					has[syncId] = true
@@ -337,7 +377,7 @@ Ol.prototype.getVersions = function(id, cb){
 			var version = e.editId
 			if(has[version] === undefined){
 				has[version] = true
-				//console.log('adding version: ' + JSON.stringify(e))
+				console.log('adding version: ' + JSON.stringify(e))
 				versions.push(version)
 			}
 		}
@@ -364,7 +404,9 @@ Ol.prototype.getLastVersion = function(id, cb){
 }
 Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 	_.assertNumber(timestamp)
-	if(op === 'make'){
+	_.assertInt(op)
+	
+	if(op === editCodes.make){
 		_.assert(syncId > 0)
 		return this._make(edit, timestamp, syncId)
 	}
@@ -378,7 +420,7 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 
 	if(objCurrentSyncId !== syncId){
 		_.assert(syncId > 0)
-		this.olc.addEdit(id, {op: 'setSyncId', edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
+		this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
 		this.objectCurrentSyncId[id] = syncId
 		++this.readers.lastVersionId
 	}
@@ -386,30 +428,32 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 	var res = {editId: this.readers.lastVersionId}
 	++this.readers.lastVersionId
 
-	this.timestamps[res.editId]  = timestamp
+	//if(pathsplicer.pathEditsLookup[op] === undefined){
+		this.timestamps[res.editId]  = timestamp
+	//}
 
-	if(op === 'addNew'){
-		op = 'addedNew'
+	if(op === editCodes.addNew){
+		op = editCodes.addedNew
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
-	}else if(op === 'replaceInternalNew' || op === 'replaceExternalNew'){
-		op = 'replacedNew'
+	}else if(op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
+		op = editCodes.replacedNew
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {typeCode: edit.typeCode, newId: res.id, oldId: edit.id}
-	}else if(op === 'setToNew'){
-		op = 'wasSetToNew'
+	}else if(op === editCodes.setToNew){
+		op = editCodes.wasSetToNew
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {typeCode: edit.typeCode, id: res.id}
-	}else if(op === 'putNew'){
-		op = 'didPutNew'
+	}else if(op === editCodes.putNew){
+		op = editCodes.didPutNew
 		++this.idCounter
 		res.id = this.idCounter
 		_.assert(edit.typeCode > 0)
 		edit = {typeCode: edit.typeCode, id: res.id}
-	}else if(op === 'destroy'){
+	}else if(op === editCodes.destroy){
 		//_.errout('TODO')
 		this._destroy(id)
 	}
@@ -478,13 +522,15 @@ Ol.prototype.getObjectMetadata = function(id, cb){
 	/*if(this.destroyed[id]){
 		_.errout('id already destroyed: ' + id)
 	}*/
+
 	var pu = pathsplicer.make()
-	this.get(id, -1, -1, function(edits){
-		pu.updateAll(edits)
-	//	console.log('getting metadata: ' + id)
-		cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
-	})
+	var edits = this.olc.get(id)
+	pu.updateAll(edits)
+	return pu
+	
+	//cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
 }
+
 Ol.prototype.getObjectType = function(id){
 	_.assertLength(arguments, 1)
 
@@ -543,7 +589,7 @@ Ol.prototype.getAllObjectsOfType = function(typeCode, cb, doneCb){
 			cdl()
 			continue
 		}
-		this.get(id, -1, -1, function(obj){
+		this.getAll(id, function(obj){
 			cb(id, obj)
 			cdl()
 		});

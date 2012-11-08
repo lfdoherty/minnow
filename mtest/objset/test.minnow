@@ -7,3 +7,9 @@ entity 2
 	
 general() 100
 	s one(*obj) 1
+	
+blah 4
+	numbers set:int 1		
+adder() 101
+	plussed each(*blah.numbers,{add(1,~)}) 1
+

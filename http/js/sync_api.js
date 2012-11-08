@@ -16,68 +16,23 @@ var jsonutil = require('./jsonutil')
 function setPropertyValue(obj, code, value){
 	obj[code] = value;
 }
-/*
-function _delayEmit(local, args){
-	this.parent._delayEmit(local, args)
-}*/
+
+var lookup = require('./lookup')
+
+var editCodes = lookup.codes
+var editNames = lookup.names
+_.assertObject(editCodes)
+_.assertObject(editNames)
+
 function emit(e, eventName){
-
-	var args = Array.prototype.slice.call(arguments, 0)
-
-	/*if(this._isPaused()){
-		this._delayEmit(this, args)//e, eventName)
-	}else{*/
-		this._doEmit.apply(this, args)//(e, eventName)
-	//}
-}
-/*function _isPaused(){
-	return this.parent._isPaused()
-}
-
-SyncApi.prototype._isPaused = function(){
-	return this.paused
-}
-
-SyncApi.prototype._delayEmit = function(local, args){
-	_.assert(this.paused)
-	if(this.waitingEvents === undefined) this.waitingEvents = []
-	this.waitingEvents.push([local, args])
-}*/
-
-function _doEmit(e, eventName){
 	var afterCallbacks = []
-	
-	//console.log('emitting ' + eventName)
-	
-	var args = Array.prototype.slice.call(arguments, 2)
-	/*
-	if(eventName === 'set'){
-		var value = args[1]
-		if(_.isObject(value)) value.prepare()
-	}else if(eventName === 'add'){
-		var value = args[0]
-		if(_.isObject(value)) value.prepare()
-	}else if(eventName === 'remove'){
-		var value = args[0]
-		if(_.isObject(value)) value.prepare()
-	}else if(eventName === 'put'){
-		var key = args[0]
-		var value = args[1]
-		var oldValue = args[2]
-		if(_.isObject(key)) key.prepare()
-		if(_.isObject(value)) value.prepare()
-		if(_.isObject(oldValue)) oldValue.prepare()
-	}else if(eventName === 'put-add'){
 
-	}else if(eventName === 'put-remove'){
-		var key = args[0]
-		var value = args[1]
-		if(_.isObject(key)) key.prepare()
-		if(_.isObject(value)) value.prepare()
-	}*/
+	var args
+	var emitArguments = arguments
 	
 	var t = this
 	function callListener(listener){
+		if(args === undefined) args = Array.prototype.slice.call(emitArguments, 2)
 		var af = listener.apply(t, args)
 		if(af) afterCallbacks.push(af)
 	}
@@ -185,7 +140,7 @@ function addRefreshFunctions(classPrototype){
 	if(classPrototype.once === undefined) classPrototype.once = once;
 	if(classPrototype.off === undefined) classPrototype.off = off;
 	if(classPrototype.emit === undefined) classPrototype.emit = emit;
-	if(classPrototype._doEmit === undefined) classPrototype._doEmit = _doEmit
+	//if(classPrototype._doEmit === undefined) classPrototype._doEmit = _doEmit
 	//if(classPrototype._delayEmit === undefined) classPrototype._delayEmit = _delayEmit
 	//if(classPrototype._isPaused === undefined) classPrototype._isPaused = _isPaused
 }
@@ -200,7 +155,7 @@ function prepareStub(){
 
 function persistEdit(op, edit){
 	_.assertLength(arguments, 2)
-	_.assertString(op)
+	_.assertInt(op)
 	_.assertObject(edit)
 	return this.parent.persistEdit(op, edit)
 }
@@ -210,17 +165,17 @@ function adjustPathToSelf(){
 	//console.log('adjusted path to self: ' + JSON.stringify(remaining))
 	if(remaining.length > 0){
 		if(remaining.length === 1){
-			this.persistEdit('ascend1', {})
+			this.persistEdit(editCodes.ascend1, {})
 		}else if(remaining.length === 2){
-			this.persistEdit('ascend2', {})
+			this.persistEdit(editCodes.ascend2, {})
 		}else if(remaining.length === 3){
-			this.persistEdit('ascend3', {})
+			this.persistEdit(editCodes.ascend3, {})
 		}else if(remaining.length === 4){
-			this.persistEdit('ascend4', {})
+			this.persistEdit(editCodes.ascend4, {})
 		}else if(remaining.length === 5){
-			this.persistEdit('ascend5', {})
+			this.persistEdit(editCodes.ascend5, {})
 		}else{
-			this.persistEdit('ascend', {many: remaining.length})
+			this.persistEdit(editCodes.ascend, {many: remaining.length})
 		}
 	}
 }
@@ -241,7 +196,7 @@ function _makeAndSaveNew(json, type){
 	if(edits.length > 0){
 		//this.adjustPath(temporary)
 		this.parent.adjustPath(this.part)
-		this.persistEdit('selectObject', {id: temporary})
+		this.persistEdit(editCodes.selectObject, {id: temporary})
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
@@ -253,7 +208,7 @@ function _makeAndSaveNew(json, type){
 	this.objectApiCache[temporary] = n;
 	this.saveTemporaryForLookup(temporary, n, this)
 	
-	console.log('made and saved new: '+ temporary)
+	//console.log('made and saved new: '+ temporary)
 	
 	n.prepare()
 	
@@ -282,7 +237,7 @@ function versions(){
 
 function revert(editId){
 	this.adjustPathToSelf()
-	this.persistEdit('revert', {version: editId})
+	this.persistEdit(editCodes.revert, {version: editId})
 	//_.errout('TODO')
 }
 
@@ -434,7 +389,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 		if(obj.pathEdits === undefined) obj.pathEdits = []//TODO?
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
-			if(e.op === 'setSyncId'){
+			if(e.op === editCodes.setSyncId){
 				curSyncId = e.edit.syncId
 			}else{
 				//console.log('e; ' + JSON.stringify(e))
@@ -505,7 +460,7 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 
 		_.assert(id !== 0)
 		_.assertInt(id)
-		this.sh.persistEdit('selectTopObject', {id: id})
+		this.sh.persistEdit(editCodes.selectTopObject, {id: id})
 	}
 	this.sh.persistEdit(op, edit)
 }
@@ -530,14 +485,14 @@ SyncApi.prototype._destroyed = function(objHandle){
 
 SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertLength(arguments, 3);
-	_.assertString(op);
+	_.assertInt(op);
 	_.assertInt(editId);
 
-	if(op === 'destroy' && this.currentSyncId === this.getEditingId()){
+	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
 	}
 
-	if(this.currentTopObject && op !== 'selectTopObject' && op !== 'selectTopViewObject' && op !== 'setSyncId'){
+	if(this.currentTopObject && op !== editCodes.selectTopObject && op !== editCodes.selectTopViewObject && op !== editCodes.setSyncId){
 		if(this.currentTopObject === DESTROYED_REMOTELY){
 			_.errout('could not execute edit, server error, object already destroyed removely: ' + op + ' ' + JSON.stringify(edit) + ' ' + this.currentSyncId + ' ' + editId)
 		}else if(this.currentTopObject === DESTROYED_LOCALLY){
@@ -547,7 +502,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	}
 
 	//this.log.info(this.uid+' SyncApi changeListener: ' + op + ' ', arguments)
-	//console.log('*** ' + op + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
+	//console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
 
 	//var hereKey = op+editId+JSON.stringify(edit)
 	//if(this.lastKey === hereKey){
@@ -572,12 +527,12 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		local.objectApiCache[id] = n;
 	}
 	
-	if(op === 'madeViewObject'){
+	if(op === editCodes.madeViewObject){
 		//if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		var n = makeViewObject(edit.typeCode, edit.id)
 		this.currentTopObject = n
 		return
-	}else if(op === 'selectTopObject'){
+	}else if(op === editCodes.selectTopObject){
 		//if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		try{
 			this.currentTopObject = this.getObjectApi(edit.id)
@@ -587,7 +542,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 			this.currentTopObject = undefined
 		}
 		return
-	}else if(op === 'selectTopViewObject'){
+	}else if(op === editCodes.selectTopViewObject){
 		//if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		this.currentTopObject = this.getObjectApi(edit.id)
 		this.currentTopObject.pathEdits = undefined
@@ -595,7 +550,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		//_.assertUndefined(this.currentTopObject.pathEdits)
 		//this.currentTopObject.pathEdits = undefined
 		return
-	}else if(op === 'setSyncId'){
+	}else if(op === editCodes.setSyncId){
 		this.currentSyncId = edit.syncId
 		return
 	}
@@ -605,7 +560,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		return
 	}
 	
-	if(op === 'destroy'){
+	if(op === editCodes.destroy){
 		var id = this.currentTopObject.id()
 		delete this.objectApiCache[id]
 		delete this.snap.objects[id]
@@ -628,6 +583,7 @@ SyncApi.prototype.setEditingId = function(editingId){
 SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	_.assertLength(arguments, 4)
 	_.assertString(typeName)
+	_.assertObject(obj)
 
 	var temporary = this.makeTemporaryId()
 	
@@ -728,7 +684,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 		}
 
 		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
-		//console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
+		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
 		console.log(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
 		return
@@ -736,11 +692,11 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){
 	//console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
 	
-	if(obj[0].op === 'destroy'){
+	if(obj[0].op === editCodes.destroy){
 		return
 	}
-
-	var typeCode = obj[0].op === 'madeViewObject' ? obj[0].edit.typeCode : obj[1].edit.typeCode//first edit is a made op
+	//console.log(JSON.stringify(obj))
+	var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
 	var t = this.schema._byCode[typeCode];
 
 	if(t === undefined) _.errout('cannot find object type: ' + typeCode);

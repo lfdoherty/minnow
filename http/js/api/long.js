@@ -3,10 +3,18 @@
 var u = require('./util')
 var _ = require('underscorem')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 function LongHandle(typeSchema, obj, part, parent){
 	this.part = part;
 	this.obj = obj;
 	this.parent = parent;
+
+	if(this.isView()){
+		this.set = u.viewReadonlyFunction
+	}
+
 }
 LongHandle.prototype.value = function(){
 	//console.log('returning value: ' + this.obj)
@@ -19,7 +27,7 @@ LongHandle.prototype.set = function(v){
 	this.obj = v;
 	
 	var e = {value: this.obj}
-	this.saveEdit('setLong', e)
+	this.saveEdit(editCodes.setLong, e)
 		
 	this.emit(e, 'set', v)//()
 }

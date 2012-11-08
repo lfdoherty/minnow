@@ -5,19 +5,29 @@ var u = require('./util')
 
 var api = require('./../sync_api')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
 
 function MapHandle(typeSchema, obj, part, parent){
 	this.part = part;
 	this.obj = obj || {};
 	this.parent = parent;
 	this.schema = typeSchema;
+	this.typeSchema = typeSchema
 	
 	this.log = this.parent.log
 
 	this.keyOp = u.getKeyOperator(this.schema)
+	this.keyReOp = u.getKeyReOperator(this.schema)
 	
 	if(this.schema.type.value.type === 'primitive'){
 		this.putOp = u.getPutOperator(this.schema)
+	}
+
+	if(this.isView()){
+		this.put = u.viewReadonlyFunction
+		this.del = u.viewReadonlyFunction
+		this.putNew = u.viewReadonlyFunction
 	}
 }
 
@@ -80,7 +90,7 @@ MapHandle.prototype.each = function(cb){
 	}else{
 		Object.keys(this.obj).forEach(function(key){
 			var idOrValue = local.obj[key];
-			console.log(key + ' ' + JSON.stringify(Object.keys(local.obj)))
+			//console.log(key + ' ' + JSON.stringify(Object.keys(local.obj)))
 			_.assertDefined(idOrValue)
 			if(typeof(idOrValue) === 'number'){
 				var a = local.apiCache[idOrValue];
@@ -111,15 +121,15 @@ MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
 		if(remainingCurrentPath.length > 1){
 			if(remainingCurrentPath.length < 6){
 				//this.log('primitive ascending ' + remainingCurrentPath[0])
-				this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
+				this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-1)], {})
 			}else{
-				this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
+				this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
 			}
 		}else{
 			//this.log('reselecting')
 			//console.log('reselecting')
 		}
-		this.persistEdit('re'+this.keyOp, {key: key})
+		this.persistEdit(this.keyReOp, {key: key})
 		return []
 	}else{
 		//this.log('same')
@@ -142,19 +152,19 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 			if(remainingCurrentPath.length > 1){
 				if(remainingCurrentPath.length < 6){
 					//this.log('primitive ascending ' + remainingCurrentPath[0])
-					this.persistEdit('ascend'+(remainingCurrentPath.length-1), {})
+					this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-1)], {})
 				}else{
-					this.persistEdit('ascend', {many: remainingCurrentPath.length-1})
+					this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
 				}
 			}else{
 				//this.log('reselecting')
 				//console.log('reselecting')
 			}
 		
-			this.persistEdit('re'+this.keyOp, {key: key})
+			this.persistEdit(editCodes['re'+this.keyOp], {key: key})
 			return []
 		}else{
-			this.log('same')
+			//this.log('same')
 			return remainingCurrentPath.slice(1)
 		}
 	}else{
@@ -163,7 +173,7 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 
 		var remainingCurrentPath = this.parent.adjustPath(this.part)
 		if(remainingCurrentPath.length !== 0){
-			this.persistEdit('ascend', {many: remainingCurrentPath.length})
+			this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length})
 		}
 		return []
 	}
@@ -172,13 +182,18 @@ MapHandle.prototype.del = function(key){
 
 	this.adjustPathLocal(key)
 	var e = {key: key};
-	this.persistEdit('delKey', {})
+	this.persistEdit(editCodes.delKey, {})
 	delete this.obj[key]
 		
 	this.emit(e, 'del', key)//()
 }
 
 MapHandle.prototype.put = function(newKey, newValue){
+	if(newKey._internalId){
+		newKey = newKey._internalId()
+	}
+	_.assertPrimitive(newKey)
+
 	if(this.obj[newKey] === newValue) return
 
 	this.adjustPathLocal(newKey)
@@ -188,7 +203,7 @@ MapHandle.prototype.put = function(newKey, newValue){
 		_.assertInt(newValue.objectId)
 		
 		var e = {id: newValue.objectId};
-		this.persistEdit('putExisting', e)
+		this.persistEdit(editCodes.putExisting, e)
 		this.obj[newKey] = newValue
 		
 	}else{
@@ -214,7 +229,7 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	
 	this.adjustPathLocal(newKey)
 	var e = {typeCode: type.code};
-	this.persistEdit('putNew', e)
+	this.persistEdit(editCodes.putNew, e)
 
 	var n = this._makeAndSaveNew(json, type)
 	this.obj[newKey] = n
@@ -350,7 +365,7 @@ MapHandle.prototype.toJson = function(){
 		}
 	}else{
 		this.each(function(key, value){
-				console.log(key + '->'+value)
+			//console.log(key + '->'+value)
 			result[key] = value.toJson();
 		});
 	}
@@ -374,17 +389,17 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 	
 	//console.log(JSON.stringify([key, op, edit, syncId, editId]))
 
-	if(op.indexOf('putAddExisting') === 0){
+	if(op === editCodes.putAddExisting){
 		//_.errout('TODO')
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.id)
 		return this.emit(edit, 'put-add')//, key, value, editId)
-	}else if(op.indexOf('putAdd') === 0){
+	}else if(lookup.isPutAddCode[op]){//op.indexOf('putAdd') === 0){
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.value)
 		//this.log('key: ' + key)
 		return this.emit(edit, 'put-add', key, edit.value, editId)
-	}else if(op.indexOf('putRemove') === 0){
+	}else if(lookup.isPutRemoveCode[op]){//op.indexOf('putRemove') === 0){
 		//if(this.obj[key] === undefined) this.obj[key] = []
 		var list = this.obj[key]
 		list.splice(list.indexOf(edit.value), 1)//.push(edit.value)
@@ -398,7 +413,7 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		if(list.length === 0){
 			this.emit(edit, 'del', key, editId)
 		}
-	}else if(op === 'didPutNew'){
+	}else if(op === editCodes.didPutNew){
 		/*this.obj[key] = edit.value;
 		this.log('key: ' + key)
 		return this.emit(edit, 'put')*/
@@ -422,7 +437,7 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 			res.prepare()
 			return this.emit(edit, 'put', key, res, old, editId)
 		}
-	}else if(op === 'putViewObject'){
+	}else if(op === editCodes.putViewObject){
 		var id = edit.id
 		_.assertString(id)
 
@@ -432,34 +447,36 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		res.prepare()
 		return this.emit(edit, 'put', key, res, old, editId)
 		
-	}else if(op === 'putExisting'){
+	}else if(op === editCodes.putExisting){
 		var old = this.obj[key]
 		//console.log(op + ' ' + this.keyOp + ' ' + edit.id)
 	//	_.assertDefined(edit.value)
 		var value = this.obj[key] = this.getObjectApi(edit.id);
 		_.assertDefined(value)
 		//this.log('key: ' + key)
-		if(this.keyOp === 'selectObjectKey'){
+		if(this.keyOp === editCodes.selectObjectKey){
 			var wrappedKey = this.getObjectApi(key);
 			wrappedKey.prepare()
 			return this.emit(edit, 'put', wrappedKey, value, old, editId)
 		}else{
 			return this.emit(edit, 'put', key, value, old, editId)
 		}
-	}else if(op.indexOf('put') === 0){
+	}else if(lookup.isPutCode[op]){//op.indexOf('put') === 0){
 		var old = this.obj[key]
 		//console.log(op + ' ' + this.keyOp)
 		_.assertDefined(edit.value)
 		this.obj[key] = edit.value;
 		//this.log('key: ' + key)
-		if(this.keyOp === 'selectObjectKey'){
+		if(this.keyOp === editCodes.selectObjectKey){
+			//console.log('key: ' + key)
 			var wrappedKey = this.getObjectApi(key);
+			_.assertObject(wrappedKey)
 			wrappedKey.prepare()
 			return this.emit(edit, 'put', wrappedKey, edit.value, old, editId)
 		}else{
 			return this.emit(edit, 'put', key, edit.value, old, editId)
 		}
-	}else if(op === 'delKey'){
+	}else if(op === editCodes.delKey){
 		//console.log('key: ' + key)		
 		delete this.obj[key]
 		return this.emit(edit, 'del', editId)

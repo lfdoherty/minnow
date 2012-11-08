@@ -16,6 +16,12 @@ var pathmerger = require('./pathmerger')
 
 var seedrandom = require('seedrandom')
 
+
+var editFp = require('./tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
+
 var log = require('quicklog').make('minnow/server')
 /*
 var old = Array.prototype.indexOf
@@ -122,7 +128,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
 				_.assertInt(id)
-				_.assertString(op)				
+				_.assertInt(op)				
 				_.assertArray(path)
 				_.assertInt(syncId);
 				//_.assertFunction(cb)
@@ -130,7 +136,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//log.info('adding edit: ', [id, path, op, edit, syncId])
 				//console.log('adding edit: ', JSON.stringify([id, path, op, edit, syncId]))
 				
-				if(op === 'make'){
+				if(op === editCodes.make){
 					var id = objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId)
 					if(!edit.forget){
 						//objectSubscribers[syncId](id)//, objectState.getCurrentEditId()-1)
@@ -184,7 +190,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					//_.assertInt(up.syncId)
 					if(currentSyncId !== up.syncId){
 						currentSyncId = up.syncId
-						listenerCb('setSyncId', {syncId: up.syncId}, up.editId)					
+						listenerCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
 					}
 
 
@@ -192,10 +198,10 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 						if(currentResponseId !== up.id){
 							if(_.isString(up.id)){
-								listenerCb('selectTopViewObject', {id: up.id}, up.editId)					
+								listenerCb(editCodes.selectTopViewObject, {id: up.id}, up.editId)					
 								curPath = []
 							}else{
-								listenerCb('selectTopObject', {id: up.id},  up.editId)					
+								listenerCb(editCodes.selectTopObject, {id: up.id},  up.editId)					
 								//curPath = []
 							}
 						}
@@ -292,9 +298,9 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					//console.log(JSON.stringify(e))
 
 					//console.log(new Error().stack)
-					if(e.path){
+					if(e.path){//TODO is this really necessary here?  shouldn't it be redundant?
 						e.path.forEach(function(ep){
-							if(ep.op === 'selectObjectKey'){
+							if(ep.op === editCodes.selectObjectKey || e.op === editCodes.reselectObjectKey){
 								//console.log("selecting object key")
 								includeObjectCb(ep.edit.key, function(){//TODO also listen?
 								})

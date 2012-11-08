@@ -7,6 +7,9 @@ module.exports = PrimitiveListHandle
 var stub = function(){}
 function readonlyError(){_.errout('readonly');}
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 	
 	this.part = part;
@@ -28,6 +31,13 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 	this.addOp = u.getAddOperator(typeSchema)
 	this.removeOp = u.getRemoveOperator(typeSchema)
 	
+	if(this.isView()){
+		this.set = u.viewReadonlyFunction
+		this.add = u.viewReadonlyFunction
+		this.remove = u.viewReadonlyFunction
+		this.shift = u.viewReadonlyFunction
+	}
+
 	////this.obj.forEach(function(r){
 	//	_.assert(r != null)
 	//})
@@ -106,7 +116,7 @@ PrimitiveListHandle.prototype.shift = function(){
 	if(this.obj.length < 1) _.errout('cannot shift empty list')
 	
 	var e = {}
-	this.saveEdit('shift', e);
+	this.saveEdit(editCodes.shift, e);
 
 	var v = this.obj.shift();
 		
@@ -129,7 +139,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 
 	if(this.latestVersionId < editId) this.latestVersionId = editId
 		
-	if(op.indexOf('add') === 0){
+	if(lookup.isPrimitiveAddCode[op]){//op.indexOf('add') === 0){
 		if(this.getEditingId() !== syncId){
 			//this.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
 			//console.log(JSON.stringify([op, edit, syncId, editId]))
@@ -141,7 +151,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 		}else{
 			return stub;
 		}
-	}else if(op === 'shift'){
+	}else if(op === editCodes.shift){
 		if(this.getEditingId() !== syncId){
 
 			_.assert(this.obj.length >= 1);
@@ -152,7 +162,7 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 		}else{
 			return stub;
 		}
-	}else if(op.indexOf('remove') === 0){
+	}else if(lookup.isPrimitiveRemoveCode[op]){//op.indexOf('remove') === 0){
 		if(this.getEditingId() !== syncId){
 			var index = this.obj.indexOf(edit.value);
 			if(index === -1){

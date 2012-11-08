@@ -75,7 +75,7 @@ exports.mapReduce = function(config, done){
 				var expected = {a: 37, b: 50, c: 21}
 				poll(function(){
 					if(c.oldestWithKey.size() === 3){
-						//console.log(JSON.stringify(c.oldestWithKey.toJson()))
+						console.log(JSON.stringify(c.oldestWithKey.toJson()))
 						var data = c.oldestWithKey.toJson()
 						var failed = false
 						_.each(data, function(age, key){
@@ -256,6 +256,32 @@ exports.mapMerge = function(config, done){
 						var ca = v.make('entity', {key: 'leo', value: 'bill'})
 						var cont = v.make('container')
 						cont.members.put('sally', ca)
+					})
+				})
+			})
+		})
+	})
+}
+
+
+exports.zeroKey = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('zeroCheck', function(err, c){
+
+				poll(function(){
+					console.log('many: ' + c.m.size() + ' ' + JSON.stringify(c.toJson()))
+					if(c.m.size() === 3){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var a = v.make('zb', {key: 1, value:'a'})
+						var b = v.make('zb', {key: 0, value: 'b'})
+						var ca = v.make('zb', {key: 2, value: 'c'})
 					})
 				})
 			})

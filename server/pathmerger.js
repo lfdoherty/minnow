@@ -7,21 +7,37 @@ function stub(){}
 
 var log = require('quicklog').make('minnow/pathmerger')
 
+var editFp = require('./tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
 function editsAreDifferent(op, a, b){
-	if(op === 'selectStringKey' || op === 'selectObjectKey' || op === 'selectIntKey' || op === 'reselectStringKey') return a.key !== b.key
-	else if(op === 'selectProperty' || op === 'reselectProperty') return a.typeCode !== b.typeCode
-	else if(op === 'selectObject' || op === 'reselectObject') return a.id !== b.id
+	if(editFp.isKeySelectCode[op]){//op === 'selectStringKey' || op === 'selectObjectKey' || op === 'selectIntKey' || op === 'reselectStringKey') {
+		return a.key !== b.key
+	}
+	else if(op === editCodes.selectProperty || op === editCodes.reselectProperty) return a.typeCode !== b.typeCode
+	else if(op === editCodes.selectObject || op === editCodes.reselectObject) return a.id !== b.id
 	console.log(op)
 	return JSON.stringify(a) !== JSON.stringify(b)
 }
 
 function differentPathEdits(a, b){
-	var opsDifferent = a.op !== b.op
-	if(opsDifferent && a.op.substr(0,2) === 're') opsDifferent = a.op.substr(2) === b.op
-	if(opsDifferent && b.op.substr(0,2) === 're') opsDifferent = b.op.substr(2) === a.op
+	if(a.op === b.op) return editsAreDifferent(a.op, a.edit, b.edit)//false
+
+	/*if( (editFp.isKeySelectCode[a.op] && editFp.isKeyReselectCode[b.op]) || 
+		(editFp.isKeyReselectCode[a.op] && editFp.isKeySelectCode[b.op]) ||
+		(a.op === editCodes.selectProperty && b.op === editCodes.reselectProperty) ||
+		(a.op === editCodes.reselectProperty && b.op === editCodes.selectProperty)){
+		return false
+	}*/
+	if(editFp.flipType[a.op] === b.op) return editsAreDifferent(a.op, a.edit, b.edit)//false
+	return true
+	//if(opsDifferent && b.op.substr(0,2) === 're') opsDifferent = b.op.substr(2) !== a.op
 	//&& (a.op.substr(0,2) === 're' && a.op.substr(2) !== b.op) && b.op.substr(2) !== a.op)
-	if(opsDifferent || editsAreDifferent(a.op, a.edit, b.edit)) return true//JSON.stringify(a.edit) !== JSON.stringify(b.edit)) return true
+	//if(opsDifferent || editsAreDifferent(a.op, a.edit, b.edit)) return true//JSON.stringify(a.edit) !== JSON.stringify(b.edit)) return true
 }
+
+exports.differentPathEdits = differentPathEdits
 
 function editToMatch(curPath, newPath, cb){
 	//console.log('editing to match: ' + JSON.stringify(curPath) + ' ' + JSON.stringify(newPath))
@@ -38,10 +54,10 @@ function editToMatch(curPath, newPath, cb){
 		var many = curPath.length-(sameIndex+1)
 		if(many === 1 && curPath.length === newPath.length){
 			var newOp = newPath[newPath.length-1].op
-			var oldOp = curPath[newPath.length-1].op
-			if(newOp === oldOp || (newOp.indexOf('re') === 0 && newOp.substr(2) === oldOp)){
+			var oldOp = curPath[newPath.length-1].op//TODO optimize
+			if(newOp === oldOp || (editNames[newOp].indexOf('re') === 0 && editNames[newOp].substr(2) === editNames[oldOp])){
 				var op = newOp
-				if(newOp.indexOf('re') !== 0) op = 're'+op
+				if(editNames[newOp].indexOf('re') !== 0) op = editCodes['re'+editNames[op]]
 				cb(op, newPath[newPath.length-1].edit)
 				return
 			}
@@ -49,9 +65,9 @@ function editToMatch(curPath, newPath, cb){
 		//console.log('ascending: ' + many)
 		//console.log(JSON.stringify([curPath,newPath]))
 		if(many === 1){
-			cb('ascend1', {})
+			cb(editCodes.ascend1, {})
 		}else{
-			cb('ascend', {many: many})
+			cb(editCodes.ascend, {many: many})
 		}
 		curPath = curPath.slice(0, sameIndex+1)
 	}
@@ -62,8 +78,8 @@ function editToMatch(curPath, newPath, cb){
 		for(var i=curPath.length;i<newPath.length;++i){
 			var pe = newPath[i]
 			_.assertObject(pe)
-			if(pe.op.indexOf('re') === 0){
-				cb(pe.op.substr(2), pe.edit)
+			if(editNames[pe.op].indexOf('re') === 0){
+				cb(editCodes[editNames[pe.op].substr(2)], pe.edit)
 			}else{
 				cb(pe.op, pe.edit)
 			}
@@ -85,14 +101,16 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 	
 	var olMap = {}
 	
-	function advance(id, typeCode, path, syncId){
-		var list = olMap[id]
+	function advance(id, typeCode, path, syncId, list){
+		//var list = olMap[id]
 		
 		var curPath = [].concat(path)
 
-		list.forEach(function(e){
+		//list.forEach(function(e){
+		for(var i=0;i<list.length;++i){
+			var e = list[i]
 
-			if(e.type === 'forgetTemporary'){
+			if(e.type === editCodes.forgetTemporary){
 				forgetTemporaryAp(e.real, e.temporary, e.syncId)
 			}
 			
@@ -114,25 +132,38 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 			if(e.edit){
 				callAp(typeCode, e.id, curPath, e.op, e.edit, e.syncId, e.computeTemporary, Date.now(), e.reifyCb)//TODO address serialization issue with timestamp
 			}
-		})
+		}
 		delete olMap[id]
 	}
 	function take(id, path, op, edit, syncId, computeTemporary, reifyCb){
-	//	_.assertFunction(cb)
-		var e = {id: id, op: op, edit: edit, syncId: syncId, path: path, computeTemporary: computeTemporary, reifyCb: reifyCb}//, cb: cb}
-
-		//for(var i=0;i<path.length;++i){_.assertObject(path[i]);}
 
 		if(olMap[id]){
+			var e = {id: id, op: op, edit: edit, syncId: syncId, path: path, computeTemporary: computeTemporary, reifyCb: reifyCb}//, cb: cb}
 			olMap[id].push(e)
 		}else{
-			olMap[id] = [e]
-			//console.log('taking: ' + JSON.stringify(e))
-			ol.getObjectMetadata(id, function(typeCode, path, syncId){
-				//console.log('GOT OBJECT METADATA', [id, path])
+			var pu = ol.getObjectMetadata(id, function(typeCode, path, syncId){
 				_.assertInt(typeCode)
-				advance(id, typeCode, path, syncId)
+				advance(id, typeCode, path, syncId, olMap[id])
 			})
+			if(pu){//fast-track when getObjectMetadata is a sync operation
+			
+				var typeCode = pu.getTypeCode()
+				var curPath = pu.getPath()
+				var previousSyncId = pu.getSyncId()
+				
+				editToMatch(curPath, path, function(op, edit){
+					saveAp(typeCode, id, op, edit, syncId, Date.now())//TODO address serialization issue
+				})
+				
+				//console.log(editNames[op])
+
+				if(edit){
+					callAp(typeCode, id, path, op, edit, syncId, computeTemporary, Date.now(), reifyCb)//TODO address serialization issue with timestamp
+				}
+			}else{
+				var e = {id: id, op: op, edit: edit, syncId: syncId, path: path, computeTemporary: computeTemporary, reifyCb: reifyCb}//, cb: cb}
+				olMap[id] = [e]
+			}
 		}
 	}
 	
@@ -144,7 +175,7 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 	take.forgetTemporary = function(real, temporary, syncId){
 		var m = olMap[real]
 		if(m){
-			m.push({type: 'forgetTemporary', real: real, temporary: temporary, syncId: syncId})
+			m.push({type: editCodes.forgetTemporary, real: real, temporary: temporary, syncId: syncId})
 		}else{
 			forgetTemporaryAp(real, temporary, syncId)
 		}

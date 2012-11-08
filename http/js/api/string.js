@@ -3,6 +3,9 @@
 var u = require('./util')
 var _ = require('underscorem')
 
+var lookup = require('./../lookup')
+var editCodes = lookup.codes
+
 function StringHandle(typeSchema, obj, part, parent){
 
 	this.part = part;
@@ -24,6 +27,10 @@ function StringHandle(typeSchema, obj, part, parent){
 		}
 	}
 	this.obj = obj;
+
+	if(this.isView()){
+		this.set = u.viewReadonlyFunction
+	}
 }
 StringHandle.prototype.set = function(str){
 	
@@ -36,7 +43,7 @@ StringHandle.prototype.set = function(str){
 	
 	var e = {value: this.obj}
 
-	this.saveEdit('setString', e);
+	this.saveEdit(editCodes.setString, e);
 		
 	this.emit(e, 'set', str)//()
 }

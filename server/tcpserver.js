@@ -18,6 +18,10 @@ var pathmerger = require('./pathmerger')
 
 var serializeViewObject = require('./view_sequencer').serializeViewObject
 
+var editFp = require('./tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
 var totalBytesReceived = 0
 var totalBytesSent = 0
 
@@ -77,14 +81,6 @@ function deserializeSnapshotVersionIds(b){
 }
 
 var logCounter = 0
-
-var pathControlEdits = [
-	'reset', 
-	'selectProperty', 'reselectProperty', 
-	'selectObject', 'reselectObject', 
-	'selectIntKey', 'selectStringKey', 'selectLongKey', 'selectBooleanKey',
-	'reselectIntKey', 'reselectStringKey', 'reselectLongKey', 'reselectBooleanKey',
-	'ascend', 'ascend1', 'ascend2', 'ascend3', 'ascend4', 'ascend5']
 
 var fp = shared.editFp
 	
@@ -146,7 +142,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 
 			//w.resetViewObject(update);
 			var tw = fparse.makeSingleBufferWriter()
-			serializeViewObject(tw, fp.codes, fp.writers, obj)
+			serializeViewObject(tw, fp.codes, fp.writersByCode, obj)
 			var edits = tw.finish()
 			
 			var ob = {
@@ -209,7 +205,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		var nkw = fparse.makeTemporaryBufferWriter(1024*1024)
 		function binEdit(op, edit){
 			//console.log('getting writer: ' + e.type)
-			fp.writers[op](nkw.w, edit)
+			fp.writersByCode[op](nkw.w, edit)
 			//return nw.finish()
 			return nkw.get()
 		}
@@ -220,7 +216,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 			
 			var destinationSyncId = this.syncId
 			
-			//log.info('sending update', [op, edit, editId, destinationSyncId])
+			//if(op === 118) _.assert(edit.key > 0)
+			
+			//console.log('sending update', [editNames[op], edit, editId, destinationSyncId])
 
 			if(w === undefined){
 				throw new Error('got update after already disconnected')
@@ -304,30 +302,33 @@ function createTcpServer(appSchema, port, s, readyCb){
 				rrk.put(e.edit)
 				var r = rrk.s
 
-				var op = opsByCode[e.op]
-				e.op = op
-				e.edit = fp.readers[op](r)
+				var op = e.op//opsByCode[e.op]
+				//e.op = op
+				e.edit = fp.readersByCode[op](r)
 				
 				var syncId = e.syncId
 				
 				//log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
-				//console.log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
+				//console.log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit ' + editNames[e.op] + ':', e)
 				//console.log('*path: ' + JSON.stringify(pathFromClientFor[syncId]))
-				if(op === 'selectTopObject'){
+				if(op === editCodes.selectTopObject){
 					if(currentIdFor[syncId] === e.edit.id){
 						console.log('WARNING: redundant selectTopObject edit?')//I'm not sure if this is really the case
 					}
 					//_.assert(e.edit.id > 0)
 					if(e.edit.id < 0){
-						currentIdFor[syncId] = reifications[e.edit.id]
+						var realId = reifications[e.edit.id]
+						_.assertInt(realId)
+						_.assert(realId > 0)
+						currentIdFor[syncId] = realId
 						//console.log('reifying: ' + e.edit.id + ' ' + JSON.stringify(reifications))
 						_.assert(currentIdFor[syncId] > 0)
 					}else{
 						currentIdFor[syncId] = e.edit.id
 					}
-					delete pathFromClientFor[syncId]
+					if(pathFromClientFor[syncId]) pathFromClientFor[syncId].reset()
 					return
-				}else if(op === 'selectTopViewObject'){
+				}else if(op === editCodes.selectTopViewObject){
 					_.errout('cannot modify view objects directly')
 				}
 				
@@ -350,7 +351,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					return
 				}
 				
-				if(op === 'make') currentId = -1
+				if(op === editCodes.make) currentId = -1
 				//_.assertInt(currentId)
 
 				var tg = getTemporaryGenerator(syncId)
@@ -363,15 +364,15 @@ function createTcpServer(appSchema, port, s, readyCb){
 					//console.log('storing reification ' + temporary + ' -> ' + id)
 					w.reifyObject(msg);
 				}
-				if(op === 'make'){
+				if(op === editCodes.make){
 
-					pathFromClientFor[syncId] = undefined
+					if(pathFromClientFor[syncId]) pathFromClientFor[syncId].reset()//pathFromClientFor[syncId] = undefined
 					
 					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
 					
 					//console.log('made: ' + id, ' now current id for: ' + syncId + ' ' + lastTemporaryId[syncId])
 					
-					reifications[lastTemporaryId[syncId]] = id
+					
 
 					currentIdFor[syncId] = id//this works because make can be executed synchronously
 					
@@ -379,6 +380,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				
 					if(!e.edit.forget){
 						//_.assertInt(id);
+						reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
 						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
 						_.assert(lastTemporaryId[syncId] < 0)
 						w.objectMade(msg);

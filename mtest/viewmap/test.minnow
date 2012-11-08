@@ -6,9 +6,16 @@ entity 2
 
 container 4
 	members string:entity 1
+
+zb 6
+	key int 1
+	value string 2
 	
 empty() 102
 
+zeroCheck() 107
+	m map(*zb,{~.key},{~.value}) 1
+	
 general() 100
 	s map(*entity,{~.key},{~.value}) 1
 generalTop() 101

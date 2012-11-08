@@ -7,6 +7,28 @@ var listenerSet = require('./../variable_listeners')
 
 var _ = require('underscorem')
 
+function makeKeyParser(kt){
+	var keyParser;
+	if(kt.type === 'object'){
+		keyParser = function(key){return parseInt(key);}
+	}else if(kt.type === 'primitive'){
+		if(kt.primitive === 'int'){
+			keyParser = function(key){return parseInt(key);}
+		}else if(kt.primitive === 'string'){
+			keyParser = function(key){return key;}
+		}else if(kt.primitive === 'long'){
+			keyParser = function(key){return Number(key);}
+		}else{
+			_.errout('TODO: ' + JSON.stringify(kt))
+		}
+	}else{
+		_.errout('TODO: ' + JSON.stringify(kt))
+	}
+	return keyParser
+}
+exports.makeKeyParser = makeKeyParser
+
+var mapSyncOptimization = require('./map_sync_optimization')
 
 function mapType(rel, ch){
 	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
@@ -38,6 +60,9 @@ function mapType(rel, ch){
 
 	return {type: 'map', key: keyType, value: valueType}
 }
+
+exports.mapType = mapType
+
 schema.addFunction('map', {
 	schemaType: mapType,
 	implementation: mapMaker,
@@ -46,28 +71,15 @@ schema.addFunction('map', {
 	callSyntax: 'map(collection,key-macro,value-macro[,reduce-macro])'
 })
 
-function makeKeyParser(kt){
-	var keyParser;
-	if(kt.type === 'object'){
-		keyParser = function(key){return parseInt(key);}
-	}else if(kt.type === 'primitive'){
-		if(kt.primitive === 'int'){
-			keyParser = function(key){return parseInt(key);}
-		}else if(kt.primitive === 'string'){
-			keyParser = function(key){return key;}
-		}else if(kt.primitive === 'long'){
-			keyParser = function(key){return Number(key);}
-		}else{
-			_.errout('TODO: ' + JSON.stringify(kt))
-		}
-	}else{
-		_.errout('TODO: ' + JSON.stringify(kt))
-	}
-	return keyParser
-}
-exports.makeKeyParser = makeKeyParser
+
 
 function mapMaker(s, self, rel, typeBindings){
+
+	try{
+		var res = mapSyncOptimization.make(s, self, rel, typeBindings)
+	}catch(e){}
+	if(res !== undefined) return res
+
 	var contextGetter = self(rel.params[0], typeBindings)
 
 	_.assert(rel.params[1].type === 'macro')
@@ -126,6 +138,8 @@ function mapMaker(s, self, rel, typeBindings){
 		if(kt.type === 'set' || kt.type === 'list'){
 			return svgMapKeyMultiple.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
 		}else{
+
+
 			return svgMapSingle.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond)
 		}
 	}

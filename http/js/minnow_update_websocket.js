@@ -16,6 +16,10 @@ var shared = require('./update_shared')
 
 var WebSocket = global.WebSocket
 
+var lookup = require('./lookup')
+var editCodes = lookup.codes
+
+
 function getCookieToken(){
 	var si = document.cookie.indexOf('SID=')
 	console.log('token: ' + document.cookie)
@@ -142,7 +146,7 @@ function establishSocket(appName, schema, host, cb){
 			send(e)
 		},
 		persistEdit: function(op, edit){
-			_.assertString(op)
+			_.assertInt(op)
 			_.assertObject(edit)
 			console.log('sending edit: ' + JSON.stringify({op: op, edit: edit}))
 			send({data: {op: op, edit: edit}});
@@ -155,7 +159,7 @@ function establishSocket(appName, schema, host, cb){
 
 			var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
 
-			sendFacade.persistEdit('make', {typeCode: st.code, forget: forget})
+			sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget})
 
 			if(cb) {
 				makeIdCbListeners[temporary] = cb

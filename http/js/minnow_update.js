@@ -19,6 +19,9 @@ exports.establishSocket = establishSocket
 
 var shared = require('./update_shared')
 
+var lookup = require('./lookup')
+var editCodes = lookup.codes
+
 function establishSocket(appName, schema, host, cb){
 	if(arguments.length !== 4) throw new Error(arguments.length)
 	
@@ -70,7 +73,7 @@ function establishSocket(appName, schema, host, cb){
 
 				var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
 
-				sendFacade.persistEdit('make', {typeCode: st.code, forget: forget})
+				sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget})
 
 				if(cb) {
 					makeIdCbListeners[temporary] = cb

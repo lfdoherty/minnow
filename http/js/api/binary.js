@@ -8,7 +8,14 @@ function BinaryHandle(typeSchema, obj, part, parent){
 	this.part = part;
 	this.parent = parent;
 	_.assertObject(parent);
-
+	
+	if(this.isView()){
+		this.truncate = u.viewReadonlyFunction
+		this.append = u.viewReadonlyFunction
+		this.write = u.viewReadonlyFunction
+		this.set = u.viewReadonlyFunction
+	}
+	
 	this.obj = obj;
 }
 BinaryHandle.prototype.value = function(){

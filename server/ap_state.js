@@ -14,6 +14,10 @@ var indexingStub = {
 
 var log = require('quicklog').make('minnow/ap')
 
+var editFp = require('./tcp_shared').editFp
+var editCodes = editFp.codes
+var editNames = editFp.names
+
 var pathControlEdits = {}
 
 var pce = ['reset', 
@@ -21,11 +25,13 @@ var pce = ['reset',
 	'selectObject', 'reselectObject', 
 	'selectIntKey', 'selectStringKey', 'selectLongKey', 'selectBooleanKey',
 	'reselectIntKey', 'reselectStringKey', 'reselectLongKey', 'reselectBooleanKey',
+	'selectObjectKey', 'reselectObjectKey',
 	'ascend', 'ascend1', 'ascend2', 'ascend3', 'ascend4', 'ascend5']
 
 pce.forEach(function(v){
-		pathControlEdits[v] = true
+		pathControlEdits[editCodes[v]] = true
 })
+
 
 function make(schema, ol){
 	
@@ -100,14 +106,19 @@ function make(schema, ol){
 
 	function saveEdit(typeCode, id, op, e, syncId, timestamp){
 		_.assertNumber(timestamp)
+		_.assertInt(op)
 		//TODO selectTopObject?
 		
 		//console.log('saving edit: ', id, op, e, syncId)
 
-		if(op === 'selectObject'){
+		if(op === editCodes.selectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === 'reselectObject'){
+		}else if(op === editCodes.reselectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
+		}else if(op === editCodes.selectObjectKey){
+			if(e.key < 0) e.key = translateTemporary(e.key, syncId)
+		}else if(op === editCodes.reselectObjectKey){
+			if(e.key < 0) e.key = translateTemporary(e.key, syncId)
 		}
 
 		
@@ -117,7 +128,7 @@ function make(schema, ol){
 			currentId = id
 		}
 		
-		ap[op](e)
+		ap[editNames[op]](e)
 
 		var n = ol.persist(id, op, e, syncId, timestamp)
 
@@ -134,51 +145,29 @@ function make(schema, ol){
 		_.assertInt(typeCode)
 		_.assertInt(syncId);
 		_.assertArray(path)
-		_.assertString(op);
 		_.assertFunction(computeTemporary)
 		_.assertNumber(timestamp)
+		_.assertInt(id)
 		
 		//_.assertFunction(cb)
 		
+		_.assertInt(op)
+		
 		var e = edit
 		
-		_.assert(!pathControlEdits[op])//.indexOf(op) === -1)
-
-		
-		/*if(op === 'setString'){
-		}else if(op === 'setInt'){
-		}else if(op === 'setLong'){
-		}else if(op === 'setBoolean'){
-		}else if(op === 'putNew'){
-		}else if(op === 'putString'){
-		}else if(op === 'putInt'){
-		}else if(op === 'putLong'){
-		}else if(op === 'putBoolean'){
-		}else if(op === 'del'){
-		}else */if(op === 'setObject'){
+		if(pathControlEdits[op]){
+			_.errout('invalid path edit being persisted instead of saved: ' + editNames[op])
+		}
+		if(op === editCodes.setObject){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}/*else if(op === 'setData'){
-		}else if(op === 'truncate'){
-		}else if(op === 'append'){
-		}else if(op === 'writeData'){
-		}else if(op === 'addString'){
-		}else if(op === 'addInt'){
-		}else if(op === 'addLong'){
-		}else if(op === 'addBoolean'){
-		}else if(op === 'shift'){
-		}else if(op === 'setToNew'){
-		}*/else if(op === 'addNew'){
-			_.assert(e.typeCode > 0)
-		}else if(op === 'putNew'){
-			_.assert(e.typeCode > 0)
-		}else if(op === 'putExisting'){
+		}else if(op === editCodes.putExisting){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === 'addExisting'){
+		}else if(op === editCodes.addExisting){
 			_.assert(e.id !== -1)
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === 'replaceInternalExisting'){
+		}else if(op === editCodes.replaceInternalExisting){
 			if(e.newId < 0){
 				e.newId = translateTemporary(e.newId, syncId)
 			}
@@ -186,63 +175,37 @@ function make(schema, ol){
 				e.oldId = translateTemporary(e.oldId, syncId)
 			}
 			ap.replaceInternalExisting(e)
-		}else if(op === 'replaceExternalExisting'){
+		}else if(op === editCodes.replaceExternalExisting){
 			if(e.newId < 0){
 				e.newId = translateTemporary(e.newId, syncId)
 			}
 			if(e.oldId < 0){
 				e.oldId = translateTemporary(e.oldId, syncId)
 			}
-		}/*else if(op === 'removeString'){
-		}else if(op === 'removeInt'){
-		}else if(op === 'removeLong'){
-		}else if(op === 'removeBoolean'){
-		}*/else if(op === 'remove'){
+		}else if(op === editCodes.remove){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}/*else if(op === 'removePrimitive'){
-		}*/else if(op === 'replaceInternalNew'){
+		}else if(op === editCodes.replaceInternalNew){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}else if(op === 'replaceExternalNew'){
+		}else if(op === editCodes.replaceExternalNew){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}else if(op === 'selectProperty'){
-			_.assert(e.typeCode > 0)
-		}else if(op === 'reselectProperty'){
-			_.assert(e.typeCode > 0)
-		}else if(op === 'selectObject'){
+		}else if(op === editCodes.selectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === 'reselectObject'){
+		}else if(op === editCodes.reselectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}/*else if(op === 'selectStringKey'){
-		}else if(op === 'selectIntKey'){
-		}else if(op === 'selectLongKey'){
-		}else if(op === 'selectBooleanKey'){
-		}else if(op === 'reselectStringKey'){
-		}else if(op === 'reselectIntKey'){
-		}else if(op === 'reselectLongKey'){
-		}else if(op === 'reselectBooleanKey'){
-		}else if(op === 'ascend1'){
-		}else if(op === 'ascend2'){
-		}else if(op === 'ascend3'){
-		}else if(op === 'ascend4'){
-		}else if(op === 'ascend5'){
-		}else if(op === 'ascend'){
-		}else if(op === 'make'){
-		}else if(op === 'destroy'){
-		}else{
-			_.errout('TODO implement op: ' + op);
-		}*/
+		}
 
-		if(op !== 'make' && id < -1){//note that -1 is not a valid temporary id - that is reserved
-			_.assertInt(id)
+		if(op !== editCodes.make && id < -1){//note that -1 is not a valid temporary id - that is reserved
+			//_.assertInt(id)
 			var newId = translateTemporary(id, syncId);
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
 			id = newId;
+			_.assertInt(id)
 		}
 		
 		if(currentSyncId !== syncId){
@@ -250,81 +213,67 @@ function make(schema, ol){
 			currentSyncId = syncId
 		}
 				
+		_.assertInt(id)
+		//console.log(editNames[op])
 		var n = ol.persist(id, op, edit, syncId, timestamp)
 		var newId = n.id//may be undefined if not applicable for the edit type
 		var editId = n.editId
 		var realOp = n.op
 		var realEdit = n.edit
 
-		if(op === 'make'){
+		if(op === editCodes.make){
 			currentId = newId
 		}else if(currentId !== id && id !== -1){
 			ap.selectTopObject({id: id})
 			//console.log('wrote selectTopObject(' + id + ')')
-			log('wrote selectTopObject(' + id + ')')
+			//log('wrote selectTopObject(' + id + ')')
 			currentId = id
 		}
 		
-		if(op === 'putNew'){
+		if(op === editCodes.putNew){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)
-		}else if(op === 'setToNew'){
+		}else if(op === editCodes.setToNew){
 			e.id = newId
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)
-		}else if(op === 'addNew' || op === 'replaceInternalNew' || op === 'replaceExternalNew'){
+		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)
-		}/*else if(op === 'replaceInternalNew'){
-			var temporary = computeTemporary()
-			mapTemporary(temporary, newId, syncId)
-		}else if(op === 'replaceExternalNew'){
-			var temporary = computeTemporary()
-			mapTemporary(temporary, newId, syncId)
-		}*/else if(op === 'setToNew'){
+		}else if(op === editCodes.setToNew){
 			var temporary = computeTemporary()
 			e.id = newId
-			//e.temporary
 			if(reifyCb) reifyCb(temporary, newId)
 		}
 			
-		log(editId, id, path, op, edit, syncId)
+		//log(editId, id, path, op, edit, syncId)
 		
-		ap[op](e)
+		ap[editNames[op]](e)
 	
-		if(op === 'make'){
+		if(op === editCodes.make){
 
 			var temporary = computeTemporary()
-			_.assertInt(temporary)
-			_.assertInt(newId)
+			//_.assertInt(temporary)
+			//_.assertInt(newId)
 			mapTemporary(temporary, newId, syncId)
 			
-			//if(cb) cb({editId: editId, id: newId, temporary: temporary});
-			_.assert(newId >= 0)
-			//es.objectCreated(edit.typeCode, newId, editId)
-			log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId)
-			//console.log('object created: ' + e.typeCode + ' ' + newId + ' ' + editId+ ' ' + temporary + ' ' + syncId)
+			//_.assert(newId >= 0)
 			broadcaster.input.objectCreated(e.typeCode, newId, editId)
 			return newId;
 		}
 		
-		if(op === 'destroy'){
+		if(op === editCodes.destroy){
 			broadcaster.input.objectDeleted(typeCode, id, editId)
 		}
 
-		_.assertInt(id);
+		//_.assertInt(id);
 	
-		//es.objectChanged(id, realOp, realEdit, syncId, editId)
-
 		broadcaster.input.objectUpdated(e.typeCode, id, realOp, realEdit, syncId, editId)	
 
 		broadcaster.input.objectChanged(typeCode, id, path, realOp, realEdit, syncId, editId)	
-		
-		//if(cb) cb({editId: editId})
-		//return newId
 	}		
 	var externalHandle = {
 		setBroadcaster: function(b){
