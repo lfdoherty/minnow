@@ -300,7 +300,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 	}
 	
 	var key = elements.key+cKeyGetter.key+cValueGetter.key
-	console.log('single map key: ' + key)
+	//console.log('single map key: ' + key)
 	if(reduceGetter !== undefined) key += cReduceGetter.key
 	
 	if(cache.has(key)) return cache.get(key)

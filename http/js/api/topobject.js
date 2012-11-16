@@ -54,7 +54,7 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id){
 	if(this.isView()){
 		//console.log('is view object: ' + typeSchema.name)
 		this.clearProperty = u.viewReadonlyFunction
-		this.setProperty = u.viewReadonlyFunction
+		//this.setProperty = u.viewReadonlyFunction
 		this.del = u.viewReadonlyFunction
 		this.revert = u.viewReadonlyFunction
 	}
@@ -271,6 +271,7 @@ TopObjectHandle.prototype.hasProperty = ObjectHandle.prototype.hasProperty;
 TopObjectHandle.prototype.has = ObjectHandle.prototype.has;
 
 TopObjectHandle.prototype.setProperty = ObjectHandle.prototype.setProperty
+TopObjectHandle.prototype.setPropertyToNew = ObjectHandle.prototype.setPropertyToNew
 
 TopObjectHandle.prototype.delayRefresh = function(){
 	this.refreshDelayed = true;

@@ -25,6 +25,10 @@ var editNames = editFp.names
 var totalBytesReceived = 0
 var totalBytesSent = 0
 
+var WriteFlushInterval = 10
+
+var RandomFailureDelay = 100000
+
 function makeServer(appSchema, appMacros, dataDir, port, readyCb){
 	_.assertLength(arguments, 5);
 	_.assertInt(port);
@@ -109,186 +113,310 @@ function createTcpServer(appSchema, port, s, readyCb){
 		}
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
 	}
-	
+
+	var liveConnections = {}//index for reconnection	
+
+	var isClosed = false
 
 	var tcpServer = net.createServer(function(c){
+
+		if(isClosed){
+			_.errout('getting connection despite server being closed')
+		}
+		
+		var isDead = false
 	
+		var connectionId
+		
 		c.on('error', function(e){
-			console.log('ERROR: ' + e)
-			
+			console.log('tcp server error: ' + e + ' ' + require('util').inspect(e))
+			if((''+e) === 'Error: This socket is closed.'){
+				_.assert(isDead)
+			}
+			//_.assert(isDead)
 		})
+		
+		var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
+		var randomHandle = setTimeout(function(){
+			console.log('server randomly destroyed tcp connection: ' + connectionId)
+			c.destroy()
+		},randomFailureDelay)
 
 		var ws = quicklog.make('minnow/tcp server->client.' + (++logCounter))
 	
 		log('tcp server got connection')
 		
 		connections.push(c)
-
-		var syncId = s.makeSyncId()
 		
-		var eHandle = {syncId: syncId}
-		var wrappedListenerCb = sendEditUpdate.bind(eHandle)
-		function wrappedObjCb(ob){
-			//console.log('sending: ' + JSON.stringify(ob).substr(0,100))
-			sendObject(syncId, ob)
-		}
-		
-		function viewObjectCb(id, obj, syncId){//TODO find a more optimal way (binary serialization, etc.)
-			_.assertInt(syncId)
-			///var update = {
-			//	id: id,
-			//	data: JSON.stringify(obj)
-			//}
-
-			//w.resetViewObject(update);
-			var tw = fparse.makeSingleBufferWriter()
-			serializeViewObject(tw, fp.codes, fp.writersByCode, obj)
-			var edits = tw.finish()
-			
-			var ob = {
-				id: id,
-				edits: edits,
-				destinationSyncId: syncId,
-			}
-			w.updateViewObject(ob);
-		}
-
-		s.beginSync(syncId, wrappedListenerCb, wrappedObjCb, viewObjectCb)
-		
-		var setupStr = JSON.stringify({syncId: syncId, schema: appSchema})
-		var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
-		var setupBuffer = new Buffer(setupByteLength+8)
-		bin.writeInt(setupBuffer, 0, setupByteLength)
-		setupBuffer.write(setupStr, 8)
-		
-		c.write(setupBuffer)
-
-		var wfs = fparse.makeWriteStream(shared.serverResponses, {
-			write: function(buf){
-				c.write(buf);
-				totalBytesSent += buf.length
-				//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes sent: ' + totalBytesSent);
-			},
-			end: function(){
-				//TODO?
-			}
-		})
-		
-		var w = wfs.fs
-		
-		wfs.beginFrame()
-		w.flush = function(){
-			wfs.endFrame()
-			wfs.beginFrame()
-		}
-		w.end = function(){}
-				
-		var flushHandle = setInterval(function(){
-			w.flush()
-		},10)
-
-		
-		//var viewHandles = []
-		//var syncHandles = []
-		
-		//these are the *incoming* edit's path state
-		var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
-		
-		function sendObject(syncId, ob){
-			_.assertBuffer(ob.edits)
-			ws('sending object: ' + ob.id)
-			//console.log('sending object: ' + ob.id)
-			ob.destinationSyncId = syncId
-			w.updateObject(ob);
-		}
-		//var nw = fparse.makeReusableBufferWriter(1024*1024)
-		var nkw = fparse.makeTemporaryBufferWriter(1024*1024)
-		function binEdit(op, edit){
-			//console.log('getting writer: ' + e.type)
-			fp.writersByCode[op](nkw.w, edit)
-			//return nw.finish()
-			return nkw.get()
-		}
-		
-		//var curPath = []
-		function sendEditUpdate(op, edit, editId){
-			_.assertLength(arguments, 3)
-			
-			var destinationSyncId = this.syncId
-			
-			//if(op === 118) _.assert(edit.key > 0)
-			
-			//console.log('sending update', [editNames[op], edit, editId, destinationSyncId])
-
-			if(w === undefined){
-				throw new Error('got update after already disconnected')
-			}
-			
-			sendUpdate(op, edit, editId, destinationSyncId)
-			
-		}
-		function sendUpdate(op, edit, editId, destinationSyncId){
-			_.assertLength(arguments, 4)
-			_.assert(destinationSyncId > 0)
-			//console.log('writing edit', op, edit, syncId, editId, destinationSyncId)
-			//console.log(new Error().stack)
-			
-			var binaryEdit = binEdit(op, edit)
-			if(syncId === undefined) syncId = -1
-			_.assertInt(editId)
-			var update = {
-				op: op,
-				edit: binaryEdit,
-				//syncId: syncId, 
-				editId: editId,
-				destinationSyncId: destinationSyncId};
-
-			w.update(update);
-		}
-		function sendReady(e){
-			//_.assertArray(updatePacket)
-			//log('sending ready')
-			var msg = {requestId: e.requestId}//)//, updatePacket: JSON.stringify(updatePacket)}
-			w.ready(msg)
-			w.flush();
-		}
-		
+		//var w
 		var rrk = fparse.makeRs()
+
+		function setupConnection(){
+			var syncId = s.makeSyncId()
 		
-		var opsByCode = {}
-		Object.keys(shared.editSchema._byCode).forEach(function(key){
-			opsByCode[key] = shared.editSchema._byCode[key].name
-		})
+			var eHandle = {syncId: syncId}
+			var wrappedListenerCb = sendEditUpdate.bind(eHandle)
+			function wrappedObjCb(ob){
+				//console.log('sending: ' + JSON.stringify(ob).substr(0,100))
+				sendObject(syncId, ob)
+			}
 		
-		var pathFromClientFor = {}
-		var currentIdFor = {}
+			function viewObjectCb(id, obj, syncId){//TODO find a more optimal way (binary serialization, etc.)
+				_.assertInt(syncId)
+
+				var tw = fparse.makeSingleBufferWriter()
+				serializeViewObject(tw, fp.codes, fp.writersByCode, obj)
+				var edits = tw.finish()
+			
+				var ob = {
+					id: id,
+					edits: edits,
+					destinationSyncId: syncId,
+				}
+				w.updateViewObject(ob);
+			}
+
+			s.beginSync(syncId, wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
-		var reifications = {}
+			var setupStr = JSON.stringify({syncId: syncId, schema: appSchema})
+			var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
+			var setupBuffer = new Buffer(setupByteLength+8)
+			bin.writeInt(setupBuffer, 0, setupByteLength)
+			setupBuffer.write(setupStr, 8)
 		
+			c.write(setupBuffer)
+
+			var wHandle = {
+				write: function(buf){
+					if(this.c.isDead) _.errout('should not be writing to a dead socket')
+					this.c.write(buf);
+					//console.log('wfs writing to c: ' + buf.length)
+					totalBytesSent += buf.length
+				},
+				end: function(){
+					//TODO?
+				},
+				c: c
+			}
+			var wfs = fparse.makeReplayableWriteStream(shared.serverResponses, wHandle)
+			wfs.wHandle = wHandle
+		
+			/*
+			var wfs = fparse.makeWriteStream(shared.serverResponses, {
+				write: function(buf){
+					c.write(buf);
+					totalBytesSent += buf.length
+					//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes sent: ' + totalBytesSent);
+				},
+				end: function(){
+					//TODO?
+				}
+			})*/
+		
+			var w = wfs.fs
+		
+			wfs.beginFrame()
+			w.flush = function(){
+				//if(wfs.hasWritten()){
+					wfs.endFrame()
+					wfs.beginFrame()
+				//}
+			}
+			w.end = function(){}
+				
+			var flushHandle = setInterval(function(){
+				w.flush()
+			},WriteFlushInterval)
+		
+			//these are the *incoming* edit's path state
+			var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
+		
+			function sendObject(syncId, ob){
+				_.assertBuffer(ob.edits)
+				ws('sending object: ' + ob.id)
+				//console.log('sending object: ' + ob.id)
+				ob.destinationSyncId = syncId
+				conn.w.updateObject(ob);
+			}
+
+			var nkw = fparse.makeTemporaryBufferWriter(1024*1024)
+			function binEdit(op, edit){
+				//console.log('getting writer: ' + e.type)
+				fp.writersByCode[op](nkw.w, edit)
+				return nkw.get()
+			}
+		
+			function sendEditUpdate(op, edit, editId){
+				_.assertLength(arguments, 3)
+			
+				var destinationSyncId = this.syncId
+			
+				if(w === undefined){
+					throw new Error('got update after already disconnected')
+				}
+			
+				sendUpdate(op, edit, editId, destinationSyncId)
+			
+			}
+			function sendUpdate(op, edit, editId, destinationSyncId){
+				_.assertLength(arguments, 4)
+				_.assert(destinationSyncId > 0)
+				//console.log('writing edit', op, edit, syncId, editId, destinationSyncId)
+				//console.log(new Error().stack)
+			
+				var binaryEdit = binEdit(op, edit)
+				if(syncId === undefined) syncId = -1
+				_.assertInt(editId)
+				var update = {
+					op: op,
+					edit: binaryEdit,
+					editId: editId,
+					destinationSyncId: destinationSyncId
+				};
+
+				w.update(update);
+			}
+			function sendReady(e){
+				//_.assertArray(updatePacket)
+				//log('sending ready')
+				var msg = {requestId: e.requestId}
+				w.ready(msg)
+				w.flush();
+			}
+		
+		
+			var opsByCode = {}
+			Object.keys(shared.editSchema._byCode).forEach(function(key){
+				opsByCode[key] = shared.editSchema._byCode[key].name
+			})
+		
+			//var pathFromClientFor = {}
+			//var currentIdFor = {}
+		
+			//var reifications = {}
+			
+			return {
+				wfs: wfs,
+				flushHandle: flushHandle,
+				sendReady: sendReady,
+				sendEditUpdate: sendEditUpdate,
+				viewObjectCb: viewObjectCb,
+				sendObject: sendObject,
+				currentIdFor: {},
+				pathFromClientFor: {},
+				reifications: {},
+				lastAck: 0,
+				lastOutgoingAck: 0,
+				outgoingAckHistory: 0,
+				w: w
+			}
+		}
+		var conn
+				
+		//var lastAck = 0
 		var reader = {
+			increaseAck: function(e){
+				//console.log(e.frameCount + ' -> ' + conn.lastAck)
+				if(e.frameCount > conn.lastAck){
+					conn.wfs.discardReplayableFrames(e.frameCount - conn.lastAck)
+					conn.lastAck = e.frameCount
+				}
+			},
+			reconnect: function(e){
+				if(isDead) throw new Error('tried to reconnect via dead client?')
+				
+				connectionId = e.connectionId
+				
+				console.log('server got reconnect request: ' + e.connectionId)
+				conn = liveConnections[e.connectionId]
+				if(conn){
+					conn.wfs.wHandle.c = c//adjust writer to send to the new socket
+					conn.w = conn.wfs.fs
+					
+					
+					//TODO replay server->client messages
+					if(e.manyServerMessagesReceived > conn.lastAck){
+						console.log('discarding frames: ' + (e.manyServerMessagesReceived - conn.lastAck) + ' (' + conn.lastAck + ')')
+						conn.wfs.discardReplayableFrames(e.manyServerMessagesReceived - conn.lastAck)
+						conn.lastAck = e.manyServerMessagesReceived
+					}
+					conn.wfs.replay()
+					
+
+					//inform client how many messages the server has received from them so far					
+					console.log('server confirming reconnect: ' + (conn.deser.getFrameCount() + conn.outgoingAckHistory)+' '+conn.deser.getFrameCount()+' '+ conn.outgoingAckHistory)
+					conn.w.confirmReconnect({
+						manyClientMessagesReceived: conn.deser.getFrameCount() + conn.outgoingAckHistory
+					})
+					conn.w.flush()
+
+					conn.lastOutgoingAck = conn.deser.getFrameCount() + conn.outgoingAckHistory
+
+					conn.deser = deser
+
+					//conn.lastOutgoingAck += conn.deser.getFrameCount()
+					
+					//setIntervalf()
+					conn.flushHandle = setInterval(function(){
+						conn.w.flush()
+					},10)
+
+					if(conn.randomHandle !== undefined){
+						clearTimeout(conn.randomHandle)
+					}
+			
+					var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
+					conn.randomHandle = setTimeout(function(){
+						console.log('*server randomly destroyed tcp connection')
+						c.destroy()
+					},randomFailureDelay)
+					
+					conn.outgoingAckHistory = conn.lastOutgoingAck - 1//the -1 is to adjust for the reconnect which the new deser will be counting, but the client won't
+					
+					startAck(deser, c)
+
+				}else{
+					_.errout('TODO')
+				}
+			},
+			originalConnection: function(){
+			
+				console.log('got original connection')
+
+				conn = setupConnection()
+
+				conn.deser = deser
+				
+				conn.randomHandle = randomHandle
+
+				connectionId = 'r'+Math.random()
+				conn.w.setup({serverInstanceUid: s.serverInstanceUid(), connectionId: connectionId});
+				conn.w.flush()
+		
+				liveConnections[connectionId] = conn
+
+				startAck(deser, c)
+
+			},
 			beginSync: function(e){
 				var syncId = s.makeSyncId()
 				var ne = {syncId: syncId}
-				var updater = sendEditUpdate.bind(ne)
+				var updater = conn.sendEditUpdate.bind(ne)
 				function objectUpdater(ob){
-					sendObject(syncId, ob)
+					conn.sendObject(syncId, ob)
 				}
 				function viewObjectUpdater(id, obj, syncId){
 					_.assertInt(syncId)
-					//sendObject(syncId, ob)
-					viewObjectCb(id, obj, syncId)
+					conn.viewObjectCb(id, obj, syncId)
 				}
 				s.beginSync(syncId, updater, objectUpdater, viewObjectUpdater);
 				_.assert(e.requestId > 0)
 				var msg = {requestId: e.requestId, syncId: syncId}
-				//serverResponses.writers.newSyncId(w, msg)
-				w.newSyncId(msg)
-				w.flush();
+				conn.w.newSyncId(msg)
+				conn.w.flush();
 			},
 			beginView: function(e){
-				s.beginView(e, sendReady.bind(undefined, e));
-				//_.assertObject(viewHandle)
-				//viewHandles.push(viewHandle)
+				s.beginView(e, conn.sendReady.bind(undefined, e));
 			},
 			endView: function(e){
 			},
@@ -302,8 +430,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				rrk.put(e.edit)
 				var r = rrk.s
 
-				var op = e.op//opsByCode[e.op]
-				//e.op = op
+				var op = e.op
 				e.edit = fp.readersByCode[op](r)
 				
 				var syncId = e.syncId
@@ -312,31 +439,31 @@ function createTcpServer(appSchema, port, s, readyCb){
 				//console.log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit ' + editNames[e.op] + ':', e)
 				//console.log('*path: ' + JSON.stringify(pathFromClientFor[syncId]))
 				if(op === editCodes.selectTopObject){
-					if(currentIdFor[syncId] === e.edit.id){
+					if(conn.currentIdFor[syncId] === e.edit.id){
 						console.log('WARNING: redundant selectTopObject edit?')//I'm not sure if this is really the case
 					}
 					//_.assert(e.edit.id > 0)
 					if(e.edit.id < 0){
-						var realId = reifications[e.edit.id]
+						var realId = conn.reifications[e.edit.id]
 						_.assertInt(realId)
 						_.assert(realId > 0)
-						currentIdFor[syncId] = realId
+						conn.currentIdFor[syncId] = realId
 						//console.log('reifying: ' + e.edit.id + ' ' + JSON.stringify(reifications))
-						_.assert(currentIdFor[syncId] > 0)
+						_.assert(conn.currentIdFor[syncId] > 0)
 					}else{
-						currentIdFor[syncId] = e.edit.id
+						conn.currentIdFor[syncId] = e.edit.id
 					}
-					if(pathFromClientFor[syncId]) pathFromClientFor[syncId].reset()
+					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
 					return
 				}else if(op === editCodes.selectTopViewObject){
 					_.errout('cannot modify view objects directly')
 				}
 				
-				var currentId = currentIdFor[syncId]
+				var currentId = conn.currentIdFor[syncId]
 
-				var pu = pathFromClientFor[syncId]
+				var pu = conn.pathFromClientFor[syncId]
 				if(pu === undefined){
-					pu = pathFromClientFor[syncId] = pathsplicer.make([])
+					pu = conn.pathFromClientFor[syncId] = pathsplicer.make([])
 				}
 				var wasPathUpdate = pu.update(e)
 				
@@ -360,13 +487,13 @@ function createTcpServer(appSchema, port, s, readyCb){
 				function reifyCb(temporary, id){
 					_.assert(temporary < 0)
 					var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
-					reifications[temporary] = id
+					conn.reifications[temporary] = id
 					//console.log('storing reification ' + temporary + ' -> ' + id)
-					w.reifyObject(msg);
+					conn.w.reifyObject(msg);
 				}
 				if(op === editCodes.make){
 
-					if(pathFromClientFor[syncId]) pathFromClientFor[syncId].reset()//pathFromClientFor[syncId] = undefined
+					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
 					
 					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
 					
@@ -374,16 +501,16 @@ function createTcpServer(appSchema, port, s, readyCb){
 					
 					
 
-					currentIdFor[syncId] = id//this works because make can be executed synchronously
+					conn.currentIdFor[syncId] = id//this works because make can be executed synchronously
 					
 					//console.log('last temporary id(' + syncId + '): ' + tg)
 				
 					if(!e.edit.forget){
 						//_.assertInt(id);
-						reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
+						conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
 						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
 						_.assert(lastTemporaryId[syncId] < 0)
-						w.objectMade(msg);
+						conn.w.objectMade(msg);
 					}
 				}else{
 					if(currentId === undefined){
@@ -423,22 +550,21 @@ function createTcpServer(appSchema, port, s, readyCb){
 					
 					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList)}
 					res.requestId = e.requestId;
-					w.gotSnapshots(res);
-					//serverResponses.writers.gotSnapshots(w, res)
-					w.flush();
+					conn.w.gotSnapshots(res);
+					conn.w.flush();
 				});
-			},//makeRequestWrapper('getSnapshots', 'gotSnapshots'),
+			},
 			getAllSnapshots: function(e){
 				e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
 				s.getAllSnapshots(e, function(err, res){
 					if(err){
-						w.requestError({err: ''+err, requestId: e.requestId, code: err.code||'UNKNOWN'})
+						conn.w.requestError({err: ''+err, requestId: e.requestId, code: err.code||'UNKNOWN'})
 						return
 					}
 					res.requestId = e.requestId;
 					res.snapshots = serializeAllSnapshots(res.snapshots)
-					w.gotAllSnapshots(res);
-					w.flush();
+					conn.w.gotAllSnapshots(res);
+					conn.w.flush();
 				});
 			},
 			getSnapshot: function(e){
@@ -448,41 +574,69 @@ function createTcpServer(appSchema, port, s, readyCb){
 						w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
 						return
 					}
-					//res.snap = serializeSnapshot(res.snap)
 					var msg = {snap: res, requestId: e.requestId}
-					w.gotSnapshot(msg);
-					w.flush();
+					conn.w.gotSnapshot(msg);
+					conn.w.flush();
 				});
 			}
 		}
 		
 		function cleanupClient(){
-			log('client closed')
-			if(c.isDead){
+			console.log('client closed')
+			if(isDead){
+				console.log('already closed')
 				return
 			}
 			c.isDead = true
-			clearInterval(flushHandle)
-			//viewHandles.forEach(function(sh){
-			//	sh.end()
-			//})
-			//activeSyncIds.forEach(function(syncId){
-			//	sh.endSync(syncId)
-			//})
-			s.end()
+			isDead = true
+			if(conn){
+				clearInterval(conn.flushHandle)
 			
-			w.end(undefined, true)
-			w = undefined
+				clearInterval(conn.randomHandle)
+				clearInterval(conn.ackHandle)
+				conn.randomHandle = undefined
+			}
+
 			connections.splice(connections.indexOf(c), 1)
+			deser = undefined
 		}
 		
 		c.on('close', cleanupClient)
-		c.on('end', cleanupClient);
+		c.on('end', function(){
+			cleanupClient()
+			
+			console.log('server ending the connection stream')
+			//console.log(new Error().stack)
+			
+			if(conn){
+				conn.w.end(undefined, true)
+				conn.w = undefined
+			}
+		});
 
 		var deser;
 		c.on('connect', function(){
-			deser = fparse.makeReadStream(shared.clientRequests, reader)
+			deser = fparse.makeReadStream(shared.clientRequests, reader)			
 		})
+		
+		function startAck(deser, c){
+			//last = last || 0
+			conn.ackHandle = setInterval(function(){
+				if(!conn) return
+				
+				if(isDead) _.errout('should have cancelled ack handle')
+				
+				var v = deser.getFrameCount() + conn.outgoingAckHistory
+				if(v > conn.lastOutgoingAck){
+					conn.w.increaseAck({frameCount: v})
+					//console.log('server increased ack: ' + v + ' -> ' + conn.lastOutgoingAck + ' (' + deser.getFrameCount() + ' ' +conn.outgoingAckHistory+')')
+					conn.lastOutgoingAck = v
+				}else{
+					_.assertEqual(v, conn.lastOutgoingAck)
+					//console.log('same: ' + v + ' ' + conn.lastOutgoingAck)
+				}
+			},100)
+		}
 		c.on('data', function(buf){
 			try{
 				deser(buf);
@@ -495,16 +649,19 @@ function createTcpServer(appSchema, port, s, readyCb){
 		})
 		
 		//console.log('writing setup')
-		w.setup({serverInstanceUid: s.serverInstanceUid(), schema: JSON.stringify(appSchema)});
-		w.flush()
+		
+		
 		//console.log('flushed setup')
 	});
 
 	tcpServer.on('close', function(){
-		log('TCP SERVER CLOSED')
+		console.log('TCP SERVER CLOSED')
 	})
 	var serverHandle = {
 		close: function(cb){
+			console.log('minnow server manually closed tcp server')
+			isClosed = true
+			
 			var cdl = _.latch(2, function(){
 				log('all closed')
 				cb()
@@ -513,7 +670,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				log('tcp server closed')
 				cdl()
 			})
-			log('closing tcp server: ', tcpServer.connections)
+			console.log('closing tcp server: ', tcpServer.connections)
 			
 			//apparently you cannot close a server until you've destroyed all its connections
 			//even if those connections were closed remotely???

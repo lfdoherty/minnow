@@ -308,7 +308,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 					var reduceParams = [v,nextValue]
 					v = reduceWrapper(reduceBindingWrappers, propertyValueMap, reduceParams)
 				}
-				console.log('reduced: ' + v + ' ' + keys.length)
+				//console.log('reduced: ' + v + ' ' + keys.length)
 				return v
 			}
 
@@ -358,7 +358,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 						}
 					}else{//value has been replaced, so we have to redo the entire reduce
 						var oldStateValue = state[keyResult]
-						console.log('replaced value: ' + valueResult + ' <- ' + oldValue)
+						//console.log('replaced value: ' + valueResult + ' <- ' + oldValue)
 						var newStateValue = state[keyResult] = reduceState(ms)
 						if(newStateValue !== oldStateValue){
 							listeners.emitPut(keyResult, newStateValue, oldStateValue, editId)
@@ -443,7 +443,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		removeView: listeners.emitRemoveView.bind(listeners)
 	}, editId)
 
-	console.log('successfully made sync optimized map')
+	//console.log('successfully made sync optimized map')
 	
 	return cache.store(key, handle)
 	//_.assertFunction(elements.descend)

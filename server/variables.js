@@ -302,6 +302,8 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 			paramGetters[i] = fixedObject.make(s)
 		}else if(param.type.type === 'map'){
 			paramGetters[i] = fixedMap.make(s)
+		}else if(param.type.type === 'set'){
+			paramGetters[i] = fixedSet.make(s)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(param))
 		}

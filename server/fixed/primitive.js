@@ -10,7 +10,7 @@ exports.make = function(s, value){
 	}
 }
 
-function sfgPrimitive(s, value, bindings, editId){
+function sfgPrimitive(s, value){
 	//s.log('value: ' + JSON.stringify(value))
 	var key = value+''
 	

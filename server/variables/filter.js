@@ -92,7 +92,7 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		},
 		includeView: stub,
 		removeView: stub
-	})
+	},editId)
 	
 	var handle = {
 		name: 'filter',

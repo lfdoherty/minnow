@@ -964,6 +964,10 @@ function computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc
 	var isInPc = false
 	var pc
 	
+	if(propertyCodes.indexOf(-1) !== -1) _.errout('TODO')
+	
+	_.assertEqual(res[1].op, editCodes.made)
+	
 	for(var i=0;i<res.length;++i){
 		var e = res[i]
 		//var ignorable = pu.update(e)

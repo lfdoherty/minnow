@@ -120,7 +120,7 @@ function translateParamObjects(s, params){
 
 	var manyParams = viewSchema.params.length
 	if(manyParams !== params.length){
-		_.errout('wrong number of params for ' + viewName + ' view (should be ' + manyParams + ', but is ' + params.length)
+		_.errout('wrong number of params for ' + viewSchema.name + ' view (should be ' + manyParams + ', but is ' + params.length + ')')
 	}	
 	
 	var res = []
@@ -128,8 +128,8 @@ function translateParamObjects(s, params){
 		if(p.type.type === 'object'){
 			var id = params[i]
 			if(!_.isInt(id)){
-				//res.push(id)				
-				if(_.isFunction(id.id)){
+				//res.push(id)	
+				if(id !== undefined && id.id !== undefined && _.isFunction(id.id)){
 					id = id.id()
 				}else{
 					throw new Error('invalid param value(' + i + '): ' + id)

@@ -21,7 +21,7 @@ exports.append = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')
@@ -53,7 +53,7 @@ exports.remove = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')
@@ -85,7 +85,7 @@ exports.removeNonexistent = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')
@@ -121,7 +121,7 @@ exports.appendAndAll = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')
@@ -153,7 +153,7 @@ exports.appendAndCreateAll = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')
@@ -192,7 +192,7 @@ exports.removeAndAll = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.add('test')

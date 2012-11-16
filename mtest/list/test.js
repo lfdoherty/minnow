@@ -24,7 +24,7 @@ exports.append = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var n = v.make('stringList')
-						v.primitiveList.set(n)
+						v.setProperty('primitiveList', n)
 						_.assertDefined(n)
 						_.assertDefined(n.data)
 						n.data.push('test')
@@ -54,7 +54,7 @@ exports.removePrimitive = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('stringList')
-						v.primitiveList.set(obj)
+						v.setProperty('primitiveList',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.push('a')
@@ -93,7 +93,7 @@ exports.shift = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var obj = v.make('stringList')
-						v.primitiveList.set(obj)
+						v.setProperty('primitiveList', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.push('a')

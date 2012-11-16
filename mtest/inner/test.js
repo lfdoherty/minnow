@@ -11,7 +11,7 @@ exports.inner = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
+					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s') && c.s.size() === 1){
 						var d;
 						//console.log('got s to 1')
@@ -26,7 +26,7 @@ exports.inner = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var n = c.make('entity', {value: 'test'})
-						var obj = n.other.setNew('membrance', {value: 'test2', other: n})
+						var obj = n.setPropertyToNew('other', 'membrance', {value: 'test2', other: n})
 					})
 				})
 			})
@@ -65,7 +65,7 @@ exports.innerToggle = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('gen', function(err, v){
 						var n = c.make('entity', {value: 'test'})
-						var obj = n.other.setNew('membrance', {value: 'test2', flag: true})
+						var obj = n.setPropertyToNew('other', 'membrance', {value: 'test2', flag: true})
 						
 						setTimeout(function(){
 							obj.flag.toggle()

@@ -405,7 +405,7 @@ ObjectHandle.prototype.replaceObjectHandle = function(oldHandle, newHandle, part
 	_.assertObject(newHandle)
 	this[property.name] = newHandle
 }
-
+/*
 ObjectHandle.prototype.set = function(objHandle){
 	if(this.isView()){//TODO verify from eventual server->client update
 		//this.log('is view, just setting')
@@ -439,8 +439,8 @@ ObjectHandle.prototype.set = function(objHandle){
 
 
 	return objHandle;
-}
-
+}*/
+/*
 ObjectHandle.prototype.setNew = function(typeName, json){
 	if(_.isObject(typeName)){
 		json = typeName
@@ -483,7 +483,7 @@ ObjectHandle.prototype.setNew = function(typeName, json){
 	
 	return n
 
-}
+}*/
 
 ObjectHandle.prototype.clearProperty = function(propertyName){
 	_.assertLength(arguments, 1)
@@ -505,17 +505,93 @@ ObjectHandle.prototype.clearProperty = function(propertyName){
 	this.emit({}, 'clearProperty', propertyName)
 }
 
+ObjectHandle.prototype.setPropertyToNew = function(propertyName, typeName, json){
+	if(_.isObject(typeName)){
+		json = typeName
+		typeName = undefined
+	}
+
+	var pt = this.typeSchema.properties[propertyName];
+	_.assertDefined(pt);
+		
+	json = json || {}
+	var type = u.getOnlyPossibleObjectPropertyType(this, pt, typeName);
+	
+	var remaining = this.adjustPath(pt.code)
+
+	//console.log('setting to new: ' + this.parent.prepared)
+	this.saveEdit(editCodes.setToNew, {typeCode: type.code})
+
+	var temporary = this.makeTemporaryId();
+	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this));
+
+	if(edits.length > 0){
+		//this.adjustPath(temporary)
+		this.saveEdit(editCodes.selectObject, {id: temporary})
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			this.persistEdit(e.op, e.edit)
+		}
+		this.saveEdit(editCodes.ascend1, {})
+	}
+	
+	//_.assert(this.part[0] > 0)
+
+	//						typeSchema, edits, objId, part, parent, isReadonlyIfEmpty){
+	
+	var n = new ObjectHandle(type, edits, temporary, [pt.code], this);
+	if(this.objectApiCache === undefined) this.objectApiCache = {}
+	this.objectApiCache[temporary] = n;
+	
+	n.prepare()
+
+	_.assertObject(n)
+
+	this.emit({}, 'setProperty', propertyName, n)//()
+	
+	//TODO rewrite parent property stuff
+	//this.parent.replaceObjectHandle(this, n, this.part)
+	this[propertyName] = n
+	
+	return n
+	
+	/*
+	var remaining = this.parent.adjustPath(this.part)
+	if(remaining.length === 0){
+		this.persistEdit('selectProperty', {typeCode: pt.code})
+	}else if(remaining[0] !== pt.code){
+		if(remaining.length > 1) this.ascendBy(remaining.length-1)
+		this.persistEdit('reselectProperty', {typeCode: pt.code})
+	}
+	this.persistEdit('setToNew', {newType: objectSchema.code, temporary: temporary})
+
+
+	delete this.cachedProperties[propertyName]
+	this[propertyName] = this.property(propertyName);
+
+	return this[propertyName];
+	*/
+}
+
 ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 	_.assertLength(arguments, 2)
+
+	var pt = this.typeSchema.properties[propertyName];
+	_.assertDefined(pt);
 	
 	if(this.typeSchema.isView){//TODO verify from eventual server->client update
 		//this.log('is view, just setting')
-		this.cachedProperties[propertyName] = newValue;
+		
+		if(pt.type.type === 'object'){
+			//this.replaceObjectHandle(this, newValue, this.part)
+			this[propertyName] = newValue
+		}else{
+
+			this.cachedProperties[propertyName] = newValue;
+		}
 		return
 	}
 	
-	var pt = this.typeSchema.properties[propertyName];
-	_.assertDefined(pt);
 	
 	if(pt.type.type === 'object'){
 	

@@ -21,6 +21,8 @@ var fp = shared.editFp
 var editCodes = fp.codes
 var editNames = fp.names
 
+var RandomFailureDelay = 100000
+
 function deserializeSnapshotVersionIds(buf){
 	var versions = []
 	var many = buf[0]
@@ -60,8 +62,7 @@ function deserializeSnapshotInternal(readers, readersByCode, names, rs){
 		var e = readers.selectTopObject(rs)
 		var id = e.id
 		objects[id] = edits
-		//var segmentLength = rs.readInt()//we just ignore this
-		//console.log('segment length: ' + )
+
 		var many = rs.readInt()
 		//console.log('many edits: ' + many)
 		for(var j=0;j<many;++j){
@@ -87,7 +88,6 @@ function deserializeSnapshotInternal(readers, readersByCode, names, rs){
 		for(var j=0;j<many;++j){
 			var code = rs.readByte()
 			var editId = rs.readInt()
-			//var name = names[code]
 			//console.log(JSON.stringify(names))
 			//if(name === undefined) _.errout(editId + ' cannot find name for code: ' + code)
 			var e = readersByCode[code](rs)
@@ -118,9 +118,6 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	var closed = {}
 	
-	//var makeCbListenersByRequestId = {}
-	//var makeCbListenersBySyncId = {}
-	
 	var callbacks = {};
 	var requestIdCounter = 1;
 	function applyRequestId(e, cb){
@@ -132,12 +129,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	function makeRequestId(){
 		var reqId = requestIdCounter;
 		++requestIdCounter;
-		//e.requestId = reqId;
 		return reqId
 	}
 	function getRequestCallback(e){
 		var cb = callbacks[e.requestId];
 		delete callbacks[e.requestId]
+		if(cb === undefined) console.log('unknown request id: ' + e.requestId)
 		return cb;
 	}
 	
@@ -147,8 +144,55 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	var updateReader = fparse.makeReusableSingleReader()
 	
+	var connectionId
+	
+	var manyReconnectRequests = 0
+	var manyReconnectConfirmations = 0
+	
+	var wasClosedManually = false
+	
+	var lastAck = 0
 	var reader = {
+		increaseAck: function(e){
+			if(e.frameCount > lastAck){
+				backingWriter.discardReplayableFrames(e.frameCount - lastAck)
+				lastAck = e.frameCount
+				//console.log('increased client ack: ' + lastAck + ', sent: ' + backingWriter.getFrameCount())
+			}
+		},	
+		confirmReconnect: function(e){
+			//_.errout('TODO?')
+			
+			if(!(clientDestroyed || clientEnded || clientClosed)){
+				_.errout('got reconnect without it being asked for? ' + manyReconnectRequests + ' ' + manyReconnectConfirmations)
+			}
+			
+			++manyReconnectConfirmations
+			
+			console.log('client got confirmReconnect')
+			_.assertInt(e.manyClientMessagesReceived)
+			if(lastAck < e.manyClientMessagesReceived){
+				console.log('actually server has more client frames: ' + (e.manyClientMessagesReceived - lastAck))
+				backingWriter.discardReplayableFrames(e.manyClientMessagesReceived - lastAck)
+				lastAck = e.manyClientMessagesReceived
+			}else{
+				_.assertEqual(lastAck, e.manyClientMessagesReceived)
+			}
+
+			clientDestroyed = false
+			clientEnded = false
+			clientClosed = false
+
+			console.log('replaying: ' + (backingWriter.getFrameCount() - lastAck) + ' (' + backingWriter.getFrameCount() + ' ' + lastAck + ')')
+
+			_.assert(backingWriter.getFrameCount() >= lastAck)
+			
+			backingWriter.replay()
+
+			startFlusher()
+		},
 		setup: function(e){
+			connectionId = e.connectionId
 			serverInstanceUid = e.serverInstanceUid;
 			_.assertString(serverInstanceUid);
 			//console.log('tcp client got setup')
@@ -166,7 +210,6 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			_.assertFunction(syncListenersBySyncId[e.syncId].make)
 			//_.assertFunction(syncListenersBySyncId[e.syncId].versionTimestamps)
 			delete syncListenersByRequestId[e.requestId]
-			//delete makeCbListenersByRequestId[e.requestId]
 			cb(e.syncId);
 		},
 		update: function(e){
@@ -179,8 +222,6 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			_.assertFunction(cb.edit);
 			_.assertFunction(cb.object);
 			
-			//var r = fparse.makeSingleReader(e.edit)
-			//e.edit = fp.readers[e.op](r)
 			updateReader.put(e.edit)
 			e.edit = fp.readersByCode[e.op](updateReader.s)
 			
@@ -258,21 +299,11 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//console.log('GOT BACK OBJECT MADE EVENT: ' + e.destinationSyncId + ' ' + JSON.stringify(Object.keys(syncListenersBySyncId)))
 			var makeCb = syncListenersBySyncId[e.destinationSyncId].make
 			makeCb(e.id, e.requestId, e.temporary)
-			//defaultMakeListener(e.id, e.requestId)//TODO shouldn't this depend on which syncId we're informing?
 		},
 		reifyObject: function(e){
 			var reifyCb = syncListenersBySyncId[e.destinationSyncId].reify
 			reifyCb(e.temporary, e.id)
 		},
-		/*gotVersionTimestamps: function(e){
-			var timestamps = []
-			for(var i=0;i<e.timestamps.length;i+=8){
-				timestamps.push(bin.readLong(e.timestamps, i))
-			}
-			//console.log('got version timestamps: ' + JSON.stringify(e.destinationSyncId) + ' ' + JSON.stringify(timestamps))
-			var vtListener = syncListenersBySyncId[e.destinationSyncId].versionTimestamps
-			vtListener(e.requestId, timestamps)
-		},*/
 		requestError: function(e){
 			log.err('ERROR: ' + e.err)
 			console.log('ERROR: ' + e.err + ' ' + e.code)
@@ -315,7 +346,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		}
 		return nb;
 	}
-	//var fp
+
 	deser = function(buf){//this handles the initial setup
 		if(firstBuf){
 			needed = schemaBufLength = bin.readInt(buf, 0)
@@ -343,48 +374,77 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	var clientEnded = false
 	var clientClosed = false
 	
-	var backingWriter
+	var backingWriter = fparse.makeReplayableWriteStream(shared.clientRequests, {
+		write: function(buf){
+			if(clientDestroyed || clientEnded || clientClosed){
+				console.log('WARNING: client already destroyed, discarding bytes to write: ' + buf.length)
+				//we just ignore for reconnect because we can go backingWriter.replay() at some point in the future
+				//once the reconnection client is available
+				return
+			}
+			client.write(buf);
+		},
+		end: function(){
+		}
+	});
+	
+	w = backingWriter.fs
+	backingWriter.beginFrame()
+	w.flush = function(){
+		//if(backingWriter.hasWritten()){
+			//console.log('writing frame')
+			backingWriter.endFrame()
+			backingWriter.beginFrame()
+		//}else{
+		//	console.log('nothing written')
+		//}
+	}	
+	
+	var increaseAckHandle
+	
 	function setupBasedOnSchema(schema){
 		log('setting up')
 		
 		handle.schema = schema
-		//fp = fparse.makeFromSchema(shared.editSchema)
-
-		backingWriter = fparse.makeWriteStream(shared.clientRequests, {
-			write: function(buf){
-				if(clientDestroyed || clientEnded || clientClosed){
-					console.log('WARNING: client already destroyed, discarding bytes to write: ' + buf.length)
-					return
-				}
-				client.write(buf);
-			},
-			end: function(){
-			}
-		});
-		
-		w = backingWriter.fs
-		
-		backingWriter.beginFrame()
-		w.flush = function(){
-			backingWriter.endFrame()
-			backingWriter.beginFrame()
-		}
 		
 		deser = fparse.makeReadStream(shared.serverResponses, reader)
-		
+
+		var last = 0
+		increaseAckHandle = setInterval(function(){
+			var v = deser.getFrameCount()
+			if(v > last){
+				w.increaseAck({frameCount: v})
+				//console.log('client increased ack: ' + v + ' <- ' + last + ' (sent: ' + backingWriter.getFrameCount()+')')
+				last = v
+			}else{
+				_.assertEqual(v, last)
+			}
+		},100)
+			
 		defaultSyncHandle = makeSyncHandle(syncId, defaultMakeListener)
 		syncListenersBySyncId[syncId] = {
 			edit: defaultChangeListener, 
 			object: defaultObjectListener, 
 			make: defaultMakeListener,
 			reify: defaultReifyListener}
-		//makeCbListenersBySyncId[syncId] = defaultMakeListener
+
+		startFlusher()
 		
-		flushIntervalHandle = setInterval(doFlush, 20)
 	}
 	
+	function startFlusher(){
+		flushIntervalHandle = setInterval(doFlush, 20)
+	}
+
+	console.log('sent original connection')
+	w.originalConnection({})
+	w.flush()
+	
 	function dataListener(data) {
+		if(clientDestroyed) return
+		
 		try{
+			//console.log('client got data: ' + data.length)
 			deser(data);
 		}catch(e){
 			console.log('WARNING: deserialization error: ' + e + '\n' + e.stack)
@@ -392,25 +452,87 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			client.destroy()
 			clientDestroyed = true
 			clearInterval(flushIntervalHandle)
+			clearInterval(randomHandle)
+			clearInterval(increaseAckHandle)
 			throw e
 		}
 	}
-	client.on('data', dataListener);
-
-	client.on('error', function(e) {
-		console.log('tcp client error: ' + e)
-	})
 	
-	client.on('close', function() {
-		clientClosed = true
-		clearInterval(flushIntervalHandle)
-	})
-	client.on('end', function() {
-		log('client disconnected');
-		//doFlush()
-		clearInterval(flushIntervalHandle)
-		clientEnded = true
-	});
+	var randomHandle
+	
+	var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
+		randomHandle = setTimeout(function(){
+			console.log('client randomly destroyed tcp connection: ' + connectionId)
+			client.destroy()
+		},randomFailureDelay)
+
+
+	function attachClient(){	
+		client.on('data', dataListener);
+
+		client.on('error', function(e) {
+			console.log('tcp client error: ' + e)
+		})
+
+		client.on('close', function() {
+			clientClosed = true
+			clearInterval(flushIntervalHandle)
+			clearInterval(randomHandle)
+			clearInterval(increaseAckHandle)
+			if(!wasClosedManually){
+				tryReconnect()
+			}
+		})
+		client.on('end', function() {
+			log('client disconnected');
+			//doFlush()
+			clearInterval(flushIntervalHandle)
+			clearInterval(randomHandle)
+			clearInterval(increaseAckHandle)
+			clientEnded = true
+		});
+	}
+	attachClient()
+	
+	function tryReconnect(){
+		console.log('trying to reconnect')
+		client = net.connect(port, host, function(){
+			console.log('reconnected tcp client waiting for... something: ' + backingWriter.getFrameCount());
+
+			var temporaryBw = fparse.makeReplayableWriteStream(shared.clientRequests, {
+				write: function(buf){
+					console.log('buf for reconnect sent: ' + buf.length)
+					client.write(buf);
+				},
+				end: function(){
+				}
+			});
+
+			var tw = temporaryBw.fs
+			temporaryBw.beginFrame()
+			
+			console.log('about to request reconnect')
+	
+			++manyReconnectRequests
+			
+			tw.reconnect({
+				  connectionId: connectionId
+				, manyServerMessagesReceived: deser.getFrameCount()
+			})
+			temporaryBw.endFrame()
+			
+			console.log('wrote and flushed reconnect request')
+			
+			attachClient()
+		});
+		
+		client.on('error', function(){
+			console.log('reconnect failed')
+			console.log('TODO: retry, wait, etc')
+		})
+	}
+	
+	
 	
 	var flushIntervalHandle
 	function doFlush(){
@@ -446,8 +568,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			persistEdit: function(op, edit, sourceSyncId){
 				_.assertInt(op)
 				
-				var es = editNames[op]//shared.editSchema[op]
-				//console.log(JSON.stringify(editCodes))
+				var es = editNames[op]
+				
+				//console.log('persisting edit')
+				
 				if(es === undefined) _.errout('unknown edit op: ' + op)
 				var editTypeCode = op//es.code
 				
@@ -547,20 +671,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 					cb(err)
 					return
 				}
-				/*log('got request reply: ' + res.requestId)
-				var str = ''
-				for(var i=0;i<res.snapshots.length;++i){
-					str += res.snapshots[i]+' '
-				}
-				console.log(res)
-				console.log(str)*/
+
 				res.snapshots = deserializeAllSnapshots(fp.readers, fp.readersByCode, fp.names, res.snapshots)
 				//log('deserialized: ' + JSON.stringify(res).slice(0,500))
 				cb(undefined, res)
 			});
 			w.getAllSnapshots(e);
-			//log('tcpclient: getSnapshots')
-			//w.flush()
 		},
 		getSnapshot: function(e, cb){
 			_.assertFunction(cb)
@@ -577,6 +693,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		close: function(cb){
 			w.flush()
+			wasClosedManually = true
 			clearInterval(flushIntervalHandle)
 			client.on('end', function(){
 				log('tcp client closed')

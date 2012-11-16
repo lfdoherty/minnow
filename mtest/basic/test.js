@@ -113,3 +113,44 @@ exports.fastPersist = function(config, done){
 		})
 	})
 }
+
+
+exports.longConnection = function(config, done){
+	var N = 100
+	var D = 100
+	minnow.makeServer(config, function(s){
+		var madeCount = 0
+		var remaining = N
+		minnow.makeClient(config.port, function(c){
+			c.view('general', [], function(err, handle){
+			
+				handle.objects.on('add', function(){
+					++madeCount
+					console.log('got: ' + madeCount)
+					if(N === madeCount){
+						setTimeout(function(){
+							if(handle.objects.size() !== N){
+								done.fail('too many objects (replay error?): ' + handle.objects.size())
+							}else{
+								done()
+							}
+						},D*4)
+					}
+				})
+
+				//minnow.makeClient(config.port, function(c){
+				//	c.view('empty', [], function(err, handle){
+						var ih = setInterval(function(){
+							handle.make('entity', {name: 'test name'})
+							--remaining
+							if(remaining === 0){
+								clearInterval(ih)
+							}
+						},D)
+				//	})
+				//})				
+			})
+		})
+	})
+	return N*D*2
+}

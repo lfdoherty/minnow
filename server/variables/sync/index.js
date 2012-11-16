@@ -18,5 +18,6 @@ exports.plugins = {
 	cast: require('./cast'),
 	concat: require('./concat'),
 	'if': require('./if'),
-	mapMerge: require('./mapMerge')
+	mapMerge: require('./mapMerge'),
+	exists: require('./exists')
 }

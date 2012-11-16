@@ -12,9 +12,9 @@ exports.make = function(s, value){
 	return f
 }
 
-function sfgSet(s, value, bindings, editId){
+function sfgSet(s, values, bindings, editId){
 	//s.log('value: ' + JSON.stringify(value))
-	var key = JSON.stringify(value)+''
+	var key = JSON.stringify(values)+''
 	
 	var listeners = listenerSet()
 	
@@ -22,17 +22,25 @@ function sfgSet(s, value, bindings, editId){
 		name: 'fixed-set',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			//listener.set(value, undefined, editId)
+			values.forEach(function(v){
+				listener.add(v, editId)
+			})
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
-			/*if(editId){
-				listener.set(undefined, value, editId)
-			}*/
+			if(editId){
+				values.forEach(function(v){
+					listener.remove(v, editId)
+				})
+			}
 		},
 		oldest: s.objectState.getCurrentEditId,
 		neverGetsOld: true,
-		key: key
+		key: key,
+		descend: function(path, editId, cb){
+			//context.descend(path, editId, cb)
+			_.errout('TODO')
+		}
 	}
 	return handle
 }

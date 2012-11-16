@@ -218,6 +218,7 @@ function _makeAndSaveNew(json, type){
 SyncApi.prototype.saveTemporaryForLookup = function(temporary, n, local){
 	if(this.temporaryCache === undefined) this.temporaryCache = {}
 	this.temporaryCache[temporary] = {n: n, local: local}
+	console.log('saving temporary for lookup: ' + temporary)
 }
 
 function log(){
@@ -601,6 +602,7 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	if(!forget){
 		var t = this.schema[typeName]
 		var n = new TopObjectHandle(this.schema, t, edits, this, temporary);
+		//console.log('created temporary lookup: ' + temporary)
 		this.objectApiCache[temporary] = n;
 		return n
 	}
@@ -631,7 +633,9 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 			e.local.objectApiCache[realId] = e.n
 			e.n.objectId = realId
 		}else{
+			console.log(JSON.stringify(Object.keys(this.objectApiCache)))
 			console.log('ERROR: failed to reify: ' + temporaryId + ' -> ' + realId)
+			console.log(new Error().stack)
 		}
 	}
 	/*

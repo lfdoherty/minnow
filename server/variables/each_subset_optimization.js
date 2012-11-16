@@ -203,7 +203,13 @@ exports.make = function(s, self, rel, typeBindings){
 	
 		if(pes[i].params[1].type !== 'param') return//must be single-property descent (for now)
 		var propertyName = pes[i].params[0].value
-		propertyCodes.push(objSchema.properties[propertyName].code)
+		if(propertyName === 'id'){
+			propertyCodes.push(-1)
+		}else{
+			var p = objSchema.properties[propertyName]
+			if(p === undefined) _.errout('no property named "' + propertyName + '" for object "' + objSchema.name + '"')
+			propertyCodes.push(p.code)
+		}
 	}
 
 	try{	

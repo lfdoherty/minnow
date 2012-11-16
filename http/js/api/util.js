@@ -40,6 +40,37 @@ function recursivelyGetLeafTypes(objType, schema){
 }
 exports.recursivelyGetLeafTypes = recursivelyGetLeafTypes
 
+exports.getOnlyPossibleObjectPropertyType = function getOnlyPossibleType(local, property, typeName){
+	_.assertLength(arguments, 3)
+
+	var fullSchema = local.getFullSchema();
+	var objSchema = fullSchema[property.type.object]
+	var types = recursivelyGetLeafTypes(objSchema, fullSchema);
+	
+	if(typeName === undefined){
+		//there must be a unambiguous type, or that type must be specified
+		_.assertLength(types, 1);
+		typeName = types[0];
+	}
+	
+	//var tt = local.types();
+	var found = false;
+	for(var i=0;i<types.length;++i){
+		if(types[i] === typeName){
+			found = true;
+			break;
+		}
+	}
+	
+	_.assert(found);
+	
+	var type = local.getFullSchema()[typeName];
+	_.assertObject(type);
+	_.assertInt(type.code);//must not be an abstract type TODO provide better error
+	
+	return type;
+}
+
 exports.getOnlyPossibleType = function getOnlyPossibleType(local, typeName){
 	if(typeName === undefined){
 		//there must be a unambiguous type, or that type must be specified

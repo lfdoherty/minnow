@@ -1,7 +1,13 @@
 
 setup 9
 	serverInstanceUid string 1
-	
+	connectionId string 2//used for reconnecting by the client
+
+confirmReconnect 16
+	manyClientMessagesReceived int 1
+
+reconnectExpired 17
+
 newSyncId 8
 	requestId int 1
 	syncId int 2
@@ -57,14 +63,16 @@ reifyObject 15
 	id int 1
 	temporary int 2
 	destinationSyncId int 3
-	
+/*	
 gotVersionTimestamps 12
 	requestId int 1
 	timestamps binary 2
 	destinationSyncId int 4
-	
+	*/
 requestError 13
 	err string 1
 	requestId int 2
 	code string 3
-	
+
+increaseAck 12
+	frameCount int 1

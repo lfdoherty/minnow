@@ -28,6 +28,28 @@ console.log = function(msg){
 }
 */
 
+var oldMakeClient = minnow.makeClient
+var oldMakeServer = minnow.makeServer
+
+var currentClientList
+var currentServerList
+minnow.makeClient = function(port, host, cb){
+	if(arguments.length === 2){
+		cb = host
+		host = undefined
+	}
+	oldMakeClient(port, host, function(client){
+		currentClientList.push(client)
+		cb(client)
+	})
+}
+minnow.makeServer = function(config, cb){
+	oldMakeServer(config, function(server){
+		currentServerList.push(server)
+		cb(server)
+	})
+}
+
 var includedTestDir
 var includedTest
 if(process.argv.length > 2){
@@ -163,6 +185,9 @@ function moreCont(doneCb){
 		inProgress.push(t)
 		var testDir = t.dir + '/' + t.name + '_test'
 
+		var myServerList = currentServerList = []
+		var myClientList = currentClientList = []
+
 		var donePassed
 		function done(){
 			log('test passed: ' + t.dirName + '.' + t.name)
@@ -187,11 +212,22 @@ function moreCont(doneCb){
 			fail(ee)
 		}
 		
-		var timeoutHandle = setTimeout(function(){
+		/*var timeoutHandle = setTimeout(function(){
 			fail(new Error('test timed out'))
-		}, 4000)
+		}, 4000)*/
 		
 		function finish(){
+			setTimeout(function(){
+				myClientList.forEach(function(s){
+					s.close(function(){})
+				})
+				myServerList.forEach(function(s){
+					try{
+						s.close(function(){})
+					}catch(e){
+					}
+				})
+			},200)
 			clearTimeout(timeoutHandle)
 			var ii = inProgress.indexOf(t)
 			inProgress.splice(ii, 1)
@@ -210,7 +246,12 @@ function moreCont(doneCb){
 			try{
 				var config = {schemaDir: t.dir, dataDir: testDir, port: port}
 				//console.log('calling')
-				t.test(config, done)
+				var realDelay = t.test(config, done)
+				realDelay = realDelay || 4000
+				
+				timeoutHandle = setTimeout(function(){
+					fail(new Error('test timed out'))
+				}, realDelay)
 			}catch(e){
 				fail(e)
 			}

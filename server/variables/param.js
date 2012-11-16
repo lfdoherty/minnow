@@ -60,6 +60,14 @@ exports.make = function(s, setExpr, typeBindings){
 			f.wrappers = typeBinding.wrappers
 			f.wrapAsSet = function(v){_.errout('TODO');}
 			//_.assertFunction(typeBinding.getDescender)
+		}else if(typeBinding.type === 'set'){
+			f.wrappers = typeBinding.wrappers
+			var fp = fixedPrimitive.make(s)
+			f.wrapAsSet = function(v){
+				//_.errout('TODO');
+				return fp(v);
+			}
+			//_.assertFunction(typeBinding.getDescender)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(typeBinding))
 		}

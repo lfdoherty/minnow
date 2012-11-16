@@ -4,3 +4,7 @@ entity 1
 	
 general() 100
 	objects *entity 1
+
+
+empty() 101
+

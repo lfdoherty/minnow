@@ -29,7 +29,7 @@ exports.put = function(config, done){
 					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.put('testKey', 'testValue')
@@ -66,7 +66,7 @@ exports.putSeries = function(config, done){
 					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.put('a', 'a')
@@ -105,7 +105,7 @@ exports.del = function(config, done){
 					otherClient.view('general', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity')
-						v.s.set(obj)
+						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 						obj.data.put('testKey', 'testValue')
