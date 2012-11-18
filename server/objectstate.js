@@ -404,7 +404,10 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		}else if(op === editCodes.delKey){
 			var key = editPath[editPath.length-1].edit.key
 			delete prop[key]
-			cb(prop, editId)		
+			cb(prop, editId)
+		}else if(op === editCodes.clearProperty){
+			prop = undefined
+			cb(undefined, editId)
 		}else{
 			_.errout('TODO: ' + editNames[op])
 		}

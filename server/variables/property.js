@@ -561,7 +561,12 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 	//console.log('property: ' + propertyCode)
 
 	var key = elements.key
-	if(cache.has(key)) return cache.get(key)
+	_.assertDefined(key)
+	if(cache.has(key)){
+		//console.log('got cached: ' + key)
+		//console.log(new Error().stack)
+		return cache.get(key)
+	}
 	
 	var listeners = listenerSet()
 
@@ -582,7 +587,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			_.assertInt(editId)
 			//console.log(JSON.stringify(metadata))			
 			_.assertFunction(listener.set)
-			//console.log('property getting attach: ' + propertyCode + ' ' + isObjectProperty)
+			//console.log('property getting attach: ' + propertyCode + ' ' + isObjectProperty + ' ' + value + ' ' + key)
 			listeners.add(listener)
 			//console.log('attaching to property ' + propertyCode + ' ' + value + ' ' + editId)
 			//if(propertyCode === 100) console.log(new Error().stack)
@@ -592,8 +597,9 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			}
 		},
 		detach: function singleObjectPropertyValue(listener, editId){
+			//console.log('removing listener: ' + listener)
 			listeners.remove(listener)
-			if(editId){
+			if(editId && value !== undefined){
 				//console.log(new Error().stack)
 				//console.log('d: ' + listener.set)
 				listener.set(undefined, value, editId)
@@ -621,6 +627,16 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		set: function(id, oldId, editId){
 			if(ongoingEditId === undefined) ongoingEditId = editId
 			latestEditId = editId
+			
+			if(id === undefined){
+				innerLookup[value] = undefined
+				if(value){
+					listeners.emitSet(undefined, value, editId)
+				}
+				value = undefined
+				return
+			}
+			
 			//TODO listen for changes to object
 			_.assertInt(id)
 			_.assertInt(editId)
@@ -629,7 +645,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			//s.log(elements.name + ': '+elements)
 			//s.log(Object.keys(elements))
 			_.assertInt(id)
-			//console.log(id + ' ' + editId)
+			//console.log('got property-of-object object id: ' + id + ' ' + editId)
 			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				editId, function(pv, editId){
 				//console.log(key + ' ' + uid+' got pv(' + id+','+propertyCode + '): ' + JSON.stringify(pv) + ' ' + value)
@@ -644,6 +660,10 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 						//console.log(JSON.stringify(metadata.blah))
 						listeners.emitSet(pv, oldValue, editId)
 					}
+				}else if(value !== undefined){
+					var oldValue = value
+					value = pv
+					listeners.emitSet(pv, oldValue, editId)
 				}
 				ongoingEditId = undefined
 			})

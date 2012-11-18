@@ -27,13 +27,18 @@ exports.make = function(s, self, rel, typeBindings){
 		var f = function(bindings, editId){
 			var internal = mGetter(bindings, editId)//TODO 
 			_.assertString(internal.name)
-			return function(){//dummy, editId){
+			var f = function(){//dummy, editId){
 				return internal
 			}
+			f.key = 'zeroparams:'+internal.key
+			return f
 		}
 		f.wrapAsSet = mGetter.wrapAsSet
 		f.wrappers = mGetter.wrappers
 		f.getDescender = mGetter.getDescender
+		
+		console.log('zero macro params')
+		f.key = 'zeroparams'
 		return f
 	}
 	
@@ -45,7 +50,7 @@ exports.make = function(s, self, rel, typeBindings){
 				fullKey += v.key+';'
 			}
 		})
-		console.log('macro key:', fullKey, ' ', rel.bindingsUsed)
+		//console.log('macro key:', fullKey, ' ', rel.bindingsUsed)
 		//s.log('bindings:', bindings)
 		return fullKey
 	}
@@ -100,9 +105,11 @@ function svgMacroCall(s, computeKey, mGetter, bindings, editId){
 		
 		var allBindings = {}//_.extend({}, bindings, newBindings)
 		Object.keys(newBindings).forEach(function(key){
+			_.assertDefined(newBindings[key])
 			allBindings[key] = newBindings[key]
 		})
 		Object.keys(bindings).forEach(function(key){
+			_.assertDefined(bindings[key])
 			allBindings[key] = bindings[key]
 		})
 		
@@ -124,6 +131,8 @@ function svgMacroCall(s, computeKey, mGetter, bindings, editId){
 	
 	//TODO use only the keys of bindings that are referred to within the macro
 	f.key = computeKey(bindings)
+	
+	//console.log('f.key: ' + f.key)
 
 	return f
 }

@@ -1,0 +1,12 @@
+
+entity 1
+	value string 1
+	e entity 2
+	
+empty() 103
+
+general(e entity) 100
+	entities traverse(e,{~.e},100) 1
+	
+limited(e entity) 101
+	entities traverse(e,{~.e},2) 1
