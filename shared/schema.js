@@ -131,6 +131,7 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		
 		var newParams = []
 		expr.params.forEach(function(p, index){
+			_.assertDefined(p)
 			var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
 			if(!gm) _.assert(np.type !== 'partial-application')
 		})
@@ -496,6 +497,14 @@ function checkAlphanumericOnly(str, msg){
 
 function parseViewExpr(expr){
 	var path = [];
+
+	expr = expr.trim()
+	
+	_.assert(expr.length > 0)
+	
+	var initialExpr = expr	
+	
+	//console.log('here: ' + initialExpr)
 	
 	while(expr.length > 0){
 		var fc = expr.charAt(0);
@@ -540,13 +549,20 @@ function parseViewExpr(expr){
 			expr = expr.substr(end);
 		}else if(openRound !== -1 && openCurly === -1){
 			var viewName = expr.substr(0, openRound).trim();
-			var paramStr = expr.substring(openRound+1, expr.lastIndexOf(')'));
-			var paramStrs = safeSplit(paramStr, ',');
 
 			var params = [];
-			_.each(paramStrs, function(ps){
-				params.push(parseViewExpr(ps.trim()));
-			});
+
+			var paramStr = expr.substring(openRound+1, expr.lastIndexOf(')')).trim();
+			if(paramStr.length > 0){
+				var paramStrs = safeSplit(paramStr, ',');
+
+				//console.log('paramStrs: ' + JSON.stringify(paramStrs))
+				_.each(paramStrs, function(ps){
+					var expr = parseViewExpr(ps.trim())
+					_.assertDefined(expr)
+					params.push(expr);
+				});
+			}
 			var viewExpr = {type: 'view', params: params, view: viewName}
 			while(sugar[viewName]){
 				var newViewExpr = sugar[viewName].transform(viewExpr)
@@ -555,6 +571,7 @@ function parseViewExpr(expr){
 				if(viewExpr.type !== 'view') break;
 				viewName = viewExpr.view
 			}
+			//console.log('found openround')
 			path.push(viewExpr);
 			expr = expr.substr(expr.lastIndexOf(')')+1);
 		}else if(openRound !== -1 && openCurly !== -1){
@@ -640,7 +657,11 @@ function parseViewExpr(expr){
 		}
 		expr = expr.trim()
 	}
+	
+	//if(path.length === 0) return
 	//console.log('path: ' + JSON.stringify(path))
+	//console.log(initialExpr)
+	_.assert(path.length > 0)
 	return invertViewExpression(path);
 }
 
@@ -1082,7 +1103,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 		try{
 			processView(v, v.tokens[0])
 		}catch(e){
-			console.log(e)
+			console.log(e.stack)
 			console.log('...while processing ' + v.tokens[0])
 			throw new Error('minnow syntax error');
 		}

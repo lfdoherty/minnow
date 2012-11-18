@@ -45,7 +45,7 @@ exports.make = function(s, self, rel, typeBindings){
 				fullKey += v.key+';'
 			}
 		})
-		//s.log('macro key:', fullKey, ' ', rel.bindingsUsed)
+		console.log('macro key:', fullKey, ' ', rel.bindingsUsed)
 		//s.log('bindings:', bindings)
 		return fullKey
 	}

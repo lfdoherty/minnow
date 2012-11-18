@@ -13,22 +13,17 @@ function stub(){}
 var eachSubsetOptimization = require('./each_subset_optimization')
 
 function eachType(rel, ch){
-	//var r = Math.random()
-	//console.log('each computing input type... ' + r)
-	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
-	//console.log('...done ' + r)
-	//console.log('inputType: ' + JSON.stringify(inputType))
+
+	var inputType = rel.params[0].schemaType
+
 	var singleInputType = inputType.members
 	_.assertDefined(singleInputType)
 	var newBindings = {}
-	var implicits = rel.params[1].implicits//['p'+Math.random()]
+	var implicits = rel.params[1].implicits
 	_.assertArray(implicits)
-	//console.log('implicits: ' + JSON.stringify(implicits))
+
 	newBindings[implicits[0]] = singleInputType
-	//console.log('\n\neach bound ' + implicits[0] + ' to ' + JSON.stringify(singleInputType))
-	//console.log('each reduced bindings to: ' + JSON.stringify(newBindings))
-	//console.log('each: ' + JSON.stringify(rel))
-	//_.assertDefined(rel.params[1].schemaType)
+
 	var realValueType = ch.computeMacroType(rel.params[1], ch.bindingTypes, newBindings, implicits)
 	var valueType = realValueType
 	
@@ -39,8 +34,6 @@ function eachType(rel, ch){
 		return {type: 'set', members: valueType}
 	}else if(inputType.type === 'list'){
 		if(realValueType.type === 'primitive' || realValueType.type === 'object'){
-			//console.log(JSON.stringify(valueType))
-			//console.log(JSON.stringify(rel.params[1]))
 			return {type: 'list', members: valueType}
 		}else{
 			return {type: 'set', members: valueType}//if merging is part of the each result, it must lose its ordering
