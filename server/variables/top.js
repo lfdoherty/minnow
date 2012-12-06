@@ -41,9 +41,11 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 	var many = manyGetter(bindings, editId)
 	//_.assertDefined(manyGetter.key)
 	var elements = elementsGetter(bindings, editId)
+	
 	var key = elements.key+many.key//+Math.random()
 	var variableKey = key
 	if(cache.has(key)) return cache.get(key)
+
 	
 	var listeners = listenerSet()
 	
@@ -61,7 +63,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 	var bottomHeap = new buckets.Heap(compareFunction)
 	function oldest(){
 		var old = Math.min(many.oldest(), elements.oldest())
-		//console.log('top old: ' + old)
+		if(old === 1187) console.log('top old: ' + many.oldest() + ' ' + elements.oldest() + ' ' + elements.name)
 		return old
 	}
 	
@@ -96,12 +98,16 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				})			
 			}
 		},
-		includeView: stub,
-		removeView: stub
-	})
+		includeView: function(){
+			_.errout('TODO')
+		},
+		removeView: function(){
+			_.errout('TODO')
+		}
+	}, editId)
 	
 	var handle = {
-		name: 'topByValues',
+		name: 'topByValues (' + elements.name + ')',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log(JSON.stringify(Object.keys(listener)))
@@ -122,6 +128,18 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 					listener.del(kv.key, editId)
 				})
 			}
+		},
+		descend: elements.descend,
+		getType: function(v){
+			if(elements.getType === undefined) _.errout('needs getType: ' + elements.name)
+
+			return elements.getType(v)
+		},
+		descendTypes: function(path, editId, cb){
+		//	if(elements.descend === undefined) _.errout('needs descend: ' + elements.name)
+			if(elements.descendTypes === undefined) _.errout('needs descendTypes: ' + elements.name)
+
+			return elements.descendTypes(path, editId, cb)
 		},
 		oldest: oldest,
 		key: key

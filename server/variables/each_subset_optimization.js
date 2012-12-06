@@ -285,14 +285,27 @@ exports.make = function(s, self, rel, typeBindings){
 			oldest: oldest,
 			key: key,
 			descend: function(path, editId, cb, continueListening){//same as typeset
-				s.objectState.streamProperty(path, editId, cb, continueListening)
-			},
+				if(s.objectState.isTopLevelObject(path[0].edit.id)){
+					s.objectState.streamProperty(path, editId, cb, continueListening)
+					return true
+				}
+				return false
+			}/*,
 			descendTypes: function(path, editId, cb, continueListening){
 				s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
+				return true
 			},
-			getType: function(){
-				_.errout('TODO')
-			}
+			getType: function(v){
+				//_.errout('TODO')
+				if(s.objectState.isTopLevelObject(v)){
+					return s.objectState.getObjectType(v)
+				}else{
+					//return elements.getType(v)
+					//_.errout('TODO?: ' + v)
+					//_.errout('ERROR: this should never happen - each_subset_optimization does not descend below the top level')
+					//return false
+				}
+			}*/
 		}
 		
 		//_.errout('TODO here')
@@ -301,7 +314,7 @@ exports.make = function(s, self, rel, typeBindings){
 		var streamLast = -1
 		//stream *all* property values for the input set
 		//console.log('setting up object streaming')
-		s.objectState.streamAllPropertyValues(objTypeCode, propertyCodes, function(id, propertyValueMap, editId){
+		s.objectState.streamAllPropertyValues(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 			var singleResult = wrapper(bindingWrappers, propertyValueMap)
 			if(singleResult){
@@ -327,7 +340,7 @@ exports.make = function(s, self, rel, typeBindings){
 		}, function(id, editId){
 			_.assertInt(editId)
 			if(has[id]){
-				console.log('deleting id')
+				//console.log('deleting id')
 				delete has[id]
 				ids.splice(i, 1)
 				listeners.emitRemove(id, editId)

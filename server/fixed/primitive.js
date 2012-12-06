@@ -20,6 +20,7 @@ function sfgPrimitive(s, value){
 		name: 'primitive',
 		attach: function(listener, editId){
 			listeners.add(listener)
+			//console.log('emitting value: ' + value)
 			listener.set(value, undefined, editId)
 		},
 		detach: function(listener, editId){
@@ -30,7 +31,9 @@ function sfgPrimitive(s, value){
 		},
 		oldest: s.objectState.getCurrentEditId,
 		neverGetsOld: true,
-		key: key
+		isConstant: true,
+		key: key,
+		get: function(){return value;}
 	}
 	return handle
 }

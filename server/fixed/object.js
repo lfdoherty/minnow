@@ -16,25 +16,13 @@ function sfgObject(s, id, editId, context){
 	_.assertString(context.name)
 	_.assertFunction(context.descend)
 
-	//if(!s.objectState.isTopLevelObject(id)){
-	//	throw new Error('invalid id: ' + id)
-	//}
-
-	if(!_.isFunction(context.getType))_.errout('no getType: ' + context.name)
-	_.assertFunction(context.getType)
-	
 	var key = id+''
 	
 	var listeners = listenerSet()
-	
-	/*s.broadcaster.listenForDeleted(function(delId, editId){
-		if(id === delId){
-			console.log('WARNING: TODO: destroy dependent view, is no longer valid, param id was destroyed: ' + id)
-		}
-	})*/
+
 	
 	var handle = {
-		name: 'object-fixed',
+		name: 'object-fixed (' + context.name + ')',
 		attach: function(listener, editId){
 			_.assertFunction(listener.set)
 			_.assertInt(editId)
@@ -51,18 +39,21 @@ function sfgObject(s, id, editId, context){
 		},
 		oldest: s.objectState.getCurrentEditId,
 		neverGetsOld: true,
+		isConstant: true,
 		key: key,
 		wrapAsSet: function(idToWrap){
 			_.assertEqual(idToWrap, id)
 			return handle
 		},
 		descend: function(path, editId, cb){
-			//s.objectState.streamProperty(path, editId, cb)
-			//s.log('context: ' + context.name)
-			//console.log('context: ' + context.name)
-			context.descend(path, editId, cb)
+			return context.descend(path, editId, cb)
 		},
-		getType: context.getType
+		getObjectId: function(){
+			return id
+		},
+		get: function(){
+			return id
+		}
 	}
 	return handle
 }

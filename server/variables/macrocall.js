@@ -9,8 +9,15 @@ function findAndCountMacroParameters(rel){
 	var count = 0
 	rel.implicits.forEach(function(imp, index){
 		if(rel.bindingsUsed[imp]){
-			_.assertEqual(count, index)//implicits must be used sequentially
-			++count
+			/*if(count !== index){
+				console.log('implicits: ' + JSON.stringify(rel.implicits))
+				console.log('bindings: ' + JSON.stringify(rel.bindingsUsed))
+				_.errout('implicits must be used sequentially(' + count + ','+index+')')
+			}*/
+			//_.assertEqual(count, index)//implicits must be used sequentially
+			
+			//++count
+			count = index+1
 		}
 	})
 	return count

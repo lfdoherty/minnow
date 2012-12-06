@@ -184,6 +184,9 @@ function establishSocket(appName, schema, host, cb){
 				return syncId
 			},
 			view: function(viewName, params, cb){
+			
+				if(schema[viewName] === undefined) _.errout('unknown view: ' + viewName)
+				
 				if(arguments.length === 2 && _.isFunction(params)){
 					cb = params
 					params = []

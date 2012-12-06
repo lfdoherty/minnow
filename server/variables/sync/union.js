@@ -5,6 +5,11 @@ var util = require('./../util')
 
 exports.type = function(paramTypes, params, schema){
 	_.assertDefined(paramTypes)
+	//console.log(JSON.stringify(paramTypes))
+	paramTypes.forEach(function(pt){
+		if(!pt.members) _.errout('invalid input to union(set,set,...) operator: ' + JSON.stringify(paramTypes))
+	})
+	
 	if(paramTypes[0].members.type === 'primitive'){
 		return 'set:'+paramTypes[0].members.primitive;
 	}else if(paramTypes[0].members.type === 'object'){

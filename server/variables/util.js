@@ -54,7 +54,13 @@ exports.putRemoveOp = function(t){
 	return editCodes['putRemove'+ts]
 }
 exports.selectKeyOp = function(t){
-	return editCodes['select'+(typeSuffix[t.key.primitive]||'Object')+'Key']
+	var ts
+	if(t.key.primitive) ts = typeSuffix[t.key.primitive]
+	else if(t.key.type === 'object') ts = 'Object'
+	else ts = 'ViewObject'
+	var res = editCodes['select'+ts+'Key']
+	if(res === undefined) _.errout('cannot compute key select op for type: ' + JSON.stringify(t))
+	return res
 }
 
 exports.addOp = function(t){

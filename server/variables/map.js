@@ -58,6 +58,14 @@ function mapType(rel, ch){
 		ch.computeMacroType(rel.params[3], ch.bindingTypes, moreBinding)
 	}
 
+	console.log('map: ' + JSON.stringify([keyType,valueType]))
+	
+	_.assert(keyType.type !== 'set')
+	_.assert(keyType.type !== 'list')
+	_.assert(valueType.type !== 'set')
+	_.assert(valueType.type !== 'list')
+	
+
 	return {type: 'map', key: keyType, value: valueType}
 }
 
@@ -447,8 +455,14 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					if(kv.key !== undefined){
 						state[kv.key] = kv.value
 						//s.log('emitting put')
-						_.assertPrimitive(kv.value)
-						listeners.emitPut(kv.key, kv.value, oldValue, editId)
+						if(value !== undefined){
+						
+							//console.log('putting: ' + kv.key + ' -> ' + kv.value)
+							_.assertPrimitive(kv.value)
+							listeners.emitPut(kv.key, kv.value, oldValue, editId)
+						}else if(oldValue !== undefined){
+							listeners.emitDel(kv.key, editId)
+						}
 					}
 				}
 				
@@ -486,7 +500,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 	}
 	
 	var handle = {
-		name: 'map-single',
+		name: 'map-single (' + elements.name + ')',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
@@ -504,7 +518,12 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		/*getType: function(v){
+			return elements.getType(v)
+		},*/
+		descend: elements.descend//,
+		//descendTypes: elements.descendTypes
 	}
 		
 	return cache.store(key, handle)
@@ -716,7 +735,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 	}
 	
 	var handle = {
-		name: 'map-single',
+		name: 'map-single-value-multiple (' + elements.name+')',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){

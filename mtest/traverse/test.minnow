@@ -10,3 +10,25 @@ general(e entity) 100
 	
 limited(e entity) 101
 	entities traverse(e,{~.e},2) 1
+
+multiple(e node) 102
+	entities traverse(e,{~.ns},100) 1
+	
+node 2
+	value string 1
+	ns set:node 2
+	
+fibonacci(depth int) 104
+	value union(list(0),traverse(0,1,{add(~1,~2)},sub(depth,1))) 1
+
+control 3
+	value int 1
+		
+fibonacciProbe(c control) 105
+	value union(list(0),traverse(0,1,{add(~1,~2)},sub(c.value,1))) 1
+	
+incrementTree() 106
+	values traverse(1,{list(~,add(~,1))},8) 1
+	
+incrementTreeProbe(c control) 107
+	values traverse(1,{list(~,add(~,1))},c.value) 1

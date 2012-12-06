@@ -30,6 +30,7 @@ PathUpdater.prototype.setSyncId = function(e){this.syncId = e.edit.syncId}
 PathUpdater.prototype.selectProperty = function(e){this.path.push(e)}
 PathUpdater.prototype.reselectProperty = function(e){this.path[this.path.length-1] = e}
 PathUpdater.prototype.selectObject = function(e){this.path.push(e)}
+PathUpdater.prototype.reselectObject = function(e){this.path[this.path.length-1] = e}
 PathUpdater.prototype.selectStringKey = function(e){this.path.push(e)}
 PathUpdater.prototype.selectLongKey = PathUpdater.prototype.selectStringKey
 PathUpdater.prototype.selectIntKey = PathUpdater.prototype.selectStringKey
@@ -49,7 +50,7 @@ PathUpdater.prototype.ascend4 = function(e){this.path = this.path.slice(0, this.
 PathUpdater.prototype.ascend5 = function(e){this.path = this.path.slice(0, this.path.length-5)}
 
 var upLookup = Object.create(null)
-var arr = [ 'made','setSyncId','selectProperty','reselectProperty','selectObject','selectStringKey',
+var arr = [ 'made','setSyncId','selectProperty','reselectProperty','selectObject','reselectObject', 'selectStringKey',
 			'selectLongKey','selectIntKey','selectBooleanKey',
 			'selectObjectKey','reselectStringKey','reselectLongKey','reselectIntKey',
 			'reselectBooleanKey','reselectObjectKey',

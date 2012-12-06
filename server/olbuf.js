@@ -125,6 +125,8 @@ exports.make = function(){
 			
 			index[id] = offset
 			
+			//console.log('wrote edits')
+			
 			//if(Math.random() < .01) console.log('olbuf: ' + w.getCurrentOffset())
 		},
 		append: function(id, edits){
@@ -211,6 +213,10 @@ exports.make = function(){
 		},
 		isNew: function(id){
 			return index[id] === undefined
+		},
+		isTopLevelObject: function(id){
+			//console.log('looking in: ' + JSON.stringify(Object.keys(index)))
+			return index[id] !== undefined
 		},
 		serializeEdits: function(edits, w){
 			serializeFrame(edits, w)

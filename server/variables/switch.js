@@ -9,6 +9,10 @@ var schema = require('./../../shared/schema')
 var _ = require('underscorem')
 
 require('./case')
+require('./default')
+
+var fixedPrimitive = require('./../fixed/primitive')
+var fixedObject = require('./../fixed/object')
 
 function stub(){}
 
@@ -23,63 +27,91 @@ function switchType(rel, ch){
 		types.push(c.schemaType)
 	})
 	
-	//console.log('switchType: ' + JSON.stringify(rel))
-	
-	//console.log(JSON.stringify(types))
-	var temp = JSON.stringify(types[0])
-	for(var i=1;i<types.length;++i){
-		var t = JSON.stringify(types[i])
-		if(temp !== t){
-			console.log(JSON.stringify(types))
-			_.errout('TODO implement type base computation')
-		}
-	}
-	return types[0]
+	return this.mergeTypes(types)
 }
 schema.addFunction('switch', {
 	schemaType: switchType,
 	implementation: maker,
 	minParams: 3,
 	maxParams: -1,
-	callSyntax: 'switch(primitive, case, case, ...)'
+	callSyntax: 'switch(primitive, case, case, ..., [default])'
 })
 
 
 function maker(s, self, rel, typeBindings){
 	var primGetter = self(rel.params[0], typeBindings)
+	var defaultCase;
 	var cases = []
 	for(var i=1;i<rel.params.length;++i){
 		var param = rel.params[i]
-		_.assertEqual(param.params[0].type, 'value')
-		var caseValue = param.params[0].value;
-		var caseGetter = self(param.params[1], typeBindings)
-	//	console.log('self: ' + caseValue)
-		//console.log('f: ' + JSON.stringify(param.params[1]))
-		_.assertFunction(caseGetter)
-		cases.push({value: caseValue.toString(), getter: caseGetter})
+		if(param.view === 'default'){
+			var caseGetter = self(param.params[0], typeBindings)
+			defaultCase = {getter: caseGetter}
+		}else{
+			_.assertEqual(param.params[0].type, 'value')
+
+			if(param.params[1].type === 'nil'){
+				continue;
+			}
+			
+			var caseValue = param.params[0].value;
+			var caseGetter = self(param.params[1], typeBindings)
+			_.assertFunction(caseGetter)
+			cases.push({value: caseValue.toString(), getter: caseGetter})
+		}
 	}
-	//var cache = new Cache()
-	var f = svgGeneralSwitch.bind(undefined, s, /*cache, */primGetter, cases)
-	f.wrapAsSet = function(){
-		_.errout('TODO')
+	
+	var cache = new Cache(s.analytics)
+	
+	var f = svgGeneralSwitch.bind(undefined, s, cache, primGetter, cases, defaultCase)
+	f.wrapAsSet = function(v, editId, context){
+		//_.errout('TODO: ' + value)
+		if(rel.schemaType.type === 'primitive'){
+			return fixedPrimitive.make(s)(v, editId)
+		}else if(rel.schemaType.type === 'object' || (rel.schemaType.members && rel.schemaType.members.type === 'object')){
+			return fixedObject.make(s)(v, editId, context)
+		}else{
+			_.errout('TODO: ' + v + ' ' + JSON.stringify(rel.schemaType))
+		}
 	}
 	return f
 }
 
-function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
+function makeConstantSwitch(s, cache, primGetter, cases, defaultCase, bindings, editId, primVariable){
+	
+	var theCase
+	
+	var primValue = primVariable.get()
+	if(primValue === undefined) _.errout('get provided undefined: ' + primVariable.get)
+	
+	for(var i=0;i<cases.length;++i){
+		var c = cases[i]
+		if(c.value === primValue.toString()){
+			theCase = c.getter(bindings, editId)
+		}
+	}
+	if(!theCase && defaultCase){
+		theCase = defaultCase.getter(bindings, editId)
+	}
+	
+	if(!theCase) _.errout('no cases match, no default case defined, TODO?')
+	
+	theCase.name += ' [fixed-switch]'
+	return theCase
+}
+
+function svgGeneralSwitch(s, cache, primGetter, cases, defaultCase, bindings, editId){
 
 	var primVariable = primGetter(bindings, editId)
+	
+	if(primVariable.isConstant){
+		//_.errout('TODO')
+		return makeConstantSwitch(s, cache, primGetter, cases, defaultCase, bindings, editId, primVariable)
+	}
 
 	for(var i=0;i<cases.length;++i){
 		_.assertFunction(cases[i].getter)
 	}
-
-	/*var key = elements.key
-	cases.forEach(function(c){
-	})
-
-	
-	if(cache.has(key)) return cache.get(key)*/
 	
 	var listeners = []//just caching them for attaching to the caseVariable
 	var caseVariable
@@ -89,20 +121,11 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 		if(caseVariable){
 			var old = caseVariable.oldest()
 			if(old < o) o = old
-		}/*else{
-			o = -1
-		}*/
+		}
+		//if(o < 1856) console.log('switch oldest: ' + o + ' ' + caseVariable + ' ' + primVariable.oldest() + ' ' + caseVariable.oldest)
 		return o;
 	}
-	/*function descend(){
-		var args = Array.prototype.slice.apply(arguments)
-		caseVariable.descend.apply(args)
-	}*/
-	
-	function getType(id){
-		_.errout('TODO')
-	}
-	
+
 	var handle = {
 		name: 'switch',
 		attach: function(listener, editId){
@@ -110,7 +133,10 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 			_.assertInt(editId)
 			if(caseVariable !== undefined){
 				//listener.set(value, undefined, editId)
+				//console.log('attaching listener to caseVariable')
 				caseVariable.attach(listener, editId)
+			}else{
+				//console.log('no caseVariable to attach to')
 			}
 		},
 		detach: function(listener, editId){
@@ -121,38 +147,60 @@ function svgGeneralSwitch(s, /*cache, */primGetter, cases, bindings, editId){
 		},
 		oldest: oldest,
 		key: Math.random(),
-		descend: function(){_.errout('TODO?')},
-		getType: getType
+		descend: function(path, editId, cb){
+			console.log('TODO? - switch.descend?: ' + JSON.stringify(path))
+			return false
+		}
 	}
 	
 	function useCase(getter, editId){
 		if(caseVariable) _.errout('TODO support varying prim variable');
 		caseVariable = getter(bindings, editId)
 		handle.descend = caseVariable.descend
-		//console.log('got case variable ' + listeners.length)
+		//handle.descendTypes = caseVariable.descendTypes
+		//console.log('got case variable ' + listeners.length + ' ' + caseVariable.name)
 		listeners.forEach(function(listener){
 			caseVariable.attach(listener, editId)
 		})
 	}
 	
+	function switchCase(editId){
+		for(var i=0;i<cases.length;++i){
+			var c = cases[i]
+			//console.log('trying: ' + c.value)
+			_.assertFunction(c.getter)
+			if(c.value === currentPrim.toString()){
+				useCase(c.getter, editId)
+				return
+			}
+		}
+		if(defaultCase){
+			//console.log('using default case')
+			useCase(defaultCase.getter, editId)
+		}else{
+			//console.log('no default case')
+		}
+	}
 	var currentPrim
 	primVariable.attach({
 		set: function(v, oldV, editId){
 			//console.log('got prim variable: ' + v)
-			if(v === currentPrim) return
-			for(var i=0;i<cases.length;++i){
-				var c = cases[i]
-				//console.log('trying: ' + c.value)
-				_.assertFunction(c.getter)
-				if(c.value === v.toString()){
-					useCase(c.getter, editId)
-					return
-				}
-			}
+			if(v === currentPrim) _.errout('set to existing value: ' + currentPrim)
+			currentPrim = v
+			switchCase(editId)
 		},
-		includeView: stub,
-		removeView: stub
+		includeView: function(){
+			_.errout('TODO')
+		},
+		removeView: function(){
+			_.errout('TODO')
+		}
 	}, editId)
+	
+	if(!caseVariable && defaultCase){
+		useCase(defaultCase.getter, editId)
+	}
+	
 	return handle//cache.store(key, handle)
 }
 

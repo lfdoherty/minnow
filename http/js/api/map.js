@@ -29,6 +29,13 @@ function MapHandle(typeSchema, obj, part, parent){
 		this.del = u.viewReadonlyFunction
 		this.putNew = u.viewReadonlyFunction
 	}
+	
+	if(typeSchema.type.value.primitive === 'boolean'){//TODO properly speciate api class
+		this.toggle = function(key){
+			this.put(key, !this.value(key))
+		}
+		this.toggle = this.toggle.bind(this)
+	}
 }
 
 MapHandle.prototype.types = function(){
@@ -207,11 +214,15 @@ MapHandle.prototype.put = function(newKey, newValue){
 		this.obj[newKey] = newValue
 		
 	}else{
-		var e = {value: newValue, key: newKey};
+		var e = {value: newValue}
 		this.persistEdit(this.putOp, e)
 		this.obj[newKey] = newValue
 	}		
-	this.emit(e, 'put', newKey, newValue)//()
+	this.emit(e, 'put', newKey, newValue)
+}
+
+MapHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
+	
 }
 
 MapHandle.prototype.putNew = function(newKey, newTypeName, json){
@@ -234,7 +245,7 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	var n = this._makeAndSaveNew(json, type)
 	this.obj[newKey] = n
 		
-	this.emit(e, 'put', newKey, n)//()
+	this.emit(e, 'put', newKey, n)
 	return n
 }
 
@@ -282,18 +293,13 @@ MapHandle.prototype.get = function(desiredKey){
 			var a = this.getObjectApi(idOrValue, this);
 			return a;
 		}else{
-			//_.assertDefined(idOrValue)
-			//var a = this.wrapObject(idOrValue, [], this);
-			//return a;
 			idOrValue.prepare()
 			return idOrValue
 		}
 	}else if(this.schema.type.value.type === 'view'){
 		idOrValue.prepare()
 		return idOrValue
-	}else if(this.schema.type.value.type === 'primitive'){
-		//TODO should provide a handler with operations like 'set'
-		//return idOrValue;
+	}else if(this.schema.type.value.type === 'primitive' || this.schema.type.value.type === 'set'){
 
 		var c = api.getClassForType(this.schema.type.value, this.schema.isView);
 		var n = new c(undefined, idOrValue, desiredKey, this, this.schema.isView);
@@ -374,6 +380,8 @@ MapHandle.prototype.toJson = function(){
 var stub = function(){}
 MapHandle.prototype.changeListener = function(op, edit, syncId){
 
+	console.log('changeListener: ' + JSON.stringify([op, edit, syncId]))
+
 	if(syncId === this.getEditingId()){
 		return stub;//TODO deal with local/global priority
 	}
@@ -387,7 +395,7 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		return stub;//TODO deal with local/global priority
 	}
 	
-	//console.log(JSON.stringify([key, op, edit, syncId, editId]))
+	console.log('elevated: ' + JSON.stringify([key, op, edit, syncId, editId]))
 
 	if(op === editCodes.putAddExisting){
 		//_.errout('TODO')

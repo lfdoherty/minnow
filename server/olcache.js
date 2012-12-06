@@ -207,6 +207,10 @@ exports.make = function(){
 		},*/
 		assertUnknown: function(id){
 			_.assert(ob.isNew(id))
+		},
+		isTopLevelObject: function(id){
+			
+			return cache[id] || ob.isTopLevelObject(id)
 		}
 	}
 	

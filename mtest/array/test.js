@@ -11,7 +11,7 @@ exports.emptyArray = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.has('names') && c.names.size() === 2){
 						done()
 						return true

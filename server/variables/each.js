@@ -27,8 +27,11 @@ function eachType(rel, ch){
 	var realValueType = ch.computeMacroType(rel.params[1], ch.bindingTypes, newBindings, implicits)
 	var valueType = realValueType
 	
-	if(valueType.type === 'set' || valueType.type === 'list'){
+	while(valueType.type === 'set' || valueType.type === 'list'){
 		valueType = valueType.members;
+	}
+	if(valueType.type === 'map'){
+		_.errout('internal error: values of result of each is a map')
 	}
 	if(inputType.type === 'set'){
 		return {type: 'set', members: valueType}
@@ -214,7 +217,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 	}, editId)
 	
 	var handle = {
-		name: 'each-multiple',
+		name: 'each-multiple (' + elements.name+')',
 		attach: function(listener, editId){
 			_.assertFunction(listener.objectChange)
 			
@@ -242,9 +245,18 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){
-			_.errout('TODO')
-		}
+		/*getType: function(v){
+			if(elements.getType === undefined) _.errout('missing getType: ' + elements.name)
+			return elements.getType(v)
+		},*/
+		descend: function(path, editId, cb){
+			//_.errout('TODO: ' + JSON.stringify(path) + ' ' + elements.name + ' ' + JSON.stringify(bindings))
+			return elements.descend(path, editId, cb)
+		}/*,
+		descendTypes: function(path, editId, cb){
+			//_.errout('TODO: ' + JSON.stringify(path) + ' ' + elements.name + ' ' + JSON.stringify(bindings))
+			return elements.descendTypes(path, editId, cb)
+		}*/
 	}
 		
 	return cache.store(key, handle)
@@ -254,7 +266,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, bindings, editId){
 	var elements = contextGetter(bindings, editId)
 
-	if(!_.isFunction(elements.getType))_.errout('no getType: ' + elements.name)
+	//if(!_.isFunction(elements.getType))_.errout('no getType: ' + elements.name)
 	//if(!_.isFunction(elements.descendTypes)) _.errout('no descendTypes: ' + elements.name)
 
 	var concreteGetter = exprGetter(bindings, editId)
@@ -375,10 +387,10 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			}
 		},
 		descend: elements.descend,//TODO this is not necessarily right
-		descendTypes: elements.descendTypes,//TODO this is not necessarily right
+		//descendTypes: elements.descendTypes,//TODO this is not necessarily right
 		oldest: oldest,
-		key: key,
-		getType: elements.getType//TODO this is not necessarily right
+		key: key//,
+		//getType: elements.getType//TODO this is not necessarily right
 	}
 		
 	return cache.store(key, handle)

@@ -9,3 +9,10 @@ specific(entityId int) 101
 
 container 2
 	e entity 1
+	
+recursive 3
+	p recursive 100
+	name string 2
+	
+deep() 102
+	deepName one(*recursive.p.p.name) 12

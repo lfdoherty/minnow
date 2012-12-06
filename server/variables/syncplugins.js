@@ -19,7 +19,19 @@ TODO: implement proper caching
 
 function wrapParam(v, schemaType, s){
 
-
+	function addDescend(handle, t){
+		_.assertDefined(t)
+		
+		if(!_.isFunction(t.descend)) _.errout('needs descend: ' + t.name)
+		
+		handle.descend = function(path, editId, cb, continueListening){
+			_.assertFunction(cb)
+			var worked = t.descend(path, editId, cb, continueListening)
+			if(!_.isBoolean(worked)) _.errout('did not provide a boolean: ' + t.name)
+			return worked
+		}
+	}
+	
 	if(schemaType.type === 'primitive'){
 		return function(bindings, editId){
 
@@ -40,9 +52,8 @@ function wrapParam(v, schemaType, s){
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
-					if(cachedValue !== undefined){
-						listener.changed(editId)
-					}
+
+					listener.changed(editId)
 				},
 				get: function(){return cachedValue;},
 				oldest: t.oldest
@@ -63,26 +74,20 @@ function wrapParam(v, schemaType, s){
 				includeView: listeners.emitIncludeView.bind(listeners),
 				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
-			return {
-				name: 'syncplugin-object-wrapper',
+			var handle = {
+				name: 'syncplugin-object-wrapper (' + t.name + ')',
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
-					if(cachedValue !== undefined){
+					//if(cachedValue !== undefined){
 						listener.changed(editId)
-					}
+					//}
 				},
 				get: function(){return cachedValue;},
-				oldest: t.oldest,
-				descend: function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					t.descend(path, editId, cb, continueListening)
-				},
-				descendTypes: function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					t.descendTypes(path, editId, cb, continueListening)
-				}
+				oldest: t.oldest
 			}
+			addDescend(handle, t)
+			return handle
 		}
 	}else if(schemaType.type === 'set'){
 		return function(bindings, editId){
@@ -93,7 +98,6 @@ function wrapParam(v, schemaType, s){
 			var re = Math.random()
 
 			t.attach({
-				name: 'syncplugin-set-wrapper',
 				add: function(v, editId){
 					_.assert(cachedValues.indexOf(v) === -1)
 					cachedValues.push(v)
@@ -107,19 +111,28 @@ function wrapParam(v, schemaType, s){
 				includeView: listeners.emitIncludeView.bind(listeners),
 				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
-			return {
+			var handle = {
+				name: 'syncplugin-set-wrapper ('+t.name+')',
 				attach: function(listener, editId){
 					listeners.add(listener)
-					if(cachedValues.length > 0){
+					//if(cachedValues.length > 0){
 						listener.changed(editId)
-					}
+					//}
 				},
 				get: function(){return cachedValues;},
-				oldest: t.oldest
+				oldest: t.oldest//,
+				//getType: t.getType
 			}
+			
+			if(schemaType.members.type === 'object'){
+				addDescend(handle, t)
+				//if(t.getType === undefined) _.errout('missing getType: ' + t.name)
+			}
+			
+			return handle
 		}
 	}else if(schemaType.type === 'list'){
-		if(schemaType.members.type === 'primitive'){
+		//if(schemaType.members.type === 'primitive'){
 			return function(bindings, editId){
 				var listeners = listenerSet()
 
@@ -142,24 +155,34 @@ function wrapParam(v, schemaType, s){
 					objectChange: function(){
 						_.errout('TODO')
 					},
-					includeView: stub,
-					removeView: stub
+					includeView: function(){
+						_.errout('TODO')
+					},
+					removeView: function(){
+						_.errout('TODO')
+					}
 				}, editId)
-				return {
-					name: 'syncplugin-list-primitive-wrapper',
+				var handle = {
+					name: 'syncplugin-list-wrapper (' + t.name + ')',
 					attach: function(listener, editId){
 						listeners.add(listener)
-						if(cachedValues.length > 0){
+						//if(cachedValues.length > 0){
 							listener.changed(editId)
-						}
+						//}
 					},
 					get: function(){return cachedValues;},
 					oldest: t.oldest
 				}
+				
+				if(schemaType.members.type === 'object'){
+					addDescend(handle, t)
+				}
+				
+				return handle
 			}
-		}else{
-			_.errout('TODO')
-		}
+		//}else{
+		//	_.errout('TODO: ' + JSON.stringify(schemaType))
+		//}
 	}else if(schemaType.type === 'map'){
 		return function(bindings, editId){
 			var listeners = listenerSet()
@@ -186,32 +209,20 @@ function wrapParam(v, schemaType, s){
 				removeView: listeners.emitRemoveView.bind(listeners)
 			}, editId)
 			var handle = {
-				name: 'syncplugin-map-primitive-wrapper',
+				name: 'syncplugin-map-wrapper',
 				attach: function(listener, editId){
 					listeners.add(listener)
-					if(_.size(cachedValues) > 0){
+					//if(_.size(cachedValues) > 0){
 						listener.changed(editId)
-					}
+					//}
 				},
 				get: function(){return cachedValues;},
 				oldest: t.oldest
 			}
 
-			if(schemaType.value.type !== 'primitive'){
+			if(schemaType.value.type === 'object' || schemaType.key.type === 'object'){
 				//TODO?
-				handle.descend = function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					//console.log('path: ' + JSON.stringify(path))
-					//s.objectState.streamProperty(path, editId, cb, continueListening)
-					t.descend(path, editId, cb, continueListening)
-					//_.errout('TODO use makeDescend if available')
-				}
-				handle.descendTypes = function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					//s.objectState.streamPropertyTypes(path, editId, cb, continueListening)				
-					t.descendTypes(path, editId, cb, continueListening)
-					//_.errout('TODO use makeDescend if available')
-				}
+				addDescend(handle, t)
 			}
 
 			return handle;
@@ -228,6 +239,47 @@ function wrapParam(v, schemaType, s){
 function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 
 
+	function setupDescent(handle, paramsForDescent){
+		if(makeDescend){//TODO require makeDescend for object results?
+			var descender = makeDescend(paramTypes)
+			_.assertFunction(descender)
+			handle.descend = function(path, editId, cb, continueListening){
+				var res = descender(handle.lastInputs)
+				_.assertInt(res.index)
+				_.assertArray(res.prefix)
+				var worked = handle.descenders[res.index](res.prefix.concat(path), editId, cb, continueListening)
+				if(!_.isBoolean(worked)) _.errout('did not provide a boolean: ' + handle.descenders[res.index].pName)
+				_.assertBoolean(worked)
+				return worked
+			}
+		}else{
+			handle.descend = function(path, editId, cb, continueListening){
+				_.assertFunction(cb)
+				//console.log('path: ' + JSON.stringify(path))
+				if(s.objectState.isTopLevelObject(path[0].edit.id)){
+					s.objectState.streamProperty(path, editId, cb, continueListening)
+					return true
+				}else{
+					//_.errout('TODO')
+					for(var i=0;i<paramsForDescent.length;++i){
+						var pt = paramsForDescent[i]
+						
+						var worked = pt.descend(path, editId, cb, continueListening)
+						if(worked){
+							//console.log('trying all parameters for descend worked: ' + JSON.stringify(path))
+							//console.log(new Error().stack)
+							return true
+						}
+					}
+					//console.log('output handler tried all, could not descend: ' + JSON.stringify(path))
+					//console.log(JSON.stringify(paramsForDescent))
+					return false
+				}
+				//_.errout('TODO use makeDescend if available')
+			}
+		}
+	}
+	
 	if(schemaType.type === 'primitive'){
 		//_.errout('TODO')
 		var f= function(oldest){
@@ -265,7 +317,7 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 		}
 		return f
 	}else if(schemaType.type === 'object'){
-		var f = function(oldest){
+		var f = function(oldest, paramsForDescent){
 
 			var listeners = listenerSet()
 			_.assertFunction(oldest)
@@ -296,50 +348,9 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 					}
 				},
 				oldest: oldest,
-				key: Math.random(),
-				getType: function(id){//TODO? more complicated than this?
-					return s.objectState.getObjectType(id)
-				}//,
-				/*descend: function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					//console.log('path: ' + JSON.stringify(path))
-					//s.objectState.streamProperty(path, editId, cb, continueListening)
-					//_.errout('TODO use makeDescend if available')
-				},
-				descendTypes: function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					//s.objectState.streamPropertyTypes(path, editId, cb, continueListening)				
-					//_.errout('TODO use makeDescend if available')
-				}*/
+				key: Math.random()
 			}
-			if(makeDescend){//TODO require makeDescend for object results?
-				var descender = makeDescend(paramTypes)
-				_.assertFunction(descender)
-				handle.descend = function(path, editId, cb, continueListening){
-					var res = descender(handle.lastInputs)
-					_.assertInt(res.index)
-					_.assertArray(res.prefix)
-					handle.descenders[res.index](res.prefix.concat(path), editId, cb, continueListening)
-				}
-				handle.descendTypes = function(path, editId, cb, continueListening){
-					var res = descender(handle.lastInputs)
-					_.assertInt(res.index)
-					_.assertArray(res.prefix)
-					handle.typeDescenders[res.index](res.prefix.concat(path), editId, cb, continueListening)
-				}
-			}else{
-				handle.descend = function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					//console.log('path: ' + JSON.stringify(path))
-					s.objectState.streamProperty(path, editId, cb, continueListening)
-					//_.errout('TODO use makeDescend if available')
-				},
-				handle.descendTypes = function(path, editId, cb, continueListening){
-					_.assertFunction(cb)
-					s.objectState.streamPropertyTypes(path, editId, cb, continueListening)				
-					//_.errout('TODO use makeDescend if available')
-				}
-			}
+			setupDescent(handle, paramsForDescent)
 			return handle;
 		}
 		var fo = fixedObject.make(s)
@@ -348,9 +359,9 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 			return fo(v, editId, context)
 		}		
 		return f
-	}else if(schemaType.type === 'set'){
+	}else if(schemaType.type === 'set' || schemaType.type === 'list'){//TODO support list properly
 		//if(schemaType.members.type === 'primitive'){
-			var f = function(oldest){
+			var f = function(oldest, paramsForDescent){
 
 				var listeners = listenerSet()
 
@@ -408,25 +419,29 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 						}
 					},
 					oldest: oldest,
-					key: Math.random(),
+					key: Math.random()/*,
 					getType: function(id){//TODO? more complicated than this?
 						//_.errout('TODO')
-						return s.objectState.getObjectType(id)
-					}
+						if(s.objectState.isTopLevelObject(id)){
+							return s.objectState.getObjectType(id)
+						}
+						
+						for(var i=0;i<paramsForDescent.length;++i){
+							var pfd = paramsForDescent[i]
+							if(pfd.getType === undefined) _.errout("missing getType: " + pfd.name)
+							var type = pfd.getType(id)
+							if(type !== undefined){
+								return type
+							}
+						}
+						//_.errout('failure - could not find type of id in any param sets: ' + id + ' ' + JSON.stringify(pfd))
+						
+						//_.errout('TODO: ' + JSON.stringify(paramTypes))
+						//return s.objectState.getObjectType(id)
+					}*/
 				}
 				if(schemaType.members.type !== 'primitive'){
-					handle.descend = function(path, editId, cb, continueListening){
-						_.assertFunction(cb)
-						//_.assertInt(path[0])
-						//_.assertInt(path[1])
-						s.objectState.streamProperty(path, editId, cb, continueListening)
-					}
-					handle.descendTypes = function(path, editId, cb, continueListening){
-						_.assertFunction(cb)
-						//_.assertInt(path[0])
-						//_.assertInt(path[1])
-						s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
-					}
+					setupDescent(handle, paramsForDescent)
 				}
 				return handle;
 			}
@@ -461,7 +476,7 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 					name: 'syncplugin-map',
 					update: function(result, editId){
 						_.assertInt(editId)
-						if(_.size(result) === 0 && _size(map) === 0) return
+						if(_.size(result) === 0 && _.size(map) === 0) return
 
 						Object.keys(result).forEach(function(key){
 							var value = result[key]
@@ -519,6 +534,15 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 
 exports.wrapParam = wrapParam
 
+function typeHasObjects(t){
+	if(t.type === 'object') return true
+	if(t.type === 'set' || t.type === 'list') return typeHasObjects(t.members)
+	if(t.type === 'map'){
+		return typeHasObjects(t.key) || typeHasObjects(t.value)
+	}
+	return false
+}
+
 exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 
 	/*
@@ -536,15 +560,25 @@ exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 		var v = self(param, typeBindings)
 		var wv = wrapParam(v, param.schemaType, s)
 		paramSets.push(wv)
+		wv.schemaType = param.schemaType
 	})
 	
 	_.assert(paramSets.length >= plugin.minParams)
 	_.assert(plugin.maxParams === -1 || paramSets.length <= plugin.maxParams)
 
 	var res = plugin.schemaType(callExpr)
+	//console.log('wrapping: ' + JSON.stringify(callExpr))
+
+	var paramsForDescent = {}
+	callExpr.params.forEach(function(param, index){
+		if(typeHasObjects(param.schemaType)){
+			paramsForDescent[index] = true//.push(paramSets[index])
+		}
+	})	
+	
 	var makeOutputHandle = setupOutputHandler(res.schemaType, s, plugin.descender, res.paramTypes)
 
-	var f = svgSyncPlugin.bind(undefined, s, cache, paramSets, plugin, makeOutputHandle)
+	var f = svgSyncPlugin.bind(undefined, s, cache, paramSets, plugin, makeOutputHandle, paramsForDescent)
 	
 	f.wrapAsSet = function(v, editId, context){
 		//_.errout('TODO')
@@ -558,57 +592,64 @@ exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 }
 
 
-function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, editId){
+function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendableParams, bindings, editId){
 
-	var outputHandler = makeOutputHandle(oldest)
-	
-	
-	var recomputing = false
-	var listener = {
-		changed: function(editId){
-			_.assertInt(editId)
-			_.assertNot(recomputing)
-			//s.log('recomputing: ' + plugin.callSyntax)
-			recomputing = true
-			recompute(editId)
-			recomputing = false
-		},
-		includeView: stub,
-		removeView: stub
-	}
+	var paramsForDescent = []
 
-	_.assert(paramSets.length > 0)
-	
 	var params = []
 	for(var i=0;i<paramSets.length;++i){
 		var ps = paramSets[i](bindings, editId)
 		_.assertDefined(ps)
 		params.push(ps)
+		if(descendableParams[i]){
+			if(ps.descend === undefined) _.errout('should be descendable, but missing descend: ' 
+				+ ps.name + ' ' + JSON.stringify(paramSets[i].schemaType))
+			_.assertFunction(ps.descend)
+			paramsForDescent.push(ps)
+		}
 	}
+	
+	var outputHandler = makeOutputHandle(oldest, paramsForDescent)
+	
+	
+	var recomputing
+	var listener = {
+		changed: function(editId){
+			_.assertInt(editId)
+			_.assertNot(recomputing)
+			//console.log('recomputing: ' + plugin.callSyntax)
+			recomputing = true
+			recompute(editId)
+			recomputing = false
+		},
+		includeView: function(){
+			_.errout('TODO')
+		},
+		removeView: function(){
+			_.errout('TODO')
+		}
+	}
+
+	//_.assert(paramSets.length > 0)
+
 
 	var valueArray = []
 	valueArray.length = params.length
 	
 	outputHandler.descenders = []
-	outputHandler.typeDescenders = []
+	//outputHandler.typeDescenders = []
 
 	var oldestParams = []
 
 	params.forEach(function(p, i){
+		_.assertString(p.name)
 		p.attach(listener, editId)
 		outputHandler.descenders[i] = p.descend
-		outputHandler.typeDescenders[i] = p.descendTypes
-		
 		
 		if(outputHandler.descenders[i] === undefined){
 			//_.errout('no descender for ' + params[0].name)
 			outputHandler.descenders[i] = function(){
 				_.errout('no descender specified for variable ' + p.name)
-			}
-		}
-		if(outputHandler.typeDescenders[i] === undefined){
-			outputHandler.typeDescenders[i] = function(){
-				_.errout('no type descender specified for variable ' + p.name)
 			}
 		}
 		
@@ -625,6 +666,7 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 		for(var i=0;i<oldestParams.length;++i){
 			var p = oldestParams[i]
 			var old = p.oldest()
+			//if(old === 1187) console.log('here: ' + p.oldest)
 			if(old < o) o = old
 		}
 		return o
@@ -648,10 +690,12 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, bindings, 
 		
 		//console.log('recomputing with: ' + JSON.stringify(valueArray))
 		var rr = plugin.implementation(valueArray)
-		//console.log(nr + ' ' + plugin.callSyntax + ' recomputed ' + JSON.stringify(result) + ' -> ' + JSON.stringify(rr))
+		//console.log(nr + ' ' + plugin.callSyntax + ' recomputed('+JSON.stringify(valueArray)+ '): '+ JSON.stringify(result) + ' -> ' + JSON.stringify(rr))
 		result = rr
 		outputHandler.update(result, editId)
 	}	
+	
+	//if(recomputing === undefined) recompute(editId)
 	
 	return outputHandler
 }

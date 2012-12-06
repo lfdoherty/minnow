@@ -160,6 +160,14 @@ function wrapCollection(local, arr){
 }
 exports.wrapCollection = wrapCollection
 
+function adjustPathToPrimitiveSelf(){
+	var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
+	if(remaining.length > 0){
+		_.errout('logic error, cannot have descended into primitive: ' + JSON.stringify(remaining))
+	}
+}
+exports.adjustPathToPrimitiveSelf = adjustPathToPrimitiveSelf
+
 function adjustObjectCollectionPath(source){
 	return this.parent.adjustPath(this.part)
 	//console.log('adjust object collection path ' + source)
@@ -206,6 +214,11 @@ exports.getRemoveOperator = function(schema){
 	var ts = typeSuffix[schema.type.members.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
 	return editCodes['remove' + ts]
+}
+exports.getSetAtOperator = function(schema){
+	var ts = typeSuffix[schema.type.members.primitive]
+	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	return editCodes['set' + ts+'At']
 }
 exports.getPutOperator = function(schema){
 	var ts = typeSuffix[schema.type.value.primitive]

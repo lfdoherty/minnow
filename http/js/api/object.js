@@ -16,7 +16,7 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	
 	_.assertNot(objId !== -1 && parent.isView())
 
-	if(!typeSchema.isView){
+	if(typeSchema && !typeSchema.isView){
 		_.assertInt(objId);
 	}
 	
@@ -80,16 +80,27 @@ ObjectHandle.prototype.adjustPath = function(source){
 		return []
 	}else{
 		if(remainingCurrentPath.length === 1 || remainingCurrentPath[1] !== source){
+			
+			if(remainingCurrentPath.length > 2){//since we're switching the property, we ascend to that point (if necessary)
+				if(remainingCurrentPath.length < 6){
+					this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-2)], {})
+				}else{
+					this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-2})
+				}
+			}
+			
 			if(remainingCurrentPath.length > 1){
 				this.persistEdit(editCodes.reselectProperty, {typeCode: source})
 			}else{
 				this.persistEdit(editCodes.selectProperty, {typeCode: source})
 			}
+			return []
+		}else{
+			return remainingCurrentPath.slice(2)
 		}
-		return remainingCurrentPath.slice(2)
 	}
 }
-
+/*
 ObjectHandle.prototype.adjustPathSelf = function(objId){
 	_.assertFunction(this.parent.adjustPath)
 
@@ -118,6 +129,8 @@ ObjectHandle.prototype.adjustPathSelf = function(objId){
 		return remainingCurrentPath.slice(1)
 	}
 }
+*/
+
 ObjectHandle.prototype.isDefined = function(){
 	return !this.isReadonlyAndEmpty
 }
@@ -140,7 +153,8 @@ ObjectHandle.prototype.reify = function(id){
 }
 
 ObjectHandle.prototype.prepare = function(){
-	if(this.prepared) return;
+	if(this.prepared || !this.typeSchema) return;
+	
 	this.prepared = true;
 	var s = this;	
 
@@ -298,6 +312,16 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 	}
 }
 
+ObjectHandle.prototype.isa = function(name){
+	return this.typeSchema.name === name || (this.typeSchema.superTypes && this.typeSchema.superTypes[name])
+}
+
+ObjectHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
+	var n = this.objectApiCache[oldKey]
+	delete this.objectApiCache[oldKey]
+	this.objectApiCache[newKey] = n
+}
+
 ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 	//this.log('%%%' + JSON.stringify(path) + ' ' + this.typeSchema.name);
 	//var ps = this.typeSchema.propertiesByCode[path[0]];
@@ -319,6 +343,11 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 		var n = new ObjectHandle(type, [], temporary, [temporary], this);
 		if(this.objectApiCache === undefined) this.objectApiCache = {}
 		this.objectApiCache[temporary] = n;
+		
+		if(op === editCodes.setToNew){
+			this.saveTemporaryForLookup(temporary, n, this)
+		}
+		
 	
 		n.prepare()
 
@@ -331,7 +360,7 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 		this.log('TODO: ' + op)
 		this.log(new Error().stack)
 		//process.exit(0)
-		_.errout('TODO: ' + op)
+		_.errout('TODO: ' + editNames[op] + ' ' + JSON.stringify(edit))
 	}
 	/*
 		setPropertyValue(this.obj, path[0], edit.value);
@@ -543,6 +572,8 @@ ObjectHandle.prototype.setPropertyToNew = function(propertyName, typeName, json)
 	if(this.objectApiCache === undefined) this.objectApiCache = {}
 	this.objectApiCache[temporary] = n;
 	
+	this.saveTemporaryForLookup(temporary, n, this)
+	
 	n.prepare()
 
 	_.assertObject(n)
@@ -617,6 +648,10 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 
 ObjectHandle.prototype.hasProperty = function(propertyName){
 	if(this.obj === undefined) return false;
+
+	if(this.typeSchema === undefined) _.errout('null object has no type')
+
+	if(this.typeSchema.properties === undefined) _.errout('object has no properties, so definitely not a property called: "' + propertyName + '"')
 	var pt = this.typeSchema.properties[propertyName];
 	if(pt === undefined) _.errout('not a valid property for that object: ' + propertyName)
 	if(pt.type.type === 'set' || pt.type.type === 'list' || pt.type.type === 'map') return true
@@ -677,7 +712,8 @@ ObjectHandle.prototype.property = function property(propertyName){
 				var objSchema = fullSchema[pt.type.object];
 				var types = recursivelyGetLeafTypes(objSchema, fullSchema);
 				if(types.length > 1){
-					_.errout('need to specify object type - use setPropertyType');
+					//_.errout('need to specify object type - use setPropertyType');
+					n = new ObjectHandle(undefined, undefined, -1, [pt.code], this, true);
 				}else{
 					//this.log('made empty readonly object ' + pt.code + ' ' + pv)
 					n = new ObjectHandle(fullSchema[types[0]], undefined, -1, [pt.code], this, true);
@@ -750,7 +786,9 @@ ObjectHandle.prototype.toJson = function toJson(already){
 		//if(local.hasProperty(p.name)){
 		if(local[p.name] !== undefined){
 			if(typeof(local[p.name].toJson) !== 'function'){
-				_.errout(JSOn.stringify(local[p.name]))
+				console.log('ERROR: '+p.name+'.toJson not a function')
+				console.log(local[p.name])
+				_.errout(JSON.stringify(local[p.name]))
 			}
 			obj[p.name] = local[p.name].toJson(subAlready)//local.property(p.name).toJson(subAlready)
 		}

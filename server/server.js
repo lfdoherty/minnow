@@ -259,7 +259,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						//console.log('already sent: ' + id)
 						return;
 					}else{
-						//console.log('including: ' + id)
+						console.log('including: ' + id)
+						_.assert(objectState.isTopLevelObject(id))
 						//log(syncId + ' including object: ' + id + ' editId: ' + editId)
 						//TODO buffer for streaming all the edits for the object and any objects it depends on
 						var pointer = {got: false, edits: []}

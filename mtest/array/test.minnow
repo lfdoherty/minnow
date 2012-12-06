@@ -8,7 +8,7 @@ general() 100
 	names each(*entity, {
 		switch(type(~),
 			case('blah', blah:~.names),
-			case('entity', [])
+			case('entity', list())
 		)
 	}) 1
 	

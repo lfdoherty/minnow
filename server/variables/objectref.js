@@ -39,8 +39,8 @@ function sfgObject(s, idExpr, bindings, editId){
 			//s.log(new Error().stack)
 			listeners.emitSet(id)
 		},
-		includeView: stub,
-		removeView: stub
+		includeView: function(){_.errout('TODO');},
+		removeView: function(){_.errout('TODO');}
 	}, editId)
 	//console.log('TODO LISTEN FOR CHANGES %%%%%%%%%%%%%%%%%5: ' + id)
 	

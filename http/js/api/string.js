@@ -32,6 +32,7 @@ function StringHandle(typeSchema, obj, part, parent){
 		this.set = u.viewReadonlyFunction
 	}
 }
+StringHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 StringHandle.prototype.set = function(str){
 	
 	if(this.obj === str) return;
@@ -40,6 +41,8 @@ StringHandle.prototype.set = function(str){
 	
 	//console.log('path: ' + JSON.stringify(this.getPath()));
 	//console.log(this.rrr + ' string set: ' + str)
+	
+	_.assertDefined(this.obj)
 	
 	var e = {value: this.obj}
 

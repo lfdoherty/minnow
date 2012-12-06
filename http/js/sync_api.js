@@ -216,9 +216,10 @@ function _makeAndSaveNew(json, type){
 }
 
 SyncApi.prototype.saveTemporaryForLookup = function(temporary, n, local){
+	//_.assertObject(local.objectApiCache)
 	if(this.temporaryCache === undefined) this.temporaryCache = {}
 	this.temporaryCache[temporary] = {n: n, local: local}
-	console.log('saving temporary for lookup: ' + temporary)
+	//console.log('saving temporary for lookup: ' + temporary)
 }
 
 function log(){
@@ -261,6 +262,10 @@ function saveTemporaryForLookup(temporary, n, obj){
 	return this.parent.saveTemporaryForLookup(temporary, n, obj)
 }
 
+function toString(){
+	return JSON.stringify(this.toJson(), null, 2)
+}
+
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
@@ -290,6 +295,8 @@ function addCommonFunctions(classPrototype){
 	//if(classPrototype.getVersionTimestamps === undefined) classPrototype.getVersionTimestamps = getVersionTimestamps
 	if(classPrototype.getLastEditor === undefined) classPrototype.getLastEditor = getLastEditor
 	if(classPrototype.saveTemporaryForLookup === undefined) classPrototype.saveTemporaryForLookup = saveTemporaryForLookup
+
+	classPrototype.toString = toString
 }
 
 
@@ -348,6 +355,8 @@ function SyncApi(schema, sh, logger){
 
 SyncApi.prototype.makeTemporaryId = function(){
 	--this.temporaryIdCounter;
+	//console.log('made temporary: ' + this.temporaryIdCounter)
+	//console.log(new Error().stack)
 	return this.temporaryIdCounter
 }
 
@@ -570,6 +579,9 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		//console.log('destroyed current object')
 	}else{
 		_.assertInt(this.currentSyncId)
+		if(this.currentTopObject.parent !== this){
+			_.errout('current top object parent is wrong: ' + this.currentTopObject.parent)
+		}
 		_.assertEqual(this.currentTopObject.parent, this)
 		this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
 	}
@@ -607,6 +619,13 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 		return n
 	}
 }
+
+SyncApi.prototype._rewriteObjectApiCache = function(oldKey, newKey){
+	var n = this.objectApiCache[oldKey]
+	delete this.objectApiCache[oldKey]
+	this.objectApiCache[newKey] = n
+}
+
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
 	//this.log('reifying id ' + temporaryId + ' -> ' + realId)
@@ -629,8 +648,9 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		if(this.temporaryCache && this.temporaryCache[oldCacheKey]){
 			var e = this.temporaryCache[oldCacheKey]
 			delete this.temporaryCache[oldCacheKey]
-			delete e.local.objectApiCache[oldCacheKey]
-			e.local.objectApiCache[realId] = e.n
+			e.local._rewriteObjectApiCache(oldCacheKey, realId)
+			//delete e.local.objectApiCache[oldCacheKey]
+			//e.local.objectApiCache[realId] = e.n
 			e.n.objectId = realId
 		}else{
 			console.log(JSON.stringify(Object.keys(this.objectApiCache)))

@@ -93,12 +93,19 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			_.assertFunction(cb)
 			//_.assertInt(path[0])
 			//_.assertInt(path[1])
+			//console.log('path: ' + JSON.stringify(path))
+			_.assertArray(path)
+			if(!s.objectState.isTopLevelObject(path[0].edit.id)) return false
 			s.objectState.streamProperty(path, editId, cb, continueListening)
+			return true
 		},
 		descendTypes: function(path, editId, cb, continueListening){
+			if(!s.objectState.isTopLevelObject(path[0].edit.id)) return false
 			s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
+			return true
 		},
 		getType: function(v){
+			if(!s.objectState.isTopLevelObject(v)) return
 			return s.objectState.getObjectType(v)
 		}
 	}
@@ -107,7 +114,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		
 		idList = [].concat(ids)
 		//s.log('TYPE got all ids', ids)
-		//console.log('TYPE got all ids', ids)
+		//console.log('TYPE(' + typeCode + ') got all ids', ids)
 		
 		function listenCreated(typeCode, id, editId){
 			idList.push(id)

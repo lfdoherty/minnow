@@ -36,9 +36,12 @@ function propertyType(rel, ch){
 	if(st.type === 'object'){
 		if(propertyName === 'id'){
 			return {type: 'primitive', primitive: 'int'}
+		}else if(propertyName === 'creationSession'){
+			return {type: 'primitive', primitive: 'int'}
 		}else{
 			var objSchema = ch.schema[st.object]
 			if(objSchema === undefined) _.errout('cannot find object type: ' + st.object)
+			if(objSchema.properties === undefined) _.errout('no properties: ' + JSON.stringify(objSchema) + ' - ' + propertyName)
 			var p = objSchema.properties[propertyName]
 			if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
 			return p.type
@@ -169,8 +172,12 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 					value = v
 					listeners.emitSet(value, oldV||-1, editId)
 				},
-				includeView: stub,
-				removeView: stub
+				includeView: function(){
+					_.errout('TODO')
+				},
+				removeView: function(){
+					_.errout('TODO')
+				}
 			}, editId)
 			var handle = {
 				name: 'object-property-handle?',
@@ -194,8 +201,59 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 		return f
 	}
 	
+	if(rel.params[0].value === 'creationSession'){
+		var f = function(bindings, editId){
+			var context = contextGetter(bindings, editId)
+			//console.log('context: ' + JSON.stringify(Object.keys(context)))
+			s.analytics.cachePut()
+			
+			var listeners = listenerSet()
+			var value
+			context.attach({
+				set: function(v, oldV, editId){
+					var oldValue = value
+					if(v){
+						value = s.objectState.getCreationSession(v)
+					}else{
+						value = undefined
+					}
+					if(oldValue !== value){
+						listeners.emitSet(undefined, oldValue, editId)
+					}
+				},
+				includeView: function(){
+					_.errout('TODO')
+				},
+				removeView: function(){
+					_.errout('TODO')
+				}
+			}, editId)
+			var handle = {
+				name: 'object-property-handle?',
+				attach: function(listener, editId){
+					listeners.add(listener)
+					if(value !== undefined) listener.set(value, undefined, editId)
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId){
+						listener.set(undefined, value, editId)
+					}
+				},
+				oldest: context.oldest
+			}
+			return handle
+		}
+		f.wrapAsSet = function(v, editId){
+			return fixedPrimitive.make(s)(v, editId)
+		}
+		return f
+	}
 	var property = objSchema.properties[rel.params[0].value]
 
+	if(property === undefined){
+		_.errout('no property "' + rel.params[0].value + '" for object: ' + objSchema.name)
+	}
 
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
@@ -333,6 +391,7 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 			if(s.objectState.isTopLevelObject(id)){
 				//_.errout('TODO?')
 				s.objectState.streamProperty(path, editId, cb, continueListening)
+				return true
 			}else{
 				//_.errout('TODO?: ' + JSON.stringify(path))
 				var key = keyForValue[id]
@@ -350,7 +409,7 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 					_.assert(path.length >= 2)
 					np = np.concat(path.slice(1))
 					//console.log('descending map-values: ' + JSON.stringify(np))
-					elements.descend(np, editId, function(pv, editId){
+					return elements.descend(np, editId, function(pv, editId){
 						//console.log('descent result: ' + JSON.stringify(pv))
 						cb(pv, editId)
 					}, continueListening)
@@ -363,6 +422,7 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 			if(s.objectState.isTopLevelObject(id)){
 				//_.errout('TODO?')
 				s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
+				return true
 			}else{
 				//_.errout('TODO?: ' + JSON.stringify(path))
 				var key = keyForValue[id]
@@ -380,7 +440,7 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 					_.assert(path.length >= 2)
 					np = np.concat(path.slice(1))
 					//console.log('descending map-values: ' + JSON.stringify(np))
-					elements.descendTypes(np, editId, function(pv, editId){
+					return elements.descendTypes(np, editId, function(pv, editId){
 						//console.log('descent result: ' + JSON.stringify(pv))
 						cb(pv, editId)
 					}, continueListening)
@@ -390,7 +450,12 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 		getType: function(v){
 			//_.errout('TODO')
 			if(!isObjectProperty) _.errout('internal error')
-			return oldTypeGetter(v)
+			var res = oldTypeGetter(v)
+			if(res === undefined){
+				console.log('map-values cannot find type of id: ' + v)
+				//return
+			}
+			return res
 		}
 	}
 	
@@ -590,6 +655,7 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			//console.log('property getting attach: ' + propertyCode + ' ' + isObjectProperty + ' ' + value + ' ' + key)
 			listeners.add(listener)
 			//console.log('attaching to property ' + propertyCode + ' ' + value + ' ' + editId)
+			//console.log(new Error().stack)
 			//if(propertyCode === 100) console.log(new Error().stack)
 			//console.log('^'+JSON.stringify(Object.keys(listener)))
 			if(value !== undefined){
@@ -615,8 +681,24 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		handle.descend = function(path, editId, cb){
 			_.assertInt(path[0].edit.id)
 			var id = innerLookup[path[0].edit.id]
-			_.assertInt(id)
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			if(id === undefined){
+				return false
+			}
+			//_.assertInt(id)
+			//console.log('got id: ' + path[0].edit.id + ' <- ' + id)
+			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+				.concat(path), editId, cb)
+		}
+		handle.descendTypes = function(path, editId, cb){
+			//_.errout('TODO')
+			_.assertInt(path[0].edit.id)
+			var id = innerLookup[path[0].edit.id]
+			if(id === undefined){
+				return false
+			}
+			//_.assertInt(id)
+			//console.log('got id: ' + path[0].edit.id + ' <- ' + id)
+			return elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -631,9 +713,12 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			if(id === undefined){
 				innerLookup[value] = undefined
 				if(value){
-					listeners.emitSet(undefined, value, editId)
+					var oldValue = value
+					value = undefined
+					listeners.emitSet(undefined, oldValue, editId)
 				}
-				value = undefined
+				
+				ongoingEditId = undefined
 				return
 			}
 			
@@ -641,14 +726,14 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			_.assertInt(id)
 			_.assertInt(editId)
 
-			//s.log('GETTING(' + id + ') PBOJECR: ' + propertyCode)
+			//console.log('GETTING(' + id + ') PBOJECR: ' + propertyCode)
 			//s.log(elements.name + ': '+elements)
 			//s.log(Object.keys(elements))
 			_.assertInt(id)
 			//console.log('got property-of-object object id: ' + id + ' ' + editId)
 			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				editId, function(pv, editId){
-				//console.log(key + ' ' + uid+' got pv(' + id+','+propertyCode + '): ' + JSON.stringify(pv) + ' ' + value)
+				//console.log(key + ' ' + uid+' got pv(' + id+','+propertyCode + '): ' + JSON.stringify(pv) + ' ' + value + ' ' + editId)
 				if(pv !== undefined){
 					if(pv !== value){
 						if(isObjectProperty){
@@ -722,12 +807,17 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')},
+		descend: function(){_.errout('TODO?')}/*,
 		getType: function(v){
 			//_.errout('TODO')
 			if(!isObjectProperty) _.errout('internal error')
-			return oldTypeGetter(v)
-		}
+			var res = oldTypeGetter(v)
+			if(res === undefined){
+				console.log('property-of-object-collection cannot find type of id: ' + v)
+				//return
+			}
+			return res
+		}*/
 	}
 	//TODO listen for changes
 	
@@ -737,26 +827,27 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
 			if(id === undefined){
-				s.log(JSON.stringify(innerLookup))
-				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
+				//s.log(JSON.stringify(innerLookup))
+				//console.log('tried to descend into unknown id: ' + path[0].edit.id)
+				return false
 			}
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
-		handle.descendTypes = function(path, editId, cb){
+		/*handle.descendTypes = function(path, editId, cb){
 			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
 			if(id === undefined){
-				s.log(JSON.stringify(innerLookup))
+				console.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			return elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
-		}
+		}*/
 	}
 	
 	var oldPv
-	var oldTypeGetter
+	//var oldTypeGetter
 	
 	var previousStreamListener
 	elements.attach({
@@ -816,15 +907,21 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			}
 			previousStreamListener = streamListener
 
+			var descentPath = [{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+
 			if(isObjectProperty){
-				s.objectState.streamPropertyTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+				//s.objectState.streamPropertyTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
+				//if(!_.isFunction(elements.descendTypes)) _.errout('needs descendTypes: ' + elements.name)
+				/*var worked = elements.descendTypes(descentPath, editId, function(typeGetter, editId){
 					oldTypeGetter = typeGetter
-				}, true)
-			}
+				}, true, true)*/
+				//_.assert(worked)
+				//if(!worked) _.errout('failed to descendTypes: ' + JSON.stringify(descentPath) + ' (property-of-object-collection)' + ' ' + elements.name)
+			}			
 			
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}],
+			var worked = elements.descend(descentPath,
 				editId, streamListener)
-			
+			_.assert(worked)			
 		},
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
@@ -881,12 +978,17 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')},
+		descend: function(){_.errout('TODO?')}/*,
 		getType: function(v){
 			//_.errout('TODO')
 			if(!isObjectProperty) _.errout('internal error')
-			return oldTypeGetter(v)
-		}
+			var res = oldTypeGetter(v)
+			if(res === undefined){
+				//console.log('property-of-object-map cannot find type of id: ' + v)
+				//return
+			}
+			return res
+		}*/
 	}
 	
 	if(isObjectProperty){
@@ -898,19 +1000,19 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 				s.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
-		handle.descendTypes = function(path, editId, cb){
+		/*handle.descendTypes = function(path, editId, cb){
 			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = currentId
 			if(id === undefined){
 				s.log(JSON.stringify(innerLookup))
 				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
 			}
-			elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			return elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
-		}
+		}*/
 	}
 	
 	var oldTypeGetter
@@ -994,28 +1096,39 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 	var propertyValues = []
 	var pvCounts = {}
 	var ongoingEditIds = {}
+	var ongoingCount = 0
 	
 	function wait(editId){
+		if(ongoingEditIds[editId] === undefined) ++ongoingCount
+		
 		ongoingEditIds[editId] = 1 + (ongoingEditIds[editId] || 0)
 	}
 	function resume(editId){
 		--ongoingEditIds[editId]
-		if(ongoingEditIds[editId] === 0) delete ongoingEditIds[editId]
+		if(ongoingEditIds[editId] === 0){
+			delete ongoingEditIds[editId]
+			--ongoingCount
+		}
 	}
 	
 	function oldest(){
 		var oldestEditId = elements.oldest()
-		Object.keys(ongoingEditIds).forEach(function(v){
-			v = parseInt(v)
-			if(v < oldestEditId) oldestEditId = v
-		})
+		if(ongoingCount > 0){
+			Object.keys(ongoingEditIds).forEach(function(v){
+				v = parseInt(v)
+				if(v < oldestEditId){
+					oldestEditId = v
+				//	console.log('waiting: ' + JSON.stringify(ongoingEditIds))
+				}
+			})
+		}
 		return oldestEditId
 	}
 	
-	var oldTypeGetters = []//TODO optimize this
+	//var oldTypeGetters = []//TODO optimize this
 	
 	var handle = {
-		name: 'object-set-single-value-property',
+		name: 'object-set-single-value-property (' + elements.name + ')',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^ ' + propertyCode)
@@ -1032,7 +1145,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		key: key,
 		descend: function(){
 			_.errout('TODO?')
-		},
+		}/*,
 		descendTypes: function(){
 			_.errout('TODO?')
 		},
@@ -1046,9 +1159,16 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 				res = oldTypeGetters[i](v, true)
 				if(res) break;
 			}
-			if(res === undefined) _.errout('cannot find type of id: ' + v)
+			if(res === undefined){
+				res = elements.getType(v)
+			}
+			if(res === undefined){
+				//console.log('object-set-single-value-property cannot find type of id: ' + v + ' ' + oldTypeGetters.length + ' ' + JSON.stringify(innerLookup))//JSON.stringify(oldTypeGetters))
+				//_.errout('TOO HIGH')
+				//return
+			}
 			return res
-		}
+		}*/
 	}
 	
 	if(isObjectProperty){
@@ -1056,26 +1176,22 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		handle.descend = function(path, editId, cb){
 			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
+
+			if(id === undefined){
+				//console.log('id not found for: ' + path[0].edit.id + ', got: ' + JSON.stringify(innerLookup))//JSON.stringify(path))
+				return false
+			}
+
+			var descentPath = [{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			
 			_.assertInt(id)
 			//console.log('descending')
-			elements.descend(
-				[{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}].concat(path), 
-				editId, 
-				cb)
-		}
-		
-		handle.descendTypes = function(path, editId, cb, continueListening){
-			var id = path[0].edit.id
-			var id = innerLookup[path[0].edit.id]
-			_.assertInt(id)
-			elements.descendTypes(
-				[{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}].concat(path), 
+			return elements.descend(
+				descentPath.concat(path), 
 				editId, 
 				cb)
 		}
 	}
-
-	if(elements.descendTypes === undefined) _.errout('must provide descendTypes for ' + elements.name)
 	
 	elements.attach({
 		add: function(id, outerEditId){
@@ -1086,13 +1202,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			var first = true
 			//console.log('added id: ' + id)
 			
-			if(isObjectProperty){
-				elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
-					oldTypeGetters.push(typeGetter)
-				}, true)
-			}
-			
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
+			var worked = elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
 				outerEditId, function(pv, editId){
 				
 				//console.log(propertyCode + ' descending result: ' + JSON.stringify(pv))
@@ -1130,7 +1240,7 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 				}
 			})
 			
-			
+			_.assert(worked)
 		},
 		remove: function(id, editId){
 			wait(editId)
@@ -1211,7 +1321,9 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')}//,
+		//descendTypes: function(){_.errout('TODO?')},
+	//	getType: function(){_.errout('TODO?')}
 	}
 	
 	if(isObjectProperty){
@@ -1219,7 +1331,8 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 		handle.descend = function(path, editId, cb){
 			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			_.assertInt(id)
+			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -1348,14 +1461,12 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		return oldestEditId
 	}
 
-	var oldTypeGetters = []
-	
 	var handle = {
 		name: 'property-of-object-set-collection',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			//console.log('attached to property %^^^^^^^^^^^^^^^^^^^^^^6')
-			console.log(JSON.stringify(propertyValues))
+			//console.log(JSON.stringify(propertyValues))
 			propertyValues.forEach(function(v){listener.add(v,editId);})
 		},
 		detach: function(listener, editId){
@@ -1367,16 +1478,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')},
-		getType: function(v){
-			var res
-			for(var i=0;i<oldTypeGetters.length;++i){
-				res = oldTypeGetters[i](v, true)
-				if(res) break;
-			}
-			if(res === undefined) _.errout('cannot find type of id: ' + v)
-			return res
-		}
+		descend: function(){_.errout('TODO?')}
 	}
 	
 	
@@ -1385,10 +1487,13 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		handle.descend = function(path, editId, cb){
 			_.assertEqual(path[0].op, editCodes.selectObject)
 			var id = innerLookup[path[0].edit.id]
+
+			if(id === undefined) return false
+
 			//console.log('getting: ' + path[0].edit.id + '-> ?')
 			//console.log(JSON.stringify(innerLookup))
 			_.assertInt(id)
-			elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
 	}
@@ -1398,16 +1503,11 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 	elements.attach({
 		add: function(id, outerEditId){
 			wait(outerEditId)
-			//console.log('got add $$$$$$$$$$$$$$$$$$$$$$: ', id, ' ', outerEditId, ' ', propertyCode)
-
-			if(isObjectProperty){
-				elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], outerEditId, function(typeGetter, editId){
-					oldTypeGetters.push(typeGetter)
-				}, true)
-			}
 			
 			var first = true
 			var currentV
+			
+			//console.log('added: ' + id)
 			
 			//TODO use a descendCollection method to allow us to get incremental updates?
 			

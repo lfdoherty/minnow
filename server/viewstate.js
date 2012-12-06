@@ -51,7 +51,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 
 	function scheduleAnalytics(delay){
 		setTimeout(function(){
-			analyticsLog(s.analytics.report())
+			analyticsLog(s.analytics.report()+'\n'+JSON.stringify(objectState.ol.stats, null, 2))
 			var newDelay = delay*2
 			if(newDelay > 1000*60*30) newDelay = 1000*60*30//maximum analytics logging delay is 30 minutes
 			scheduleAnalytics(newDelay)

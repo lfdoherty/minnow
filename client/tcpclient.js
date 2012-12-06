@@ -151,6 +151,8 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	var wasClosedManually = false
 	
+	var reconnectExpired = false
+	
 	var lastAck = 0
 	var reader = {
 		increaseAck: function(e){
@@ -160,6 +162,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				//console.log('increased client ack: ' + lastAck + ', sent: ' + backingWriter.getFrameCount())
 			}
 		},	
+		reconnectExpired: function(e){
+			//console.log('reconnect expired')
+			//_.errout('TODO')
+			reconnectExpired = true
+			
+		},
 		confirmReconnect: function(e){
 			//_.errout('TODO?')
 			
@@ -495,6 +503,9 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	attachClient()
 	
 	function tryReconnect(){
+		if(reconnectExpired){
+			return//TODO?
+		}
 		console.log('trying to reconnect')
 		client = net.connect(port, host, function(){
 			console.log('reconnected tcp client waiting for... something: ' + backingWriter.getFrameCount());

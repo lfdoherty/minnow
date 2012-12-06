@@ -241,6 +241,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			}
 		}else if(relSchema.value.type === 'set'){
 			var selectOpName = util.selectKeyOp(relSchema)
+			_.assertInt(selectOpName)
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
 				s.analytics.cachePut()
@@ -250,11 +251,26 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							_.assertInt(editId)
 							_.assertPrimitive(value)
 							var edit = {id: value}
-							//console.log('got put-add: ' + key + ' ' + value)
 							_.assertInt(value)
+							if(relSchema.key.type === 'object'){
+								_.assertInt(key)
+								_.assert(s.objectState.isTopLevelObject(key))
+							}
+							//console.log('got put-add: ' + key + ' ' + value + ' ' + selectOpName)
+							_.assertInt(value)
+							_.assert(s.objectState.isTopLevelObject(value))
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								editCodes.putAddExisting, edit, -1, editId)
+						},
+						putRemove: function(key, value, editId){
+							_.assertInt(editId)
+							_.assertPrimitive(value)
+							var edit = {id: value}
+							//console.log('got put-remove: ' + key + ' ' + value)
+							listener.objectChange(viewTypeCode, viewId, 
+								[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
+								editCodes.putRemoveExisting, edit, -1, editId)
 						},
 						objectChange: listener.objectChange.bind(listener),
 						includeView: listener.includeView.bind(listener),
@@ -263,13 +279,13 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				}else{
 					var putAddOpName = util.putAddOp(relSchema)
 					var putRemoveOpName = util.putRemoveOp(relSchema)
-					var selectOpName = util.selectKeyOp(relSchema)
+					//var selectOpName = util.selectKeyOp(relSchema)
 					var h = {
 						putAdd: function(key, value, editId){
 							_.assertInt(editId)
 							_.assertPrimitive(value)
 							var edit = {value: value}
-							//console.log('got put-add: ' + key + ' ' + value)
+							console.log('got put-add: ' + key + ' ' + value)
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								putAddOpName, edit, -1, editId)
@@ -377,7 +393,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				s.analytics.cachePut()
 				var h = {
 					add: function(value, editId){
-						//log('got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
+						//console.log('got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
 						//if(viewId === 0) process.exit(0)
 						_.assert(_.isString(value) || _.isInt(value))
 						_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id
@@ -386,11 +402,13 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], editCodes.addExisting, edit, -1, editId)
 					},
 					remove: function(value, editId){
-						//console.log('remove ---')
+						//console.log('remove --- ' + editId)
 						_.assert(_.isString(value) || _.isInt(value))
 						if(editId){
-							var edit = {id: value}
-							listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], editCodes.remove, edit, -1, editId)
+							//console.log('object change')
+							//var edit = {id: value}
+							var removePath = [{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: editCodes.selectObject, edit: {id: value}}]
+							listener.objectChange(viewTypeCode, viewId, removePath, editCodes.remove, {}, -1, editId)
 						}
 					},
 					//just forward property changes if our rels are themselves views or sets of views
@@ -417,7 +435,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				var h = {
 					add: function(value, editId){
 						_.assertInt(editId)
-						//console.log(relCode + ' got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
+						console.log(relCode + ' got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
 						//console.log(new Error().stack)
 						_.assert(_.isString(value) || _.isInt(value))
 						_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id
@@ -464,7 +482,10 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						//_.assert(_.isString(value) || _.isInt(value))
 						var edit = {value: value}
 						//console.log('LISTENER: ' + require('util').inspect(listener))
-						//console.log('GENERIC ADD HERE: ' + relCode)
+						if(addOpName === 80){
+							_.assertString(value)
+						}
+						//console.log('GENERIC ADD HERE: ' + addOpName + ' ' + JSON.stringify(edit))
 						//console.log(JSON.stringify(relSchema))
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], addOpName, edit, -1, editId)
 					},
@@ -534,11 +555,11 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 		name: 'view',
 		attach: function(listener, editId){
 			//listeners.add(listener)
-			/*if(typeCode === 122){
-				console.log('attaching to: ' + key)
-				console.log(JSON.stringify(Object.keys(cachedViewIncludes)))
-				console.log(new Error().stack)
-			}*/
+			//if(typeCode === 161){
+				//console.log('attaching to: ' + key)
+				//console.log(JSON.stringify(Object.keys(cachedViewIncludes)))
+				//console.log(new Error().stack)
+			//}
 			_.assertInt(editId)
 			Object.keys(cachedViewIncludes).forEach(function(key){
 				listener.includeView(key, cachedViewIncludes[key], editId)
@@ -575,7 +596,7 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			//console.log('attached to view')
 			Object.keys(rels).forEach(function(relCode){
 				var rel = rels[relCode]
-				//console.log('view attaching to rel ' + relCode)
+				//console.log('view attaching to rel ' + relCode + ' ' + editId)
 				var d = attachRelFuncs[relCode](wrapper, rel, key, editId)
 				detachers.push(d)
 			})

@@ -67,6 +67,8 @@ ViewObjectSetHandle.prototype.add = function(objHandle){
 	}
 }
 
+ViewObjectSetHandle.prototype.changeListenerElevated = ObjectSetHandle.prototype.changeListenerElevated
+
 //TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
 //if it doesn't that's a client error
 ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){

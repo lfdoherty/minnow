@@ -151,7 +151,12 @@ function generatePropertyConverter(p, dbSchema){
 		}else{
 			converter = function(pv, makeTemporaryId, edits){
 				pv.forEach(function(value){
-					edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
+					if(value === undefined) _.errout('invalid json set: ' + JSON.stringify(pv))//_.assertDefined(value)
+					if(_.isInt(value) || _.isInt(value.objectId)){
+						edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
+					}else{
+						_.errout('TODO')
+					}
 				});
 			}
 		}
@@ -165,7 +170,6 @@ function generatePropertyConverter(p, dbSchema){
 			converter = function(pv, makeTemporaryId, edits){
 				pv.forEach(function(v){
 					if(v === undefined) _.errout('invalid data for property ' + p.name + ': ' + JSON.stringify(pv));
-					//var v = valueOrId(value);
 					assertPrimitiveType(v,primitiveType,p.name, p);
 					edits.push({op: addOp, edit: {value: v}})
 				});
@@ -173,7 +177,27 @@ function generatePropertyConverter(p, dbSchema){
 		}else{
 			converter = function(pv, makeTemporaryId, edits){
 				pv.forEach(function(value){
-					edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
+					if(_.isInt(value) || _.isInt(value.objectId)){
+						edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
+					}else{
+						//_.assertString(value.type)
+						//_.errout('TODO addNew')
+						var objSchema = dbSchema[value.type]
+						var temporary = makeTemporaryId();
+						edits.push({op: editCodes.addNew, edit: {typeCode: objSchema.code, temporary: temporary}})
+						var moreEdits = convertJsonToEdits(dbSchema, value.type, value, makeTemporaryId)
+
+						if(moreEdits.length > 0){
+							edits.push({op: editCodes.selectObject, edit: {id: temporary}})
+
+							//console.log('moreEdits: ' + JSON.stringify(moreEdits))
+							//edits = edits.concat(moreEdits)
+							moreEdits.forEach(function(e){
+								edits.push(e)
+							})
+							edits.push({op: editCodes.ascend1, edit: {}})
+						}
+					}
 				});
 			}
 		}
@@ -231,7 +255,7 @@ function generateJsonConverter(dbSchema, type){
 		_.assertDefined(json)
 		
 		Object.keys(json).forEach(function(attr){
-			if(!t.properties[attr]){
+			if(!t.properties[attr] && attr !== 'type'){
 				console.log(JSON.stringify(t))
 				_.errout('unprocessable json attribute: ' + attr + '(' + json[attr] + ')');
 			}

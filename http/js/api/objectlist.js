@@ -10,6 +10,7 @@ var TopObjectHandle = require('./topobject')
 
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
+var editNames = lookup.names
 
 function stub(){}
 function readonlyError(){_.errout('readonly');}
@@ -66,19 +67,60 @@ ObjectListHandle.prototype.remove = function(objHandle){
 		this.obj.splice(index, 1);
 
 		var e = {}
-		this.getSh().persistEdit(
-			this.getObjectTypeCode(),
-			this.getObjectId(), 
-			this.getPath().concat([id]),
-			editCodes.remove,
-			e,
-			this.getEditingId());
 
-		this.emit(e, 'remove', objHandle)//()
+		var remainingCurrentPath = this.parent.adjustPath(this.part)
+		console.log('remainingCurrentPath: ' + JSON.stringify(remainingCurrentPath))
+		if(remainingCurrentPath && remainingCurrentPath.length > 1){
+			this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
+		}
+		if(!remainingCurrentPath || remainingCurrentPath.length === 0){
+			this.persistEdit(editCodes.selectObject, {id: id})
+		}else if(remainingCurrentPath[0] !== id){
+			console.log('reselecting')
+			this.persistEdit(editCodes.reselectObject, {id: id})
+		}else{
+			console.log('same')
+		}
+		
+		this.persistEdit(editCodes.remove, e)
+
+		this.emit(e, 'remove', objHandle)
 	}else{
 		_.errout('tried to remove object not in collection, id: ' + id);
 	}
 }
+
+ObjectListHandle.prototype.contains = function(desiredHandle){
+	return this.obj.indexOf(desiredHandle) !== -1
+}
+
+//TODO
+/*
+ObjectListHandle.prototype.removeAt = function(index, many){
+	
+	if(arguments.length === 1) many = 1
+	
+	_.assertInt(index)
+	_.assertInt(many)
+	if(index > this.obj.length) _.errout('index of out bounds: ' + index + ' > ' + this.obj.length)
+	if(index < 0) _.errout('negative index: ' + index)
+	if(many === 0) return
+	if(many < 0) _.errout('negative number to remove: ' + many)
+
+	this.obj.splice(index, many);
+
+	var e = {index: index, many: many}
+	this.getSh().persistEdit(//TODO just saveEdit?
+		this.getObjectTypeCode(),
+		this.getObjectId(), 
+		this.getPath(),
+		editCodes.removeAt,
+		e,
+		this.getEditingId());
+
+	this.emit(e, 'remove', index)
+}*/
+
 ObjectListHandle.prototype.has = function(desiredId){
 	_.assertLength(arguments, 1);
 	
@@ -117,22 +159,74 @@ ObjectListHandle.prototype.each = function(cb, endCb){
 	})
 	if(endCb) endCb()
 }
+
+ObjectListHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
+	
+}
+
+//ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
+ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit, syncId, editId){
+	if(op === editCodes.remove){
+		var res = this.get(descendId);
+		var index = this.obj.indexOf(res)
+		if(index === -1){
+			console.log('ignoring redundant remove: ' + edit.id);
+		}else{
+			this.obj.splice(index, 1);
+
+			res.prepare()
+			return this.emit(edit, 'remove', res)
+		}
+	}else{
+		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
+	}
+}
+
 ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
 
 	var local = this;
 	
 	if(op === editCodes.addedNew){
-		var id = edit.id//edit.obj.object.meta.id
+		var id = edit.id
 		var temporary = edit.temporary
-		//if(this.getEditingId() !== syncId){
-			_.assertInt(id)
 
-			var res = this.wrapObject(id, edit.typeCode, [], this)
-			this.obj.push(res)
-			res.prepare()
-			return this.emit(edit, 'add', res)
-		//}
+		_.assertInt(id)
+
+		var res = this.wrapObject(id, edit.typeCode, [], this)
+		this.obj.push(res)
+		res.prepare()
+		return this.emit(edit, 'add', res)
+
+	}else if(op === editCodes.addNew){
+		var temporary = edit.temporary
+
+		var res = this.wrapObject(temporary, edit.typeCode, [], this)
+		this.saveTemporaryForLookup(temporary, res, this)
+		this.obj.push(res)
+		res.prepare()
+		return this.emit(edit, 'add', res)
+	}if(op === editCodes.addedNewAt){
+		var id = edit.id
+		var temporary = edit.temporary
+
+		_.assertInt(id)
+
+		var res = this.wrapObject(id, edit.typeCode, [], this)
+		//this.obj.push(res)
+		this.obj.splice(edit.index, 0, res)
+		res.prepare()
+		return this.emit(edit, 'add', res, edit.index)
+
+	}else if(op === editCodes.addNewAt){
+		var temporary = edit.temporary
+
+		var res = this.wrapObject(temporary, edit.typeCode, [], this)
+		this.saveTemporaryForLookup(temporary, res, this)
+		//this.obj.push(res)
+		this.obj.splice(edit.index, 0, res)
+		res.prepare()
+		return this.emit(edit, 'add', res, edit.index)
 	}else if(op === editCodes.replaceExternalExisting){
 		//if(this.getEditingId() !== syncId){
 
@@ -178,6 +272,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 			return stub;
 		}*/
 	}else if(op === editCodes.remove){
+		_.errout('should be in elevated change listener!')
 		//if(this.getEditingId() !== syncId){
 			var res = this.get(edit.id);
 			var index = this.obj.indexOf(res)
@@ -229,7 +324,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		//}	
 		//return stub;
 	}else{
-		_.errout('+TODO implement op: ' + op + ' ' + JSON.stringify(edit));
+		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}
 }
 
@@ -337,6 +432,35 @@ ObjectListHandle.prototype.shift = function(){
 	return v;
 }
 
+ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
+
+	_.assertInt(index)
+	if(index > this.obj.length) _.errout('index of out bounds: ' + index + ' > ' + this.obj.length)
+	if(index < 0) _.errout('negative index: ' + index)
+
+	if(arguments.length === 2){
+		if(_.isObject(typeName)){
+			json = typeName
+			typeName = undefined;
+		}
+	}
+	
+	json = json || {}
+	
+	var type = u.getOnlyPossibleType(this, typeName);
+	
+	this.saveEdit(editCodes.addNewAt, {typeCode: type.code, index: index})
+
+	var n = this._makeAndSaveNew(json, type)
+	_.assertObject(n)
+	
+	this.emit({}, 'add', n, index)
+	//this.obj.push(n)
+	this.obj.splice(index, 0, n)
+
+	return n
+}
+
 ObjectListHandle.prototype.addNew = function(typeName, json){
 
 	if(arguments.length === 1){
@@ -356,7 +480,7 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	var n = this._makeAndSaveNew(json, type)
 	_.assertObject(n)
 	
-	this.emit({}, 'add', n)//()
+	this.emit({}, 'add', n)
 	this.obj.push(n)
 
 	return n
@@ -364,6 +488,8 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 
 ObjectListHandle.prototype.add = function(objHandle){
 	_.assertLength(arguments, 1);
+	
+	if(!_.isObject(objHandle)) _.errout('add param 0 must be a minnow object, is a: ' + typeof(objHandle))
 	
 	if(objHandle.isInner()) _.errout('TODO implement hoist to top');
 	

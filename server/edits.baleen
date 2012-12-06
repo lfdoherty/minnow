@@ -132,6 +132,22 @@ addBoolean 81
 	value boolean 1
 addReal 92
 	value string 1
+
+setStringAt 142
+	value string 1
+	index int 2
+setLongAt 143
+	value long 1
+	index int 2
+setIntAt 144
+	value int 1
+	index int 2
+setBooleanAt 145
+	value boolean 1
+	index int 2
+setRealAt 146
+	value real 1
+	index int 2
 	
 addNew 11
 	typeCode int 1
@@ -139,7 +155,21 @@ addedNew 96
 	id int 1 required
 	temporary int 2
 	typeCode int 3
+
+addNewAt 147
+	typeCode int 1
+	index int 2
+addedNewAt 148
+	id int 1 required
+	temporary int 2
+	typeCode int 3
+	index int 4
 	
+//TODO
+removeAt 149
+	index int 1
+	many int 2
+
 addExisting 12
 	id int 1
 
@@ -151,7 +181,7 @@ madeSyncId 111
 
 
 remove 13
-	id int 1
+
 removeInt 14
 	value int 1
 removeString 82

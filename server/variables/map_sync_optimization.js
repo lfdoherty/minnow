@@ -184,7 +184,8 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 
 	//var ids = []
 	//var has = {}
-	console.log('trying to make')
+	//console.log('trying to make map: ' + editId)
+	//console.log(new Error().stack)
 	//return
 	
 	var streamingEditId = -1
@@ -241,9 +242,13 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		}
 		
 		if(!streamUpToDate){
-			console.log('stream not up to date')
+			//console.log('stream not up to date: ' + streamLast + ' ' + elements.oldest() + ' ' + elements.name)
 			if(old > streamLast) old = streamLast
 		}
+		
+		var o = elements.oldest()
+		if(o < old) old = o
+		
 		//console.log('old: ' + old)
 		return old
 	}
@@ -254,9 +259,11 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 	var keyForId = {}
 
 	var multiState = {}
-		
+	
+	//_.assertFunction(elements.descendTypes)
+	
 	var handle = {
-		name: 'map-single',
+		name: 'map-single-sync-optimization (' + elements.name + ')',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
@@ -274,7 +281,10 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		descend: elements.descend,
+		descendTypes: elements.descendTypes,
+		getType: elements.getType
 	}
 	
 	var streamUpToDate = false
@@ -287,7 +297,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 	if(reduceWrapper){
 	
 		
-		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, function(id, propertyValueMap, editId){
+		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 
 			function doReduce(a, b){
@@ -371,13 +381,14 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}
 		
 		}, function(live, editId){
-			//console.log('has streamed all initial object property values: ' + live + ' ' + editId)
+			console.log('*has streamed all initial object property values: ' + live + ' ' + editId)
+			//if(editId === 1187) _.errout('TODO')
 			streamUpToDate = live
 			streamLast = editId
 		}, function(id, editId){
 			_.assertInt(editId)
 			if(keyForId[id] !== undefined){
-				console.log('deleting id')
+				//console.log('deleting id')
 				var key = keyForId[id]
 				if(key !== undefined){
 					listeners.emitDel(key, editId)
@@ -387,7 +398,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}			
 		})
 	}else{
-		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, function(id, propertyValueMap, editId){
+		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 			var macroParams = [id]
 			var keyResult = keyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
@@ -413,13 +424,16 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			keyForId[id] = keyResult
 		
 		}, function(live, editId){
-			//console.log('has streamed all initial object property values: ' + live + ' ' + editId)
+			//_.assertInt(editId)
+			//console.log('has streamed all initial object property values: ' + live + ' ' + editId + ' (' + streamLast + ')')
+			//if(editId === 1187) _.errout('TODO')
+			//console.log(new Error().stack)
 			streamUpToDate = live
 			streamLast = editId
 		}, function(id, editId){
 			_.assertInt(editId)
 			if(keyForId[id] !== undefined){
-				console.log('deleting id')
+				//console.log('deleting id')
 				var key = keyForId[id]
 				if(key){
 					listeners.emitDel(key, editId)
@@ -432,7 +446,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		
 	elements.attach({
 		add: function(v, editId){
-			//console.log('added: ' + v)
+			//console.log('added: ' + v + ' ' + editId)
 			idSet.add(v, editId)
 		},
 		remove: function(v, editId){

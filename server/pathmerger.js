@@ -17,7 +17,7 @@ function editsAreDifferent(op, a, b){
 	}
 	else if(op === editCodes.selectProperty || op === editCodes.reselectProperty) return a.typeCode !== b.typeCode
 	else if(op === editCodes.selectObject || op === editCodes.reselectObject) return a.id !== b.id
-	console.log(op)
+	//console.log(op)
 	return JSON.stringify(a) !== JSON.stringify(b)
 }
 
@@ -78,6 +78,7 @@ function editToMatch(curPath, newPath, cb){
 		for(var i=curPath.length;i<newPath.length;++i){
 			var pe = newPath[i]
 			_.assertObject(pe)
+			//console.log('op: ' + pe.op)
 			if(editNames[pe.op].indexOf('re') === 0){
 				cb(editCodes[editNames[pe.op].substr(2)], pe.edit)
 			}else{
@@ -150,6 +151,9 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 				var typeCode = pu.getTypeCode()
 				var curPath = pu.getPath()
 				var previousSyncId = pu.getSyncId()
+				
+				//console.log('matching: ' + JSON.stringify(curPath))
+				//console.log('to: ' + JSON.stringify(path))
 				
 				editToMatch(curPath, path, function(op, edit){
 					saveAp(typeCode, id, op, edit, syncId, Date.now())//TODO address serialization issue

@@ -5,6 +5,7 @@ var jsonutil = require('./../jsonutil')
 var _ = require('underscorem')
 
 var ObjectHandle = require('./object')
+var ObjectListHandle = require('./objectlist')
 
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
@@ -61,43 +62,41 @@ ObjectSetHandle.prototype.each = function(cb, endCb){
 	if(endCb) endCb()
 }
 
+ObjectSetHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
+	
+}
+
 ObjectSetHandle.prototype.adjustPath = u.adjustObjectCollectionPath
 
+ObjectSetHandle.prototype.changeListenerElevated = function(descendId, op, edit, syncId, editId){
+	if(op === editCodes.remove){
+		var res = this.get(descendId);
+		var index = this.obj.indexOf(res)
+		if(index === -1){
+			console.log('ignoring redundant remove: ' + edit.id);
+		}else{
+			this.obj.splice(index, 1);
+
+			res.prepare()
+			console.log('removed: ' + res)
+			return this.emit(edit, 'remove', res)
+		}
+	}else{
+		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
+	}
+}
+
+/*
 ObjectSetHandle.prototype.remove = function(objHandle){
 
-	//if(objHandle.isInner()){
-		var index = this.obj.indexOf(objHandle)
-		if(index === -1){
-			this.log('WARNING: ignoring remove of object not in set')
-			return;
-		}
-
-		this.obj.splice(index, 1);
-
-		var e = {}
-		/*this.getSh().persistEdit(
-			this.getObjectTypeCode(),
-			this.getObjectId(), 
-			this.getPath().concat([objHandle._internalId()]),
-			'remove',
-			e,
-			this.getEditingId());*/
 		this.saveEdit(editCodes.remove, {id: objHandle._internalId()})
 	
 		this.emit(e, 'remove', objHandle)//()
-	/*}else{
-		var index = this.obj.indexOf(objHandle)
-		if(index === -1){
-			console.log('WARNING: ignoring remove of object not in set')
-			return;
-		}
 
-		this.obj.splice(index, 1);
+}*/
 
-		var e = {id: objHandle._internalId()}
-		this.saveEdit('remove', e)
-	}*/
-}
+ObjectSetHandle.prototype.remove = ObjectListHandle.prototype.remove
+
 function stub(){}
 ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);

@@ -14,7 +14,8 @@ var _ = require('underscorem')
 
 function tabs(depth){var str = '';for(var i=0;i<depth;++i){str+='\t';}return str;}
 
-function makeAnalytics(expr, parent, name){
+function makeAnalytics(expr, parent, name, s){
+	//_.assertDefined(s)
 	
 	var counts = {
 		hit: 0,
@@ -51,11 +52,13 @@ function makeAnalytics(expr, parent, name){
 		var str = ''
 		var sum = counts.hit+counts.put+counts.evict
 		str += tabs(depth) + handle.name + ' -- hit: ' + counts.hit+', put: '+counts.put+', evict: '+counts.evict+'\n'
-		if(sum > 0){
+		//if(sum > 0){
 			handle.children.forEach(function(a){
 				str += a.report(depth+1)
 			})
-		}else if(handle.children.length > 0){str += tabs(depth+1)+'...\n'}
+		//}else if(handle.children.length > 0){str += tabs(depth+1)+'...\n'}
+		
+
 		return str
 	}
 	
@@ -85,12 +88,12 @@ exports.makeGetter = makeGetter
 
 var listenerSet = require('./variable_listeners').makeListenerSet
 
-var variableProperty = require('./variables/property')
-var variableCount = require('./variables/count')
-var variableAggregate = require('./variables/aggregate')
+require('./variables/property')
+require('./variables/count')
+require('./variables/aggregate')
 require('./variables/typeset')
 var variableView = require('./variables/view')
-var variableOne = require('./variables/one')
+require('./variables/one')
 var variableParam = require('./variables/param')
 
 var variableObjectRef = require('./variables/objectref')
@@ -110,6 +113,7 @@ require('./variables/versions')
 require('./variables/lastVersion')
 require('./variables/timestamps')
 require('./variables/timestamp')
+require('./variables/isOfType')
 
 var fixedPrimitive = require('./fixed/primitive')
 var fixedObject = require('./fixed/object')
@@ -137,7 +141,8 @@ function asSync(s, expr, typeBindings, parameterBindings){
 		//return specialization.make(s, self, setExpr, typeBindings)
 		throw new Error('TODO?')
 	}else if(expr.type === 'array'){
-		return function(){return setExpr.value;}
+		//return function(){return setExpr.value;}
+		_.errout('DEPRECATED')
 	}else{
 		var viewName = expr.view
 		var impl = schema.getImplementation(viewName)
@@ -206,17 +211,14 @@ function variableGetter(s, setExpr, typeBindings){
 	_.assertObject(s.analytics)
 	
 	var ns = _.extend({}, s)
-	ns.analytics = makeAnalytics(setExpr, s.analytics)
+	ns.analytics = makeAnalytics(setExpr, s.analytics, '$', s)
 	s = ns
 	
 	var self = variableGetter.bind(undefined, s)
 	
 	self.asSync = asSync.bind(undefined, s)
 	
-	if(setExpr.type === 'property'){
-		//return variableProperty.make(s, self, setExpr, typeBindings)
-		_.errout('ERROR???')
-	}else if(setExpr.type === 'macro'){
+	if(setExpr.type === 'macro'){
 		return macroCall.make(s, self, setExpr, typeBindings)
 	}else if(setExpr.type === 'param'){
 		return variableParam.make(s, setExpr, typeBindings)
@@ -225,10 +227,9 @@ function variableGetter(s, setExpr, typeBindings){
 	}else if(setExpr.type === 'int'){
 		return fixedPrimitive.make(s, setExpr.value)
 	}else if(setExpr.type === 'concrete-specialization'){
-		//return specialization.make(s, self, setExpr, typeBindings)
 		_.errout('TODO?')
-	}else if(setExpr.type === 'array'){
-		return fixedSet.make(s, setExpr.value)
+	}else if(setExpr.type === 'nil'){
+		_.errout('Should not instantiate nil')
 	}else{
 		//console.log('did not find macro type for: ' + setExpr.view)
 		//console.log(JSON.stringify(typeBindings))
@@ -251,8 +252,12 @@ function variableGetter(s, setExpr, typeBindings){
 			if(impl.isSynchronousPlugin){
 				return syncplugins.wrap(s, self, setExpr, typeBindings, impl)
 			}else{
+
 				//console.log('setExpr: ' + JSON.stringify(setExpr))
 				var implFunc = impl.implementation(s, self, setExpr, typeBindings)
+				if(implFunc === undefined){
+					_.errout('undefined implementation function: ' + JSON.stringify(setExpr))
+				}
 				_.assertFunction(implFunc)
 				implFunc.implName = viewName
 				return implFunc
@@ -291,7 +296,7 @@ function checkImpl(impl, setExpr, viewName){
 exports.makeBindingsForViewGetter = function(s, viewSchema){
 	var paramGetters = []
 	var paramNames = []
-	//viewSchema.params.forEach(function(param, index){
+
 	for(var i=0;i<viewSchema.params.length;++i){
 		var param = viewSchema.params[i]
 		paramNames[i] = param.name
@@ -313,6 +318,12 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 		descend: function(path, editId, cb){
 			//console.log('descending: ' + JSON.stringify(path))
 			s.objectState.streamProperty(path, editId, cb)
+			return true
+		},
+		descendTypes: function(path, editId, cb, continueListening, mustMatch){
+			//console.log('descending: ' + JSON.stringify(path))
+			s.objectState.streamPropertyTypes(path, editId, cb, continueListening, mustMatch)
+			return true
 		},
 		getType: function(id){
 			return s.objectState.getObjectType(id)
@@ -321,7 +332,7 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 	return function(params, startingEditId){
 		_.assertArray(params)
 		var bindings = {}
-		//paramGetters.forEach(function(pg, index){
+
 		for(var i=0;i<paramGetters.length;++i){
 			var pg = paramGetters[i]
 			var pgv = pg(params[i], startingEditId, topLevel)

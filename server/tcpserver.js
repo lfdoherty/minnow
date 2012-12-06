@@ -376,7 +376,26 @@ function createTcpServer(appSchema, port, s, readyCb){
 					startAck(deser, c)
 
 				}else{
-					_.errout('TODO')
+					//_.errout('TODO')
+					//conn = setupConnection()
+					var wHandle = {
+						write: function(buf){
+							this.c.write(buf);
+						},
+						end: function(){
+							//TODO?
+						},
+						c: c
+					}
+					var wfs = fparse.makeReplayableWriteStream(shared.serverResponses, wHandle)
+					wfs.beginFrame()
+					wfs.fs.reconnectExpired()
+					wfs.endFrame()
+					//wfs.end()
+					setTimeout(function(){
+						c.end()
+						console.log('server: reconnect expired')
+					},100)
 				}
 			},
 			originalConnection: function(){
@@ -517,7 +536,14 @@ function createTcpServer(appSchema, port, s, readyCb){
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getPath(), e.edit, syncId])
 						c.destroy()
 					}else{
-						s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg, reifyCb)
+						try{
+							s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg, reifyCb)
+						}catch(e){
+							//if there's an error during persistence, do not permit reconnection (the edit stream is likely invalid)
+							//TODO handle async as well
+							delete liveConnections[connectionId]
+							throw e
+						}
 					}
 				}
 			},
@@ -571,7 +597,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 				//console.log('getting snapshot: ' + JSON.stringify(e))
 				s.getSnapshot(e, function(err, res){
 					if(err){
-						w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
+						if(w){
+							w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
+						}
 						return
 					}
 					var msg = {snap: res, requestId: e.requestId}

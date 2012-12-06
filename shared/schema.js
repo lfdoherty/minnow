@@ -14,7 +14,11 @@ var util = require('util');
 
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
 	'is', 'and', 'or', 'id',
-	'div', 'add', 'sub', 'mul'];
+	'div', 'add', 'sub', 'mul',
+	'nil',
+	'creationSession',
+	'object',
+	'parent'];
 
 var builtinFunctions = {}
 exports.addFunction = function(name, def){
@@ -26,7 +30,7 @@ exports.addFunction = function(name, def){
 		rel.params.forEach(function(p){
 			paramTypes.push(p.schemaType)
 		})
-		return {schemaType: oldSchemaType(rel,ch), paramTypes: paramTypes}
+		return {schemaType: oldSchemaType.bind(this)(rel,ch), paramTypes: paramTypes}
 	}
 }
 var syncPlugins
@@ -222,7 +226,7 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		return expr
 	}else if(expr.type === 'value' || expr.type === 'int'){
 		return expr
-	}else if(expr.type === 'array'){
+	}else if(expr.type === 'nil'){
 		return expr
 	}else if(expr.type === 'macro'){
 		var newImplicits
@@ -258,6 +262,7 @@ function computeBindingsUsedByMacros(view){
 }
 
 function computeBindingsUsed(expr){
+	//console.log('computing bindings used: ' + JSON.stringify(expr))
 	if(expr.type === 'macro'){
 		var used = computeBindingsUsed(expr.expr)
 		expr.bindingsUsed = used
@@ -271,12 +276,12 @@ function computeBindingsUsed(expr){
 		return all
 	}else if(expr.type === 'param'){
 		//ignore
-		var u = Object.create(null)
+		var u = {}
 		u[expr.name] = true
 		return u
-	}else if(expr.type === 'value' || expr.type === 'int' || expr.type === 'array'){
+	}else if(expr.type === 'value' || expr.type === 'int' || expr.type === 'nil'){
 		//ignore
-		return Object.create(null)
+		return {}
 	}else if(expr.type === 'concrete-specialization'){
 		var all = {}
 		_.each(expr.cases, function(c){
@@ -315,12 +320,103 @@ function readAllSchemaFiles(schemaDir, cb){
 	})
 }
 
+function makeMergeTypes(schema){
+	_.assertObject(schema)
+	
+	function f(types){
+	
+		//_.errout('TODO')
+		
+		//while(types[0].type === 'nil') types.shift()
+		types = _.filter(types, function(t){
+			return t.type !== 'nil' && t.object !== 'empty'
+		})
+
+		if(types.length === 1) return types[0]
+		
+		if(types[0].type === 'set' || types[0].type === 'list'){
+			var ct = types[0].type
+			var members = []
+			types.forEach(function(t){
+				if(t.type === 'set') ct = 'set'
+				members.push(t.members)
+			})
+			return {
+				type: ct,
+				members: f(members)
+			}
+		}else if(types[0].type === 'map'){
+			_.errout('TODO: ' + JSON.stringify(types))
+		}else if(types[0].type === 'primitive'){
+			//_.errout('TODO: ' + JSON.stringify(types))
+			var primitives = []
+			types.forEach(function(t){
+				if(t.type !== 'primitive') _.errout('cannot merge primitive and non-primitive types: ' + JSON.stringify(types))
+				primitives.push(t.primitive)
+			})
+			var prim = primitives[0]
+			if(prim === 'boolean'){
+				primitives.forEach(function(v){
+					if(v !== 'boolean') _.errout('cannot merge booleans and non-booleans: ' + JSON.stringify(types))
+				})
+				return types[0]
+			}else if(prim === 'string'){
+				primitives.forEach(function(v){
+					if(v !== 'string') _.errout('cannot merge string and non-strings: ' + JSON.stringify(types))
+				})
+				return types[0]
+			}else{
+				_.errout('TODO: ' + JSON.stringify(types))
+			}
+		}else if(types[0].type === 'object'){
+			types.forEach(function(t){
+				if(t.type !== 'object') _.errout('cannot merge types: ' + JSON.stringify(types))
+			})
+			var obj = types[0].object
+			var objSchema = schema[obj]
+			
+			types.forEach(function(t){
+				var otherObjSchema = schema[t.object]
+				
+				if(!otherObjSchema) _.errout('no schema found: ' + t.object)
+
+				/*if(!otherObjSchema) return
+				if(objSchema === undefined){
+					objSchema = otherObjSchema
+					obj = t.object
+					return
+				}*/
+				
+				if(otherObjSchema !== objSchema){
+					if(otherObjSchema.superTypes && otherObjSchema.superTypes[obj]){
+						return
+					}else if(objSchema.superTypes && objSchema.superTypes[t.object]){
+						obj = t.object
+						objSchema = otherObjSchema
+					}else{
+						console.log(JSON.stringify(objSchema))
+						console.log(JSON.stringify(otherObjSchema))
+						_.errout('cannot merge types: ' + JSON.stringify(types))
+					}
+				}
+			})			
+			//_.errout('TODO: ' + JSON.stringify(types))
+			return {type: 'object', object: obj}
+		}else{
+			_.errout('TODO: ' + JSON.stringify(types))
+		}
+	}
+	return f
+}
+
 exports.load = function(schemaDir, synchronousPlugins, cb){
 	_.assertLength(arguments, 3)
 
 	schemaDir = schemaDir || process.cwd();
 
 	var schema;
+	
+	//var mergeTypesFunction
 	
 	var osp = synchronousPlugins
 	synchronousPlugins = {}
@@ -331,6 +427,8 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 		if(plugin.minParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
 		if(plugin.maxParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
 		if(plugin.syntax === undefined) _.errout('plugin ' + pluginName + ' must define a "syntax" string describing its call syntax (for error-reporting purposes.)')
+		
+		
 		synchronousPlugins[pluginName] = {
 			isSynchronousPlugin: true,
 			schemaType: function(rel){
@@ -339,7 +437,9 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 					paramTypes.push(p.schemaType)
 				})
 				//console.log('parsing plugin: ' + pluginName)
-				var res = keratin.parseType(plugin.type(paramTypes, rel.params, schema))
+				var pt = plugin.type(paramTypes, rel.params, schema)
+				_.assertString(pt)
+				var res = keratin.parseType(pt)
 				_.assertObject(res)
 				//res.paramTypes = paramTypes
 				return {schemaType: res, paramTypes: paramTypes}
@@ -369,6 +469,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 
 		
 	var cdl = _.latch(schemaDirs.length, function(){
+
 		try{
 			schema = keratin.parse(str, reservedTypeNames);
 		}catch(e){
@@ -376,6 +477,36 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			throw e;
 		}
 		
+		var mergeTypesFunction = makeMergeTypes(schema)
+		_.each(osp, function(plugin){
+			plugin.mergeTypes = mergeTypesFunction
+		})
+		
+		_.each(schema, function(st, name){
+			/*if(takenObjectTypeCodes[st.code]){
+				log('ERROR while processing files: ' + JSON.stringify(allFiles))
+				throw new Error('type code of ' + name + ' already taken: ' + st.code);
+			}
+			takenObjectTypeCodes[st.code] = true*/
+			//console.log('here: ' + name + ' ' + JSON.stringify(st.superTypes))
+			
+			if(st.superTypes){
+				collectAllSuperTypes(st, schema)
+				
+				Object.keys(st.superTypes).forEach(function(superType){
+					
+					//console.log('here')
+					if(reservedTypeNames.indexOf(superType) === -1){
+						if(schema[superType] === undefined) _.errout('cannot find super type "' + superType + '" of "' + name + '"');
+						//console.log('HERE: ' + superType + ' ' + name)
+						if(schema[superType].subTypes === undefined) schema[superType].subTypes = {}
+						schema[superType].subTypes[name] = true;
+					}
+				});
+				//console.log(JSON.stringify([st.name, st.superTypes]))
+			}
+		});		
+
 		loadViews(schemaDir, str, schema, synchronousPlugins, function(globalMacros){
 			var takenObjectTypeCodes = {}
 			_.each(schema, function(st, name){
@@ -384,22 +515,50 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 					throw new Error('type code of ' + name + ' already taken: ' + st.code);
 				}
 				takenObjectTypeCodes[st.code] = true
-				if(st.superTypes){
-					_.each(st.superTypes, function(v, superType){
+				//console.log('here: ' + name + ' ' + JSON.stringify(st.superTypes))
+				
+				/*if(st.superTypes){
+					collectAllSuperTypes(st, schema)
+					
+					Object.keys(st.superTypes).forEach(function(superType){
+						
+						//console.log('here')
 						if(reservedTypeNames.indexOf(superType) === -1){
 							if(schema[superType] === undefined) _.errout('cannot find super type "' + superType + '" of "' + name + '"');
+							//console.log('HERE: ' + superType + ' ' + name)
 							if(schema[superType].subTypes === undefined) schema[superType].subTypes = {}
 							schema[superType].subTypes[name] = true;
 						}
 					});
-				}
+					//console.log(JSON.stringify([st.name, st.superTypes]))
+				}*/
 			});
+			
 			
 			cb(schema, globalMacros);
 			log('done load cb')
 		});		
 		log('done...')
 	});
+}
+
+function collectAllSuperTypes(st, schema){
+	
+	if(!st.superTypes) return
+	
+	Object.keys(st.superTypes).forEach(function(key){
+		var objSchema = schema[key]
+		if(objSchema !== undefined){
+			collectAllSuperTypes(objSchema, schema)
+			if(!objSchema.superTypes) return
+		
+			Object.keys(objSchema.superTypes).forEach(function(k2){
+				st.superTypes[k2] = true
+			})
+		}else{
+		//	console.log('unfound: ' + key)
+		}
+	})
 }
 
 function parseInfix(expr, name){
@@ -547,6 +706,9 @@ function parseViewExpr(expr){
 			if(dotc !== -1 && dotc < end) end = dotc;
 			path.push({type: 'view', view: 'property', params: [{type: 'value', value: expr.substring(1, end)}]});
 			expr = expr.substr(end);
+		}else if(expr === 'nil'){
+			path.push({type: 'nil'})
+			break;
 		}else if(openRound !== -1 && openCurly === -1){
 			var viewName = expr.substr(0, openRound).trim();
 
@@ -554,11 +716,16 @@ function parseViewExpr(expr){
 
 			var paramStr = expr.substring(openRound+1, expr.lastIndexOf(')')).trim();
 			if(paramStr.length > 0){
+
+				if(paramStr.charAt(paramStr.length-1) === ',') paramStr = paramStr.substr(0, paramStr.length-1)
+				
 				var paramStrs = safeSplit(paramStr, ',');
 
 				//console.log('paramStrs: ' + JSON.stringify(paramStrs))
 				_.each(paramStrs, function(ps){
-					var expr = parseViewExpr(ps.trim())
+					var psStr = ps.trim()
+					//console.log('ps: ' + psStr + ' ' + ps + ' ' + JSON.stringify(paramStrs))
+					var expr = parseViewExpr(psStr)
 					_.assertDefined(expr)
 					params.push(expr);
 				});
@@ -587,13 +754,15 @@ function parseViewExpr(expr){
 				params.push(pp[0].trim());
 			});
 			
-			var bodyStr = expr.substring(openCurly+1, closeCurly)
+			var bodyStr = expr.substring(openCurly+1, closeCurly).trim()
+			if(bodyStr.length === 0) _.errout('invalid empty macro in expression: ' + expr)
 			var body = parseViewExpr(bodyStr)
 			path.push({type: 'macro', params: params, expr: body})
 			expr = expr.substr(closeCurly+1)
 
 		}else if(openCurly === 0){
-			var bodyStr = expr.substring(openCurly+1, closeCurly)
+			var bodyStr = expr.substring(openCurly+1, closeCurly).trim()
+			if(bodyStr.length === 0) _.errout('invalid empty macro in expression: ' + expr)
 			var body = parseViewExpr(bodyStr)
 			path.push({type: 'macro', params: 'unspecified', view: viewName, expr: body})
 			expr = expr.substr(closeCurly+1)
@@ -612,7 +781,10 @@ function parseViewExpr(expr){
 			var strExpr = {type: 'value', value: typeName, schemaType: {type: 'primitive', primitive: 'string'}}
 			var paramExpr = expr
 			if(paramExpr.indexOf('.') !== -1) paramExpr = paramExpr.substr(0, paramExpr.indexOf('.'))
+			//console.log('paramExpr: ' + paramExpr)
+			//console.log('expr: ' + expr)
 			expr = expr.substr(paramExpr.length)
+			//console.log('expr: ' + expr)
 			var pve = parseViewExpr(paramExpr)
 			//_.assertDefined(typeName)
 			if(typeName === 'undefined') _.errout('here')
@@ -642,10 +814,7 @@ function parseViewExpr(expr){
 					pve.schemaType = {type: 'object', object: typeName}
 					path.push({type: 'view', view: 'cast', params: [strExpr, pve]})
 					break;
-				}*/else if(expr === '[]'){
-					path.push({type: 'array', value: []})
-					break;
-				}else if(expr === 'false' || expr === 'true'){
+				}*/else if(expr === 'false' || expr === 'true'){
 					path.push({type: 'value', value: expr === 'true'})
 					break;
 				}else{
@@ -702,6 +871,7 @@ function computePathResultType(path, baseType, context, schema, viewMap){
 			var input = t;
 			t = computeType(p.expr, context, schema, viewMap);
 			if(input.type.type === 'set'){
+				_.assert(t.type !== 'set' && t.type !== 'list')
 				t = {type: 'set', members: t};
 			}else if(input.type.type === 'list'){
 				t = {type: 'list', members: t};
@@ -821,6 +991,11 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			_.assertDefined(rel.schemaType)
 
 			return rel.schemaType
+		}else if(rel.view === 'default'){
+			rel.schemaType = computeTypeWrapper(rel.params[0], bindingTypes, implicits)
+			_.assertDefined(rel.schemaType)
+
+			return rel.schemaType
 		}
 		
 		var v = viewMap[rel.view];
@@ -869,7 +1044,17 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		if(rel.params.length < def.minParams) throw new Error(def.callSyntax + ' called with ' + rel.params.length + ' params.')
 		_.assert(def !== undefined)
 		computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
-		var res = def.schemaType(rel, ch)
+		
+		var mergeTypesFunction = makeMergeTypes(schema)
+		//_.each(osp, function(plugin){
+			def.mergeTypes = mergeTypesFunction
+		//})
+		
+		var local = {
+			mergeTypes: mergeTypesFunction
+		}
+		
+		var res = def.schemaType.bind(local)(rel, ch)
 		rel.params.forEach(function(p){
 			if(p.type === 'macro' || p.type === 'partial-application'){//must be computed by def.schemaType
 				if(p.schemaType === undefined) throw new Error('def.schemaType ' + rel.view + ' did not compute macro schemaType')
@@ -950,9 +1135,35 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		return types[0]*/
 	}else if(rel.type === 'int'){
 		return rel.schemaType = {type: 'primitive', primitive: 'int'}
-	}else if(rel.type === 'array'){
-		return rel.schemaType = {type: 'set', members: {type: 'primitive', primitive: 'string'}}
-	}else{
+	}else if(rel.type === 'nil'){
+		return rel.schemaType = {type: 'nil'}
+	}/*else if(rel.type === 'array'){
+		var foundStr = false
+		var foundInt = false
+		var foundNumber = false
+
+		//computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
+		rel.array.forEach(function(v){
+			computeTypeWrapper(v, bindingTypes, implicits)
+		})
+				
+		rel.array.forEach(function(v){
+			if(v.schemaType.type === 'int' || v.schemaType.primitive === 'int') foundInt = true
+			else if(v.schemaType.type === 'real' || v.schemaType.primitive === 'real') foundNumber = true
+			else if(v.schemaType.primitive === 'string') foundStr = true
+			else{
+				_.errout('cannot handle array type: ' + JSON.stringify(v))
+			}
+		})
+		var prim
+		if(foundStr) prim = 'string'
+		else if(foundNumber) prim = 'real'
+		else if(foundInt) prim = 'int'
+		else{
+			_.errout('unknown type: ' + JSON.stringify(rel))
+		}
+		return rel.schemaType = {type: 'list', members: {type: 'primitive', primitive: prim}}
+	}*/else{
 		_.errout('TODO: support rel type: ' + rel.type);
 	}
 }

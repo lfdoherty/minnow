@@ -55,16 +55,19 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 	var listeners = listenerSet()
 	
 	var value
-	var passed
+	var passed// = false
 	
 	function oldest(){
-		return Math.min(inputValue.oldest(), passedValue.oldest())
+		var old = Math.min(inputValue.oldest(), passedValue.oldest())
+		//if(s.objectState.getCurrentEditId() !== old) console.log('filter oldest: ' + old + ' ' + value + ' ' + passed)
+		//console.log(new Error().stack)
+		return old
 	}
 	
 	inputValue.attach({
 		set: function(v, oldV, editId){
 			value = v
-			//s.log('set ' + v + ', passed: ' + passed)
+			//console.log('set ' + v + ', passed: ' + passed)
 			if(passed){
 				listeners.emitSet(value, oldV, editId)
 			}else{
@@ -78,8 +81,8 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		set: function(newPassed, oldPassed, editId){
 			_.assertNot(_.isInt(newPassed))
 			//_.assertBoolean(newPassed)
-			//s.log('*passed: ' + newPassed)
-			if(value){
+			//console.log('*passed: ' + newPassed + ' for value: ' + value)
+			if(value !== undefined){
 				if(newPassed){
 					listeners.emitSet(value, undefined, editId)
 				}else{
@@ -90,20 +93,24 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 			}
 			passed = newPassed
 		},
-		includeView: stub,
-		removeView: stub
+		includeView: function(){
+			_.errout('TODO')
+		},
+		removeView: function(){
+			_.errout('TODO')
+		}
 	},editId)
 	
 	var handle = {
 		name: 'filter',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			if(passed) listener.set(value, undefined, editId)
+			if(passed && value !== undefined) listener.set(value, undefined, editId)
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)
 			if(editId){
-				if(passed) listener.set(undefined, value, editId)
+				if(passed && value !== undefined) listener.set(undefined, value, editId)
 			}
 		},
 		oldest: oldest,

@@ -32,5 +32,6 @@ exports.compute = function(paramValues){
 	var a = paramValues[0]
 	var b = paramValues[1]
 	
+	log('mapValue('+JSON.stringify(a)+','+b+') -> ' + a[b])
 	return a[b]
 }

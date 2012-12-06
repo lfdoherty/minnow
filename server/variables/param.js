@@ -9,27 +9,14 @@ exports.make = function(s, setExpr, typeBindings){
 	var paramName = setExpr.name
 	var f = svgParam.bind(undefined, s, paramName)
 	var typeBinding = typeBindings[paramName]
-	//console.log(paramName + ': ' + JSON.stringify(typeBindings))
-	//_.assertObject(typeBinding)
 
-	//console.log('here: ' + JSON.stringify(setExpr))
-	//console.log('type binding: ' + typeBinding)
-	//console.log('type binding: ' + JSON.stringify(Object.keys(typeBinding)))
-	//console.log(_.isFunction(typeBinding))
 	if(_.isFunction(typeBinding)){
 		f.wrapAsSet = function(v, editId, context){
 			//console.log('wrapping via type binding: ' + typeBinding.wrapAsSet)
 			return typeBinding.wrapAsSet(v, editId, context)//typeBinding(v);
 		}
 		f.wrappers = typeBinding.wrappers
-		/*if(setExpr.schemaType.type === 'view'){
-			//console.log(''+typeBinding.wrapAsSet)
-			_.assertObject(f.wrappers)
-		}*/
-		/*if(setExpr.schemaType.type === 'object'){
-			//f.getDescender = typeBinding.getDescender
-			_.assertFunction(typeBinding.getDescender)
-		}*/
+
 	}else{
 
 		if(typeBinding === undefined){
@@ -48,7 +35,6 @@ exports.make = function(s, setExpr, typeBindings){
 				_.assertInt(v)//should be an id
 				return fo(v, {}, editId)
 			}
-			//f.getDescender = fo.getDescender
 		}else if(typeBinding.type === 'primitive'){
 			f.wrapAsSet = function(v){return fixedPrimitive.make(s)(v, {}, editId);}
 		}else if(typeBinding.type === 'view'){

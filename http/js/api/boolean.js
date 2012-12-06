@@ -28,6 +28,7 @@ BooleanHandle.prototype.value = function(){
 	return this.obj;
 }
 BooleanHandle.prototype.changeListener = u.primitiveChangeListener;
+BooleanHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 BooleanHandle.prototype.set = function(v){
 	this.obj = v;
 

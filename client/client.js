@@ -409,7 +409,11 @@ function makeClient(host, port, clientCb){
 				json = json || {}
 				_.assertObject(json)
 				//doMake(type, json, forget, cb)
-				return api.createNewExternalObject(type, json, forget, cb)
+				var res = api.createNewExternalObject(type, json, forget, cb)
+				if(!forget){
+					_.assertDefined(res)
+				}
+				return res
 			},
 			
 			getDefaultSyncId: function(){

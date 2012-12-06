@@ -146,12 +146,12 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 		name: 'now',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			//if(Date.now() > oldTime && editId + 1 === oldest()){
-			//	updateNow(editId)
-			//}else{//updateNow will emit for all listeners, hence the else
+			if(editId > oldEditId){//Date.now() > oldTime && editId + 1 === oldest()){
+				updateNow(editId)
+			}else{//updateNow will emit for all listeners, hence the else
 				//listener.set(oldTime, undefined, oldEditId)
 				listener.set(Date.now(), undefined, oldEditId)
-			//}
+			}
 		},
 		detach: function(listener, editId){
 			listeners.remove(listener)

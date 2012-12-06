@@ -1,7 +1,7 @@
 
 var json = {
-	names: ["make","made","makeMapped","addInt","addNew","addExisting","remove","removeInt","replaceExternalNew","replaceExternalExisting","putInt","shift","setObject","setToNew","setData","putNew","truncate","writeData","append","replaceInternalNew","replaceInternalExisting","putExisting","del","wasSetToNew","madeViewObject","addExistingViewObject","revert","setSyncId","selectObject","selectViewObject","selectProperty","reselectObject","reselectViewObject","reselectProperty","ascend","reset","ascend1","ascend2","ascend3","ascend4","ascend5","selectTopObject","selectStringKey","selectIntKey","selectLongKey","selectBooleanKey","setDestinationSyncId","selectTopViewObject","clearObject","setInt","setLong","setString","setBoolean","addLong","addString","addBoolean","removeString","removeLong","removeBoolean","putString","putLong","putBoolean","reselectStringKey","reselectIntKey","reselectLongKey","reselectBooleanKey","replacedNew","addedNew","syntheticEdit","putReal","putAddExisting","putAddInt","putAddString","putAddLong","putAddBoolean","putAddReal","setViewObject","destroy","removeViewObject","didPutNew","madeSyncId","putViewObject","selectObjectKey","delKey","reselectObjectKey","putRemoveExisting","putRemoveInt","putRemoveString","putRemoveLong","putRemoveBoolean","putRemoveReal","clearProperty","setReal"],
-	codes: [1,2,3,10,11,12,13,14,16,17,18,20,21,22,23,24,25,26,27,28,29,30,31,32,33,35,40,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,70,71,73,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,95,96,98,99,100,101,102,103,104,105,107,108,109,110,111,112,118,119,120,124,125,126,127,128,129,140,141]
+	names:["make","made","makeMapped","addInt","addNew","addExisting","remove","removeInt","replaceExternalNew","replaceExternalExisting","putInt","shift","setObject","setToNew","setData","putNew","truncate","writeData","append","replaceInternalNew","replaceInternalExisting","putExisting","del","wasSetToNew","madeViewObject","addExistingViewObject","revert","setSyncId","selectObject","selectViewObject","selectProperty","reselectObject","reselectViewObject","reselectProperty","ascend","reset","ascend1","ascend2","ascend3","ascend4","ascend5","selectTopObject","selectStringKey","selectIntKey","selectLongKey","selectBooleanKey","setDestinationSyncId","selectTopViewObject","clearObject","setInt","setLong","setString","setBoolean","addLong","addString","addBoolean","removeString","removeLong","removeBoolean","putString","putLong","putBoolean","reselectStringKey","reselectIntKey","reselectLongKey","reselectBooleanKey","addReal","replacedNew","addedNew","syntheticEdit","putReal","putAddExisting","putAddInt","putAddString","putAddLong","putAddBoolean","putAddReal","setViewObject","destroy","removeViewObject","didPutNew","madeSyncId","putViewObject","selectObjectKey","delKey","reselectObjectKey","putRemoveExisting","putRemoveInt","putRemoveString","putRemoveLong","putRemoveBoolean","putRemoveReal","clearProperty","setReal","setStringAt","setLongAt","setIntAt","setBooleanAt","setRealAt","addNewAt","addedNewAt"],
+	codes:[1,2,3,10,11,12,13,14,16,17,18,20,21,22,23,24,25,26,27,28,29,30,31,32,33,35,40,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,70,71,73,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,95,96,98,99,100,101,102,103,104,105,107,108,109,110,111,112,118,119,120,124,125,126,127,128,129,140,141,142,143,144,145,146,147,148]
 }
 
 var codes = {}
@@ -128,6 +128,14 @@ isPutRemoveCode[codes.putRemoveBoolean] = true
 isPutRemoveCode[codes.putRemoveReal] = true
 isPutRemoveCode[codes.putRemoveExisting] = true
 lookup.isPutRemoveCode = isPutRemoveCode
+
+var isSetAt = {}
+isSetAt[codes.setStringAt] = true
+isSetAt[codes.setLongAt] = true
+isSetAt[codes.setIntAt] = true
+isSetAt[codes.setBooleanAt] = true
+isSetAt[codes.setRealAt] = true
+lookup.isSetAt = isSetAt
 
 var flipType = {}
 flipType[codes.selectObject] = codes.reselectObject

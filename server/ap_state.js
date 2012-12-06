@@ -102,6 +102,8 @@ function make(schema, ol){
 		}
 		te.temporaryIds[temp] = real;
 		te.mappedIds[real] = true;
+		
+		//console.log('mapped temporary ' + temp + ' -> ' + real)
 	}
 
 	function saveEdit(typeCode, id, op, e, syncId, timestamp){
@@ -150,6 +152,8 @@ function make(schema, ol){
 		_.assertInt(id)
 		
 		//_.assertFunction(cb)
+		
+		//console.log('persisting: ' + JSON.stringify([typeCode, id, path, editNames[op], edit]))
 		
 		_.assertInt(op)
 		
@@ -239,7 +243,7 @@ function make(schema, ol){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)
-		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
+		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)

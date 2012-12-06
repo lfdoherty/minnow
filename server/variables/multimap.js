@@ -7,6 +7,7 @@ var listenerSet = require('./../variable_listeners')
 
 var _ = require('underscorem')
 
+var makeKeyParser = require('./map').makeKeyParser
 
 function multimapType(rel, ch){
 	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
@@ -64,6 +65,10 @@ function multimapMaker(s, self, rel, typeBindings){
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
+
+	var keyParser = makeKeyParser((kt.type === 'list' || kt.type === 'set') ? kt.members : kt)
+	
+	var res
 	if(t.type === 'set' || t.type === 'list'){//if the result of the values macro is a set
 
 		if(kt.type === 'set' || kt.type === 'list'){
@@ -71,7 +76,7 @@ function multimapMaker(s, self, rel, typeBindings){
 			_.errout('TODO')
 		}else{
 			//_.errout('TODO')
-			return svgMapValueMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+			res = svgMapValueMultiple.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
 		}
 		//return svgMapMultiple.bind(undefined, s, cache, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
 	}else if(t.type === 'map'){
@@ -79,12 +84,19 @@ function multimapMaker(s, self, rel, typeBindings){
 	}else{//if the result of the values macro is a single value
 		var hasObjectValues = t.type === 'object'
 		if(kt.type === 'set' || kt.type === 'list'){
-			return svgMapKeyMultiple.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
+			res = svgMapKeyMultiple.bind(undefined, s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
 		}else{
 			//return svgMapSingle.bind(undefined, s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit)
 			_.errout('TODO: ' + JSON.stringify(kt) + '\n' + JSON.stringify(t))
 		}
 	}
+	
+	res.wrapAsSet = function(v){
+		//return exprGetter.wrapAsSet(v)
+		_.errout('TODO?')
+	}
+	
+	return res
 }
 
 function copyBindings(bindings){
@@ -97,7 +109,7 @@ function copyBindings(bindings){
 
 function stub(){}
 
-function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit, bindings, editId){
+function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit, bindings, editId){
 	var elements = contextGetter(bindings, editId)
 
 	var cKeyGetter = keyGetter(bindings, editId)
@@ -235,6 +247,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 	var handle = {
 		name: 'multimap-multikey',
 		attach: function(listener, editId){
+			//console.log('attaching to multimap')
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
 				var value = state[key]
@@ -257,7 +270,7 @@ function svgMapKeyMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, 
 }
 
 
-function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit, bindings, editId){
+function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter, keyGetter, valueGetter, keyImplicit, valueImplicit, bindings, editId){
 	var elements = contextGetter(bindings, editId)
 
 	var cKeyGetter = keyGetter(bindings, editId)
@@ -307,7 +320,7 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 
 			function setKey(key, oldKey, editId){
 				k = key
-				s.log('SET KEY: ' + k + ' ' + oldKey + ' ' + JSON.stringify(values))
+				console.log('SET KEY: ' + k + ' ' + oldKey + ' ' + JSON.stringify(values))
 				if(oldKey !== undefined){
 					for(var i=0;i<values.length;++i){
 						var v = values[i]
@@ -338,6 +351,8 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 			}
 			
 			function addValue(v, editId){
+				console.log('addValue: ' + v + ' ' + editId + ' (' + k + ')')
+				
 				if(values.indexOf(v) === -1){
 					values.push(v)
 				}
@@ -348,6 +363,7 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 						if(multiValues[k] === undefined) multiValues[k] = []
 						multiValues[k].push(v)
 						listeners.emitPutAdd(k, v, editId)
+						console.log('emitting put-add ' + k + ' ' + v + ' ' + listeners.listeners.length)
 					}else{
 						++multiCounts[kvk]
 					}
@@ -400,7 +416,10 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 		name: 'multimap-multivalue',
 		attach: function(listener, editId){
 			listeners.add(listener)
+			//console.log('attaching to multimap')
+			_.assertFunction(listener.putRemove)
 			Object.keys(state).forEach(function(key){
+				key = keyParser(key)
 				var value = state[key]
 				for(var i=0;i<value.length;++i){
 					listener.putAdd(key, value[i], editId)
@@ -410,7 +429,14 @@ function svgMapValueMultiple(s, cache, hasObjectValues, contextGetter, keyGetter
 		detach: function(listener, editId){
 			listeners.remove(listener)
 			if(editId){
-				throw new Error('TODO')
+				//throw new Error('TODO')
+				Object.keys(state).forEach(function(key){
+					key = keyParser(key)
+					var value = state[key]
+					for(var i=0;i<value.length;++i){
+						listener.putRemove(key, value[i], editId)
+					}
+				})
 			}
 		},
 		oldest: oldest,

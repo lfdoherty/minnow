@@ -6,7 +6,7 @@ exports.make = function(s, value){
 	if(arguments.length === 1){
 		f = sfgSet.bind(undefined, s)		
 	}else{
-		if(value === undefined) throw new Error()
+		if(value === undefined) throw new Error('no value for set')
 		f = sfgSet.bind(undefined, s, value)
 	}
 	return f
@@ -40,7 +40,9 @@ function sfgSet(s, values, bindings, editId){
 		descend: function(path, editId, cb){
 			//context.descend(path, editId, cb)
 			_.errout('TODO')
-		}
+		},
+		isConstant: true,
+		get: function(){return values;}
 	}
 	return handle
 }

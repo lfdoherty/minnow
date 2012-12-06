@@ -8,6 +8,7 @@ exports.plugins = {
 	eq: require('./eq'),
 	and: require('./and'),
 	or: require('./or'),
+	not: require('./not'),
 	either: require('./either'),
 	union: require('./union'),
 	'in': require('./in'),
@@ -19,5 +20,7 @@ exports.plugins = {
 	concat: require('./concat'),
 	'if': require('./if'),
 	mapMerge: require('./mapMerge'),
-	exists: require('./exists')
+	exists: require('./exists'),
+	list: require('./list'),
+	keysByValues: require('./keysByValues')
 }

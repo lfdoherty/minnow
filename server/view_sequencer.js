@@ -127,7 +127,9 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 	var editBuffer = new buckets.Heap(orderEditsByEditIdAndOrder)
 	
 	function advanceEdits(){
+		if(editBuffer.isEmpty()) return
 		var oldestEditId = viewVariable.oldest()
+		//console.log('advancing edits')
 		while(true){
 			if(ready) return
 			if(editBuffer.isEmpty()){
@@ -292,10 +294,13 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 	//_.assertFunction(detachViewVariable)
 	
 	var lastOldest = viewVariable.oldest()
+	//console.log('initial oldest: ' + lastOldest)
+	
 	var intervalHandle = setInterval(function(){
 
 		var oldest = viewVariable.oldest()
-		if(oldest < lastOldest) _.errout('oldest must increase monotonically: ' + oldest + ' < ' + lastOldest)
+		//console.log('*** oldest: ' + oldest + ' ' + objectState.getCurrentEditId())
+		if(oldest < lastOldest) _.errout('oldest must increase monotonically: ' + oldest + ' < ' + lastOldest + ' < ' + objectState.getCurrentEditId())
 		lastOldest = oldest
 
 		advanceEdits()
@@ -303,8 +308,8 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 			clearInterval(intervalHandle)
 			editBuffer = undefined
 			//detachViewVariable()
-			viewVariable.detach(viewListeners)
 			ready = true
+			viewVariable.detach(viewListeners)
 
 			var snapshot = serializeSnapshot(startEditId, endEditId,fp.codes, fp.writersByCode, objectEditBuffers, viewObjectEditBuffers)
 			_.assertBuffer(snapshot)
@@ -314,7 +319,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		}else{
 			//log('waiting for snapshot ' + manyObjectsOut + ' ' + oldest + ' <? ' + endEditId + ' ' + objectState.getCurrentEditId() + ' ' + viewId)
 		}
-	}, 0)
+	}, 10)
 
 }
 
@@ -376,7 +381,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 			if(e.editId < oldestEditId){
 				toEmit.push(editBuffer.removeRoot())
 			}else{
-				//log('not emitting edit yet ' + e.editId + ' ' + oldestEditId + ' ' + JSON.stringify(e))
+				//console.log('not emitting edit yet ' + e.editId + ' ' + oldestEditId + ' ' + objectState.getCurrentEditId() + ' ' + JSON.stringify(e))
 				//log('emitting all: ', toEmit)
 				toEmit.forEach(emitEdit)
 				return;
@@ -384,20 +389,21 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 		}
 	}
 
-	var onNext = false;
+	/*var onNext = false;
 	function flipNext(){
 		onNext = false;
 		advanceEdits()
-	}
-	function advanceOnNext(){
+	}*/
+	/*function advanceOnNext(){
 		if(!onNext){
 			onNext = true
 			process.nextTick(flipNext)
 		}
-	}
-	timeoutHandle = setInterval(advanceEdits, 0)
+	}*/
+	timeoutHandle = setInterval(advanceEdits, 10)
 	
 	function oldest(){
+		//console.log('oldest*$')
 		if(viewVariables.length === 0){
 			return objectState.getCurrentEditId()
 		}
@@ -502,6 +508,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 			function isReadyYet(){
 				if(isReady) return;
 				var old = viewVariable.oldest()
+				//console.log('isReadyYet oldest')
 				if(old > startEditId){
 					isReady = true
 					//console.log('isReady: ' + old)
@@ -531,6 +538,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 				set: function(viewId, editId){},//stub
 				includeObject: function(id, editId){
 					if(editId > startEditId){
+						_.assert(objectState.isTopLevelObject(id))
 						inclusionsListener(id, editId)
 					}
 				},
@@ -562,6 +570,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 					_.assertInt(editId)
 					_.assertString(id)
 					_.assertInt(syncId)
+					_.assertInt(op)
 					
 					//console.log('edit change: ' + JSON.stringify([typeCode, id, path, op, edit, syncId, editId]))
 					
@@ -574,6 +583,8 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 					if(editId === -20){
 
 						filterInclusions(op, edit, editId, requiresOldEditsInclusionsListener)
+						
+						//console.log('-20ing')
 
 						//aggregate into view object updates
 						var vbo = viewObjectBuffers[id]
@@ -611,6 +622,9 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 
 						editBuffer.add(e)
 					}else{
+					
+						//console.log('ignoring old edit: ' + startEditId)
+						//console.log(new Error().stack)
 						
 						filterInclusions(op, edit, editId, requiresOldEditsInclusionsListener)
 						//log('otherwise, ignoring old edit: ' + editId + ' <= ' + startEditId)
@@ -647,7 +661,11 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 			Object.keys(viewDetachers).forEach(function(viewId){
 				var d = viewDetachers[viewId]
 				viewDetachers[viewId] = undefined
-				d()
+				if(d){
+					d()
+				}else{
+					console.log('no detacher found for viewId: ' + viewId)
+				}
 			})
 			broadcaster.output.stopUpdatingBySet(objectUpdateListener)
 		}

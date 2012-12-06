@@ -21,6 +21,7 @@ IntHandle.prototype.value = function(){
 	return this.obj;
 }
 IntHandle.prototype.changeListener = u.primitiveChangeListener;
+IntHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 IntHandle.prototype.set = function(v){
 
 	if(this.obj === v) return

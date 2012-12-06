@@ -1,6 +1,8 @@
 
 var minnow = require('./../../client/client')//this is the minnow include
 
+function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+
 exports.setProperty = function(config, done){
 	minnow.makeServer(config, function(s){
 		minnow.makeClient(config.port, function(c){
@@ -61,3 +63,25 @@ exports.prepareWasSetToNew = function(config, done){
 	})
 }
 
+
+exports.deepTopLevelDescent = function(config, done){
+	minnow.makeServer(config, function(s){
+		minnow.makeClient(config.port, function(c){
+			c.view('deep', [], function(err, handle){
+				var bottom = handle.make('recursive', {name: 'bottom'})
+				var a = handle.make('recursive', {p: bottom})
+				var b = handle.make('recursive', {p: a})
+				var c = handle.make('recursive', {p: b})
+				var d = handle.make('recursive', {p: c})
+				
+				poll(function(){
+					//console.log('handle: ' + handle)					
+					if(handle.deepName.value() === 'bottom'){
+						done()
+						return true
+					}
+				})
+			})
+		})
+	})
+}

@@ -30,6 +30,7 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 	
 	this.addOp = u.getAddOperator(typeSchema)
 	this.removeOp = u.getRemoveOperator(typeSchema)
+	this.setAtOp = u.getSetAtOperator(typeSchema)
 	
 	if(this.isView()){
 		this.set = u.viewReadonlyFunction
@@ -111,6 +112,20 @@ PrimitiveListHandle.prototype.remove = function(value){
 	}
 }
 
+PrimitiveListHandle.prototype.setAt = function(index, value){
+	this.assertMemberType(value)
+	_.assertInt(index)
+	if(index >= this.obj.length) _.errout('invalid index out of range: ' + index + ' >= ' + this.obj.length)
+	if(index < 0) _.errout('index must be positive, not: ' + index)
+	
+	this.obj[index] = value
+	
+	var e = {value: value, index: index}
+	this.saveEdit(this.setAtOp, e);
+		
+	this.emit(e, 'setAt', index, value)
+}
+
 PrimitiveListHandle.prototype.shift = function(){
 
 	if(this.obj.length < 1) _.errout('cannot shift empty list')
@@ -174,6 +189,12 @@ PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId
 			}
 		}		
 		return stub;
+	}else if(lookup.isSetAt[op]){
+		//_.errout('todo setAt')
+		if(this.obj.length <= edit.index){
+			console.log('WARNING ignored setAt with out-of-bounds index: ' + JSON.stringify(edit))
+		}
+		this.obj[edit.index] = edit.value
 	}else{
 		_.errout('+TODO implement op: ' + JSON.stringify(edit));
 	}

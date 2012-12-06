@@ -191,6 +191,9 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	realEdits.reverse()
 	
 	//console.log('real edits: ' + JSON.stringify(realEdits))
+	/*realEdits.forEach(function(e, index){
+		console.log(index + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
+	})*/
 	
 	//apply edits
 	s.currentSyncId=-1
@@ -249,6 +252,7 @@ TopObjectHandle.prototype.removeParent = function(){}
 TopObjectHandle.prototype._typeCode = function(){return this.objectTypeCode;}
 TopObjectHandle.prototype.getPath = function(){return [];}
 TopObjectHandle.prototype.type = function(){return this.typeSchema.name;}
+TopObjectHandle.prototype.isa = ObjectHandle.prototype.isa
 TopObjectHandle.prototype.id = function(){
 	if(this.objectId < 0) throw new Error('cannot get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the id becomes available.')
 	return this.objectId;
@@ -275,6 +279,9 @@ TopObjectHandle.prototype.setPropertyToNew = ObjectHandle.prototype.setPropertyT
 
 TopObjectHandle.prototype.delayRefresh = function(){
 	this.refreshDelayed = true;
+}
+
+TopObjectHandle.prototype._rewriteObjectApiCache = function(){
 }
 
 TopObjectHandle.prototype.adjustPath = function(source){
@@ -446,7 +453,9 @@ function updatePath(local, op, edit, editId){
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(op === editCodes.selectObject){
 		local.pathEdits.push({op: op, edit: edit})
-	}else if(op === editCodes.reselectObject){
+	}/*else if(op === editCodes.addedNew || op === editCodes.addedNewAt){
+		local.pathEdits.push({op: op, edit: edit})
+	}*/else if(op === editCodes.reselectObject){
 		_.assert(local.pathEdits.length > 0)
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(lookup.isKeySelectCode[op]){//op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
@@ -475,7 +484,7 @@ function maintainPath(local, op, edit, syncId, editId){
 	//if(local.uid === undefined) local.uid = Math.random()
 	//local.log.info('current path:' +JSON.stringify( local.pathEdits))
 	//console.log(local.uid + ' current path(' + local.objectId + '): ' + JSON.stringify(local.pathEdits))
-	//console.log(JSON.stringify([op, edit, syncId, editId]))
+	//console.log(JSON.stringify([editNames[op], edit, syncId, editId]))
 	//console.log(new Error().stack)
 	
 	_.assertInt(op)
@@ -523,7 +532,7 @@ function maintainPath(local, op, edit, syncId, editId){
 	}else{
 		if(op === editCodes.delKey || op === editCodes.setObject || op === editCodes.clearObject || 
 				op === editCodes.clearProperty || op === editCodes.setViewObject || lookup.isPutCode[op] || lookup.isPutAddCode[op] || lookup.isPutRemoveCode[op] ||
-				op === editCodes.removeExisting || op === editCodes.del || op === editCodes.didPutNew){
+				op === editCodes.del || op === editCodes.didPutNew || op === editCodes.remove){
 			_.assert(local.pathEdits.length > 0)
 			var lastCode
 			var lastEdit = local.pathEdits[local.pathEdits.length-1]
@@ -531,7 +540,7 @@ function maintainPath(local, op, edit, syncId, editId){
 				lastCode = lastEdit.edit.typeCode
 			}else if(lastEdit.op === editCodes.reselectProperty){
 				lastCode = lastEdit.edit.typeCode
-			}else if(lastEdit.op === editCodes.selectObject){
+			}else if(lastEdit.op === editCodes.selectObject || lastEdit.op === editCodes.reselectObject){
 				lastCode = lastEdit.edit.id
 			}else if(lookup.isKeyCode[lastEdit.op]){//lastEdit.op.indexOf('Key') !== -1){
 				lastCode = lastEdit.edit.key
@@ -630,7 +639,7 @@ function descend(start, pathEdits){
 			//console.log('selecting property: ' + pe.edit.typeCode + ' ' + ch.rere + ' ' + ch.objectId + ' ' + JSON.stringify(pathEdits))
 			//console.log('ch: ' + oldCh.objectId)
 		}else if(pe.op === editCodes.selectObject || pe.op === editCodes.reselectObject){
-			_.assert(pe.edit.id > 0)
+			//_.assert(pe.edit.id > 0)
 			if(ch.getObjectValue){//map descent
 				ch = ch.getObjectValue(pe.edit.id)
 				if(ch === undefined){

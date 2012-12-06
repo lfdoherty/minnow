@@ -31,16 +31,13 @@ exports.compute = function(paramValues){
 		if(paramValues[i] == null) continue
 		if(_.isArray(paramValues[i])){
 			var arr = paramValues[i]
-			//arr.sort(function(a,b){return a-b})
 			for(var j=0;j<arr.length;++j){
 				_.assertNumber(arr[j])
 				v += arr[j]
 			}
 		}else{
-			//if(paramValues[i] === undefined) return//nulls are ok in arrays, but not single values
 			v += paramValues[i]
 		}
 	}
-	//console.log('added ' + JSON.stringify(paramValues) + ' -> ' + v)
 	return v
 }

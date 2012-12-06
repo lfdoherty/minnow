@@ -9,7 +9,7 @@ exports.make = function(listeners){
 	return {
 		includeView: function(viewId, handle, editId){
 			if(viewCounts[viewId] === undefined){
-				//console.log('caching view id: ' + viewId)
+				console.log('caching view id: ' + viewId)
 				cachedViewIncludes[viewId] = handle
 				viewCounts[viewId] = 1
 				listeners.emitIncludeView(viewId, handle, editId)
