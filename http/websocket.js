@@ -2,10 +2,7 @@
 
 var _ = require('underscorem')
 
-//exports.name = 'minnow-service-core';
-//exports.dir = __dirname;
 exports.module = module
-//exports.requirements = ['matterhorn-standard'];
 
 var fs = require('fs')
 
@@ -23,5 +20,5 @@ exports.load = function(local, schema, authenticateByToken, viewSecuritySettings
 
 	var impl = websocketImpl.make(authenticateByToken, local)
 
-	abstract.load(schema, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl)//app, appName, schema, authenticateByToken, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl)
+	abstract.load(schema, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl)
 }

@@ -569,7 +569,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 
 				e.requestId = makeRequestId();
 				syncReadyCallbacks[e.requestId] = cb;
-				log('tcpclient e.params: ', e.params)
+				console.log('tcpclient e.params: ', e.params + ' ' + syncId)
 
 				w.beginView(e);
 			},

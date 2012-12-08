@@ -12,9 +12,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 	if(syncHandleCreationListener !== undefined) _.assertFunction(syncHandleCreationListener)
 	
 	var syncHandles = {}
-	
-	//var msgBuffer = []
-	
+
 	var intervalHandle = setInterval(function(){
 		Object.keys(syncHandles).forEach(function(key){
 			var sh = syncHandles[key]
@@ -23,11 +21,6 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 				sh.msgs = []
 			}
 		})
-		/*for(var i=0;i<msgBuffer.length;++i){
-			var m = msgBuffer[i]
-			impl.sendToClient(m[0],m[1])
-		}
-		msgBuffer = []*/
 	},50)
 	
 	var ee = impl.handleErrors()
@@ -50,8 +43,6 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		function reifyCb(temporary, id){
 			_.assert(temporary < 0)
 			_.assert(id > 0)
-			//impl.sendToClient(theSyncId, ['reify', id, temporary])
-			//msgBuffer.push([theSyncId, ['reify', id, temporary]])
 			sh.msgs.push(['reify', id, temporary])
 		}
 
@@ -71,6 +62,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 	}, function(syncId){//called when the sync handle is ended
 		if(syncHandles[syncId]){
 			syncHandles[syncId].close()
+			delete syncHandles[syncId]
 		}else{
 			log.warn('cannot find sync id to close: ' + syncId)
 		}
@@ -79,30 +71,18 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 	function objectListener(sh, id, edits){
 		_.assertLength(arguments, 3);
 		
-		//log('$got object e: ' + JSON.stringify([id, edits]).slice(0, 300));
-		
-		//log('sending message for sync ' + sh.id)
-		//_.assertInt(id)
 		_.assertArray(edits)
 		var msg = ['object', id, edits];
 
-		//impl.sendToClient(connectionSyncId, msg)
-		//msgBuffer.push([connectionSyncId, msg])
 		sh.msgs.push(msg)
 	}
 	function syncListener(sh, e){
 		_.assertLength(arguments, 2);
 		
-		//log('$got e: ' + JSON.stringify(e).slice(0, 300));
-		
 		_.assertInt(e.op)
-		
-		//log('sending message for sync ' + sh.id + ': ' + JSON.stringify(e));
 
 		var msg = ['edit', e.op, e.edit, e.editId];
 
-		//impl.sendToClient(connectionSyncId, msg)
-		//msgBuffer.push([connectionSyncId, msg])
 		sh.msgs.push(msg)
 	}
 
@@ -113,7 +93,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		function doViewSetup(msg){
 			var snapshotId = parseInt(msg.snapshotVersion);
 			
-			log(JSON.stringify(Object.keys(schema)))
+			//log(JSON.stringify(Object.keys(schema)))
 			var viewCode = schema[msg.viewName].code
 			_.assertInt(viewCode)
 
@@ -153,10 +133,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 						impl.failToBegin(syncId, err)
 						return
 					}
-					log(syncId + ' BEGAN VIEW(' + viewCode + ')' + msg.params + ': ' + msg.uid + ' ' + msg.version)
-					//console.log(JSON.stringify(e))
-					//impl.sendToClient(syncId, {type: 'ready', uid: msg.uid})
-					//msgBuffer.push([syncId, {type: 'ready', uid: msg.uid}])
+					//log(syncId + ' BEGAN VIEW(' + viewCode + ')' + msg.params + ': ' + msg.uid + ' ' + msg.version)
+
 					sh.msgs.push({type: 'ready', uid: msg.uid})
 				})
 			}, JSON.parse(msg.params), userToken)
@@ -167,7 +145,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 
 		msgs.forEach(function(msg){
 			if(failed) return
-			log('msg: ' + JSON.stringify(msg).slice(0, 300))
+			//log('msg: ' + JSON.stringify(msg).slice(0, 300))
 			if(msg.type === 'setup'){
 				doViewSetup(msg)
 			}else if(msg.type === 'forgetLastTemporary'){
@@ -175,7 +153,6 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 			}else{
 				msg = msg.data
 
-				log(syncId + ' longpoll persisting ' + msg.op + ' ' + JSON.stringify(msg.edit))
 				syncHandle.persistEdit(msg.op, msg.edit, syncId)
 			}
 		})

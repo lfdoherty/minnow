@@ -389,17 +389,6 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 		}
 	}
 
-	/*var onNext = false;
-	function flipNext(){
-		onNext = false;
-		advanceEdits()
-	}*/
-	/*function advanceOnNext(){
-		if(!onNext){
-			onNext = true
-			process.nextTick(flipNext)
-		}
-	}*/
 	timeoutHandle = setInterval(advanceEdits, 10)
 	
 	function oldest(){
@@ -514,8 +503,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 					//console.log('isReady: ' + old)
 					Object.keys(viewObjectBuffers).forEach(function(idStr){
 						var edits = viewObjectBuffers[idStr]
-						sendViewObject(idStr, edits)//, edits.path)
-						//pathUpdaters[idStr] = edits.path
+						sendViewObject(idStr, edits)
 					})
 					viewObjectBuffers = undefined
 					readyCb()
@@ -631,8 +619,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 					}
 				}
 			}
-			//we attach with -1 so that we can accumulate the object inclusions
-			//TODO what if the view objects have changed?
+			//we attach with -20 so that we can accumulate the object inclusions
 			var detachFunc = viewVariable.attach(listenHandle, -20)//objectState.getCurrentEditId()-1)
 			//detachFuncs.push(detachFunc)
 			isReadyYet()
@@ -648,9 +635,7 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 			
 			//console.log(infoSyncId + ' subscribed to ' + id)
 			
-			//includeObjectCb(id, function(){
-				listenObjectCb(id)
-			//})
+			listenObjectCb(id)
 		},
 		end: function(){
 			//_.assertDefined(editBuffer)

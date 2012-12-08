@@ -69,17 +69,17 @@ ObjectListHandle.prototype.remove = function(objHandle){
 		var e = {}
 
 		var remainingCurrentPath = this.parent.adjustPath(this.part)
-		console.log('remainingCurrentPath: ' + JSON.stringify(remainingCurrentPath))
+		//console.log('remainingCurrentPath: ' + JSON.stringify(remainingCurrentPath))
 		if(remainingCurrentPath && remainingCurrentPath.length > 1){
 			this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
 		}
 		if(!remainingCurrentPath || remainingCurrentPath.length === 0){
 			this.persistEdit(editCodes.selectObject, {id: id})
 		}else if(remainingCurrentPath[0] !== id){
-			console.log('reselecting')
+			//console.log('reselecting')
 			this.persistEdit(editCodes.reselectObject, {id: id})
 		}else{
-			console.log('same')
+			//console.log('same')
 		}
 		
 		this.persistEdit(editCodes.remove, e)
@@ -124,7 +124,11 @@ ObjectListHandle.prototype.removeAt = function(index, many){
 ObjectListHandle.prototype.has = function(desiredId){
 	_.assertLength(arguments, 1);
 	
-	var res = findObj(this.obj, desiredId)	
+	if(desiredId._internalId){
+		//TODO check type is valid
+		desiredId = desiredId._internalId()
+	}
+	var res = u.findObj(this.obj, desiredId)	
 	return !!res
 }
 

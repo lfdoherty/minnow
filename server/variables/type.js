@@ -110,7 +110,7 @@ function svgGeneral(s, cache, elementGetter, bindings, editId){
 				
 				var name = s.schema._byCode[typeCode].name;
 				if(name !== oldName){
-					console.log('type of ' + v + ' is ' + name)
+					//console.log('type of ' + v + ' is ' + name)
 					listeners.emitSet(name, oldName, editId)
 					oldName = name
 				}

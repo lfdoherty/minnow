@@ -296,7 +296,7 @@ function makeClient(host, port, clientCb){
 		
 		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
 			_.assertFunction(cb)
-			log(uid + ' getting view ' + type + JSON.stringify(params))
+			console.log(uid + ' getting view ' + type + JSON.stringify(params))
 			//_.assert(errorListeners.length > 0)
 			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(err){
 				if(err){

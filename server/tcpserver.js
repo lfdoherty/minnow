@@ -29,6 +29,8 @@ var WriteFlushInterval = 10
 
 var RandomFailureDelay = 100000
 
+var ReconnectPeriod = 1000*60//a client may reconnect within 1 minute
+
 function makeServer(appSchema, appMacros, dataDir, port, readyCb){
 	_.assertLength(arguments, 5);
 	_.assertInt(port);
@@ -117,6 +119,18 @@ function createTcpServer(appSchema, port, s, readyCb){
 	var liveConnections = {}//index for reconnection	
 
 	var isClosed = false
+	
+	/* TODO implement reconnect timeout
+	var dyingConnections = []
+
+	var reconnectTimeoutHandle = setTimeout(function(){
+		var dead = []
+		var now = Date.now()
+		dyingConnections.forEach(function(c){
+			if(now - c.connectionLostTime > ReconnectPeriod){
+			}
+		})
+	},1000)*/
 
 	var tcpServer = net.createServer(function(c){
 

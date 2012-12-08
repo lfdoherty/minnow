@@ -320,7 +320,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 
 			function setKey(key, oldKey, editId){
 				k = key
-				console.log('SET KEY: ' + k + ' ' + oldKey + ' ' + JSON.stringify(values))
+				//console.log('SET KEY: ' + k + ' ' + oldKey + ' ' + JSON.stringify(values))
 				if(oldKey !== undefined){
 					for(var i=0;i<values.length;++i){
 						var v = values[i]
@@ -351,7 +351,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 			}
 			
 			function addValue(v, editId){
-				console.log('addValue: ' + v + ' ' + editId + ' (' + k + ')')
+				//console.log('addValue: ' + v + ' ' + editId + ' (' + k + ')')
 				
 				if(values.indexOf(v) === -1){
 					values.push(v)
@@ -363,7 +363,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 						if(multiValues[k] === undefined) multiValues[k] = []
 						multiValues[k].push(v)
 						listeners.emitPutAdd(k, v, editId)
-						console.log('emitting put-add ' + k + ' ' + v + ' ' + listeners.listeners.length)
+						//console.log('emitting put-add ' + k + ' ' + v + ' ' + listeners.listeners.length)
 					}else{
 						++multiCounts[kvk]
 					}

@@ -34,7 +34,6 @@ exports.makeGetAllSubtypes = makeGetAllSubtypes
 var analyticsLog = require('quicklog').make('minnow/analytics')
 
 exports.make = function(schema, globalMacros, broadcaster, objectState){
-	//var variableGetter = variables.makeGetter(schema, objectState, broadcaster)
 	_.assertFunction(broadcaster.output.listenForNew)
 
 	var s = {schema: schema, globalMacros: globalMacros, broadcaster: broadcaster.output, objectState: objectState}
@@ -44,8 +43,6 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 	s.analytics = variables.makeAnalytics({name: 'make'},{children:[]})
 	s.analytics.cachePut()
 	
-	//var selfGetter = variables.makeGetter(s)//variableGetter.bind(undefined, s)
-
 	//cache variable makers for each view type	
 	var viewGettersByTypeCode = {}
 
@@ -100,22 +97,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 	var handle = {
 		beginView: function(e, seq, readyPacketCb){
 			_.assertLength(arguments, 3)
-			/*function includeObjectCb(id, editId){
-				_.assertInt(editId)
-				//leave it up to the sync handle to deduplicate and retrieve that state
-				listenerCb({op: 'includeObject', id: id, editId: editId})
-			}*/
-			/*var readyPacket = []
-			function editCb(e){
-				if(readyPacket === undefined){
-					listenerCb(e)
-				}else{
-					readyPacket.push[e]
-				}
-			}*/
 
-			//console.log('BEGINNING VIEW:' + JSON.stringify(e))
-			
 			function readyCb(){
 				//log('GOT READY PACKET:', readyPacket)
 				readyPacketCb()
@@ -165,31 +147,25 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotIds[snapshotIds.length-1])
 			var curEditId = objectState.getCurrentEditId()-1
-			//log('curEditId: ', curEditId)
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, curEditId)
 
 			var list = [];
-			//log('GETTING SNAPSHOT STATES: ',snapshotIds)
+
 			var cdl = _.latch(snapshotIds.length, function(){
-			//	log('GOT ALL SNAPSHOT STATES')
 				cb({snapshots: list});
 			});
 			_.each(snapshotIds, function(snId, index){
 				_.assertInt(snId);
 				var prevSnId = index > 0 ? snapshotIds[index-1] : -1;
-				if(snId === -1) snId = curEditId-1//would be -1, except we want to keep the *previous* editId open for time-triggered appends
-				//console.log(prevSnId + ' ' + snId)
+				if(snId === -1) snId = curEditId-1
 				_.assert(snId === -1 || prevSnId <= snId)
-				//handle.getSnapshotState(typeCode, params, snId, prevSnId, function(snap){
+
 				viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, prevSnId, snId, _.assureOnce(function(snap){
-					//log('GOT A SNAP')
 					_.assertBuffer(snap)
 					list[index] = snap;
 					cdl();
 				}));
 			})
-			//viewSequencer.makeSnapshot(typeCode, viewVariable, previousSnapshotId, snapshotId, cb)
-			
 		},
 		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, cb, errCb){
 			_.assertFunction(errCb)

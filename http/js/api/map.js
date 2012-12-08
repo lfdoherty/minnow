@@ -380,7 +380,7 @@ MapHandle.prototype.toJson = function(){
 var stub = function(){}
 MapHandle.prototype.changeListener = function(op, edit, syncId){
 
-	console.log('changeListener: ' + JSON.stringify([op, edit, syncId]))
+	//console.log('changeListener: ' + JSON.stringify([op, edit, syncId]))
 
 	if(syncId === this.getEditingId()){
 		return stub;//TODO deal with local/global priority
@@ -395,7 +395,7 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		return stub;//TODO deal with local/global priority
 	}
 	
-	console.log('elevated: ' + JSON.stringify([key, op, edit, syncId, editId]))
+	//console.log('elevated: ' + JSON.stringify([key, op, edit, syncId, editId]))
 
 	if(op === editCodes.putAddExisting){
 		//_.errout('TODO')
