@@ -532,7 +532,7 @@ function maintainPath(local, op, edit, syncId, editId){
 	}else{
 		if(op === editCodes.delKey || op === editCodes.setObject || op === editCodes.clearObject || 
 				op === editCodes.clearProperty || op === editCodes.setViewObject || lookup.isPutCode[op] || lookup.isPutAddCode[op] || lookup.isPutRemoveCode[op] ||
-				op === editCodes.del || op === editCodes.didPutNew || op === editCodes.remove){
+				op === editCodes.del || op === editCodes.didPutNew || op === editCodes.remove || op === editCodes.addAfter || op === editCodes.addNewAfter || op === editCodes.addedNewAfter){
 			_.assert(local.pathEdits.length > 0)
 			var lastCode
 			var lastEdit = local.pathEdits[local.pathEdits.length-1]

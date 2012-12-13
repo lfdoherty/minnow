@@ -86,100 +86,36 @@ ObjectSetHandle.prototype.changeListenerElevated = function(descendId, op, edit,
 	}
 }
 
-/*
-ObjectSetHandle.prototype.remove = function(objHandle){
-
-		this.saveEdit(editCodes.remove, {id: objHandle._internalId()})
-	
-		this.emit(e, 'remove', objHandle)//()
-
-}*/
-
 ObjectSetHandle.prototype.remove = ObjectListHandle.prototype.remove
+ObjectSetHandle.prototype.adjustInto = ObjectListHandle.prototype.adjustInto
 
 function stub(){}
 ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	_.assertLength(arguments, 4);
-	//if(path.length > 0) _.errout('TODO implement');
-	//this.log('object set handle changeListener')
 	_.assertInt(op)
-/*
-	if(path.length === 1 && op === 'remove'){
-		if(this.getEditingId() !== syncId){
-			console.log('removing inner object ^^^^^^^^^^^^^^^^6: ' + path[0])
-			var removedObj = u.findObj(this.obj, path[0])//this.getObjectApi(path[0])
-			_.assertDefined(removedObj)
-			this.obj.splice(this.obj.indexOf(removedObj), 1);
-			return this.emit(edit, 'remove', removedObj)
-		}else{
-			return stub;
-		}
-	}
-
-	if(path.length > 0){
-	
-		var a = this.get(path[0]);
-
-		if(a === undefined){
-			console.log('WARNING: did not descend into object in set - might already have been removed')
-			return;
-		}
-
-		_.assertObject(a);	
-		return a.changeListener(path.slice(1), op, edit, syncId);
-	}*/
 	
 	if(op === editCodes.addExisting){
-		//console.log('added to set: ' + edit.id);
-		//if(this.getEditingId() !== syncId){
-			var addedObj = this.getObjectApi(edit.id)
-			this.obj.push(addedObj);
-			return this.emit(edit, 'add', addedObj)
-		//}
-	}/*else if(op === 'addNew'){
-		_.errout('TODO reimplement')
-		var temporary = edit.temporary
-		if(this.getEditingId() === syncId){
-			var objHandle = this.get(temporary);
-			if(objHandle === undefined){
-				console.log('WARNING: did not reify new inner object created via add - might already have been removed')
-				return;
-			}
-			objHandle.reify(edit.obj.object.meta.id)
+		var addedObj = this.getObjectApi(edit.id)
+		if(addedObj === undefined) _.errout('cannot find added object: ' + edit.id)
+		if(this.obj.indexOf(addedObj) !== -1){
+			console.log('ignoring redundant add: ' + edit.id)
 			return
-		}else{
-			//_.assertInt(id)
-			var newObj = edit.obj.object
-
-			var res = this.wrapObject(newObj, [], this)
-			this.obj.push(res)
-			res.prepare()
-			return this.emit(edit, 'add', res)
 		}
-	}*/else if(op === editCodes.addedNew){
+		this.obj.push(addedObj);
+		return this.emit(edit, 'add', addedObj)
+	}else if(op === editCodes.addedNew){
 		var id = edit.id//edit.obj.object.meta.id
 		var temporary = edit.temporary
-		//if(this.getEditingId() === syncId){
-			/*var objHandle = this.get(temporary);
-			if(objHandle === undefined){
-				this.log('warning: object not found in list: ' + temporary + ', might ok if it has been replaced')
-				return;
-			}
-			objHandle.reify(id)
-			return*/
-		//}else{
-			_.assertInt(id)
 
-			var res = this.wrapObject(id, edit.typeCode, [], this)
-			this.obj.push(res)
-			res.prepare()
-			return this.emit(edit, 'add', res, editId)
-		//}
+		_.assertInt(id)
+
+		var res = this.wrapObject(id, edit.typeCode, [], this)
+		this.obj.push(res)
+		res.prepare()
+		return this.emit(edit, 'add', res, editId)
 	}else if(op === editCodes.remove){
-		/*if(this.getEditingId() === syncId){
-			return stub;
-		}*/
-		var removedObj = u.findObj(this.obj, edit.id)//this.getObjectApi(edit.id)
+
+		var removedObj = u.findObj(this.obj, edit.id)
 		var i = this.obj.indexOf(removedObj)
 		_.assert(i >= 0)
 		this.obj.splice(i, 1);
@@ -229,7 +165,7 @@ ObjectSetHandle.prototype.add = function(objHandle){
 	
 	this.obj.push(objHandle);
 
-	this.emit(ee, 'add', objHandle)//()
+	this.emit(ee, 'add', objHandle)
 }
 
 ObjectSetHandle.prototype.addNew = function(typeName, json){
@@ -248,34 +184,10 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 
 	var n = this._makeAndSaveNew(json, type)
 	
-	this.emit({}, 'add', n)//()
+	this.emit({}, 'add', n)
 	this.obj.push(n)
 
 	return n
-	/*
-	var res = //this.createNewExternalObject(type.code, temporary, edits, forg)
-	
-		res.prepare();
-
-		if(cb){
-			if(this.parent.objectCreationCallbacks === undefined) this.parent.objectCreationCallbacks = {};
-			this.parent.objectCreationCallbacks[temporary] = cb;
-		}
-
-		return res;*/
-	/*
-	obj.meta = {typeCode: type.code, id: temporaryId, editId: -10}
-	
-	var ee = {temporary: temporaryId, newType: type.code, obj: {type: type.code, object: obj}};
-	
-	this.saveEdit('addNewInternal',	ee);
-	
-	var res = this.wrapObject(obj, [], this)
-
-	this.obj.push(res);	
-
-	this.emit(ee, 'add', res)()
-	return res*/
 }
 
 

@@ -79,9 +79,7 @@ function wrapParam(v, schemaType, s){
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
-					//if(cachedValue !== undefined){
-						listener.changed(editId)
-					//}
+					listener.changed(editId)
 				},
 				get: function(){return cachedValue;},
 				oldest: t.oldest
@@ -115,86 +113,73 @@ function wrapParam(v, schemaType, s){
 				name: 'syncplugin-set-wrapper ('+t.name+')',
 				attach: function(listener, editId){
 					listeners.add(listener)
-					//if(cachedValues.length > 0){
-						listener.changed(editId)
-					//}
+					listener.changed(editId)
 				},
 				get: function(){return cachedValues;},
-				oldest: t.oldest//,
-				//getType: t.getType
+				oldest: t.oldest
 			}
 			
 			if(schemaType.members.type === 'object'){
 				addDescend(handle, t)
-				//if(t.getType === undefined) _.errout('missing getType: ' + t.name)
 			}
 			
 			return handle
 		}
 	}else if(schemaType.type === 'list'){
-		//if(schemaType.members.type === 'primitive'){
-			return function(bindings, editId){
-				var listeners = listenerSet()
+		return function(bindings, editId){
+			var listeners = listenerSet()
 
-				var t = v(bindings, editId)
-				var cachedValues = []
-				var re = Math.random()
-				//s.log('attaching ' + re + ' ' + t.attach)
+			var t = v(bindings, editId)
+			var cachedValues = []
+			var re = Math.random()
+			//s.log('attaching ' + re + ' ' + t.attach)
 
-				t.attach({
-					add: function(v, editId){
-						//console.log(re + ' cachedValues: ' + JSON.stringify(cachedValues))
-						//console.log('adding: ' + v)
-						_.assert(cachedValues.indexOf(v) === -1)
-						cachedValues.push(v)
-						listeners.emitChanged(editId)
-					},
-					remove: function(v, editId){
-						cachedValues.splice(cachedValues.indexOf(v), 1)
-					},
-					objectChange: function(){
-						_.errout('TODO')
-					},
-					includeView: function(){
-						_.errout('TODO')
-					},
-					removeView: function(){
-						_.errout('TODO')
-					}
-				}, editId)
-				var handle = {
-					name: 'syncplugin-list-wrapper (' + t.name + ')',
-					attach: function(listener, editId){
-						listeners.add(listener)
-						//if(cachedValues.length > 0){
-							listener.changed(editId)
-						//}
-					},
-					get: function(){return cachedValues;},
-					oldest: t.oldest
+			t.attach({
+				add: function(v, editId){
+					//console.log(re + ' cachedValues: ' + JSON.stringify(cachedValues))
+					//console.log('adding: ' + v)
+					_.assert(cachedValues.indexOf(v) === -1)
+					cachedValues.push(v)
+					listeners.emitChanged(editId)
+				},
+				remove: function(v, editId){
+					cachedValues.splice(cachedValues.indexOf(v), 1)
+				},
+				objectChange: function(){
+					_.errout('TODO')
+				},
+				includeView: function(){
+					_.errout('TODO')
+				},
+				removeView: function(){
+					_.errout('TODO')
 				}
-				
-				if(schemaType.members.type === 'object'){
-					addDescend(handle, t)
-				}
-				
-				return handle
+			}, editId)
+			var handle = {
+				name: 'syncplugin-list-wrapper (' + t.name + ')',
+				attach: function(listener, editId){
+					listeners.add(listener)
+					listener.changed(editId)
+				},
+				get: function(){return cachedValues;},
+				oldest: t.oldest
 			}
-		//}else{
-		//	_.errout('TODO: ' + JSON.stringify(schemaType))
-		//}
+			
+			if(schemaType.members.type === 'object'){
+				addDescend(handle, t)
+			}
+			
+			return handle
+		}
 	}else if(schemaType.type === 'map'){
 		return function(bindings, editId){
 			var listeners = listenerSet()
 
 			var t = v(bindings, editId)
 			var cachedValues = {}
-			//var re = Math.random()
-			//s.log('*attaching ' + re + ' ' + t.attach+'^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
 			t.attach({
 				put: function(key, value, oldValue, editId){
-					//console.log('GOT PUT: ' + key + ' ' + value + ' ' + oldValue + ' ' + editId + ' $$$$$$$$$$$$$4')
 					cachedValues[key] = value
 					listeners.emitChanged(editId)
 				},
@@ -212,9 +197,7 @@ function wrapParam(v, schemaType, s){
 				name: 'syncplugin-map-wrapper',
 				attach: function(listener, editId){
 					listeners.add(listener)
-					//if(_.size(cachedValues) > 0){
-						listener.changed(editId)
-					//}
+					listener.changed(editId)
 				},
 				get: function(){return cachedValues;},
 				oldest: t.oldest
@@ -227,10 +210,6 @@ function wrapParam(v, schemaType, s){
 
 			return handle;
 		}
-		/*
-		}else{
-			_.errout('TODO')
-		}*/
 	}else{
 		_.errout('TODO: ' + JSON.stringify(schemaType))
 	}
@@ -359,106 +338,158 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 			return fo(v, editId, context)
 		}		
 		return f
-	}else if(schemaType.type === 'set' || schemaType.type === 'list'){//TODO support list properly
-		//if(schemaType.members.type === 'primitive'){
-			var f = function(oldest, paramsForDescent){
+	}else if(schemaType.type === 'set'){
+		var f = function(oldest, paramsForDescent){
 
-				var listeners = listenerSet()
+			var listeners = listenerSet()
 
-				_.assertFunction(oldest)
-				var has = {}
-				var list = []
-				var r = Math.random()
-				var updating = false
-				var handle = {
-					name: 'syncplugin-set',
-					update: function(result, editId){
-						if(list.length === 0 && result.length === 0) return
-						
-						_.assertNot(updating)
-						updating = true
-						var newHas = {}
+			_.assertFunction(oldest)
+			var has = {}
+			var list = []
+			var r = Math.random()
+			var updating = false
+			var handle = {
+				name: 'syncplugin-set',
+				update: function(result, editId){
+					if(list.length === 0 && result.length === 0) return
+					
+					_.assertNot(updating)
+					updating = true
+					var newHas = {}
+					for(var i=0;i<result.length;++i){
+						var v = result[i]
+						_.assertDefined(v)
+						newHas[v] = true
+						//console.log(r + ' emitting adds?: ' + JSON.stringify(result))
+						if(has[v] === undefined){
+							//console.log(r + ' adding: ' + v)
+							//console.log('has: ' + JSON.stringify(has))
+							//console.log('result: ' + JSON.stringify(result))
+							listeners.emitAdd(v, editId)
+						}
+					}
+					for(var i=0;i<list.length;++i){
+						var v = list[i]
+						if(newHas[v] === undefined){
+							listeners.emitRemove(v, editId)
+						}
+					}
+					//console.log(r + ' ' + JSON.stringify(has) + ' -> ' + JSON.stringify(newHas))
+					list = [].concat(result)
+					has = newHas
+					updating = false
+				},
+				attach: function(listener, editId){
+					listeners.add(listener)
+					_.assertFunction(listener.add)
+					//console.log('attached(' + list.length + '): ' + new Error().stack)
+					//console.log(''+listener.add)
+					for(var i=0;i<list.length;++i){
+						listener.add(list[i], editId)
+					}
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId){
+						for(var i=0;i<list.length;++i){
+							listener.remove(list[i], editId)
+						}
+					}
+				},
+				oldest: oldest,
+				key: Math.random()
+			}
+			if(schemaType.members.type !== 'primitive'){
+				setupDescent(handle, paramsForDescent)
+			}
+			return handle;
+		}
+		if(schemaType.members.type === 'primitive'){
+			f.wrapAsSet = function(v, editId, context){
+				return fixedPrimitive.make(s)(v, {}, editId);
+			}
+		}else{
+			var fo = fixedObject.make(s)
+			f.wrapAsSet = function(v, editId, context){
+				return fo(v, editId, context)
+			}
+		}
+		return f
+	}else if(schemaType.type === 'list'){
+		var f = function(oldest, paramsForDescent){
+
+			var listeners = listenerSet()
+
+			_.assertFunction(oldest)
+			var has = {}
+			var list = []
+			var r = Math.random()
+			var updating = false
+			var handle = {
+				name: 'syncplugin-set',
+				update: function(result, editId){
+
+					updating = true
+					if(result.length === list.length){
+						var failed = false
 						for(var i=0;i<result.length;++i){
-							var v = result[i]
-							_.assertDefined(v)
-							newHas[v] = true
-							//console.log(r + ' emitting adds?: ' + JSON.stringify(result))
-							if(has[v] === undefined){
-								//console.log(r + ' adding: ' + v)
-								//console.log('has: ' + JSON.stringify(has))
-								//console.log('result: ' + JSON.stringify(result))
-								listeners.emitAdd(v, editId)
+							if(result[i] !== list[i]){
+								failed = true
+								break
 							}
 						}
+						if(!failed) return
+					}
+					
+					//TODO optimize
+					
+					for(var i=0;i<list.length;++i){
+						listeners.emitRemove(list[i], editId)
+					}
+					has = {}
+					for(var i=0;i<result.length;++i){
+						listeners.emitAdd(result[i], editId)
+						has[result[i]] = true
+					}
+					list = [].concat(result)
+					updating = false
+				},
+				attach: function(listener, editId){
+					listeners.add(listener)
+					_.assertFunction(listener.add)
+					//console.log('attached(' + list.length + '): ' + new Error().stack)
+					//console.log(''+listener.add)
+					for(var i=0;i<list.length;++i){
+						listener.add(list[i], editId)
+					}
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId){
 						for(var i=0;i<list.length;++i){
-							var v = list[i]
-							if(newHas[v] === undefined){
-								listeners.emitRemove(v, editId)
-							}
+							listener.remove(list[i], editId)
 						}
-						//console.log(r + ' ' + JSON.stringify(has) + ' -> ' + JSON.stringify(newHas))
-						list = [].concat(result)
-						has = newHas
-						updating = false
-					},
-					attach: function(listener, editId){
-						listeners.add(listener)
-						_.assertFunction(listener.add)
-						//console.log('attached(' + list.length + '): ' + new Error().stack)
-						//console.log(''+listener.add)
-						for(var i=0;i<list.length;++i){
-							listener.add(list[i], editId)
-						}
-					},
-					detach: function(listener, editId){
-						listeners.remove(listener)
-						if(editId){
-							for(var i=0;i<list.length;++i){
-								listener.remove(list[i], editId)
-							}
-						}
-					},
-					oldest: oldest,
-					key: Math.random()/*,
-					getType: function(id){//TODO? more complicated than this?
-						//_.errout('TODO')
-						if(s.objectState.isTopLevelObject(id)){
-							return s.objectState.getObjectType(id)
-						}
-						
-						for(var i=0;i<paramsForDescent.length;++i){
-							var pfd = paramsForDescent[i]
-							if(pfd.getType === undefined) _.errout("missing getType: " + pfd.name)
-							var type = pfd.getType(id)
-							if(type !== undefined){
-								return type
-							}
-						}
-						//_.errout('failure - could not find type of id in any param sets: ' + id + ' ' + JSON.stringify(pfd))
-						
-						//_.errout('TODO: ' + JSON.stringify(paramTypes))
-						//return s.objectState.getObjectType(id)
-					}*/
-				}
-				if(schemaType.members.type !== 'primitive'){
-					setupDescent(handle, paramsForDescent)
-				}
-				return handle;
+					}
+				},
+				oldest: oldest,
+				key: Math.random()
 			}
-			if(schemaType.members.type === 'primitive'){
-				f.wrapAsSet = function(v, editId, context){
-					return fixedPrimitive.make(s)(v, {}, editId);
-				}
-			}else{
-				var fo = fixedObject.make(s)
-				f.wrapAsSet = function(v, editId, context){
-					return fo(v, editId, context)
-				}
+			if(schemaType.members.type !== 'primitive'){
+				setupDescent(handle, paramsForDescent)
 			}
-			return f
-		//}else{
-		//	_.errout('TODO')
-		//}
+			return handle;
+		}
+		if(schemaType.members.type === 'primitive'){
+			f.wrapAsSet = function(v, editId, context){
+				return fixedPrimitive.make(s)(v, {}, editId);
+			}
+		}else{
+			var fo = fixedObject.make(s)
+			f.wrapAsSet = function(v, editId, context){
+				return fo(v, editId, context)
+			}
+		}
+		return f
 	}else if(schemaType.type === 'map'){
 		var keyParser = makeKeyParser(schemaType.key)
 		//if(schemaType.value.type === 'primitive'){

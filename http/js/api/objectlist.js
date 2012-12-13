@@ -56,7 +56,21 @@ ObjectListHandle.prototype.count = function(){return this.obj.length;}
 ObjectListHandle.prototype.size = ObjectListHandle.prototype.count;
 ObjectListHandle.prototype.types = u.genericCollectionTypes
 
+ObjectListHandle.prototype.adjustInto = function(id){
+	var remainingCurrentPath = this.parent.adjustPath(this.part)
+	if(remainingCurrentPath && remainingCurrentPath.length > 1){
+		this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
+	}
+	if(!remainingCurrentPath || remainingCurrentPath.length === 0){
+		this.persistEdit(editCodes.selectObject, {id: id})
+	}else if(remainingCurrentPath[0] !== id){
+		this.persistEdit(editCodes.reselectObject, {id: id})
+	}
+}
+
 ObjectListHandle.prototype.remove = function(objHandle){
+
+	console.log('**removing')
 
 	var id = objHandle._internalId()
 
@@ -68,20 +82,8 @@ ObjectListHandle.prototype.remove = function(objHandle){
 
 		var e = {}
 
-		var remainingCurrentPath = this.parent.adjustPath(this.part)
-		//console.log('remainingCurrentPath: ' + JSON.stringify(remainingCurrentPath))
-		if(remainingCurrentPath && remainingCurrentPath.length > 1){
-			this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
-		}
-		if(!remainingCurrentPath || remainingCurrentPath.length === 0){
-			this.persistEdit(editCodes.selectObject, {id: id})
-		}else if(remainingCurrentPath[0] !== id){
-			//console.log('reselecting')
-			this.persistEdit(editCodes.reselectObject, {id: id})
-		}else{
-			//console.log('same')
-		}
-		
+		this.adjustInto(id)
+		console.log('persisting remove')
 		this.persistEdit(editCodes.remove, e)
 
 		this.emit(e, 'remove', objHandle)
@@ -181,6 +183,52 @@ ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit
 			res.prepare()
 			return this.emit(edit, 'remove', res)
 		}
+	}else if(op === editCodes.addAfter){
+		var objHandle = this.getObjectApi(edit.id)
+		if(objHandle === undefined){
+			_.errout('cannot find added object: ' + edit.id)
+		}
+		
+		if(this.obj.indexOf(objHandle) !== -1){
+			console.log('ignoring redundant add: ' + edit.id)
+			return
+		}
+		
+		var beforeHandle = this.get(descendId);
+		if(beforeHandle === undefined){
+			console.log('cannot find before(' + descendId+'), falling back to append-add')
+			this.obj.push(objHandle)
+			objHandle.prepare()
+	
+			this.emit(edit, 'add', objHandle)
+		}else{
+			var index = this.obj.indexOf(beforeHandle)
+			this.obj.splice(index+1, 0, objHandle)
+			objHandle.prepare()
+			beforeHandle.prepare()
+	
+			this.emit(edit, 'addAfter', objHandle, beforeHandle)
+		}
+	}else if(op === editCodes.addedNewAfter){
+		var temporary = edit.temporary
+		var objHandle = this.wrapObject(temporary, edit.typeCode, [], this)
+		this.saveTemporaryForLookup(temporary, objHandle, this)
+		
+		var beforeHandle = this.get(descendId);
+		if(beforeHandle === undefined){
+			console.log('cannot find before(' + descendId+'), falling back to append-add')
+			this.obj.push(objHandle)
+			objHandle.prepare()
+	
+			this.emit(edit, 'add', objHandle)
+		}else{
+			var index = this.obj.indexOf(beforeHandle)
+			this.obj.splice(index+1, 0, objHandle)
+			objHandle.prepare()
+			beforeHandle.prepare()
+	
+			this.emit(edit, 'addAfter', objHandle, beforeHandle)
+		}
 	}else{
 		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}
@@ -217,7 +265,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		_.assertInt(id)
 
 		var res = this.wrapObject(id, edit.typeCode, [], this)
-		//this.obj.push(res)
+
 		this.obj.splice(edit.index, 0, res)
 		res.prepare()
 		return this.emit(edit, 'add', res, edit.index)
@@ -227,106 +275,78 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 
 		var res = this.wrapObject(temporary, edit.typeCode, [], this)
 		this.saveTemporaryForLookup(temporary, res, this)
-		//this.obj.push(res)
+
 		this.obj.splice(edit.index, 0, res)
 		res.prepare()
 		return this.emit(edit, 'add', res, edit.index)
 	}else if(op === editCodes.replaceExternalExisting){
-		//if(this.getEditingId() !== syncId){
 
-			//var removeId = edit.oldId//path[path.length-1];
-			var objHandle = this.getObjectApi(edit.oldId)//u.findObj(this.obj, removeId)
-			
-			if(!objHandle){
-				_.errout('not sure what to do about a replace of something already missing!');
-			}else{
+		var objHandle = this.getObjectApi(edit.oldId)
 		
-				var newObj = this.getObjectApi(edit.newId);
-				
-				doListReplace(this, objHandle, newObj);
+		if(!objHandle){
+			_.errout('not sure what to do about a replace of something already missing!');
+		}else{
+	
+			var newObj = this.getObjectApi(edit.newId);
+			
+			doListReplace(this, objHandle, newObj);
 
-				return this.emit(edit, 'replace', objHandle, newObj)
-			}
-		//}
-		//return stub;
+			return this.emit(edit, 'replace', objHandle, newObj)
+		}
 	}else if(op === editCodes.replacedNew){
 
-		//if(this.getEditingId() !== syncId){
-			var removeId = edit.oldId//path[path.length-1];
-			var objHandle = this.get(removeId);
-		
-			_.assertObject(objHandle);
+		var removeId = edit.oldId
+		var objHandle = this.get(removeId);
 	
-			var res = this.wrapObject(edit.newId, edit.typeCode, [], this)
-			doListReplace(this, objHandle, res);
-			res.prepare()
-			objHandle.prepare()
+		_.assertObject(objHandle);
 
-			return this.emit(edit, 'replace', objHandle, res)				
-		//}	
+		var res = this.wrapObject(edit.newId, edit.typeCode, [], this)
+		doListReplace(this, objHandle, res);
+		res.prepare()
+		objHandle.prepare()
+
+		return this.emit(edit, 'replace', objHandle, res)				
 	}else if(op === editCodes.shift){
-		//if(this.getEditingId() !== syncId){
+		_.assert(this.obj.length >= 1);
+		var res = this.obj.shift();
 
-			_.assert(this.obj.length >= 1);
-			var res = this.obj.shift();
-
-			res.prepare()
-			return this.emit(edit, 'shift', res)
-		/*}else{
-			return stub;
-		}*/
+		res.prepare()
+		return this.emit(edit, 'shift', res)
 	}else if(op === editCodes.remove){
 		_.errout('should be in elevated change listener!')
-		//if(this.getEditingId() !== syncId){
-			var res = this.get(edit.id);
-			var index = this.obj.indexOf(res)
-			if(index === -1){
-				console.log('ignoring redundant remove: ' + edit.id);
-			}else{
-				this.obj.splice(index, 1);
 
-				res.prepare()
-				return this.emit(edit, 'remove', res)
-			}
-		//}		
-		//return stub;
-	}else if(op === editCodes.addExisting || op === editCodes.addExistingViewObject){
-	//	if(this.getEditingId() !== syncId){
-			//_.errout('^TODO implement op: ' + JSON.stringify(edit));
-		//	console.log('addExistingEdit: ' + JSON.stringify(edit))
-			var addedObj = this.getObjectApi(edit.id)
-			_.assertDefined(addedObj)
-			this.obj.push(addedObj)
-			addedObj.prepare()
-			return this.emit(edit, 'add', addedObj)
-		//}	
-	//	return stub;
-	}else if(op === editCodes.replaceInternalExisting || op === editCodes.replaceExternalExisting){
-		//if(this.getEditingId() !== syncId){
-			//_.errout('^TODO implement op: ' + op + ' ' + JSON.stringify(edit));
-			var removeId = edit.oldId//path[path.length-1];
-			var objHandle = this.get(removeId);
-		
-			_.assertObject(objHandle);
-	
-			var res = this.getObjectApi(edit.newId)//wrapObject(edit.newId, edit.typeCode, [], this)
-			doListReplace(this, objHandle, res);
+		var res = this.get(edit.id);
+		var index = this.obj.indexOf(res)
+		if(index === -1){
+			console.log('ignoring redundant remove: ' + edit.id);
+		}else{
+			this.obj.splice(index, 1);
+
 			res.prepare()
-			objHandle.prepare()
+			return this.emit(edit, 'remove', res)
+		}
+	}else if(op === editCodes.addExisting || op === editCodes.addExistingViewObject){
+		var addedObj = this.getObjectApi(edit.id)
+		_.assertDefined(addedObj)
+		this.obj.push(addedObj)
+		addedObj.prepare()
+		return this.emit(edit, 'add', addedObj)
+	}else if(op === editCodes.replaceInternalExisting || op === editCodes.replaceExternalExisting){
+		var removeId = edit.oldId
+		var objHandle = this.get(removeId);
+	
+		_.assertObject(objHandle);
 
-			return this.emit(edit, 'replace', objHandle, res)
-		//}
-		//return stub;
+		var res = this.getObjectApi(edit.newId)
+		doListReplace(this, objHandle, res);
+		res.prepare()
+		objHandle.prepare()
+
+		return this.emit(edit, 'replace', objHandle, res)
 	}else if(op === editCodes.setObject){
-		//if(this.getEditingId() !== syncId){
-			_.errout('&TODO implement op: ' + JSON.stringify(edit));
-		//}	
-		//return stub;
+		_.errout('&TODO implement op: ' + JSON.stringify(edit));
 	}else if(op === editCodes.set){
-		//if(this.getEditingId() !== syncId){
-			_.errout('*TODO implement op: ' + JSON.stringify(edit));
-		//}	
-		//return stub;
+		_.errout('*TODO implement op: ' + JSON.stringify(edit));
 	}else{
 		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}
@@ -436,6 +456,43 @@ ObjectListHandle.prototype.shift = function(){
 	return v;
 }
 
+ObjectListHandle.prototype.addNewAfter = function(beforeHandle, typeName, json){
+	var index = this.obj.indexOf(beforeHandle)
+	if(index === -1) _.errout('before is not a member of the list: ' + beforeHandle)
+	if(json) _.assertObject(json)
+		
+	json = json || {}
+	
+	var type = u.getOnlyPossibleType(this, typeName);
+	
+	this.adjustInto(beforeHandle._internalId())
+		
+	var e = {typeCode: type.code}
+	this.persistEdit(editCodes.addNewAfter, e)
+
+	var n = this._makeAndSaveNew(json, type)
+	_.assertObject(n)
+	
+	this.obj.splice(index+1, 0, n)
+	this.emit(e, 'add', n, index+1)
+
+	return n	
+}
+
+ObjectListHandle.prototype.addAfter = function(beforeHandle, objHandle){
+	var index = this.obj.indexOf(beforeHandle)
+	if(index === -1) _.errout('before is not a member of the list: ' + beforeHandle)
+		
+	var id = objHandle._internalId()
+	
+	this.adjustInto(beforeHandle._internalId())
+		
+	var e = {id: id}
+	this.persistEdit(editCodes.addAfter, e)
+
+	this.obj.splice(index+1, 0, objHandle)
+	this.emit(e, 'add', objHandle, index+1)
+}
 ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
 
 	_.assertInt(index)

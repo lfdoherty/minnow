@@ -807,17 +807,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}/*,
-		getType: function(v){
-			//_.errout('TODO')
-			if(!isObjectProperty) _.errout('internal error')
-			var res = oldTypeGetter(v)
-			if(res === undefined){
-				console.log('property-of-object-collection cannot find type of id: ' + v)
-				//return
-			}
-			return res
-		}*/
+		descend: function(){_.errout('TODO?')}
 	}
 	//TODO listen for changes
 	
@@ -834,20 +824,9 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
-		/*handle.descendTypes = function(path, editId, cb){
-			_.assertEqual(path[0].op, editCodes.selectObject)
-			var id = innerLookup[path[0].edit.id]
-			if(id === undefined){
-				console.log(JSON.stringify(innerLookup))
-				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
-			}
-			return elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
-				.concat(path), editId, cb)
-		}*/
 	}
 	
 	var oldPv
-	//var oldTypeGetter
 	
 	var previousStreamListener
 	elements.attach({
@@ -909,16 +888,6 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 
 			var descentPath = [{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 
-			if(isObjectProperty){
-				//s.objectState.streamPropertyTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], editId, function(typeGetter, editId){
-				//if(!_.isFunction(elements.descendTypes)) _.errout('needs descendTypes: ' + elements.name)
-				/*var worked = elements.descendTypes(descentPath, editId, function(typeGetter, editId){
-					oldTypeGetter = typeGetter
-				}, true, true)*/
-				//_.assert(worked)
-				//if(!worked) _.errout('failed to descendTypes: ' + JSON.stringify(descentPath) + ' (property-of-object-collection)' + ' ' + elements.name)
-			}			
-			
 			var worked = elements.descend(descentPath,
 				editId, streamListener)
 			_.assert(worked)			

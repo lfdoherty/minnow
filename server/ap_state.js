@@ -243,7 +243,7 @@ function make(schema, ol){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)
-		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt){
+		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt || op === editCodes.addNewAfter){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId)

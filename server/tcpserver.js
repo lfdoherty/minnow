@@ -611,8 +611,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 				//console.log('getting snapshot: ' + JSON.stringify(e))
 				s.getSnapshot(e, function(err, res){
 					if(err){
-						if(w){
-							w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
+						if(conn.w){
+							conn.w.requestError({err: ''+err, requestId: e.requestId, code: err.code})
 						}
 						return
 					}

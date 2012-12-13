@@ -6,8 +6,6 @@ var versions = require('./versions');
 
 var set = require('structures').set;
 
-//var pathupdater = require('./pathupdater')
-
 var pathmerger = require('./pathmerger')
 var pathsplicer = require('./pathsplicer')
 
@@ -16,16 +14,6 @@ var isPathOp = require('./editutil').isPathOp
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
-/*
-function couldHaveForeignKey(objSchema){
-	return _.any(objSchema.properties, function(p){
-		if(p.type.type === 'object') return true;
-		if(p.type.type === 'list' || p.type.type === 'set'){
-			_.assert(p.type.members.type === 'primitive' || p.type.members.type === 'object');
-			return p.type.members.type === 'object';
-		}
-	});
-}*/
 
 var log = require('quicklog').make('minnow/objectstate')
 
@@ -187,16 +175,6 @@ function makePathTracker(path){
 	
 	return f
 }
-/*
-function differentOps(a, b){
-	_.assertString(a)
-	_.assertString(b)
-	return a !== b && 're'+a !== b && 're'+b !== a
-}*/
-/*
-function differentPathEdits(a, b){
-	if(differentOps(a.op, b.op) || JSON.stringify(a.edit) !== JSON.stringify(b.edit)) return true
-}*/
 
 var differentPathEdits = require('./pathmerger').differentPathEdits
 
@@ -253,23 +231,13 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		}
 
 		if(!matching){
-			/*console.log(tracker.getDepth() + ' ' + editNames[op])
-			if(tracker.matchesSubsequence() && tracker.getDepth() > 2 && tracker.getDepth() < path.length && tracker.getDepth() % 2 === 1){
-				console.log(editNames[op])
-				if(op === editCodes.setExisting || op === editCodes.putExisting || op === editCodes.addExisting){
-					_.errout('TODO')
-				}
-			}*/
-			
 			return
-		}/*else{
-			console.log('* ' + tracker.getDepth() + ' ' + editNames[op])
-		}*/
+		}
 		
 		//console.log('op: ' + editNames[op] + ' ' + JSON.stringify(e))
 		
-		if(editFp.isSetCode[op]){//op.indexOf('set') === 0){
-			if(editFp.isPrimitiveSetCode[op]){//op === 'setString' || op === 'setLong' || op === 'setBoolean' || op === 'setInt'){
+		if(editFp.isSetCode[op]){
+			if(editFp.isPrimitiveSetCode[op]){
 				if(e.edit.value !== prop){
 					prop = e.edit.value
 				}
@@ -284,9 +252,9 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		}else if(op === editCodes.wasSetToNew){
 			//_.errout('TODO')
 			prop = e.edit.id
-		}else if(editFp.isAddCode[op]){//op.indexOf('add') === 0){
+		}else if(editFp.isAddCode[op]){
 			if(prop === undefined) prop = []
-			if(editFp.isPrimitiveAddCode[op]){//op === 'addString' || op === 'addLong' || op === 'addInt'){
+			if(editFp.isPrimitiveAddCode[op]){
 				if(prop.indexOf(e.edit.value) === -1){
 					//console.log('added primitive: ' + e.edit.value)
 					prop.push(e.edit.value)
@@ -295,19 +263,23 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				if(prop.indexOf(e.edit.id) === -1){
 					prop.push(e.edit.id)
 				}
+			}else if(op === editCodes.addAfter || op === editCodes.addedNewAfter){
+				if(prop.indexOf(e.edit.id) === -1){
+					var beforeId = editPath[editPath.length-1].edit.id
+					var beforeIndex = prop.indexOf(beforeId)
+					if(beforeIndex === -1){
+						prop.push(e.edit.id)
+					}else{
+						prop.splice(beforeIndex+1, 0, e.edit.id)
+					}
+				}
 			}else{
 				_.errout('TODO: ' + JSON.stringify(e))
 			}
-		}else if(editFp.isRemoveCode[op]){//op.indexOf('remove') === 0){
+		}else if(editFp.isRemoveCode[op]){
 			if(op === editCodes.remove){
 				_.errout('TODO')
-				/*var i = prop.indexOf(e.edit.id)
-				if(i !== -1){
-					//console.log('removing object from property')
-					prop.splice(i, 1)
-				}else{
-					log('warning: removed object not in set: ' + e.edit.id)
-				}	*/
+				
 				var id = editPath[editPath.length-1].edit.id
 				var i = prop.indexOf(id)
 				if(i !== -1){
@@ -316,7 +288,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				}else{
 					_.errout('TODO: ' + JSON.stringify([op, edit]))
 				}						
-			}else if(editFp.isPrimitiveRemoveCode[op]){//op === 'removeString' || op === 'removeInt' || op === 'removeLong' || op === 'removeBoolean'){
+			}else if(editFp.isPrimitiveRemoveCode[op]){
 				var i = prop.indexOf(e.edit.value)
 				if(i !== -1){
 					prop.splice(i, 1)
@@ -330,7 +302,7 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			//_.errout('TODO: put')
 			if(prop === undefined) prop = {}
 			prop[lastKey] = (e.edit.id)
-		}else if(editFp.isPutCode[op]){//op.indexOf('put') === 0){
+		}else if(editFp.isPutCode[op]){
 			//_.errout('TODO: put')
 			if(prop === undefined) prop = {}
 			if(op === editCodes.putExisting){
@@ -392,6 +364,17 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			}else if(op === editCodes.addExisting || op === editCodes.addedNew){
 				if(prop.indexOf(edit.id) === -1){
 					prop.push(edit.id)
+					cb(prop, editId)
+				}
+			}else if(op === editCodes.addAfter || op === editCodes.addedNewAfter){
+				if(prop.indexOf(edit.id) === -1){
+					var beforeId = editPath[editPath.length-1].edit.id
+					var beforeIndex = prop.indexOf(beforeId)
+					if(beforeIndex === -1){
+						prop.push(edit.id)
+					}else{
+						prop.splice(beforeIndex+1, 0, edit.id)
+					}
 					cb(prop, editId)
 				}
 			}else{

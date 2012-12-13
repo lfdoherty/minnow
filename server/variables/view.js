@@ -85,7 +85,7 @@ exports.makeTopLevel = function(s, variableGetter, callExpr){
 	//_.assertFunction(s.log)
 	
 	var ns = _.extend({}, s)
-	ns.analytics = variables.makeAnalytics(callExpr,s.analytics)//{children: [], counts: {hit:0,put:0,evict:0}}
+	ns.analytics = variables.makeAnalytics(callExpr,s.analytics)
 	s = ns
 	
 	var cache = new Cache(s.analytics)
@@ -279,13 +279,12 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				}else{
 					var putAddOpName = util.putAddOp(relSchema)
 					var putRemoveOpName = util.putRemoveOp(relSchema)
-					//var selectOpName = util.selectKeyOp(relSchema)
 					var h = {
 						putAdd: function(key, value, editId){
 							_.assertInt(editId)
 							_.assertPrimitive(value)
 							var edit = {value: value}
-							console.log('got put-add: ' + key + ' ' + value)
+							//console.log('got put-add: ' + key + ' ' + value)
 							listener.objectChange(viewTypeCode, viewId, 
 								[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 								putAddOpName, edit, -1, editId)
@@ -430,7 +429,6 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 		}else if(relSchema.members.type === 'view'){
 			return function(listener, rel, viewId, editId){
 				_.assertFunction(listener.objectChange)
-				//_.assertFunction(listener.shouldHaveObject)
 				s.analytics.cachePut()
 				var h = {
 					add: function(value, editId){
@@ -467,26 +465,19 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 			return function(listener, rel, viewId, editId){
 				_.assertInt(editId)
 				_.assertFunction(listener.objectChange)
-				//_.assertFunction(listener.shouldHaveObject)
 
-				//var ts = typeSuffix[relSchema.members.primitive]
-				//if(ts === undefined) _.errout('TODO: ' + relSchema.members.primitive)
-				var addOpName = util.addOp(relSchema)//'add'+ts
-				var removeOpName = util.removeOp(relSchema)//'remove'+ts
+				var addOpName = util.addOp(relSchema)
+				var removeOpName = util.removeOp(relSchema)
 
 				s.analytics.cachePut()
 				
 				var h = {
 					add: function(value, editId){
 						_.assertInt(editId)
-						//_.assert(_.isString(value) || _.isInt(value))
 						var edit = {value: value}
-						//console.log('LISTENER: ' + require('util').inspect(listener))
 						if(addOpName === 80){
 							_.assertString(value)
 						}
-						//console.log('GENERIC ADD HERE: ' + addOpName + ' ' + JSON.stringify(edit))
-						//console.log(JSON.stringify(relSchema))
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], addOpName, edit, -1, editId)
 					},
 					remove: function(value, editId){
@@ -554,12 +545,7 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 	var handle = {
 		name: 'view',
 		attach: function(listener, editId){
-			//listeners.add(listener)
-			//if(typeCode === 161){
-				//console.log('attaching to: ' + key)
-				//console.log(JSON.stringify(Object.keys(cachedViewIncludes)))
-				//console.log(new Error().stack)
-			//}
+
 			_.assertInt(editId)
 			Object.keys(cachedViewIncludes).forEach(function(key){
 				listener.includeView(key, cachedViewIncludes[key], editId)
@@ -604,10 +590,6 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			return listener[ourDetachKey] = function(editId){
 				if(alreadyDid) _.errout('detached more than once: ' + key)
 				alreadyDid = true
-				/*if(typeCode === 122){
-					console.log('detaching: ' + key + ' ' + detachers.length)
-					//console.log(new Error().stack)
-				}*/
 				detachers.forEach(function(d){
 					//console.log('d: ' + d)
 					d(editId);

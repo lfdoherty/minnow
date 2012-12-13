@@ -184,7 +184,7 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 		for(var i=0;i<de.length;++i){
 			var e = de[i]
 			if(e.op === editCodes.setExisting || e.op === editCodes.addExisting || e.op === editCodes.setObject || 
-					e.op === editCodes.putExisting){
+					e.op === editCodes.putExisting || e.op === editCodes.addAfter){
 				var id = e.edit.id
 				if(!has[id]){
 					ids.push(id)
@@ -398,6 +398,12 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode, index: edit.index}
+		this.objectTypeCodes[res.id] = edit.typeCode
+	}else if(op === editCodes.addNewAfter){
+		op = editCodes.addedNewAfter
+		++this.idCounter
+		res.id = this.idCounter
+		edit = {id: res.id, typeCode: edit.typeCode}
 		this.objectTypeCodes[res.id] = edit.typeCode
 	}else if(op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
 		op = editCodes.replacedNew
