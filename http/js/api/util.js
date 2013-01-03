@@ -119,10 +119,12 @@ exports.primitiveChangeListener = function changeListener(op, edit, syncId, edit
 	if(lookup.isSetCode[op]){//op.indexOf('set') === 0){
 		this.obj = edit.value;
 		//console.log('primitive value set to: ' + this.obj)
-		return this.emit(edit, 'set', edit.value, editId)
+		this.emit(edit, 'set', edit.value, editId)
 	}else{
 		_.errout('-TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}
+	
+	this._wasEdited = true
 }
 
 function findObj(arr, desiredId){

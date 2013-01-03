@@ -67,8 +67,9 @@ function propertyType(rel, ch){
 				var objName = st.members.object
 				var objSchema = ch.schema[objName]
 				if(objSchema === undefined) throw new Error('cannot find object type: ' + objName + ' ' + JSON.stringify(st))
-				var p = objSchema.properties[propertyName].type
+				var p = objSchema.properties[propertyName]
 				if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
+				p = p.type
 				if(p.type === 'set' || p.type === 'list'){
 					p = p.members
 				}
@@ -786,7 +787,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 	}
 	
 	var handle = {
-		name: 'property-of-object-collection',
+		name: 'single-object-collection-property',
 		attach: function(listener, editId){
 			_.assertInt(editId)
 			_.assertFunction(listener.includeView)
@@ -844,7 +845,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			function streamListener(pv, editId){
 				ongoingEditId = undefined
 				
-				//console.log('streaming object property: ' + JSON.stringify(pv))
+				//console.log('streaming object property(' + propertyCode + ') for(' + id + '): ' + JSON.stringify(pv))
 
 				if(oldPv !== undefined){
 					//console.log('cleaning up oldPv ' + JSON.stringify(oldPv) + ' -> ' + JSON.stringify(pv))
@@ -885,12 +886,19 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 				}
 			}
 			previousStreamListener = streamListener
+			
 
 			var descentPath = [{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 
+			//console.log('descending object property(' + propertyCode + ') for(' + id + '): ' + JSON.stringify(descentPath))
+			//console.log('elements: ' + elements.name)
+
 			var worked = elements.descend(descentPath,
 				editId, streamListener)
-			_.assert(worked)			
+			if(!worked){
+				_.errout('property query failed to descend: ' + JSON.stringify([descentPath, editId, elements.name]))
+			}
+			//_.assert(worked)
 		},
 		objectChange: function(subjTypeCode, subjId, typeCode, id, path, op, edit, syncId, editId){
 			//TODO?
@@ -1171,8 +1179,9 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 			var first = true
 			//console.log('added id: ' + id)
 			
-			var worked = elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}], 
-				outerEditId, function(pv, editId){
+			var path = [{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
+			
+			var worked = elements.descend(path, outerEditId, function(pv, editId){
 				
 				//console.log(propertyCode + ' descending result: ' + JSON.stringify(pv))
 				if(!first){
@@ -1209,7 +1218,10 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 				}
 			})
 			
-			_.assert(worked)
+			//_.assert(worked)
+			if(!worked){
+				_.errout('descent failed for property: ' + JSON.stringify(path) + ' ' + elements.name)
+			}
 		},
 		remove: function(id, editId){
 			wait(editId)

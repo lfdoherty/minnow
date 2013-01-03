@@ -1,0 +1,9 @@
+
+entity 1
+	name string 1
+	
+general() 100
+	e one(*entity) 1
+
+empty() 101
+

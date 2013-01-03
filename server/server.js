@@ -136,8 +136,11 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//log.info('adding edit: ', [id, path, op, edit, syncId])
 				//console.log('adding edit: ', JSON.stringify([id, path, op, edit, syncId]))
 				
-				if(op === editCodes.make){
+				if(op === editCodes.make || op === editCodes.makeFork){
 					var id = objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId)
+					/*if(op === editCodes.makeFork){
+						listenerCbs[syncId].seq.subscribeToObject(edit.sourceId)
+					}*/
 					if(!edit.forget){
 						//objectSubscribers[syncId](id)//, objectState.getCurrentEditId()-1)
 						//console.log('subscribing ' + syncId + ' ' + id)
@@ -257,6 +260,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					_.assert(id >= 0)
 					if(alreadySent[id]){
 						//console.log('already sent: ' + id)
+						cb()
 						return;
 					}else{
 						console.log('including: ' + id)
@@ -273,18 +277,22 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 							
 								_.assertBuffer(objEditsBuffer)
 								pointer.edits.push({id: objId, edits: objEditsBuffer})
-								
-							//console.log('streaming object state: ' + objId + ' ' + objEditsBuffer.length)
-								
-								/*if(id === objId){
-									cb()
-								}*/
+
 							}, function(){
-								cb()
-								//log('---- got')
-								//console.log('finished including: ' + id)
-								pointer.got = true
-								advanceSentBuffer()
+							
+								/*if(objectState.isFork(id)){
+									console.log('getting fork: ' + objectState.getForked(id))
+									includeObjectCb(objectState.getForked(id), function(){
+										console.log('got fork')
+										cb()
+										pointer.got = true
+										advanceSentBuffer()
+									})
+								}else{*/
+									cb()
+									pointer.got = true
+									advanceSentBuffer()
+								//}
 							})
 						})
 					}				

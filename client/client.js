@@ -192,6 +192,11 @@ function makeClient(host, port, clientCb){
 		}*/
 		return doMake(type, json, forget, cb)
 	}
+	
+	wrapper.makeFork = function(obj, cb, temporary){
+		_.assertLength(arguments, 3)
+		return doFork(obj, cb)
+	}
 
 	wrapper.forgetLastTemporary = function(){
 		//_.errout('TODO');
@@ -267,6 +272,19 @@ function makeClient(host, port, clientCb){
 			dsh.forgetLastTemporary(listeningSyncId)
 		}
 		return edits
+	}	
+
+	function doFork(obj, cb){
+
+		var dsh = cc.getDefaultSyncHandle()
+		var requestId = dsh.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()}, listeningSyncId)
+		if(cb){
+			_.assertInt(requestId)
+			_.assertFunction(cb)
+			makeCbsWaiting[requestId] = {cb: cb}
+		}
+		
+		return []
 	}	
 
 	var dbSchema

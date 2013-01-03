@@ -280,6 +280,8 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 	var counts = {}
 	var values = []
 	
+	var producingSet = {}
+
 	//var cachedObjectChanges = []
 
 	var vi = viewInclude.make(listeners)
@@ -289,43 +291,35 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 	
 	//var should = {}
 	//var shouldCounts = {}
-	
-	var resultSetListener = {
-		set: function(value, oldValue, editId){
-			//console.log('each got set ' + value + ' ' + oldValue)
-			//console.log(new Error().stack)
-			if(oldValue !== undefined){
-				--counts[oldValue]
-				if(counts[oldValue] === 0){
-					delete counts[oldValue]
-					values.splice(values.indexOf(oldValue), 1)
-					listeners.emitRemove(oldValue, editId)
-				}
+
+	//TODO extract to top-level
+	function ResultSetListener(sourceSet){
+		this._sourceSet = sourceSet
+	}	
+	ResultSetListener.prototype.set = function(value, oldValue, editId){
+		if(oldValue !== undefined){
+			--counts[oldValue]
+			if(counts[oldValue] === 0){
+				delete counts[oldValue]
+				values.splice(values.indexOf(oldValue), 1)
+				listeners.emitRemove(oldValue, editId)
 			}
-			//console.log('value: ' + value)
-			if(value !== undefined && (!isView || value !== '')){
-				if(!counts[value]){
-					counts[value] = 1
-					listeners.emitAdd(value, editId)
-					values.push(value)
-				}else{
-					++counts[value]
-				}
+		}
+		//console.log('value: ' + value)
+		if(value !== undefined && (!isView || value !== '')){
+			if(!counts[value]){
+				counts[value] = 1
+				console.log('result set adding: ' + value)
+				producingSet[value] = this._sourceSet
+				listeners.emitAdd(value, editId)
+				values.push(value)
+			}else{
+				++counts[value]
 			}
-		},
-		objectChange: function(subjTypeCode, subjId,/* typeCode, id, */path, op, edit, syncId, editId){
-			//console.log('each passing on objectChange to ' + listeners.many() + ': ' + JSON.stringify([op, edit, syncId, editId]))
-			//console.log(new Error().stack)
-			//_.assert(editId < s.objectState.getCurrentEditId())
-			//var e = [subjTypeCode, subjId,/* typeCode, id,*/ path, op, edit, syncId, editId]
-			//cachedObjectChanges.push(e)
-			//listeners.emitObjectChange(subjTypeCode, subjId, /*typeCode, id,*/ path, op, edit, syncId, editId)
-			//_.errout('TODO: ' + op + ' ' + JSON.stringify(edit))
-			_.errout('TODO REMOVE')
-		},
-		includeView: vi.includeView,//function(viewId, editId){listeners.emitIncludeView(viewId, editId)},
-		removeView: vi.removeView//listeners.emitRemoveView.bind(listeners)
+		}
 	}
+	ResultSetListener.prototype.includeView = vi.includeView
+	ResultSetListener.prototype.removeView = vi.removeView
 	
 	function oldest(){
 		var oldestEditId = elements.oldest()
@@ -349,18 +343,35 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			if(ss.isType) throw new Error('is type')
 			var newSet = concreteGetter(newBindings, editId)
 			//console.log('attaching to: ' + newSet.name)
-			newSet.attach(resultSetListener, editId)
 			allSets[v] = newSet
+			newSet.resultSetListener = new ResultSetListener(newSet)
+			_.assertFunction(newSet.resultSetListener.set)
+			newSet.attach(newSet.resultSetListener, editId)
 		},
 		remove: function(v, editId){
 			var removedSet = allSets[v]
 			//console.log('remove &&&& ' + removedSet.detach)
-			removedSet.detach(resultSetListener, editId)
+			removedSet.detach(removedSet.resultSetListener, editId)
 		},
 		objectChange: stub,//ignore object changes - that's the result set listener's job?
 		includeView: vi.includeView,//listeners.emitIncludeView.bind(listeners),
 		removeView: vi.includeView//listeners.emitRemoveView.bind(listeners)
 	}, editId)
+	
+	function descend(path, editId, cb){
+		//call the correct newSet's descend method based on the root object of the path
+		var id = path[0].edit.id
+		_.assertInt(id)
+		//var set = allSets[id]
+		var ps = producingSet[id]
+		if(ps === undefined){
+			console.log('known ids: ' + JSON.stringify(Object.keys(allSets)))
+			console.log('WARNING: each does not know id: ' + path[0].edit.id)
+			return
+			//_.errout('error, tried to descend into unknown object path: ' + JSON.stringify(path))
+		}
+		return ps.descend(path, editId, cb)
+	}
 	
 	var handle = {
 		name: 'each-single',
@@ -386,11 +397,9 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 				values.forEach(function(v){listener.remove(v, editId)})
 			}
 		},
-		descend: elements.descend,//TODO this is not necessarily right
-		//descendTypes: elements.descendTypes,//TODO this is not necessarily right
+		descend: descend,
 		oldest: oldest,
-		key: key//,
-		//getType: elements.getType//TODO this is not necessarily right
+		key: key
 	}
 		
 	return cache.store(key, handle)

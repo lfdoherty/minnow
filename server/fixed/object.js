@@ -46,6 +46,7 @@ function sfgObject(s, id, editId, context){
 			return handle
 		},
 		descend: function(path, editId, cb){
+			//console.log('&descend: ' + context.descend + ' ' + context.name)
 			return context.descend(path, editId, cb)
 		},
 		getObjectId: function(){

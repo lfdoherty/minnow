@@ -9,7 +9,7 @@ var set = require('structures').set;
 var pathmerger = require('./pathmerger')
 var pathsplicer = require('./pathsplicer')
 
-var isPathOp = require('./editutil').isPathOp
+//var isPathOp = require('./editutil').isPathOp
 
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
@@ -17,6 +17,7 @@ var editNames = editFp.names
 
 var log = require('quicklog').make('minnow/objectstate')
 
+/*
 function makeSelectByMultiplePropertyConstraints(indexing, handle){
 
 	return function(typeCode, descentPaths, filterFunctions, cb){
@@ -65,7 +66,7 @@ function makeSelectByMultiplePropertyConstraints(indexing, handle){
 			}
 		}
 	}
-}
+}*/
 
 function errorStub(){_.errout('this should never be called');}
 
@@ -109,7 +110,7 @@ function makePathTracker(path){
 				}
 			}
 			lastPathOpWasKey = false
-		}else if(op === editCodes.selectObject || op === editCodes.made){
+		}else if(op === editCodes.selectObject){
 			//console.log('dd: ' + matchingDepth + ' ' + depth + ' ' + JSON.stringify(path))
 			if(matchingDepth === depth && path.length > depth && path[depth].op === editCodes.selectObject && path[depth].edit.id === e.edit.id){
 				++matchingDepth
@@ -147,6 +148,11 @@ function makePathTracker(path){
 			lastPathOpWasKey = false
 		}else if(op === editCodes.ascend){
 			depth -= e.edit.many
+			lastPathOpWasKey = false
+		}else if(op === editCodes.madeFork){
+			//_.errout('TODO')
+			depth = 0
+			matchingDepth = 0
 			lastPathOpWasKey = false
 		}
 		
@@ -199,20 +205,22 @@ function differentPaths(a,b){
 }
 
 //note that the path must not descend into a top-level object for this function
-function makePropertyStream(broadcaster, path, edits, editId, cb, continueListening){
+function makePropertyStream(broadcaster, path, edits, editId, cb, continueListening, ol){
 
 	//if(path.length !== 2) _.errout('TODO: ' + JSON.stringify(path))	
 
 	var objId = path[0].edit.id
 	var propertyCode = path[1].edit.typeCode
-
+	
+	_.assert(ol.isTopLevelObject(objId))
+	
 	var prop;
 
 	//console.log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
 	//console.log('streamProperty got ' + edits.length + ' edits ' + editId + ' ' + objId + ' ' + propertyCode)
 	//console.log(JSON.stringify(edits))
 	
-	var tracker = makePathTracker(path)
+	var tracker = makePathTracker(path.slice(1))
 	
 	//console.log(JSON.stringify(edits))
 	
@@ -312,6 +320,8 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				prop[lastKey] = e.edit.value
 				//_.errout('TODO: ' + op)
 			}
+		}else if(op === editCodes.refork){
+			_.errout('TODO')
 		}
 	})
 	//log('streaming ', path, ':', prop)
@@ -383,6 +393,11 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		}else if(editFp.isRemoveCode[op]){
 			if(op === editCodes.remove){
 				//_.errout('TODO')
+				if(!prop){
+					log.warn('tried to remove element from property that does not contain it: ' + edit.value)
+					return
+				}
+
 				var id = editPath[editPath.length-1].edit.id
 				var i = prop.indexOf(id)
 				if(i !== -1){
@@ -433,6 +448,8 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 		}else if(op === editCodes.clearProperty){
 			prop = undefined
 			cb(undefined, editId)
+		}else if(op === editCodes.refork){
+			_.errout('TODO')
 		}else{
 			_.errout('TODO: ' + editNames[op])
 		}
@@ -539,6 +556,8 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 		}else if(op === editCodes.wasSetToNew){
 			//_.errout('TODO')
 			prop[e.edit.id] = e.edit.typeCode
+		}else if(op === editCodes.refork){
+			_.errout('TODO')
 		}
 	})
 	//log('streaming types ', path, ':', prop)
@@ -613,6 +632,8 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 			}else{
 				_.errout('TODO: ' + op)
 			}*/
+		}else if(op === editCodes.refork){
+			_.errout('TODO')
 		}
 	})
 }
@@ -659,17 +680,26 @@ exports.make = function(schema, ap, broadcaster, ol){
 		isTopLevelObject: function(id){
 			return ol.isTopLevelObject(id)
 		},
+		isFork: function(id){
+			return ol.isFork(id)
+		},
+		getForked: function(id){
+			return ol.getForked(id)
+		},
+		getAllForked: function(id){
+			return ol.getAllForked(id)
+		},
 		isDeleted: function(id){
 			return ol.isDeleted(id)
 		},
 		addEdit: function(id, op, path, edit, syncId, computeTemporary, reifyCb){
 			//_.assertLength(arguments, 7);
-			if(op !== editCodes.make && op !== editCodes.forgetTemporary) _.assertInt(id);
+			if(op !== editCodes.make && op !== editCodes.makeFork && op !== editCodes.forgetTemporary) _.assertInt(id);
 			_.assertInt(syncId);
 			_.assertInt(op)
 			//TODO support merge models
 			
-			if(op === editCodes.make){
+			if(op === editCodes.make || op === editCodes.makeFork){
 				return ap.persistEdit(-1, -1, [], op, edit, syncId, computeTemporary, Date.now())//TODO this timestamp is inconsistent with what will be serialized
 			}else{
 				_.assert(id < -1 || id > 0)
@@ -725,7 +755,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 				_.errout('tried to stream, but not top-level object: ' + objId)
 			}
 
-			ol.get(objId, -1, editId, function(edits){
+			ol.getIncludingForked(objId, -1, editId, function(edits){
 				makePropertyTypesStream(ol, broadcaster, realPath, edits, editId, cb, continueListening)
 			})
 			
@@ -752,8 +782,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 			//console.log('streamProperty: ' + JSON.stringify(path))
 			_.assertInt(objId)
 
-			ol.get(objId, -1, editId, function(edits){
-				makePropertyStream(broadcaster, realPath, edits, editId, cb, continueListening)
+			ol.getIncludingForked(objId, -1, editId, function(edits){
+				//console.log('got including forks: ' + JSON.stringify(path) + ' -> ' + JSON.stringify(edits))
+				makePropertyStream(broadcaster, realPath, edits, editId, cb, continueListening, ol)
 			})
 		},
 		streamMapProperty: function(path, editId, cb, continueListening){
@@ -773,7 +804,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 			//console.log(JSON.stringify(path))
 			_.assertInt(objId)
 
-			ol.get(objId, -1, editId, function(edits){
+			ol.getIncludingForked(objId, -1, editId, function(edits){
 				makeMapPropertyStream(broadcaster, realPath, edits, editId, cb, continueListening)
 			})
 		},
@@ -829,6 +860,36 @@ exports.make = function(schema, ap, broadcaster, ol){
 			
 			var objSchema = schema._byCode[objTypeCode]
 			
+			var forkers = {}//TODO remove old forkers when reforks happen...?
+			function reforkInterceptor(id, map, resultId){
+				if(map.forked){
+					if(forkers[map.forked] === undefined) forkers[map.forked] = []
+					forkers[map.forked].push(updateSelf.bind(undefined, id))
+				}
+				cb(id, map, resultId)
+			}
+			function updateSelf(id, editId){
+				++outstandingEditCount
+
+				if(outstandingEditCount === 1){
+					liveCb(false, editId)
+				}//TODO include the get in this block?
+			
+				ol.getAllIncludingForked(id, function(res){
+			
+					--outstandingEditCount
+				
+					computeMap(id, res, undefined, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)
+					
+					if(forkers[id]){
+						forkers[id].forEach(function(fff){
+							fff(editId)
+						})
+					}
+					
+					liveCb(true)
+				})
+			}
 			function eventListener(typeCode, id, path, op, edit, syncId, editId){
 				
 				
@@ -837,23 +898,11 @@ exports.make = function(schema, ap, broadcaster, ol){
 					destroyedCb(id, editId)
 					return//TODO?
 				}
-
-				++outstandingEditCount
-
-				if(outstandingEditCount === 1){
-					liveCb(false, editId)
-				}
-			
-				ol.getAll(id, function(res){
-			
-					--outstandingEditCount
 				
-					computeMap(id, res, undefined, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)
-					liveCb(true)
-				})
+				updateSelf(id, editId)
 			}
-			ol.getAllObjectsOfType(objTypeCode, function(id, res){
-				computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)				
+			ol.getAllObjectsOfTypeIncludingForked(objTypeCode, function(id, res){
+				computeMap(id, res, attachmentEditId, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)				
 			}, function(){
 				//console.log('got all objects of type')
 				liveCb(true)				
@@ -891,7 +940,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 					liveCb(false, editId)
 				}
 			
-				ol.getAll(id, function(res){
+				ol.getAllIncludingForked(id, function(res){
 			
 					--outstandingEditCount
 
@@ -919,7 +968,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 					}
 					adding[id] = true
 					process.nextTick(function(){//wait a bit so edits can happen, to avoid unnecessary thrashing of property states (especially during the initial make transactoin)
-						ol.getAll(id, function(res){
+						ol.getAllIncludingForked(id, function(res){
 							if(!adding[id]) return
 							delete adding[id]
 							ids[id] = true
@@ -1009,7 +1058,7 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 	
 	if(propertyCodes.indexOf(-1) !== -1) _.errout('TODO')
 	
-	_.assertEqual(res[1].op, editCodes.made)
+	_.assert(res[1].op === editCodes.made || res[1].op === editCodes.madeFork)
 	
 	for(var i=0;i<res.length;++i){
 		var e = res[i]
@@ -1069,6 +1118,14 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 			continue
 		}else if(op === editCodes.setSyncId){
 			continue
+		}else if(op === editCodes.madeFork){
+			depth = 0
+			isInPc = false
+			map.forked = e.edit.sourceId
+		}else if(op === editCodes.refork){
+			//_.errout('TODO')
+			map.forked = e.edit.sourceId
+//			console.log('reforked: ' + JSON.stringify(res))
 		}
 		
 		if(isInPc){
@@ -1092,6 +1149,8 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 			}else if(op === editCodes.destroy){
 				console.log('destroyed included: ' + id)
 				destroyedCb(id, e.editId)
+			}else if(op === editCodes.madeFork){
+				//TODO?
 			}else{
 				_.errout('TODO: ' + editNames[e.op] + ' ' + JSON.stringify(e))
 			}

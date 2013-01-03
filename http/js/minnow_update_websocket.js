@@ -174,6 +174,14 @@ function establishSocket(appName, schema, host, cb){
 			}
 			return edits
 		},
+		makeFork: function(obj, cb, temporary){
+			sendFacade.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()})
+			
+			if(cb){
+				_.assertFunction(cb)
+				makeIdCbListeners[temporary] = cb
+			}
+		},
 		forgetLastTemporary: function(){
 			//_.errout('TODO')
 			send({type: 'forgetLastTemporary'})

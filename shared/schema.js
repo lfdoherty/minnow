@@ -18,7 +18,7 @@ var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstr
 	'nil',
 	'creationSession',
 	'object',
-	'parent'];
+	'parent','isfork'];
 
 var builtinFunctions = {}
 exports.addFunction = function(name, def){

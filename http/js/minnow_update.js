@@ -61,7 +61,7 @@ function establishSocket(appName, schema, host, cb){
 				sendFacade.send(e)//{type: 'setup view', snapshotVersion: snapshotVersion, uid: uid})
 			},
 			persistEdit: function(op, edit){
-				_.assertString(op)
+				_.assertInt(op)
 				_.assertObject(edit)
 				sendFacade.send({data: {op: op, edit: edit}});
 			},
@@ -87,6 +87,14 @@ function establishSocket(appName, schema, host, cb){
 					sendFacade.forgetLastTemporary()
 				}
 				return edits
+			},
+			makeFork: function(obj, cb, temporary){
+				sendFacade.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()})
+			
+				if(cb){
+					_.assertFunction(cb)
+					makeIdCbListeners[temporary] = cb
+				}
 			},
 			forgetLastTemporary: function(){
 				sendFacade.send({type: 'forgetLastTemporary'});

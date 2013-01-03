@@ -114,6 +114,8 @@ require('./variables/lastVersion')
 require('./variables/timestamps')
 require('./variables/timestamp')
 require('./variables/isOfType')
+require('./variables/allForked')
+require('./variables/preforked')
 
 var fixedPrimitive = require('./fixed/primitive')
 var fixedObject = require('./fixed/object')

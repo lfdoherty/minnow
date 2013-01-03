@@ -170,26 +170,25 @@ exports.make = function(){
 			
 			//reports any edits that happen to the given object (including to other normalized objects by FK)
 			//cb(typeCode, id, path, edit)
-			listenByObject: function(/*typeCode, */id, listener){
+			listenByObject: function(id, listener){
 				_.assertLength(arguments, 2)
 				var list = lazyArray(byObject, id)
 				list.push(listener);
 				//console.log('byObject: ' + list.length)
 				//console.log(new Error().stack)
 			},
-			stopListeningByObject: function(/*typeCode, */id, listener){
+			stopListeningByObject: function(id, listener){
 				_.assertLength(arguments, 2)
-				var objMap = byObject//byObject[typeCode];
-				//if(objMap !== undefined){
-					var listeners = objMap[id];
-					if(listeners !== undefined){
-						var ci = listeners.indexOf(listener);
-						if(ci !== -1){
-							listeners.splice(ci, 1);
-							return;
-						}
+				var objMap = byObject
+				
+				var listeners = objMap[id];
+				if(listeners !== undefined){
+					var ci = listeners.indexOf(listener);
+					if(ci !== -1){
+						listeners.splice(ci, 1);
+						return;
 					}
-				//}
+				}
 				console.log('WARNING: tried to remove non-existent object listener: ' + typeCode + ', ' + id);
 			},
 			
@@ -248,6 +247,8 @@ function ListenBySetHandle(listener, byObject, bySet){
 var TransitionToInterceptCount = 5
 
 ListenBySetHandle.prototype.add = function(id){
+	if(this.set[id]) return
+	
 	if(this.count >= TransitionToInterceptCount){
 		if(this.count === TransitionToInterceptCount){
 		

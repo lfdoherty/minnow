@@ -337,8 +337,11 @@ function filterInclusions(op, edit, editId, includeObjectCb){
 			includeObjectCb(edit.id, editId)
 		}
 	}
+	
 	if(op === editCodes.selectObjectKey || op === editCodes.reselectObjectKey){
 		includeObjectCb(edit.key, editId)
+	}else if(op === editCodes.refork){
+		includeObjectCb(edit.sourceId, editId)
 	}
 	if(_.isInt(edit.newId)){
 		if(op === editCodes.replaceInternalExisting){
@@ -474,7 +477,12 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 	function listenObjectCb(id){
 		if(!objectState.isDeleted(id)){
 			//console.log(infoSyncId + '**listening for object ' + id + ' ' + objectState.getCurrentEditId())
-			objectState.updateObject(id,objectState.getCurrentEditId(), objectUpdateListener, addObjectToSet)
+			objectState.updateObject(id,objectState.getCurrentEditId(), objectUpdateListener, function(){
+				if(objectState.isFork(id)){
+					addObjectToSet(objectState.getForked(id))
+				}
+				addObjectToSet(id)
+			})
 		}
 	}
 	

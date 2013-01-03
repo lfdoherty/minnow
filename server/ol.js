@@ -71,6 +71,11 @@ OlReaders.prototype.madeSyncId = function(){
 	//log('made sync id')
 }
 
+OlReaders.prototype.refork = function(e){
+	_.assert(e.sourceId > 0)
+	this.ol.forks[this.currentId] = e.sourceId
+},
+
 _.each(shared.editSchema._byCode, function(objSchema){
 	var name = objSchema.name
 	/*if(readers[name] === undefined){
@@ -106,6 +111,8 @@ function Ol(schema){
 	this.schema = schema
 	
 	this.timestamps = {}//TODO optimize
+	
+	this.forks = {}
 	
 	this.stats = {
 		make: 0,
@@ -151,17 +158,63 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	_.assert(syncId > 0)
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
 	this.olc.addEdit(id, {op: editCodes.made, edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
-	//setObjectCurrentSyncId(id, syncId)
 	this.objectCurrentSyncId[id] = syncId
-	
-	//if(this.idsByType[edit.typeCode] === undefined){
-	//	this.idsByType[edit.typeCode] = []
-	//}
 	this.idsByType[edit.typeCode].push(this.idCounter)
 
 	
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes[this.idCounter] = edit.typeCode
+
+	return {id: this.idCounter, editId: editId}
+}
+
+Ol.prototype.isFork = function(id){
+	return !!this.forks[id]
+}
+Ol.prototype.getForked = function(id){
+	return this.forks[id]
+}
+Ol.prototype.getAllForked = function(id){
+	var ids = []
+	var fid = this.getForked(id)
+	while(fid){
+		ids.push(fid)
+		fid = this.getForked(fid)
+	}
+	return ids
+}
+Ol.prototype._makeFork = function make(edit, timestamp, syncId){
+
+
+	++this.stats.make
+		
+	++this.idCounter;
+	var editId = this.readers.lastVersionId
+	this.timestamps[editId]  = timestamp
+
+	++this.readers.lastVersionId
+	
+	//log('wrote object ', this.idCounter)
+
+	var sourceTypeCode = this.objectTypeCodes[edit.sourceId]
+	_.assertInt(sourceTypeCode)
+	
+	var id = this.idCounter
+	this.olc.assertUnknown(id)
+	_.assert(syncId > 0)
+	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
+	this.olc.addEdit(id, {op: editCodes.madeFork, edit: {sourceId: edit.sourceId, id: id, typeCode: sourceTypeCode}, editId: editId})
+	this.objectCurrentSyncId[id] = syncId
+
+	//console.log('cannot find type: ' + JSON.stringify(edit))
+
+	this.idsByType[sourceTypeCode].push(this.idCounter)
+
+	this.readers.currentId = this.idCounter
+	this.objectTypeCodes[this.idCounter] = sourceTypeCode
+
+	
+	this.forks[id] = edit.sourceId
 
 	return {id: this.idCounter, editId: editId}
 }
@@ -180,6 +233,12 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 		var de = edits//deserializeEdits(edits)
 		var ids = []
 		var has = {}
+
+		if(edits[1].op === editCodes.madeFork){
+			ids.push(edits[1].edit.sourceId)
+			has[edits[1].edit.sourceId] = true
+		}
+		
 		//console.log('getting foreign edits in: ' + JSON.stringify(edits))
 		for(var i=0;i<de.length;++i){
 			var e = de[i]
@@ -204,6 +263,14 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 					ids.push(id)
 					has[id] = true
 					//console.log('***id: ' + id)
+				}
+			}else if(e.op === editCodes.refork){
+			//	console.log('sourceId: ' + e.sourceId)
+				_.assert(e.edit.sourceId > 0)
+				var id = e.edit.sourceId
+				if(!has[id]){
+					ids.push(id)
+					has[id] = true
 				}
 			}
 		}
@@ -241,6 +308,40 @@ Ol.prototype.getAll = function(id, cb){//TODO optimize away
 	var edits = this.olc.get(id)
 
 	cb(edits)	
+}
+
+Ol.prototype.getAllIncludingForked = function(id, cb){//TODO optimize away
+	_.assertLength(arguments, 2)
+	_.assertInt(id)
+	
+	++this.stats.allRequested
+	
+	var edits = this.olc.get(id)
+
+	//console.log('getting all including forked')
+	
+	if(this.forks[id]){
+		this.getAllIncludingForked(this.forks[id], function(moreEdits){
+			cb(moreEdits.concat(edits))
+		})
+	}else{
+		cb(edits)
+	}
+}
+
+Ol.prototype.getIncludingForked = function(id, startEditId, endEditId, cb){//TODO optimize away
+	var local = this
+	this.get(id, startEditId, endEditId, function(edits){
+		if(local.forks[id]){
+			//console.log('getting including forked')
+			local.getIncludingForked(local.forks[id], startEditId, endEditId, function(moreEdits){
+				edits = moreEdits.concat(edits)
+				cb(edits)
+			})
+		}else{
+			cb(edits)
+		}
+	})
 }
 
 Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
@@ -366,6 +467,14 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 	if(op === editCodes.make){
 		_.assert(syncId > 0)
 		return this._make(edit, timestamp, syncId)
+	}else if(op === editCodes.makeFork){
+		_.assert(syncId > 0)
+		return this._makeFork(edit, timestamp, syncId)
+	}else if(op === editCodes.refork){
+		_.assert(syncId > 0)
+		//return this._makeFork(edit, timestamp, syncId)
+		_.assert(edit.sourceId > 0)//TODO how to handle property streams?
+		this.forks[id] = edit.sourceId
 	}
 	//console.log('PERSISTING PERSISTING: ' + editNames[op] + ' ' + JSON.stringify(arguments))
 	_.assertInt(id)
@@ -539,6 +648,23 @@ Ol.prototype.getAllOfType = function(typeCode, cb){//gets a read-only copy of al
 		cdl()
 	}
 	ids.forEach(function(id){handle.get(id, storeCb);})
+}
+Ol.prototype.getAllObjectsOfTypeIncludingForked = function(typeCode, cb, doneCb){
+	var ids = this.idsByType[typeCode] || [];
+	var cdl = _.latch(ids.length, function(){
+		doneCb()
+	})
+	for(var i=0;i<ids.length;++i){
+		var id = ids[i]
+		if(this.destroyed[id]){
+			cdl()
+			continue
+		}
+		this.getAllIncludingForked(id, function(obj){
+			cb(id, obj)
+			cdl()
+		});
+	}
 }
 Ol.prototype.getAllObjectsOfType = function(typeCode, cb, doneCb){
 	var ids = this.idsByType[typeCode] || [];

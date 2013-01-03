@@ -27,14 +27,13 @@ updateObject 11
 	id int 1
 	edits binary 2
 	destinationSyncId int 3
-	//syncId int 4
 
 updateViewObject 14
 	id string 1
 	edits binary 2
 	destinationSyncId int 3
 	//syncId int 4
-	
+
 //comes after open (and possibly some updates), indicates that the sync handle is ready for use
 ready 3
 	requestId int 1
@@ -58,6 +57,8 @@ objectMade 10
 	id int 2
 	temporary int 3
 	destinationSyncId int 4
+
+
 
 reifyObject 15
 	id int 1

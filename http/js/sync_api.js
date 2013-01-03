@@ -140,9 +140,6 @@ function addRefreshFunctions(classPrototype){
 	if(classPrototype.once === undefined) classPrototype.once = once;
 	if(classPrototype.off === undefined) classPrototype.off = off;
 	if(classPrototype.emit === undefined) classPrototype.emit = emit;
-	//if(classPrototype._doEmit === undefined) classPrototype._doEmit = _doEmit
-	//if(classPrototype._delayEmit === undefined) classPrototype._delayEmit = _delayEmit
-	//if(classPrototype._isPaused === undefined) classPrototype._isPaused = _isPaused
 }
 
 function removeParent(p){
@@ -266,6 +263,14 @@ function toString(){
 	return JSON.stringify(this.toJson(), null, 2)
 }
 
+function wasEdited(){
+	return !!this._wasEdited
+}
+
+function setLocalMode(v){
+	this.parent.setLocalMode(v)
+}
+
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
@@ -296,7 +301,11 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.getLastEditor === undefined) classPrototype.getLastEditor = getLastEditor
 	if(classPrototype.saveTemporaryForLookup === undefined) classPrototype.saveTemporaryForLookup = saveTemporaryForLookup
 
+	if(classPrototype.wasEdited === undefined) classPrototype.wasEdited = wasEdited
+
 	classPrototype.toString = toString
+
+	if(classPrototype.setLocalMode === undefined) classPrototype.setLocalMode = setLocalMode
 }
 
 
@@ -336,6 +345,7 @@ function SyncApi(schema, sh, logger){
 	this.temporaryIdCounter = -1;
 
 	this.sh = sh;
+	_.assertFunction(sh.makeFork)
 	this.schema = schema;
 
 	this.snap = {latestVersionId: -1, objects: {}};
@@ -351,6 +361,10 @@ function SyncApi(schema, sh, logger){
 	
 	this.latestVersionId = -1
 	//this.log('made SyncApi ' + this.uid)
+}
+
+SyncApi.prototype.setLocalMode = function(v){
+	this.localMode = v
 }
 
 SyncApi.prototype.makeTemporaryId = function(){
@@ -448,6 +462,10 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
 	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
+	
+	if(this.localMode){
+		return
+	}
 
 	if(this.currentObjectId !== id){
 		
@@ -593,6 +611,34 @@ SyncApi.prototype.getFullSchema = function(){return this.schema;}
 SyncApi.prototype.setEditingId = function(editingId){
 	this.editingId = editingId;
 }
+
+SyncApi.prototype.createFork = function(source, cb){
+	_.assertLength(arguments, 2)
+	_.assertObject(source)
+
+	var temporary = this.makeTemporaryId()
+	
+	var edits = this.sh.makeFork(source, cb, temporary)
+
+	var oldHandle = this.objectApiCache[this.currentObjectId]
+	if(oldHandle){
+		oldHandle.currentPath = undefined
+	}
+	
+	this.currentObjectId = temporary//TODO only if !forget?
+
+	var forget = false//TODO forgettable forks?
+		
+	if(!forget){
+		var t = source.typeSchema//this.schema[typeName]
+		var n = new TopObjectHandle(this.schema, t, edits, this, temporary, source);
+		//source.maintainFork(n) //TODO
+		//console.log('created temporary lookup: ' + temporary)
+		this.objectApiCache[temporary] = n;
+		return n
+	}
+}
+
 SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	_.assertLength(arguments, 4)
 	_.assertString(typeName)

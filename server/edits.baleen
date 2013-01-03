@@ -8,7 +8,19 @@ made 2//what gets broadcast when 'make' happens
 makeMapped 3//what gets sent back to the make source syncId (for make and the various *New edits as well for internal ops.)
 	id int 1
 	temporary int 2
-	
+
+makeFork 153
+	sourceId int 1
+
+madeFork 154
+	sourceId int 1
+	id int 2
+	temporary int 3
+	typeCode int 4
+
+refork 155
+	sourceId int 1
+
 madeViewObject 33
 	id string 1
 	typeCode int 2

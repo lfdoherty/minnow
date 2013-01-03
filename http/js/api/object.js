@@ -273,9 +273,10 @@ ObjectHandle.prototype.propertyTypes = function(propertyName){
 ObjectHandle.prototype.properties = getProperties;
 
 ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, syncId, editId){
-	if(op === editCodes.setObject || op === editCodes.setViewObject || op === editCodes.clearObject){
+	if(op === editCodes.setObject || op === editCodes.setViewObject){// || op === editCodes.clearObject){
 		_.assertInt(descentCode)
 		var ps = this.typeSchema.propertiesByCode[descentCode];
+		if(ps === undefined) _.errout('logic error, cannot find property with descent code: ' + descentCode)
 		_.assertObject(ps)
 		if(op === editCodes.setObject){
 			if(ps.type.type !== 'object'){
@@ -305,6 +306,7 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 	}else if(op === editCodes.clearObject || op === editCodes.clearProperty){
 		var ps = this.typeSchema.propertiesByCode[descentCode];
 		this[ps.name] = undefined
+		this.obj[descentCode] = undefined
 	}else if(op === editCodes.setToNew){
 		_.errout('TODO setToNew: ' + JSON.stringify(arguments))
 	}else{
@@ -608,6 +610,7 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 	_.assertLength(arguments, 2)
 
 	var pt = this.typeSchema.properties[propertyName];
+	if(pt === undefined) _.errout('unknown property: ' + propertyName)
 	_.assertDefined(pt);
 	
 	if(this.typeSchema.isView){//TODO verify from eventual server->client update
@@ -676,7 +679,11 @@ ObjectHandle.prototype.hasProperty = function(propertyName){
 			return true//TODO do something better about updating object properties in the parent?
 		}
 	}
-	return pv !== undefined;
+	var has = pv !== undefined;
+	if(has && !n){
+		_.errout('has but no n: ' + pv)
+	}
+	return has
 }
 ObjectHandle.prototype.has = ObjectHandle.prototype.hasProperty
 
@@ -743,6 +750,7 @@ ObjectHandle.prototype.property = function property(propertyName){
 				_.assertInt(pv);
 				//_.assertString(pv[1]);
 				n = this.getObjectApi(pv, this);
+				_.assertObject(n)
 			}else{
 				var fullSchema = this.getFullSchema();
 				n = new ObjectHandle(fullSchema[pt.type.view], [], -1, [pt.code], this, true);

@@ -511,7 +511,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					return
 				}
 				
-				if(op === editCodes.make) currentId = -1
+				if(op === editCodes.make || op === editCodes.makeFork) currentId = -1
 				//_.assertInt(currentId)
 
 				var tg = getTemporaryGenerator(syncId)
@@ -524,7 +524,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					//console.log('storing reification ' + temporary + ' -> ' + id)
 					conn.w.reifyObject(msg);
 				}
-				if(op === editCodes.make){
+				if(op === editCodes.make || op === editCodes.makeFork){
 
 					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
 					
@@ -532,7 +532,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					
 					//console.log('made: ' + id, ' now current id for: ' + syncId + ' ' + lastTemporaryId[syncId])
 					
-					
+					_.assertInt(id)
 
 					conn.currentIdFor[syncId] = id//this works because make can be executed synchronously
 					
@@ -545,7 +545,21 @@ function createTcpServer(appSchema, port, s, readyCb){
 						_.assert(lastTemporaryId[syncId] < 0)
 						conn.w.objectMade(msg);
 					}
-				}else{
+				}/*else if(op === editCodes.makeFork){
+					//_.errout('TODO')
+					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
+					
+					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+					conn.currentIdFor[syncId] = id//this works because make can be executed synchronously
+				
+					if(!e.edit.forget){
+						//_.assertInt(id);
+						conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
+						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
+						_.assert(lastTemporaryId[syncId] < 0)
+						conn.w.objectMade(msg);
+					}
+				}*/else{
 					if(currentId === undefined){
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getPath(), e.edit, syncId])
 						c.destroy()

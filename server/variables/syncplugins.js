@@ -26,6 +26,7 @@ function wrapParam(v, schemaType, s){
 		
 		handle.descend = function(path, editId, cb, continueListening){
 			_.assertFunction(cb)
+			//console.log('*descending: ' + t.descend)
 			var worked = t.descend(path, editId, cb, continueListening)
 			if(!_.isBoolean(worked)) _.errout('did not provide a boolean: ' + t.name)
 			return worked
@@ -223,9 +224,11 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 			var descender = makeDescend(paramTypes)
 			_.assertFunction(descender)
 			handle.descend = function(path, editId, cb, continueListening){
+				//console.log('sync descending: ' + descender)
 				var res = descender(handle.lastInputs)
 				_.assertInt(res.index)
 				_.assertArray(res.prefix)
+				//console.log('sync descending*: ' + handle.descenders[res.index])
 				var worked = handle.descenders[res.index](res.prefix.concat(path), editId, cb, continueListening)
 				if(!_.isBoolean(worked)) _.errout('did not provide a boolean: ' + handle.descenders[res.index].pName)
 				_.assertBoolean(worked)

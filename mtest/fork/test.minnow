@@ -1,0 +1,35 @@
+
+entity 1
+	name string 1
+	reallyAFork boolean 2
+	
+general() 100
+	e one(subset(*entity,{~.reallyAFork})) 1
+	other one(subset(*entity,{not(~.reallyAFork)})) 2
+empty() 101
+
+forkQuery() 102
+	e one(subset(*entity,{and(~.reallyAFork,eq('original', ~.name))})) 1
+
+forkQueryTwo() 103
+	e one(subset(*entity,{and(~.reallyAFork,eq('purpled', ~.name))})) 1
+
+forkQueryAllForked() 104
+	es allForked(*entity) 1
+
+isForked(){
+	subset(*entity,{~.reallyAFork})
+}
+purpled(){
+	one(subset(*entity,{eq('purpled', ~.name)}))
+}
+
+madePreforked(){
+	each(isForked(),{preforked(~,purpled())})
+}
+forkQueryPreforked() 105
+	e one(subset(madePreforked(),{eq('purpled', ~.name)})) 1
+	p purpled() 2
+	isf isForked() 3
+	mp madePreforked() 4
+

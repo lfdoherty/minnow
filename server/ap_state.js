@@ -166,6 +166,11 @@ function make(schema, ol){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
+		}else if(op === editCodes.makeFork){
+			if(e.sourceId < 0) e.sourceId = translateTemporary(e.sourceId, syncId)
+		}else if(op === editCodes.refork){
+			console.log('reforking: ' + e.sourceId)
+			if(e.sourceId < 0) e.sourceId = translateTemporary(e.sourceId, syncId)
 		}else if(op === editCodes.putExisting){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.addExisting){
@@ -204,7 +209,7 @@ function make(schema, ol){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}
 
-		if(op !== editCodes.make && id < -1){//note that -1 is not a valid temporary id - that is reserved
+		if((op !== editCodes.make && op !== editCodes.makeFork) && id < -1){//note that -1 is not a valid temporary id - that is reserved
 			//_.assertInt(id)
 			var newId = translateTemporary(id, syncId);
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
@@ -225,7 +230,7 @@ function make(schema, ol){
 		var realOp = n.op
 		var realEdit = n.edit
 
-		if(op === editCodes.make){
+		if(op === editCodes.make || op === editCodes.makeFork){
 			currentId = newId
 		}else if(currentId !== id && id !== -1){
 			ap.selectTopObject({id: id})
@@ -257,7 +262,7 @@ function make(schema, ol){
 		
 		ap[editNames[op]](e)
 	
-		if(op === editCodes.make){
+		if(op === editCodes.make || op === editCodes.makeFork){
 
 			var temporary = computeTemporary()
 			//_.assertInt(temporary)
@@ -265,7 +270,13 @@ function make(schema, ol){
 			mapTemporary(temporary, newId, syncId)
 			
 			//_.assert(newId >= 0)
-			broadcaster.input.objectCreated(e.typeCode, newId, editId)
+			if(op === editCodes.make){
+				broadcaster.input.objectCreated(e.typeCode, newId, editId)
+			}else{
+				broadcaster.input.objectCreated(ol.getObjectType(e.sourceId), newId, editId)
+			}
+			
+			_.assertInt(newId)
 			return newId;
 		}
 		
@@ -282,36 +293,10 @@ function make(schema, ol){
 	var externalHandle = {
 		setBroadcaster: function(b){
 			broadcaster = b;
-			//_.assertUndefined(es)
-			//es = editstreamer.make(ol, b)
 		},
 		persistEdit: persistEdit,
 		saveEdit: saveEdit,
-		//getInverse: function(id){
-			//_.errout('TODO, somewhere')
-			/*_.assertLength(arguments, 1);
-			//TODO when we implement the edits that cause this, implement the lookup/indexing for this
-			//var lk = inverses[typeCode];
-			var ts = inverses[id];
-			if(ts === undefined) return [];
-			else{
-			
-				var arr = [];
-				_.each(ts, function(nts, typeCodeStr){
-					var typeCode = parseInt(typeCodeStr);
-					_.assertInt(typeCode)
-					_.each(nts, function(count, idStr){
-						arr.push([true, typeCode, parseInt(idStr)]);
-					});
-				});
-				return arr;
-			}*/
-		//},
-		
 		makeNewSyncId: makeNewSyncId,
-		//getSyncIdCounter: function(){//for RAFization only
-		//	return syncIdCounter;
-		//},
 		translateTemporaryId: function(id, syncId){
 			return translateTemporary(id, syncId)
 		},
