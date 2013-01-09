@@ -14,7 +14,7 @@ exports.addNewFromJson = function(config, done){
 					if(c.s.size() === 1){
 						var d;
 						c.s.each(function(dd){d = dd;})
-						if(d.value.value() === 'test'){
+						if(d.v.value() === 'test'){
 							done()
 							return true
 						}
@@ -23,7 +23,7 @@ exports.addNewFromJson = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {value: 'test'})
+						var obj = c.make('entity', {v: 'test'})
 						_.assertDefined(obj)
 						v.s.add(obj)
 					})
@@ -46,7 +46,7 @@ exports.wrapped = function(config, done){
 						//console.log('got 1')
 						c.s.each(function(dd){d = dd;})
 						console.log(': ' + JSON.stringify(c.toJson()))
-						if(d.value.value() === 'test'){
+						if(d.v && d.v.value() === 'test'){
 							done()
 							return true
 						}
@@ -55,7 +55,7 @@ exports.wrapped = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {value: 'test'})
+						var obj = c.make('entity', {v: 'test'})
 						_.assertDefined(obj)
 						v.s.add(obj)
 					})
@@ -84,7 +84,7 @@ exports.wrappedRemoval = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {value: 'test'})
+						var obj = c.make('entity', {v: 'test'})
 						var cont = c.make('container', {members: [obj]})
 						
 						setTimeout(function(){

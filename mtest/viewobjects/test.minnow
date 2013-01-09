@@ -1,9 +1,9 @@
 
 entity 1
-	value string 1
+	v string 1
 
 wrapper(entity entity) 101
-	wrappedValue entity.value 1
+	wrappedValue entity.v 1
 	
 general() 100
 	s each(*entity, {wrapper(~)}) 1

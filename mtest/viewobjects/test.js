@@ -25,7 +25,7 @@ exports.wrapped = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {value: 'test'})
+						var obj = c.make('entity', {v: 'test'})
 						
 					})
 				})
@@ -39,7 +39,7 @@ exports.wrappedFromObjectSet = function(config, done){
 	minnow.makeServer(config, function(){	
 		minnow.makeClient(config.port, function(otherClient){
 			otherClient.view('empty', function(err, v){
-				var obj = v.make('entity', {value: 'test'})
+				var obj = v.make('entity', {v: 'test'})
 				var n = v.make('context', function(){
 				
 					

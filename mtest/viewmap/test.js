@@ -22,7 +22,7 @@ exports.update = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						v.make('entity', {key: 'blah', value: 'vblah'})
+						v.make('entity', {key: 'blah', v: 'vblah'})
 					})
 				})
 			})
@@ -224,8 +224,8 @@ exports.testSyncInputSetRemoval = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
-						v.make('entity', {key: 'tim', value:'bill'})
-						var toChange = v.make('entity', {key: 'bruce', value: 'bill'})
+						v.make('entity', {key: 'tim', v:'bill'})
+						var toChange = v.make('entity', {key: 'bruce', v: 'bill'})
 						setTimeout(function(){
 							toChange.key.set('bill')
 						},500)
@@ -251,9 +251,9 @@ exports.mapMerge = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
-						var a = v.make('entity', {key: 'tim', value:'bill'})
-						var b = v.make('entity', {key: 'bruce', value: 'bill'})
-						var ca = v.make('entity', {key: 'leo', value: 'bill'})
+						var a = v.make('entity', {key: 'tim', v:'bill'})
+						var b = v.make('entity', {key: 'bruce', v: 'bill'})
+						var ca = v.make('entity', {key: 'leo', v: 'bill'})
 						var cont = v.make('container')
 						cont.members.put('sally', ca)
 					})
@@ -279,9 +279,9 @@ exports.zeroKey = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
-						var a = v.make('zb', {key: 1, value:'a'})
-						var b = v.make('zb', {key: 0, value: 'b'})
-						var ca = v.make('zb', {key: 2, value: 'c'})
+						var a = v.make('zb', {key: 1, v:'a'})
+						var b = v.make('zb', {key: 0, v: 'b'})
+						var ca = v.make('zb', {key: 2, v: 'c'})
 					})
 				})
 			})

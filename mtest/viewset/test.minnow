@@ -1,6 +1,6 @@
 
 entity 1
-	value string 1
+	v string 1
 
 container 2
 	members set:entity 1
@@ -9,7 +9,7 @@ general() 100
 	s *entity 1
 
 wrapper(e entity) 101
-	value e.value 11
+	v e.v 11
 
 wrapped() 102
 	s each(*entity,{wrapper(~)}) 1

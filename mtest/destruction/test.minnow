@@ -1,6 +1,6 @@
 
 entity 1
-	value string 1
+	v string 1
 
 general() 100
 	s *entity 13

@@ -1,7 +1,7 @@
 
 entity 2
 	key string 1
-	value string 2
+	v string 2
 	age int 3
 
 container 4
@@ -9,15 +9,15 @@ container 4
 
 zb 6
 	key int 1
-	value string 2
+	v string 2
 	
 empty() 102
 
 zeroCheck() 107
-	m map(*zb,{~.key},{~.value}) 1
+	m map(*zb,{~.key},{~.v}) 1
 	
 general() 100
-	s map(*entity,{~.key},{~.value}) 1
+	s map(*entity,{~.key},{~.v}) 1
 generalTop() 101
 	threeOldest topByValues(3, map(*entity,{~.key},{~.age})) 2
 
@@ -35,7 +35,7 @@ mapReduce() 103
 	oldestWithKey map(*entity,{~.key},{~.age},{add(~,~2)}) 1
 	
 syncInputSetRemoval() 104
-	manyStrings count(union(*entity.key,*entity.value)) 1
+	manyStrings count(union(*entity.key,*entity.v)) 1
 	
 merged() 106
 	byKeys mapMerge(map(*entity,{~.key},{~}),*container.members) 1

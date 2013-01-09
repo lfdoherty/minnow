@@ -1,18 +1,18 @@
 
 entity 1
 	other membrance 11
-	value string 21
+	v string 21
 
 membrance 2
 	other entity 81
-	value string 82
+	v string 82
 	
 wrapper(entity entity) 101
-	wrappedValue entity.value 41
-	wrappedOtherValue entity.other.value 42
+	wrappedValue entity.v 41
+	wrappedOtherValue entity.other.v 42
 
 simplerWrapper(entity entity) 106
-	wrappedOtherValue entity.other.value 46
+	wrappedOtherValue entity.other.v 46
 
 simple() 102
 	s wrapper(one(*entity)) 1

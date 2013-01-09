@@ -34,7 +34,7 @@ exports.simplest = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
-						var obj = c.make('entity', {value: 'test'})
+						var obj = c.make('entity', {v: 'test'})
 						//var obj = c.make('membrance', {value: 'test'})
 						
 					})
@@ -63,7 +63,7 @@ exports.simpleOther = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
-						var obj = c.make('membrance', {value: 'test2'})
+						var obj = c.make('membrance', {v: 'test2'})
 						c.make('entity', {other: obj})
 					})
 				})
@@ -93,8 +93,8 @@ exports.complex = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var n = c.make('entity', {value: 'test'})
-						var obj = c.make('membrance', {value: 'test', other: n})
+						var n = c.make('entity', {v: 'test'})
+						var obj = c.make('membrance', {v: 'test', other: n})
 						n.setProperty('other', obj)
 					})
 				})

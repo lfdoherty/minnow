@@ -41,7 +41,7 @@ exports.backandforth = function(config, done){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d;
 						c.s.data.each(function(dd){d = dd;})
-						if(d.value.value() === 'something'){
+						if(d.v.value() === 'something'){
 							done()
 							return true
 						}
@@ -62,7 +62,7 @@ exports.backandforth = function(config, done){
 								//var d;
 								//obj.data.each(function(dd){d = dd;})
 								//d.value.set('something')
-								newObj.value.set('something')
+								newObj.v.set('something')
 								return true
 							}
 						})
@@ -80,7 +80,7 @@ exports.removeTemporariedInternalObject = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					if(c.has('s') && c.s.data.size() === 1 && c.s.data.toJson()[0].value === 'it'){
+					if(c.has('s') && c.s.data.size() === 1 && c.s.data.toJson()[0].v === 'it'){
 						done()
 						return true
 					}
@@ -94,7 +94,7 @@ exports.removeTemporariedInternalObject = function(config, done){
 						_.assertDefined(obj.data)
 						var tempObj = obj.data.addNew()
 						obj.data.remove(tempObj)
-						var tempObj = obj.data.addNew({value: 'it'})
+						var tempObj = obj.data.addNew({v: 'it'})
 					})
 				})
 				
@@ -110,7 +110,7 @@ exports.removeTemporariedExternalObject = function(config, done){
 			
 				poll(function(){
 					if(c.has('s')){
-						if(c.s.data.size() === 1 && c.s.data.toJson()[0].value === 'it'){
+						if(c.s.data.size() === 1 && c.s.data.toJson()[0].v === 'it'){
 							done()
 							return true
 						}
@@ -123,10 +123,10 @@ exports.removeTemporariedExternalObject = function(config, done){
 						v.setProperty('s',obj)//setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
-						var tempObj = v.make('entity', {value: 'not it'})
+						var tempObj = v.make('entity', {v: 'not it'})
 						obj.data.add(tempObj)
 						obj.data.remove(tempObj)
-						obj.data.addNew({value: 'it'})
+						obj.data.addNew({v: 'it'})
 					})
 				})
 				

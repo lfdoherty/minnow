@@ -39,7 +39,7 @@ exports.backandforth = function(config, done){
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something'){
+						if(d.v.value() === 'something'){
 							done()
 							return true
 						}
@@ -59,7 +59,7 @@ exports.backandforth = function(config, done){
 							if(obj.data.size() === 1){
 								var d;
 								obj.data.each(function(dd){d = dd;})
-								d.value.set('something')
+								d.v.set('something')
 								return true
 							}
 						})
@@ -79,7 +79,7 @@ exports.replaceNew = function(config, done){
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something'){
+						if(d.v.value() === 'something'){
 							done()
 							return true
 						}
@@ -94,13 +94,13 @@ exports.replaceNew = function(config, done){
 						_.assertDefined(obj.data)
 						var newObj = obj.data.addNew()
 						
-						obj.data.replaceNew(newObj, {value: 'something else'})
+						obj.data.replaceNew(newObj, {v: 'something else'})
 						
 						poll(function(){
 							if(obj.data.size() === 1){
 								var d;
 								obj.data.each(function(dd){d = dd;})
-								d.value.set('something')
+								d.v.set('something')
 								return true
 							}
 						})
@@ -120,7 +120,7 @@ exports.replaceNewMore = function(config, done){
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something else'){
+						if(d.v.value() === 'something else'){
 							done()
 							return true
 						}
@@ -134,8 +134,8 @@ exports.replaceNewMore = function(config, done){
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 
-						var oldObj = obj.data.addNew({value: 'something'})						
-						var newObj = obj.data.replaceNew(oldObj, {value: 'something else'})
+						var oldObj = obj.data.addNew({v: 'something'})						
+						var newObj = obj.data.replaceNew(oldObj, {v: 'something else'})
 					})
 				})
 				
@@ -151,7 +151,7 @@ exports.replaceExistingWithNew = function(config, done){
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something'){
+						if(d.v.value() === 'something'){
 							done()
 							return true
 						}
@@ -167,13 +167,13 @@ exports.replaceExistingWithNew = function(config, done){
 						var newObj = v.make('entity')
 						obj.data.add(newObj)//obj.data.addNew()
 						
-						obj.data.replaceNew(newObj, {value: 'something else'})
+						obj.data.replaceNew(newObj, {v: 'something else'})
 						
 						poll(function(){
 							if(obj.data.size() === 1){
 								var d;
 								obj.data.each(function(dd){d = dd;})
-								d.value.set('something')
+								d.v.set('something')
 								return true
 							}
 						})
@@ -192,7 +192,7 @@ exports.replaceExisting = function(config, done){
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something else'){
+						if(d.v.value() === 'something else'){
 							done()
 							return true
 						}
@@ -206,9 +206,9 @@ exports.replaceExisting = function(config, done){
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 
-						var oldObj = obj.data.addNew({value: 'something'})
+						var oldObj = obj.data.addNew({v: 'something'})
 						
-						var newObj = v.make('entity', {value: 'something else'})
+						var newObj = v.make('entity', {v: 'something else'})
 						obj.data.replaceExisting(oldObj, newObj)
 					})
 				})
@@ -226,7 +226,7 @@ exports.replaceExistingExternalWithNew = function(config, done){
 				poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something else'){
+						if(d.v.value() === 'something else'){
 							done()
 							return true
 						}
@@ -240,9 +240,9 @@ exports.replaceExistingExternalWithNew = function(config, done){
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 
-						var oldObj = v.make('entity', {value: 'something'})
+						var oldObj = v.make('entity', {v: 'something'})
 						obj.data.add(oldObj)						
-						var newObj = v.make('entity', {value: 'something else'})
+						var newObj = v.make('entity', {v: 'something else'})
 						obj.data.replaceExisting(oldObj, newObj)
 					})
 				})
@@ -261,7 +261,7 @@ exports.add = function(config, done){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something else'){
+						if(d.v.value() === 'something else'){
 							done()
 							return true
 						}
@@ -275,9 +275,9 @@ exports.add = function(config, done){
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 
-						//var oldObj = obj.data.addNew({value: 'something'})
+						//var oldObj = obj.data.addNew({v: 'something'})
 						
-						var newObj = v.make('entity', {value: 'something else'})
+						var newObj = v.make('entity', {v: 'something else'})
 						obj.data.add(newObj)
 						//console.log('real: ' + obj.data.size())
 						//obj.data.shift()
@@ -297,7 +297,7 @@ exports.shift = function(config, done){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
-						if(d.value.value() === 'something else'){
+						if(d.v.value() === 'something else'){
 							done()
 							return true
 						}
@@ -311,9 +311,9 @@ exports.shift = function(config, done){
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
 
-						var oldObj = obj.data.addNew({value: 'something'})
+						var oldObj = obj.data.addNew({v: 'something'})
 						
-						var newObj = v.make('entity', {value: 'something else'})
+						var newObj = v.make('entity', {v: 'something else'})
 						obj.data.add(newObj)
 						//console.log('real: ' + obj.data.size())
 						obj.data.shift()

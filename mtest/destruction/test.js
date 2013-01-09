@@ -28,7 +28,7 @@ exports.addNewFromJson = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					//console.log('got client for destroy')
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {value: 'test'})
+						var obj = c.make('entity', {v: 'test'})
 						setTimeout(function(){
 							obj.del()
 						},500)
