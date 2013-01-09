@@ -205,8 +205,10 @@ function make(schema, ol){
 			}
 		}else if(op === editCodes.selectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
+			_.assert(e.id > 0)
 		}else if(op === editCodes.reselectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
+			_.assert(e.id > 0)
 		}
 
 		if((op !== editCodes.make && op !== editCodes.makeFork) && id < -1){//note that -1 is not a valid temporary id - that is reserved

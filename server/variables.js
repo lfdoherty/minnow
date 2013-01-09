@@ -319,6 +319,8 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 		name: 'top-level',
 		descend: function(path, editId, cb){
 			//console.log('descending: ' + JSON.stringify(path))
+			_.assert(s.objectState.isTopLevelObject(path[0].edit.id))
+			
 			s.objectState.streamProperty(path, editId, cb)
 			return true
 		},

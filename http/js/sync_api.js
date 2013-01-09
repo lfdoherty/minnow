@@ -89,6 +89,17 @@ function on(eventName, cb){
 	if(this.onListeners[eventName] === undefined) this.onListeners[eventName] = []
 	this.onListeners[eventName].push(cb)
 }
+function onAny(cb){
+	_.assertFunction(cb)	
+	if(this.onListeners === undefined) this.onListeners = {}
+	if(this.onListeners.any === undefined) this.onListeners.any = []
+	if(this.onListeners.any.indexOf(cb) !== -1){
+		console.log('WARNING: on called for already-added listener')
+		return
+	}
+	this.onListeners.any.push(cb)
+}
+
 function off(eventName, cb){
 	if(arguments.length === 0){
 		this.onListeners = undefined
@@ -105,6 +116,24 @@ function off(eventName, cb){
 			listeners.splice(cb, 1)
 		}else{
 			this.log('WARNING: off called for eventName: ' + eventName + ', but listener function not found.')
+		}
+	}
+}
+
+function offAny(cb){
+	if(arguments.length === 0){
+		this.onListeners = undefined
+	}else{
+		if(this.onListeners === undefined){
+			this.log('WARNING: offAny called, but no listeners have ever been added.')
+			return
+		}
+		var listeners = this.onListeners.any
+		var ii = listeners.indexOf(cb)
+		if(ii !== -1){
+			listeners.splice(cb, 1)
+		}else{
+			this.log('WARNING: offAny called, but listener function not found.')
 		}
 	}
 }
@@ -140,6 +169,9 @@ function addRefreshFunctions(classPrototype){
 	if(classPrototype.once === undefined) classPrototype.once = once;
 	if(classPrototype.off === undefined) classPrototype.off = off;
 	if(classPrototype.emit === undefined) classPrototype.emit = emit;
+
+	if(classPrototype.onAny === undefined) classPrototype.onAny = onAny
+	if(classPrototype.offAny === undefined) classPrototype.offAny = offAny
 }
 
 function removeParent(p){
@@ -271,6 +303,8 @@ function setLocalMode(v){
 	this.parent.setLocalMode(v)
 }
 
+function getTopId(){return this.parent.getTopId();}
+
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
@@ -306,6 +340,8 @@ function addCommonFunctions(classPrototype){
 	classPrototype.toString = toString
 
 	if(classPrototype.setLocalMode === undefined) classPrototype.setLocalMode = setLocalMode
+
+	if(classPrototype.getTopId === undefined) classPrototype.getTopId = getTopId
 }
 
 

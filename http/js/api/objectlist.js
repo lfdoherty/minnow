@@ -210,9 +210,13 @@ ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit
 			this.emit(edit, 'addAfter', objHandle, beforeHandle)
 		}
 	}else if(op === editCodes.addedNewAfter){
-		var temporary = edit.temporary
-		var objHandle = this.wrapObject(temporary, edit.typeCode, [], this)
-		this.saveTemporaryForLookup(temporary, objHandle, this)
+		if(edit.temporary !== 0){
+			var temporary = edit.temporary
+			var objHandle = this.wrapObject(temporary, edit.typeCode, [], this)
+			this.saveTemporaryForLookup(temporary, objHandle, this)
+		}else{
+			var objHandle = this.wrapObject(edit.id, edit.typeCode, [], this)
+		}
 		
 		var beforeHandle = this.get(descendId);
 		if(beforeHandle === undefined){

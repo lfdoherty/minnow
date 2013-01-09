@@ -92,7 +92,7 @@ isRemoveCode[codes.removeString] = true
 isRemoveCode[codes.removeLong] = true
 isRemoveCode[codes.removeInt] = true
 isRemoveCode[codes.removeBoolean] = true
-isRemoveCode[codes.removeReal] = true
+//isRemoveCode[codes.removeReal] = true
 isRemoveCode[codes.remove] = true
 lookup.isRemoveCode = isRemoveCode
 
@@ -101,7 +101,7 @@ isPrimitiveRemoveCode[codes.removeString] = true
 isPrimitiveRemoveCode[codes.removeLong] = true
 isPrimitiveRemoveCode[codes.removeInt] = true
 isPrimitiveRemoveCode[codes.removeBoolean] = true
-isPrimitiveRemoveCode[codes.removeReal] = true
+//isPrimitiveRemoveCode[codes.removeReal] = true
 lookup.isPrimitiveRemoveCode = isPrimitiveRemoveCode
 
 var isPutCode = {}

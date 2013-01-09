@@ -167,12 +167,14 @@ function changeOnPath(local, path, op, edit, syncId, editId){
 		}
 	}else{
 		var currentHandle = descend(local, path)
-		_.assertObject(currentHandle)
 		
 		if(currentHandle === undefined){
 			local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
 			return
 		}
+
+		_.assertObject(currentHandle)
+
 		if(currentHandle === local){
 			console.log(local.uid + ' YY: ' + JSON.stringify(local.edits, null, 2))
 			_.errout(local.getEditingId()+ ' TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit))
@@ -420,6 +422,11 @@ TopObjectHandle.prototype.isa = ObjectHandle.prototype.isa
 TopObjectHandle.prototype.id = function(){
 	if(this.objectId < 0) throw new Error('cannot get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the id becomes available.')
 	return this.objectId;
+}
+TopObjectHandle.prototype.getTopId = TopObjectHandle.prototype.id
+TopObjectHandle.prototype.uid = function(){
+	if(this.objectId < 0) throw new Error('cannot get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the id becomes available.')
+	return ''+this.objectId;
 }
 TopObjectHandle.prototype._internalId = function(){
 	return this.objectId;
@@ -860,7 +867,7 @@ function descend(start, pathEdits){
 			//console.log('selecting property: ' + pe.edit.typeCode + ' ' + ch.rere + ' ' + ch.objectId + ' ' + JSON.stringify(pathEdits))
 			//console.log('ch: ' + oldCh.objectId)
 		}else if(pe.op === editCodes.selectObject || pe.op === editCodes.reselectObject){
-			//_.assert(pe.edit.id > 0)
+			_.assert(pe.edit.id !== 0)
 			if(ch.getObjectValue){//map descent
 				ch = ch.getObjectValue(pe.edit.id)
 				if(ch === undefined){

@@ -165,6 +165,7 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes[this.idCounter] = edit.typeCode
 
+	console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name)
 	return {id: this.idCounter, editId: editId}
 }
 
@@ -234,7 +235,7 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 		var ids = []
 		var has = {}
 
-		if(edits[1].op === editCodes.madeFork){
+		if(edits.length > 0 && edits[1].op === editCodes.madeFork){
 			ids.push(edits[1].edit.sourceId)
 			has[edits[1].edit.sourceId] = true
 		}
@@ -502,6 +503,7 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
 		this.objectTypeCodes[res.id] = edit.typeCode
+		console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
 	}else if(op === editCodes.addNewAt){
 		op = editCodes.addedNewAt
 		++this.idCounter

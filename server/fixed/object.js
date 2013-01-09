@@ -20,6 +20,10 @@ function sfgObject(s, id, editId, context){
 	
 	var listeners = listenerSet()
 
+	//console.log('context: ' + context.name)
+	if(context.name === 'top-level'){
+		_.assert(s.objectState.isTopLevelObject(id))
+	}
 	
 	var handle = {
 		name: 'object-fixed (' + context.name + ')',
@@ -47,6 +51,10 @@ function sfgObject(s, id, editId, context){
 		},
 		descend: function(path, editId, cb){
 			//console.log('&descend: ' + context.descend + ' ' + context.name)
+			if(path[0].edit.id !== id){
+				console.log('WARNING: tried to descend fixed object from different path')
+				return false
+			}
 			return context.descend(path, editId, cb)
 		},
 		getObjectId: function(){

@@ -90,6 +90,9 @@ exports.computeSharedObjectType = function(schema, objectNames){
 	}else{
 		var currentBase = objectNames[0]
 		var curSchema = schema[currentBase]
+		if(curSchema === undefined) _.errout('cannot find object type named: ' + currentBase)
+		_.assertDefined(curSchema)
+		
 		objectNames.slice(1).forEach(function(n){
 
 			var s = schema[n]

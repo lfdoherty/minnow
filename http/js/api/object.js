@@ -14,6 +14,7 @@ var editNames = lookup.names
 function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty){
 	_.assertFunction(parent.adjustPath)
 	
+	_.assert(objId !== 0)
 	_.assertNot(objId !== -1 && parent.isView())
 
 	if(typeSchema && !typeSchema.isView){
@@ -250,7 +251,11 @@ ObjectHandle.prototype.id = function(){
 ObjectHandle.prototype._internalId = function(){
 	return this.objectId;
 }
-
+ObjectHandle.prototype.uid = function(){
+	_.assertPrimitive(this.objectId);
+	_.assertDefined(this.objectId);
+	return this.parent.getTopId() + ':' + this.objectId;
+}
 ObjectHandle.prototype.propertyIsPrimitive = function(propertyName){
 	var pt = this.typeSchema.properties[propertyName];
 	return pt.type.type === 'primitive';
@@ -692,7 +697,11 @@ ObjectHandle.prototype.propertyByCode = function property(propertyCode){
 	//console.log('getting property: ' + propertyCode)
 	//console.log('type: ' + this.typeSchema.name)
 	//console.log(JSON.stringify(this.typeSchema.propertiesByCode))
-	var propertyName = this.typeSchema.propertiesByCode[propertyCode].name
+	var p = this.typeSchema.propertiesByCode[propertyCode]
+	if(p === undefined){
+		_.errout('cannot find property with code: ' + propertyCode)
+	}
+	var propertyName = p.name
 	var handle = this.property(propertyName)
 	_.assertObject(handle)
 	return handle

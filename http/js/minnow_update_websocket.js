@@ -181,6 +181,7 @@ function establishSocket(appName, schema, host, cb){
 				_.assertFunction(cb)
 				makeIdCbListeners[temporary] = cb
 			}
+			return []
 		},
 		forgetLastTemporary: function(){
 			//_.errout('TODO')
