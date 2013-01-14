@@ -75,7 +75,7 @@ exports.mapReduce = function(config, done){
 				var expected = {a: 37, b: 50, c: 21}
 				poll(function(){
 					if(c.oldestWithKey.size() === 3){
-						console.log(JSON.stringify(c.oldestWithKey.toJson()))
+						//console.log(JSON.stringify(c.oldestWithKey.toJson()))
 						var data = c.oldestWithKey.toJson()
 						var failed = false
 						_.each(data, function(age, key){
@@ -242,7 +242,7 @@ exports.mapMerge = function(config, done){
 			client.view('merged', function(err, c){
 
 				poll(function(){
-					console.log('many: ' + c.byKeys.count() + ' ' + JSON.stringify(c.toJson()))
+					//console.log('many: ' + c.byKeys.count() + ' ' + JSON.stringify(c.toJson()))
 					if(c.byKeys.count() === 4){
 						done()
 						return true
@@ -270,7 +270,7 @@ exports.zeroKey = function(config, done){
 			client.view('zeroCheck', function(err, c){
 
 				poll(function(){
-					console.log('many: ' + c.m.size() + ' ' + JSON.stringify(c.toJson()))
+					//console.log('many: ' + c.m.size() + ' ' + JSON.stringify(c.toJson()))
 					if(c.m.size() === 3){
 						done()
 						return true

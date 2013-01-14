@@ -58,7 +58,7 @@ function mapType(rel, ch){
 		ch.computeMacroType(rel.params[3], ch.bindingTypes, moreBinding)
 	}
 
-	console.log('map: ' + JSON.stringify([keyType,valueType]))
+	//console.log('map: ' + JSON.stringify([keyType,valueType]))
 	
 	_.assert(keyType.type !== 'set')
 	_.assert(keyType.type !== 'list')

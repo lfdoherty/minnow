@@ -78,7 +78,7 @@ ObjectSetHandle.prototype.changeListenerElevated = function(descendId, op, edit,
 			this.obj.splice(index, 1);
 
 			res.prepare()
-			console.log('removed: ' + res)
+			//console.log('removed: ' + res)
 			return this.emit(edit, 'remove', res)
 		}
 	}else{
@@ -98,7 +98,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		var addedObj = this.getObjectApi(edit.id)
 		if(addedObj === undefined) _.errout('cannot find added object: ' + edit.id)
 		if(this.obj.indexOf(addedObj) !== -1){
-			console.log('ignoring redundant add: ' + edit.id)
+			//console.log('ignoring redundant add: ' + edit.id)
 			return
 		}
 		this.obj.push(addedObj);

@@ -309,7 +309,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		if(value !== undefined && (!isView || value !== '')){
 			if(!counts[value]){
 				counts[value] = 1
-				console.log('result set adding: ' + value)
+				//console.log('result set adding: ' + value)
 				producingSet[value] = this._sourceSet
 				listeners.emitAdd(value, editId)
 				values.push(value)

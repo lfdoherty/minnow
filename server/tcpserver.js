@@ -326,7 +326,16 @@ function createTcpServer(appSchema, port, s, readyCb){
 			}
 		}
 		var conn
-				
+		
+		function reifyCb(temporary, id, syncId){
+			_.assert(temporary < 0)
+			_.assertInt(syncId)
+			var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
+			conn.reifications[temporary] = id
+			//console.log('storing reification ' + temporary + ' -> ' + id)
+			conn.w.reifyObject(msg);
+		}		
+		
 		//var lastAck = 0
 		var reader = {
 			increaseAck: function(e){
@@ -414,7 +423,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			},
 			originalConnection: function(){
 			
-				console.log('got original connection')
+				//console.log('got original connection')
 
 				conn = setupConnection()
 
@@ -517,13 +526,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 				var tg = getTemporaryGenerator(syncId)
 				//_.assertFunction(tg)
 				
-				function reifyCb(temporary, id){
-					_.assert(temporary < 0)
-					var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
-					conn.reifications[temporary] = id
-					//console.log('storing reification ' + temporary + ' -> ' + id)
-					conn.w.reifyObject(msg);
-				}
+				
 				if(op === editCodes.make || op === editCodes.makeFork){
 
 					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
@@ -545,21 +548,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 						_.assert(lastTemporaryId[syncId] < 0)
 						conn.w.objectMade(msg);
 					}
-				}/*else if(op === editCodes.makeFork){
-					//_.errout('TODO')
-					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
-					
-					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
-					conn.currentIdFor[syncId] = id//this works because make can be executed synchronously
-				
-					if(!e.edit.forget){
-						//_.assertInt(id);
-						conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
-						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
-						_.assert(lastTemporaryId[syncId] < 0)
-						conn.w.objectMade(msg);
-					}
-				}*/else{
+				}else{
 					if(currentId === undefined){
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getPath(), e.edit, syncId])
 						c.destroy()
@@ -638,9 +627,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 		}
 		
 		function cleanupClient(){
-			console.log('client closed')
+			//console.log('client closed')
 			if(isDead){
-				console.log('already closed')
+				//console.log('already closed')
 				return
 			}
 			c.isDead = true
@@ -661,7 +650,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		c.on('end', function(){
 			cleanupClient()
 			
-			console.log('server ending the connection stream')
+			//console.log('server ending the connection stream')
 			//console.log(new Error().stack)
 			
 			if(conn){
@@ -711,22 +700,22 @@ function createTcpServer(appSchema, port, s, readyCb){
 	});
 
 	tcpServer.on('close', function(){
-		console.log('TCP SERVER CLOSED')
+		//console.log('TCP SERVER CLOSED')
 	})
 	var serverHandle = {
 		close: function(cb){
-			console.log('minnow server manually closed tcp server')
+			//console.log('minnow server manually closed tcp server')
 			isClosed = true
 			
 			var cdl = _.latch(2, function(){
-				log('all closed')
+				//log('all closed')
 				cb()
 			})
 			tcpServer.on('close', function(){
-				log('tcp server closed')
+				//log('tcp server closed')
 				cdl()
 			})
-			console.log('closing tcp server: ', tcpServer.connections)
+			//console.log('closing tcp server: ', tcpServer.connections)
 			
 			//apparently you cannot close a server until you've destroyed all its connections
 			//even if those connections were closed remotely???
@@ -736,7 +725,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			})
 			tcpServer.close()
 			s.close(function(){
-				log('closed rest')
+				//log('closed rest')
 				cdl()
 			})
 		}

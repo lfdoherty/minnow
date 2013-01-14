@@ -433,7 +433,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 				var h = {
 					add: function(value, editId){
 						_.assertInt(editId)
-						console.log(relCode + ' got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
+						//console.log(relCode + ' got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
 						//console.log(new Error().stack)
 						_.assert(_.isString(value) || _.isInt(value))
 						_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id

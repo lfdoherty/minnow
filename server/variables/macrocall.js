@@ -44,7 +44,7 @@ exports.make = function(s, self, rel, typeBindings){
 		f.wrappers = mGetter.wrappers
 		f.getDescender = mGetter.getDescender
 		
-		console.log('zero macro params')
+		//console.log('zero macro params')
 		f.key = 'zeroparams'
 		return f
 	}

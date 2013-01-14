@@ -70,7 +70,7 @@ ObjectListHandle.prototype.adjustInto = function(id){
 
 ObjectListHandle.prototype.remove = function(objHandle){
 
-	console.log('**removing')
+	//console.log('**removing')
 
 	var id = objHandle._internalId()
 
@@ -83,7 +83,7 @@ ObjectListHandle.prototype.remove = function(objHandle){
 		var e = {}
 
 		this.adjustInto(id)
-		console.log('persisting remove')
+		//console.log('persisting remove')
 		this.persistEdit(editCodes.remove, e)
 
 		this.emit(e, 'remove', objHandle)

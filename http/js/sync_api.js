@@ -655,6 +655,8 @@ SyncApi.prototype.createFork = function(source, cb){
 	var temporary = this.makeTemporaryId()
 	
 	var edits = this.sh.makeFork(source, cb, temporary)
+	
+//	console.log('edits: ' + JSON.stringify(edits))
 
 	var oldHandle = this.objectApiCache[this.currentObjectId]
 	if(oldHandle){
@@ -722,7 +724,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	}
 	if(this.objectApiCache[oldCacheKey]){
 		var objApi = this.objectApiCache[newCacheKey] = this.objectApiCache[oldCacheKey];
-		delete this.objectApiCache[oldCacheKey];
+		//delete this.objectApiCache[oldCacheKey];
 		objApi.objectId = realId;
 		objApi.emit({}, 'reify', realId, temporaryId)//()
 		//console.log('reified specific object')

@@ -165,7 +165,7 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes[this.idCounter] = edit.typeCode
 
-	console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name)
+	//console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name)
 	return {id: this.idCounter, editId: editId}
 }
 
@@ -436,7 +436,7 @@ Ol.prototype.getVersions = function(id, cb){
 			var version = e.editId
 			if(has[version] === undefined){
 				has[version] = true
-				console.log('adding version: ' + JSON.stringify(e))
+				//console.log('adding version: ' + JSON.stringify(e))
 				versions.push(version)
 			}
 		}
@@ -503,7 +503,7 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
 		this.objectTypeCodes[res.id] = edit.typeCode
-		console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
+	//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
 	}else if(op === editCodes.addNewAt){
 		op = editCodes.addedNewAt
 		++this.idCounter

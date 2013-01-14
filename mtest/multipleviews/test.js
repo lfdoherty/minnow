@@ -26,7 +26,7 @@ exports.updateMadeObject = function(config, done){
 							done()
 							return true
 						}else{
-							console.log(JSON.stringify(bill.toJson()))
+							//console.log(JSON.stringify(bill.toJson()))
 						}
 					})
 

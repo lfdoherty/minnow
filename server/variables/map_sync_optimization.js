@@ -381,7 +381,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}
 		
 		}, function(live, editId){
-			console.log('*has streamed all initial object property values: ' + live + ' ' + editId)
+			//console.log('*has streamed all initial object property values: ' + live + ' ' + editId)
 			//if(editId === 1187) _.errout('TODO')
 			streamUpToDate = live
 			streamLast = editId

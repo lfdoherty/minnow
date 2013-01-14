@@ -92,7 +92,7 @@ exports.del = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1){
 						if(c.s.data.value('testKey') === 'testValueTwo'){
 							done()
@@ -302,9 +302,9 @@ exports.accessObjectKeys = function(config, done){
 				})*/
 				c.on('set', function(propertyName, objkeyer){
 					if(propertyName === 's'){
-						console.log('got keyer')
+						//console.log('got keyer')
 						objkeyer.members.on('put', function(key, value){
-							console.log('got put')
+							//console.log('got put')
 							if(value === 'testValue' && key.name.value() === 'bill'){
 								done()
 							}

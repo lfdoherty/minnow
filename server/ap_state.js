@@ -169,7 +169,7 @@ function make(schema, ol){
 		}else if(op === editCodes.makeFork){
 			if(e.sourceId < 0) e.sourceId = translateTemporary(e.sourceId, syncId)
 		}else if(op === editCodes.refork){
-			console.log('reforking: ' + e.sourceId)
+			//console.log('reforking: ' + e.sourceId)
 			if(e.sourceId < 0) e.sourceId = translateTemporary(e.sourceId, syncId)
 		}else if(op === editCodes.putExisting){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
@@ -244,20 +244,20 @@ function make(schema, ol){
 		if(op === editCodes.putNew){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
-			if(reifyCb) reifyCb(temporary, newId)
+			if(reifyCb) reifyCb(temporary, newId, syncId)
 		}else if(op === editCodes.setToNew){
 			e.id = newId
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
-			if(reifyCb) reifyCb(temporary, newId)
+			if(reifyCb) reifyCb(temporary, newId, syncId)
 		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt || op === editCodes.addNewAfter){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
-			if(reifyCb) reifyCb(temporary, newId)
+			if(reifyCb) reifyCb(temporary, newId, syncId)
 		}else if(op === editCodes.setToNew){
 			var temporary = computeTemporary()
 			e.id = newId
-			if(reifyCb) reifyCb(temporary, newId)
+			if(reifyCb) reifyCb(temporary, newId, syncId)
 		}
 			
 		//log(editId, id, path, op, edit, syncId)

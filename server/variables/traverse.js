@@ -70,14 +70,14 @@ function traverseMaker(s, self, rel, typeBindings){
 	var implicits = macroParam.implicits
 	_.assertArray(implicits)
 	var inputType = inputParams[0].schemaType
-	console.log('adding implicits: ' + JSON.stringify(implicits.slice(0, inputParams.length)))
-	console.log('before: ' + JSON.stringify(newTypeBindings))
+	//console.log('adding implicits: ' + JSON.stringify(implicits.slice(0, inputParams.length)))
+	//console.log('before: ' + JSON.stringify(newTypeBindings))
 	for(var i=0;i<inputParams.length;++i){
 		_.assertUndefined(newTypeBindings[implicits[i]])
 		newTypeBindings[implicits[i]] = inputType
 		paramGetters.push(self(inputParams[i], typeBindings))
 	}
-	console.log(JSON.stringify([implicits, newTypeBindings]))
+	//console.log(JSON.stringify([implicits, newTypeBindings]))
 	var exprGetter = self(macroParam, newTypeBindings)
 	
 	var depthGetter

@@ -11,7 +11,7 @@ exports.basicFork = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					console.log(c.e._isFork + ' ' + c)
+					//console.log(c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
 						return true
@@ -191,7 +191,7 @@ exports.changeOriginalAfterRefork = function(config, done){
 			
 				poll(function(){
 					if(c.has('e')){
-						console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
+						//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 						if(c.e.name.value() === 'blue'){
 							console.log('INVALID CHANGE HAPPENED')
 							done.fail()
@@ -302,7 +302,7 @@ exports.preforkedQuery = function(config, done){
 			client.view('forkQueryPreforked', function(err, c){
 			
 				poll(function(){
-					console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
+					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() !== 'purpled' && c.e.reallyAFork.value()){
 						done()
 						return true
@@ -317,6 +317,32 @@ exports.preforkedQuery = function(config, done){
 					})
 				})
 				
+			})
+		})
+	})
+}
+
+exports.forkWithLocalEdits = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('empty', function(err, c){
+	
+				var ev = c.make('entity', {name: 'original'})
+				var nc = c.make('container')
+				nc.objs.add(ev)
+
+				var n = nc.fork()
+
+				//setTimeout(function(){
+
+					if(!n.objs.has(ev)){
+						done.fail('fork did not bring over object property')
+						return
+					}
+			
+					done()
+				
+				//},200)
 			})
 		})
 	})

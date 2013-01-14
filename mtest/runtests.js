@@ -25,8 +25,8 @@ console.log = function(msg){
 	}
 	++count
 	old(msg)
-}
-*/
+}*/
+
 
 var oldMakeClient = minnow.makeClient
 var oldMakeServer = minnow.makeServer
@@ -227,7 +227,7 @@ function moreCont(doneCb){
 					}catch(e){
 					}
 				})
-			},200)
+			},0)
 			clearTimeout(timeoutHandle)
 			var ii = inProgress.indexOf(t)
 			inProgress.splice(ii, 1)

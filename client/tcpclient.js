@@ -411,7 +411,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	var increaseAckHandle
 	
 	function setupBasedOnSchema(schema){
-		log('setting up')
+		//log('setting up')
 		
 		handle.schema = schema
 		
@@ -441,10 +441,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	}
 	
 	function startFlusher(){
-		flushIntervalHandle = setInterval(doFlush, 20)
+		flushIntervalHandle = setInterval(doFlush, 10)
 	}
 
-	console.log('sent original connection')
+	//console.log('sent original connection')
 	w.originalConnection({})
 	w.flush()
 	
@@ -569,7 +569,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 
 				e.requestId = makeRequestId();
 				syncReadyCallbacks[e.requestId] = cb;
-				console.log('tcpclient e.params: ', e.params + ' ' + syncId)
+				//console.log('tcpclient e.params: ', e.params + ' ' + syncId)
 
 				w.beginView(e);
 			},

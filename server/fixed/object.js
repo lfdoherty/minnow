@@ -22,7 +22,10 @@ function sfgObject(s, id, editId, context){
 
 	//console.log('context: ' + context.name)
 	if(context.name === 'top-level'){
-		_.assert(s.objectState.isTopLevelObject(id))
+		if(!s.objectState.isTopLevelObject(id)){
+			_.errout('top-level id is not a top-level object: ' + id)
+		}
+		//_.assert(s.objectState.isTopLevelObject(id))
 	}
 	
 	var handle = {

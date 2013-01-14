@@ -45,7 +45,7 @@ exports.wrapped = function(config, done){
 						var d;
 						//console.log('got 1')
 						c.s.each(function(dd){d = dd;})
-						console.log(': ' + JSON.stringify(c.toJson()))
+						//console.log(': ' + JSON.stringify(c.toJson()))
 						if(d.v && d.v.value() === 'test'){
 							done()
 							return true
@@ -88,7 +88,7 @@ exports.wrappedRemoval = function(config, done){
 						var cont = c.make('container', {members: [obj]})
 						
 						setTimeout(function(){
-							console.log('removing')
+							//console.log('removing')
 							cont.members.remove(obj)
 						},500)
 					})

@@ -126,7 +126,7 @@ exports.longConnection = function(config, done){
 			
 				handle.objects.on('add', function(){
 					++madeCount
-					console.log('got: ' + madeCount)
+					//console.log('got: ' + madeCount)
 					if(N === madeCount){
 						setTimeout(function(){
 							if(handle.objects.size() !== N){

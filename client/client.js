@@ -314,7 +314,7 @@ function makeClient(host, port, clientCb){
 		
 		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
 			_.assertFunction(cb)
-			console.log(uid + ' getting view ' + type + JSON.stringify(params))
+			//console.log(uid + ' getting view ' + type + JSON.stringify(params))
 			//_.assert(errorListeners.length > 0)
 			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(err){
 				if(err){
@@ -322,12 +322,12 @@ function makeClient(host, port, clientCb){
 						throw err
 					}
 					//console.log('getView error in client: ' + err)
-					console.log('view "' + type + '" load failed with error: ' + err)
+					//console.log('view "' + type + '" load failed with error: ' + err)
 					cb(err)
 					return
 				}
 				var viewId = st.code+':'+JSON.stringify(params)
-				log('calling back with view: ' + viewId + '+++++++++++++++++++++')
+				//log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
 				if(cb.length === 1){
 					cb(api.getView(viewId))

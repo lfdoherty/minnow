@@ -182,7 +182,9 @@ function generatePropertyConverter(p, dbSchema){
 					}else{
 						//_.assertString(value.type)
 						//_.errout('TODO addNew')
+						if(value.type === undefined) _.errout('no type defined: ' + JSON.stringify(value))
 						var objSchema = dbSchema[value.type]
+						if(objSchema === undefined) _.errout('cannot find type: ' + value.type)
 						var temporary = makeTemporaryId();
 						edits.push({op: editCodes.addNew, edit: {typeCode: objSchema.code, temporary: temporary}})
 						var moreEdits = convertJsonToEdits(dbSchema, value.type, value, makeTemporaryId)

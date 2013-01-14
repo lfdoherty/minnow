@@ -104,7 +104,7 @@ TopObjectHandle.prototype.locally = function(f){
 
 TopObjectHandle.prototype._acceptForkChange = function(op, edit, syncId, editId, path){
 	//TODO handle path switchover
-	console.log('MAINTAINING FORK: ' + op + ' ' + JSON.stringify(edit))
+	//console.log('MAINTAINING FORK: ' + op + ' ' + JSON.stringify(edit))
 	if(op === editCodes.refork){
 		var manyToRemove = 0
 		for(var i=0;i<this.edits.length;++i){
@@ -119,12 +119,12 @@ TopObjectHandle.prototype._acceptForkChange = function(op, edit, syncId, editId,
 			
 		this._rebuild()
 		//_.errout('TODO forked reforked')
-		console.log('forked refork complete: ' + this)
+		//console.log('forked refork complete: ' + this)
 	}else{
 		this.prepare()
 		changeOnPath(this, path, op, edit, syncId, editId)
 		this.special = this._gg
-		console.log(this.special + ' after fork update: ' + this)
+		//console.log(this.special + ' after fork update: ' + this)
 	}
 	//local.changeListener(op, edit, syncId, editId, false, true)
 	//_.errout('TODO')
@@ -269,14 +269,16 @@ TopObjectHandle.prototype._getVersions = function(path){
 }
 
 TopObjectHandle.prototype._getEdits = function(){
-	return [].concat(this.edits)
+	var res = [].concat(this.edits)
+	if(this.localEdits) res = res.concat(this.localEdits)
+	return res
 }
 
 TopObjectHandle.prototype.fork = function fork(cb){
 
 	var res = this.parent.createFork(this, cb)
 	res.prepare();
-	console.log('forked: ' + res)
+	//console.log('forked: ' + res)
 	return res;
 }
 
@@ -526,6 +528,9 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 
 	this.currentSyncId = this.getEditingId()
 	
+	if(!this.localEdits) this.localEdits = []
+	this.localEdits.push({op: op, edit: edit})
+	
 	this.parent.persistEdit(this.getObjectTypeCode(), this.getObjectId(), op, edit)
 }
 
@@ -769,7 +774,10 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, is
 	_.assertInt(op)
 	_.assertObject(edit)
 	_.assertInt(syncId)
-	_.assertInt(editId)
+	
+	if(!isNotExternal){
+		_.assertInt(editId)
+	}
 	
 	if(!this.prepared){
 		this.prepare()//TODO optimize by appending edit if not prepared, applying if prepared?
@@ -783,6 +791,10 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, is
 	if(!isNotExternal){
 		//console.log('is external')
 		this.edits.push({op: op, edit: edit, editId: editId})
+		
+		if(this.localEdits && this.getEditingId() === syncId){
+			this.localEdits.shift()
+		}
 	}
 	
 	/*if(!this.prepared){
@@ -802,7 +814,7 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, is
 			fl._acceptForkChange(op, edit, syncId, editId, local.pathEdits || [])
 		})
 	}else if(this._forkListeners){
-		console.log('ignoring because of did: ' + op)
+		//console.log('ignoring because of did: ' + op)
 	}
 	
 	if(op === editCodes.revert){
@@ -812,7 +824,7 @@ TopObjectHandle.prototype.changeListener = function(op, edit, syncId, editId, is
 	}else if(op === editCodes.refork){
 		//_.assert(this._forkedObject)
 		_.assertInt(edit.sourceId)
-		if(!this._forkedObject || this._forkedObject.id() !== edit.sourceId){
+		if(!this._forkedObject || this._forkedObject._internalId() !== edit.sourceId){
 			//_.errout('TODO')
 			this._applyRefork(edit.sourceId)
 			
