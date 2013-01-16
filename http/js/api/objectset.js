@@ -110,6 +110,7 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		_.assertInt(id)
 
 		var res = this.wrapObject(id, edit.typeCode, [], this)
+		if(res === undefined) _.errout('failed to wrap object: ' + id)
 		this.obj.push(res)
 		res.prepare()
 		return this.emit(edit, 'add', res, editId)
@@ -184,6 +185,8 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 
 	var n = this._makeAndSaveNew(json, type)
 	
+	if(n === undefined) _.errout('failed to addNew')
+		
 	this.emit({}, 'add', n)
 	this.obj.push(n)
 

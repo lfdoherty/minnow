@@ -136,6 +136,8 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 		var newParams = []
 		expr.params.forEach(function(p, index){
 			_.assertDefined(p)
+			//console.log('replacing references for param: ' + JSON.stringify(p))
+			//console.log(new Error().stack)
 			var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
 			if(!gm) _.assert(np.type !== 'partial-application')
 		})
@@ -372,36 +374,76 @@ function makeMergeTypes(schema){
 			types.forEach(function(t){
 				if(t.type !== 'object') _.errout('cannot merge types: ' + JSON.stringify(types))
 			})
-			var obj = types[0].object
-			var objSchema = schema[obj]
 			
-			types.forEach(function(t){
-				var otherObjSchema = schema[t.object]
+			try{
+				var obj = types[0].object
+				var objSchema = schema[obj]
+			
+				types.forEach(function(t){
+					var otherObjSchema = schema[t.object]
 				
-				if(!otherObjSchema) _.errout('no schema found: ' + t.object)
-
-				/*if(!otherObjSchema) return
-				if(objSchema === undefined){
-					objSchema = otherObjSchema
-					obj = t.object
-					return
-				}*/
+					if(!otherObjSchema) _.errout('no schema found: ' + t.object)
 				
-				if(otherObjSchema !== objSchema){
-					if(otherObjSchema.superTypes && otherObjSchema.superTypes[obj]){
-						return
-					}else if(objSchema.superTypes && objSchema.superTypes[t.object]){
-						obj = t.object
-						objSchema = otherObjSchema
-					}else{
-						console.log(JSON.stringify(objSchema))
-						console.log(JSON.stringify(otherObjSchema))
-						_.errout('cannot merge types: ' + JSON.stringify(types))
+					if(otherObjSchema !== objSchema){
+						if(otherObjSchema.superTypes && otherObjSchema.superTypes[obj]){
+							return
+						}else if(objSchema.superTypes && objSchema.superTypes[t.object]){
+							obj = t.object
+							objSchema = otherObjSchema
+						}else{
+							console.log(JSON.stringify(objSchema))
+							console.log(JSON.stringify(otherObjSchema))
+							//_.errout('cannot merge types: ' + JSON.stringify(types))
+							throw new Error()
+						}
 					}
+				})			
+				//_.errout('TODO: ' + JSON.stringify(types))
+				return {type: 'object', object: obj}
+			}catch(e){			
+				var all = []
+				types.forEach(function(t){
+					var sch = schema[t.object]
+					if(all.indexOf(sch) === -1){
+						all.push(sch)
+					}
+					//allNames = allNames.concat(Object.keys(sch.superTypes||{}))
+					Object.keys(sch.superTypes||{}).forEach(function(k){
+						var os = schema[k]
+						if(all.indexOf(os) === -1){
+							all.push(os)
+						}
+					})
+				})
+				all.sort(function(a,b){
+					if(a.superTypes && a.superTypes[b.name]) return 1
+					if(b.superTypes && b.superTypes[a.name]) return -1
+					return 0
+				})
+				
+				var last
+				while(all.length > 1){
+					var sf = all[0]
+					//var sn = all[1]
+					/*if(sn.superTypes && sn.superTypes[sf.name]){
+						all.shift()
+					}else{
+						break;
+					}*/
+					var failed
+					for(var i=1;i<all.length;++i){
+						var sn = all[i]
+						if(!sn.superTypes || !sn.superTypes[sf.name]){
+							failed = true
+						}
+					}
+					if(failed) break;
+					last = all.shift()
 				}
-			})			
-			//_.errout('TODO: ' + JSON.stringify(types))
-			return {type: 'object', object: obj}
+				//console.log('last: ' + last.name)
+				if(last) return {type: 'object', object: last.name}
+				_.errout(JSON.stringify(_.map(all,function(v){return v.name})))
+			}
 		}else{
 			_.errout('TODO: ' + JSON.stringify(types))
 		}

@@ -405,7 +405,8 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 					prop.splice(i, 1)
 					cb(prop, editId)
 				}else{
-					_.errout('TODO: ' + JSON.stringify([op, edit]))
+					//_.errout('TODO: ' + JSON.stringify([op, edit]))
+					console.log('WARNING: tried to remove element from property that does not contain it: ' + id)
 				}
 			}else if(editFp.isPrimitiveRemoveCode[op]){
 				var i = prop.indexOf(edit.value)

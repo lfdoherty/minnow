@@ -400,8 +400,11 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 	if(op === editCodes.putAddExisting){
 		//_.errout('TODO')
 		if(this.obj[key] === undefined) this.obj[key] = []
-		this.obj[key].push(edit.id)
-		return this.emit(edit, 'put-add')//, key, value, editId)
+		var arr = this.obj[key]
+		if(arr.indexOf(edit.id) === -1){//TODO ensure this never happens
+			arr.push(edit.id)
+			this.emit(edit, 'put-add')
+		}
 	}else if(lookup.isPutAddCode[op]){//op.indexOf('putAdd') === 0){
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.value)

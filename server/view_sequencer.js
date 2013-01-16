@@ -332,7 +332,7 @@ function filterInclusions(op, edit, editId, includeObjectCb){
 	//console.log('filtering:', op,edit)
 
 	if(_.isInt(edit.id)){//for view objects, we require that the constructing variables correctly include them
-		if(op === editCodes.addExisting || op === editCodes.setObject || op === editCodes.putExisting || op === editCodes.addAfter){
+		if(op === editCodes.addExisting || op === editCodes.setObject || op === editCodes.putExisting || op === editCodes.addAfter || op === editCodes.putAddExisting){
 			
 			includeObjectCb(edit.id, editId)
 		}

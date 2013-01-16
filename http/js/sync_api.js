@@ -431,7 +431,7 @@ SyncApi.prototype.hasView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
-	//console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
+	console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
