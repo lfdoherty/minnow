@@ -107,6 +107,7 @@ function Ol(schema){
 	this.idsByType = {}
 	this.objectTypeCodes = {}
 	this.destroyed = {}
+	this.lastEditId = {}
 	
 	this.schema = schema
 	
@@ -141,6 +142,7 @@ function Ol(schema){
 		}
 	})
 }
+
 Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	++this.stats.make
@@ -164,7 +166,8 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes[this.idCounter] = edit.typeCode
-
+	this.lastEditId[this.idCounter] = editId
+	
 	//console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name)
 	return {id: this.idCounter, editId: editId}
 }
@@ -216,6 +219,8 @@ Ol.prototype._makeFork = function make(edit, timestamp, syncId){
 
 	
 	this.forks[id] = edit.sourceId
+
+	this.lastEditId[this.idCounter] = editId
 
 	return {id: this.idCounter, editId: editId}
 }
@@ -293,6 +298,11 @@ Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optim
 
 	++this.stats.getAsBuffer
 
+	if(startEditId === -1 && endEditId >= this.lastEditId[id]){
+		var buf = this.olc.getBinary(id)
+		cb(buf)
+		return
+	}
 	var w = fparse.makeSingleBufferWriter(100)
 	var did = this.olc.serializeBinaryRange(id, startEditId, endEditId, w)
 	var buf = w.finish()
@@ -544,6 +554,8 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 
 	//console.log('op now: ' + op)
 	this.olc.addEdit(id, {op: op, edit: edit, editId: res.editId})
+
+	this.lastEditId[id] = res.editId
 	
 	return res
 
@@ -553,6 +565,10 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 	_.assertLength(arguments, 6)
 	_.assert(id >= 0)
 	
+	if(startEditId > 0 && startEditId === endEditId){
+		endCb()
+		return
+	}
 	//if(this.destroyed[id]) _.errout('object has been destroyed: ' + id)
 	
 	if(already[id]){

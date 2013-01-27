@@ -15,6 +15,7 @@ VariableListeners.prototype.add = function(listener){
 	_.assertObject(listener)
 	_.assertFunction(listener.includeView)
 	_.assertFunction(listener.removeView)
+	_.assertNot(this.isDestroyed)
 	
 	_.assert(this.listeners.indexOf(listener) === -1)
 	if(listener instanceof VariableListeners) _.errout('err')
@@ -23,7 +24,7 @@ VariableListeners.prototype.add = function(listener){
 	var cvi = this.cachedViewIncludes
 	Object.keys(cvi).forEach(function(key){
 		var e = cvi[key]
-		listener.includeView(key, e.handle, e.editId)
+		listener.includeView(key, e.f, e.editId)
 	})
 
 	//console.log('adding listener ' + this.rr)
@@ -33,6 +34,7 @@ VariableListeners.prototype.add = function(listener){
 }
 VariableListeners.prototype.remove = function(listener){
 	_.assertObject(listener)
+	_.assertNot(this.isDestroyed)
 
 	//console.log('removing listener ' + this.rr)
 	//console.log(new Error().stack)
@@ -50,24 +52,25 @@ VariableListeners.prototype.remove = function(listener){
 		listener.removeView(key, e.handle, e.editId)
 	})
 }
-VariableListeners.prototype.emitIncludeView = function(viewId, handle, editId){
+VariableListeners.prototype.emitIncludeView = function(viewId, f, editId){
+	_.assertFunction(f)
 	//if(this.listeners.length === 0) _.errout('no this.listeners')
 	_.assertUndefined(this.cachedViewIncludes[viewId])
-	this.cachedViewIncludes[viewId] = {handle: handle, editId: editId}
+	this.cachedViewIncludes[viewId] = {f: f, editId: editId}
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
 		//console.log('calling listener add: ' + listener.add)
-		listener.includeView(viewId, handle, editId)
+		listener.includeView(viewId, f, editId)
 	}
 }
-VariableListeners.prototype.emitRemoveView = function(viewId, handle, editId){
+VariableListeners.prototype.emitRemoveView = function(viewId, f, editId){
 	//if(this.listeners.length === 0) console.log('no this.listeners')
 	_.assertDefined(this.cachedViewIncludes[viewId])
 	delete this.cachedViewIncludes[viewId]
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
 		//console.log('calling listener add: ' + listener.add)
-		listener.removeView(viewId, handle, editId)
+		listener.removeView(viewId, f, editId)
 	}
 }
 VariableListeners.prototype.emitAdd = function(value, editId){
@@ -161,3 +164,10 @@ VariableListeners.prototype.many = function(){
 	return this.listeners.length;
 }
 
+VariableListeners.prototype.destroyed = function(){
+	this.isDestroyed = true
+	this.cachedViewIncludes = undefined
+	if(this.listeners.length > 0){
+		console.log('WARNING: listeners exist for variable being destroyed')
+	}
+}

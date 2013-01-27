@@ -199,7 +199,8 @@ exports.make = function(){
 			var frame = handle.getBinary(id)
 			//_.errout('TODO: ' + startEditId + ' ' + endEditId)
 			//deserializePartOfFrame(frame, startEditId, endEditId) 
-			
+			if(startEditId > 0 && endEditId > 0) _.assert(startEditId < endEditId)
+			//console.log('sbr: ' + startEditId + ', ' + endEditId)
 			var edits = deserializeFrame(frame)
 			var actual = []
 			for(var i=0;i<edits.length;++i){

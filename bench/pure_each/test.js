@@ -1,5 +1,5 @@
 /* 
-	Time to beat (N,K,T ms): (500000,2,65963)
+	Time to beat (N,K,T ms): (500000,2,57997)
 */
 
 var N = 500000

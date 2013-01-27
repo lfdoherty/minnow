@@ -56,6 +56,8 @@ function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 	var count = 0;
 	var currentCount = 0;
 	
+	var elementsListener
+	
 	var handle = {
 		name: 'general-count',
 		attach: function(listener, editId){
@@ -69,7 +71,12 @@ function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 				listener.set(0, currentCount, editId)
 			}
 		},
-		oldest: oldest
+		oldest: oldest,
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	var currentOldest = elements.oldest()
@@ -102,7 +109,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 	}
 	//console.log(JSON.stringify(rel.params[0].schemaType))
 	if(rel.params[0].schemaType.type === 'map'){
-		elements.attach({
+		elementsListener = {
 			put: function(key, value, oldValue, editId){
 				_.assertDefined(value)
 				if(oldValue === undefined){
@@ -115,9 +122,9 @@ function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 				reportCountChangeEventually(editId)
 			},
 			objectChange: stub
-		}, editId)
+		}
 	}else{
-		elements.attach({
+		elementsListener = {
 			add: function(value, editId){
 				++count
 				//console.log('count increased: ' + count)
@@ -133,8 +140,10 @@ function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 			objectChange: stub,
 			includeView: stub,
 			removeView: stub
-		}, editId)
+		}
 	}
+
+	elements.attach(elementsListener, editId)
 		
 	return cache.store(key, handle)
 }
@@ -150,11 +159,12 @@ function svgTypeCount(s, cache, typeCode, bindings, editId){
 	var currentCount = count
 	
 	var will = false
+	var timeoutHandle
 	function reportCountChangeEventually(editId){
 		if(will) return
 		will = true
 		currentOldest = editId-1
-		setTimeout(reportCountChange, 10);
+		timeoutHandle = setTimeout(reportCountChange, 10);
 	}
 	function reportCountChange(){
 		will = false;
@@ -193,7 +203,16 @@ function svgTypeCount(s, cache, typeCode, bindings, editId){
 				listener.set(0, count, editId)
 			}
 		},
-		oldest: oldest
+		oldest: oldest,
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			if(will){
+				clearTimeout(timeoutHandle)
+			}
+			s.broadcaster.stopListeningForNew(typeCode, listenCreated)
+			s.broadcaster.stopListeningForDeleted(typeCode, listenDeleted)
+			listeners.destroyed()
+		}
 	}
 	function oldest(){
 		if(!will){

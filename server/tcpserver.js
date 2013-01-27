@@ -229,11 +229,13 @@ function createTcpServer(appSchema, port, s, readyCb){
 		
 			var w = wfs.fs
 		
-			wfs.beginFrame()
+			//wfs.beginFrame()
 			w.flush = function(){
 				//if(wfs.hasWritten()){
+				if(wfs.shouldWriteFrame()){
 					wfs.endFrame()
-					wfs.beginFrame()
+					//wfs.beginFrame()
+				}
 				//}
 			}
 			w.end = function(){}
@@ -334,17 +336,25 @@ function createTcpServer(appSchema, port, s, readyCb){
 			conn.reifications[temporary] = id
 			//console.log('storing reification ' + temporary + ' -> ' + id)
 			conn.w.reifyObject(msg);
-		}		
+		}	
+		
+		function increaseAck(frameCount){
+			//console.log('server got ack: ' + frameCount)
+			if(frameCount > conn.lastAck){
+				conn.wfs.discardReplayableFrames(frameCount - conn.lastAck)
+				conn.lastAck = frameCount
+			}
+		}	
 		
 		//var lastAck = 0
 		var reader = {
-			increaseAck: function(e){
+			/*increaseAck: function(e){
 				//console.log(e.frameCount + ' -> ' + conn.lastAck)
 				if(e.frameCount > conn.lastAck){
 					conn.wfs.discardReplayableFrames(e.frameCount - conn.lastAck)
 					conn.lastAck = e.frameCount
 				}
-			},
+			},*/
 			reconnect: function(e){
 				if(isDead) throw new Error('tried to reconnect via dead client?')
 				
@@ -411,7 +421,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 						c: c
 					}
 					var wfs = fparse.makeReplayableWriteStream(shared.serverResponses, wHandle)
-					wfs.beginFrame()
+					//wfs.beginFrame()
 					wfs.fs.reconnectExpired()
 					wfs.endFrame()
 					//wfs.end()
@@ -474,28 +484,24 @@ function createTcpServer(appSchema, port, s, readyCb){
 
 				var op = e.op
 				e.edit = fp.readersByCode[op](r)
-				
 				var syncId = e.syncId
 				
-				//log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit:', e)
-				//console.log('(', currentId, ') tcpserver got client(', syncId, ') request persistEdit ' + editNames[e.op] + ':', e)
-				//console.log('*path: ' + JSON.stringify(pathFromClientFor[syncId]))
+				var pu = conn.pathFromClientFor[syncId]
+				
 				if(op === editCodes.selectTopObject){
 					if(conn.currentIdFor[syncId] === e.edit.id){
 						console.log('WARNING: redundant selectTopObject edit?')//I'm not sure if this is really the case
 					}
-					//_.assert(e.edit.id > 0)
 					if(e.edit.id < 0){
 						var realId = conn.reifications[e.edit.id]
 						_.assertInt(realId)
 						_.assert(realId > 0)
 						conn.currentIdFor[syncId] = realId
-						//console.log('reifying: ' + e.edit.id + ' ' + JSON.stringify(reifications))
 						_.assert(conn.currentIdFor[syncId] > 0)
 					}else{
 						conn.currentIdFor[syncId] = e.edit.id
 					}
-					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
+					if(pu) pu.reset()
 					return
 				}else if(op === editCodes.selectTopViewObject){
 					_.errout('cannot modify view objects directly')
@@ -503,46 +509,32 @@ function createTcpServer(appSchema, port, s, readyCb){
 				
 				var currentId = conn.currentIdFor[syncId]
 
-				var pu = conn.pathFromClientFor[syncId]
 				if(pu === undefined){
 					pu = conn.pathFromClientFor[syncId] = pathsplicer.make([])
 				}
-				var wasPathUpdate = pu.update(e)
 				
+				var wasPathUpdate = pu.update(e)
 				if(wasPathUpdate){
-					//log.info('processed path update: ', e)
-					//log.info('path now: ', pu.getPath())
-					//console.log(syncId+' path(' + currentId+') now: ', pu.getPath())
 					_.assert(currentId > 0)
-
 					s.updatePath(currentId, pu.getPath(), syncId)
-					
 					return
 				}
 				
 				if(op === editCodes.make || op === editCodes.makeFork) currentId = -1
-				//_.assertInt(currentId)
 
 				var tg = getTemporaryGenerator(syncId)
-				//_.assertFunction(tg)
-				
 				
 				if(op === editCodes.make || op === editCodes.makeFork){
 
-					if(conn.pathFromClientFor[syncId]) conn.pathFromClientFor[syncId].reset()
+					if(pu) pu.reset()
 					
 					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
-					
-					//console.log('made: ' + id, ' now current id for: ' + syncId + ' ' + lastTemporaryId[syncId])
 					
 					_.assertInt(id)
 
 					conn.currentIdFor[syncId] = id//this works because make can be executed synchronously
-					
-					//console.log('last temporary id(' + syncId + '): ' + tg)
 				
 					if(!e.edit.forget){
-						//_.assertInt(id);
 						conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
 						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
 						_.assert(lastTemporaryId[syncId] < 0)
@@ -661,11 +653,12 @@ function createTcpServer(appSchema, port, s, readyCb){
 
 		var deser;
 		c.on('connect', function(){
-			deser = fparse.makeReadStream(shared.clientRequests, reader)			
+			deser = fparse.makeReadStream(shared.clientRequests, reader, increaseAck)			
 		})
 		
 		function startAck(deser, c){
 			//last = last || 0
+			//console.log('started ack')
 			conn.ackHandle = setInterval(function(){
 				if(!conn) return
 				
@@ -673,7 +666,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 				
 				var v = deser.getFrameCount() + conn.outgoingAckHistory
 				if(v > conn.lastOutgoingAck){
-					conn.w.increaseAck({frameCount: v})
+					//conn.w.increaseAck({frameCount: v})
+					conn.wfs.writeAck(v)
 					//console.log('server increased ack: ' + v + ' -> ' + conn.lastOutgoingAck + ' (' + deser.getFrameCount() + ' ' +conn.outgoingAckHistory+')')
 					conn.lastOutgoingAck = v
 				}else{

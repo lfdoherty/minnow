@@ -263,50 +263,7 @@ exports.make = function(s, self, rel, typeBindings){
 
 		var listeners = listenerSet()
 		
-		var handle = {
-			name: 'each-subset-optimization',
-			attach: function(listener, editId){
-				_.assertInt(editId)
-				listeners.add(listener)
-				for(var i=0;i<ids.length;++i){
-					var id = ids[i]
-					listener.add(id, editId)
-				}
-			},
-			detach: function(listener, editId){
-				listeners.remove(listener)
-				if(editId){
-					for(var i=0;i<ids.length;++i){
-						var id = ids[i]
-						listener.remove(id, editId)
-					}
-				}
-			},
-			oldest: oldest,
-			key: key,
-			descend: function(path, editId, cb, continueListening){//same as typeset
-				if(s.objectState.isTopLevelObject(path[0].edit.id)){
-					s.objectState.streamProperty(path, editId, cb, continueListening)
-					return true
-				}
-				return false
-			}/*,
-			descendTypes: function(path, editId, cb, continueListening){
-				s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
-				return true
-			},
-			getType: function(v){
-				//_.errout('TODO')
-				if(s.objectState.isTopLevelObject(v)){
-					return s.objectState.getObjectType(v)
-				}else{
-					//return elements.getType(v)
-					//_.errout('TODO?: ' + v)
-					//_.errout('ERROR: this should never happen - each_subset_optimization does not descend below the top level')
-					//return false
-				}
-			}*/
-		}
+		
 		
 		//_.errout('TODO here')
 		
@@ -314,7 +271,7 @@ exports.make = function(s, self, rel, typeBindings){
 		var streamLast = -1
 		//stream *all* property values for the input set
 		//console.log('setting up object streaming')
-		s.objectState.streamAllPropertyValues(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
+		var stopFunction = s.objectState.streamAllPropertyValues(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 			var singleResult = wrapper(bindingWrappers, propertyValueMap)
 			if(singleResult){
@@ -346,6 +303,40 @@ exports.make = function(s, self, rel, typeBindings){
 				listeners.emitRemove(id, editId)
 			}			
 		})
+		
+		var handle = {
+			name: 'each-subset-optimization',
+			attach: function(listener, editId){
+				_.assertInt(editId)
+				listeners.add(listener)
+				for(var i=0;i<ids.length;++i){
+					var id = ids[i]
+					listener.add(id, editId)
+				}
+			},
+			detach: function(listener, editId){
+				listeners.remove(listener)
+				if(editId){
+					for(var i=0;i<ids.length;++i){
+						var id = ids[i]
+						listener.remove(id, editId)
+					}
+				}
+			},
+			oldest: oldest,
+			key: key,
+			descend: function(path, editId, cb, continueListening){//same as typeset
+				if(s.objectState.isTopLevelObject(path[0].edit.id)){
+					s.objectState.streamProperty(path, editId, cb, continueListening)
+					return true
+				}
+				return false
+			},
+			destroy: function(){
+				listeners.destroyed()
+				stopFunction()
+			}
+		}
 		
 		//return handle;
 		return cache.store(key, handle)

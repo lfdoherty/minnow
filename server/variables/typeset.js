@@ -99,7 +99,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			s.objectState.streamProperty(path, editId, cb, continueListening)
 			return true
 		},
-		descendTypes: function(path, editId, cb, continueListening){
+		/*descendTypes: function(path, editId, cb, continueListening){
 			if(!s.objectState.isTopLevelObject(path[0].edit.id)) return false
 			s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
 			return true
@@ -107,7 +107,27 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		getType: function(v){
 			if(!s.objectState.isTopLevelObject(v)) return
 			return s.objectState.getObjectType(v)
+		}*/
+		destroy: function(){
+			s.getAllSubtypes(typeCode).forEach(function(objSchema){
+				//console.log('listening for new')
+				s.broadcaster.stopListeningForNew(objSchema.code, listenCreated)
+				s.broadcaster.stopListeningForDeleted(objSchema.code, listenDeleted)
+			})		
+			listeners.destroyed()	
 		}
+	}
+
+	function listenCreated(typeCode, id, editId){
+		idList.push(id)
+		//console.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
+		
+		listeners.emitAdd(id, editId)
+	}
+	function listenDeleted(typeCode, id, editId){
+		//console.log('got deleted: ' + id)
+		idList.splice(idList.indexOf(id), 1)
+		listeners.emitRemove(id, editId)
 	}
 
 	s.objectState.getAllIdsOfType(typeCode, function(ids){
@@ -116,17 +136,6 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		//s.log('TYPE got all ids', ids)
 		//console.log('TYPE(' + typeCode + ') got all ids', ids)
 		
-		function listenCreated(typeCode, id, editId){
-			idList.push(id)
-			//console.log('type emitting created: ' + typeCode + ' ' + id + ' ' + editId)
-			
-			listeners.emitAdd(id, editId)
-		}
-		function listenDeleted(typeCode, id, editId){
-			//console.log('got deleted: ' + id)
-			idList.splice(idList.indexOf(id), 1)
-			listeners.emitRemove(id, editId)
-		}
 		
 		s.getAllSubtypes(typeCode).forEach(function(objSchema){
 			//console.log('listening for new')

@@ -18,6 +18,7 @@ Cache.prototype.get = function(key){
 Cache.prototype.store = function(key, value){
 	_.assertFunction(value.attach)
 	//_.assertFunction(value.detach)
+	this.analytics.varName = value.name
 
 	this.analytics.cachePut()
 	
@@ -26,11 +27,20 @@ Cache.prototype.store = function(key, value){
 	var oldDetach = value.detach
 	var oldAttach = value.attach
 	var count = 0
+	
+	var local = this
 	value.attach = function(listener, editId){
+		if(timingOut){
+			//console.log('rescued cached variable')
+			local.analytics.cacheRescue()
+		}
 		var res = oldAttach(listener, editId)
 		++count
 		return res
 	}
+	
+	var timingOut = false
+	
 	var local = this
 	value.detach = function(listener, editId){
 		//console.log('here: ' + oldDetach)
@@ -38,8 +48,19 @@ Cache.prototype.store = function(key, value){
 		--count
 		if(count === 0){//TODO wait a bit, see if anyone uses it?
 			//console.log('zeroed, evicting')
-			local.analytics.cacheEvict()
-			delete cache[key]//de-cache
+			if(timingOut) return
+			timingOut = true
+			setTimeout(function(){
+				
+				if(count !== 0) return
+				
+				local.analytics.cacheEvict()
+
+				if(!value.destroy) _.errout('missing destroy method: ' + value.name)
+				value.destroy()
+
+				delete cache[key]//de-cache
+			},5000)
 		}
 	}
 	return value;

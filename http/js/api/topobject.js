@@ -875,6 +875,10 @@ function descend(start, pathEdits){
 		if(pe.op === editCodes.selectProperty || pe.op === editCodes.reselectProperty){
 			var oldCh = ch
 			ch = ch.propertyByCode(pe.edit.typeCode)
+			if(!ch){
+				console.log('warning: cannot descend, property not found: ' + pe.edit.typeCode)
+				return
+			}
 			_.assertObject(ch)
 			//console.log('selecting property: ' + pe.edit.typeCode + ' ' + ch.rere + ' ' + ch.objectId + ' ' + JSON.stringify(pathEdits))
 			//console.log('ch: ' + oldCh.objectId)

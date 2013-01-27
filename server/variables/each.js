@@ -191,7 +191,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		return oldestEditId
 	}
 	
-	elements.attach({
+	var elementsListener = {
 		add: function(v, editId){
 			//console.log('adding: ' + v)
 			var newBindings = copyBindings(bindings)
@@ -214,7 +214,8 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 	
 	var handle = {
 		name: 'each-multiple (' + elements.name+')',
@@ -245,18 +246,22 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		},
 		oldest: oldest,
 		key: key,
-		/*getType: function(v){
-			if(elements.getType === undefined) _.errout('missing getType: ' + elements.name)
-			return elements.getType(v)
-		},*/
 		descend: function(path, editId, cb){
 			//_.errout('TODO: ' + JSON.stringify(path) + ' ' + elements.name + ' ' + JSON.stringify(bindings))
 			return elements.descend(path, editId, cb)
-		}/*,
-		descendTypes: function(path, editId, cb){
-			//_.errout('TODO: ' + JSON.stringify(path) + ' ' + elements.name + ' ' + JSON.stringify(bindings))
-			return elements.descendTypes(path, editId, cb)
-		}*/
+		},
+		getTopParent: function(id){
+			return elements.getTopParent(id)
+		},
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = handle.destroy = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			Object.keys(allSets).forEach(function(k){
+				var set = allSets[k]
+				set.detach(resultSetListener)
+			})
+			listeners.destroyed()
+		}
 	}
 		
 	return cache.store(key, handle)
@@ -265,9 +270,6 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 
 function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, bindings, editId){
 	var elements = contextGetter(bindings, editId)
-
-	//if(!_.isFunction(elements.getType))_.errout('no getType: ' + elements.name)
-	//if(!_.isFunction(elements.descendTypes)) _.errout('no descendTypes: ' + elements.name)
 
 	var concreteGetter = exprGetter(bindings, editId)
 	
@@ -282,15 +284,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 	
 	var producingSet = {}
 
-	//var cachedObjectChanges = []
-
 	var vi = viewInclude.make(listeners)
-	
-	//console.log('name: ' + elements.name)
-	//_.assertFunction(elements.descend)
-	
-	//var should = {}
-	//var shouldCounts = {}
 
 	//TODO extract to top-level
 	function ResultSetListener(sourceSet){
@@ -332,17 +326,19 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		return oldestEditId
 	}
 	
-	elements.attach({
+	var elementsListener = {
 		add: function(v, editId){
 			var newBindings = copyBindings(bindings)
 			//console.log(JSON.stringify(Object.keys(elements)))
 			//s.log('key: ' + elements.key + ' ' + v + ' ' + editId)
 			//console.log('attach: ' + elements.attach)
 			//console.log('add')
+			//console.log('adding each id: ' + v)
 			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId, elements)
 			if(ss.isType) throw new Error('is type')
 			var newSet = concreteGetter(newBindings, editId)
 			//console.log('attaching to: ' + newSet.name)
+			_.assertUndefined(allSets[v])
 			allSets[v] = newSet
 			newSet.resultSetListener = new ResultSetListener(newSet)
 			_.assertFunction(newSet.resultSetListener.set)
@@ -350,23 +346,25 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		},
 		remove: function(v, editId){
 			var removedSet = allSets[v]
-			//console.log('remove &&&& ' + removedSet.detach)
+			delete allSets[v]
+			removedSet.blah = true
 			removedSet.detach(removedSet.resultSetListener, editId)
 		},
 		objectChange: stub,//ignore object changes - that's the result set listener's job?
-		includeView: vi.includeView,//listeners.emitIncludeView.bind(listeners),
-		removeView: vi.includeView//listeners.emitRemoveView.bind(listeners)
-	}, editId)
+		includeView: vi.includeView,
+		removeView: vi.includeView
+	}
+	elements.attach(elementsListener, editId)
 	
 	function descend(path, editId, cb){
 		//call the correct newSet's descend method based on the root object of the path
 		var id = path[0].edit.id
 		_.assertInt(id)
-		//var set = allSets[id]
+
 		var ps = producingSet[id]
 		if(ps === undefined){
-			console.log('known ids: ' + JSON.stringify(Object.keys(allSets)))
-			console.log('WARNING: each does not know id: ' + path[0].edit.id)
+			//console.log('known ids: ' + JSON.stringify(Object.keys(allSets)))
+			//console.log('WARNING: each does not know id: ' + path[0].edit.id)
 			return
 			//_.errout('error, tried to descend into unknown object path: ' + JSON.stringify(path))
 		}
@@ -377,14 +375,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		name: 'each-single',
 		attach: function(listener, editId){
 			listeners.add(listener)
-			//console.log('attached to each: ' + JSON.stringify(s.outputType))
-			//_.assertFunction(listener.shouldHaveObject)
-			/*if(cachedObjectChanges.length > 0) _.assertFunction(listener.objectChange)
 
-			//console.log('sending cached to attached: ' + cachedObjectChanges.length)
-			cachedObjectChanges.forEach(function(v){
-				listener.objectChange.apply(undefined, v)
-			})*/
 			vi.include(listener, editId)
 			
 			values.forEach(function(v){listener.add(v, editId)})
@@ -398,8 +389,27 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			}
 		},
 		descend: descend,
+		getTopParent: function(id){
+			var ps = producingSet[id]
+			if(ps === undefined){
+				return
+			}
+			if(!ps.getTopParent) _.errout('no getTopParent: ' + ps.name)
+			return ps.getTopParent(id)
+		},
 		oldest: oldest,
-		key: key
+		key: key,
+		destroy: function(){
+			handle.oldest = handle.attach = handle.detach = handle.destroy = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			Object.keys(allSets).forEach(function(k){
+				var set = allSets[k]
+				if(set.blah) _.errout('blah!')
+				set.detach(set.resultSetListener)
+			})
+			allSets = undefined
+			listeners.destroyed()
+		}
 	}
 		
 	return cache.store(key, handle)

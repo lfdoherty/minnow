@@ -146,7 +146,7 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 
 	var state = multiValues
 
-	elements.attach({
+	var elementsListener = {
 		add: function(v, editId){
 			//console.log('ADDED: ' + v)
 			
@@ -237,11 +237,13 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 			var r = allSets[v]
 			r.key.detach(r.keyListener, editId)
 			r.value.detach(r.valueListener, editId)
+			delete allSets[v]
 		},
 		objectChange: stub,
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 
 	
 	var handle = {
@@ -263,7 +265,17 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = handle.destroy = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			Object.keys(allSets).forEach(function(k){
+				var r = allSets[k]
+				r.key.detach(r.keyListener)
+				r.value.detach(r.valueListener)
+			})
+			listeners.destroyed()
+		}
 	}
 		
 	return cache.store(key, handle)
@@ -307,7 +319,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 
 	var state = multiValues
 
-	elements.attach({
+	var elementsListener = {
 		add: function(inputSetValue, editId){
 			var newBindingsKey = copyBindings(bindings)
 			var newBindingsValue = copyBindings(bindings)
@@ -378,6 +390,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 					if(multiCounts[kvk] === 0){
 						delete multiCounts[kvk]
 						multiValues[k].splice(multiValues[k].indexOf(v), 1)
+						//console.log('multimap emitting putRemove: ' + editId)
 						listeners.emitPutRemove(k, v, editId)
 					}
 				}
@@ -410,7 +423,9 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 		objectChange: stub,
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	
+	elements.attach(elementsListener, editId)
 
 	var handle = {
 		name: 'multimap-multivalue',
@@ -440,7 +455,17 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 			}
 		},
 		oldest: oldest,
-		key: key
+		key: key,
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = handle.destroy = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			Object.keys(allSets).forEach(function(k){
+				var r = allSets[k]
+				r.key.detach(r.keyListener)
+				r.value.detach(r.valueListener)
+			})
+			listeners.destroyed()
+		}
 	}
 		
 	return cache.store(key, handle)

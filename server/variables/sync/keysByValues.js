@@ -33,7 +33,7 @@ exports.compute = function(paramValues){
 		resultKeys.push(kv[0])
 	})
 	
-	log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
+	//log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
 	
 	return resultKeys
 }

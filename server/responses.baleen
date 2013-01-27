@@ -75,5 +75,5 @@ requestError 13
 	requestId int 2
 	code string 3
 
-increaseAck 12
-	frameCount int 1
+/*increaseAck 12
+	frameCount int 1*/

@@ -19,6 +19,7 @@ function MapHandle(typeSchema, obj, part, parent){
 
 	this.keyOp = u.getKeyOperator(this.schema)
 	this.keyReOp = u.getKeyReOperator(this.schema)
+	this.checkKeyType = u.makeKeyTypeChecker(this.schema)
 	
 	if(this.schema.type.value.type === 'primitive'){
 		this.putOp = u.getPutOperator(this.schema)
@@ -36,6 +37,7 @@ function MapHandle(typeSchema, obj, part, parent){
 		}
 		this.toggle = this.toggle.bind(this)
 	}
+	
 }
 
 MapHandle.prototype.types = function(){
@@ -201,7 +203,10 @@ MapHandle.prototype.put = function(newKey, newValue){
 	}
 	_.assertPrimitive(newKey)
 
+	this.checkKeyType(newKey)
+
 	if(this.obj[newKey] === newValue) return
+
 
 	this.adjustPathLocal(newKey)
 	

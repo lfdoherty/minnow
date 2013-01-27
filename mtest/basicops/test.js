@@ -520,6 +520,7 @@ exports.booleanSetTest = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('booleanSetTest', ['sue'], function(err, c){
 				poll(function(){
+					console.log(JSON.stringify(c.toJson()))
 					if(c.truth.size() === 2){
 						var set = c.truth.toJson()
 						//console.log('got size')

@@ -60,6 +60,11 @@ function sfgObject(s, id, editId, context){
 			}
 			return context.descend(path, editId, cb)
 		},
+		getTopParent: function(id){
+			if(!context.getTopParent) _.errout('missing getTopParent: ' + context.name)
+			if(s.objectState.isTopLevelObject(id)) return id
+			return context.getTopParent(id)
+		},
 		getObjectId: function(){
 			return id
 		},

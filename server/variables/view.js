@@ -268,8 +268,8 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 							_.assertPrimitive(value)
 							var edit = {id: value}
 							//console.log('got put-remove: ' + key + ' ' + value)
-							listener.objectChange(viewTypeCode, viewId, 
-								[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
+							listener.objectChange(viewTypeCode, viewId,
+								[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}],
 								editCodes.putRemoveExisting, edit, -1, editId)
 						},
 						objectChange: listener.objectChange.bind(listener),
@@ -525,14 +525,23 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 	_.assertString(paramKeysStr)
 	var key = typeCode+':'+paramKeysStr
 	//log('*************VIEW KEY: ' + key + ' ' + editId)
-	if(cache.has(key)) return cache.get(key)
+	//if(cache.has(key)) return cache.get(key)
 
 	var listeners = listenerSet()
+	
+	var relDestroyed = false
 	
 	var rels = {}
 	Object.keys(relSetGetters).forEach(function(relCode){
 		//console.log('view getting rel: '+relCode)
-		rels[relCode] = relSetGetters[relCode](localBindings, editId)
+		var rel = relSetGetters[relCode](localBindings, editId)
+		var oldDestroy = rel.destroy
+		rel.destroy = function(){
+			//console.log(new Error().stack)
+			relDestroyed = true
+			oldDestroy()
+		}
+		rels[relCode] = rel
 		//console.log('res: ' + rels[relCode])
 		_.assertFunction(rels[relCode].attach)
 	})
@@ -550,7 +559,10 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			Object.keys(cachedViewIncludes).forEach(function(key){
 				listener.includeView(key, cachedViewIncludes[key], editId)
 			})
-			listener.includeView(key, handle, editId)
+			function f(editId){
+				return internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKeysStr, localBindings, editId)
+			}
+			listener.includeView(key, f, editId)
 			listener.set(key, undefined, editId)
 			
 		},
@@ -560,20 +572,20 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			//console.log('including: ' + key)
 			
 			var wrapper = _.extend({}, listener)
-			wrapper.includeView = function(viewId, handle, editId){
+			wrapper.includeView = function(viewId, f, editId){
 				//console.log('including view?: ' + viewId)
 				if(viewCounts[viewId] === undefined){
 				//	console.log('caching view id: ' + viewId)
-					cachedViewIncludes[viewId] = handle
+					cachedViewIncludes[viewId] = f
 					viewCounts[viewId] = 0
-					listener.includeView(viewId, handle, editId)
+					listener.includeView(viewId, f, editId)
 				}
 				++viewCounts[viewId]
 			}
-			wrapper.removeView = function(viewId, handle, editId){
+			wrapper.removeView = function(viewId, f, editId){
 				--viewCounts[viewId]
 				if(viewCounts[viewId] === 0){
-					listener.removeView(viewId, handle, editId)
+					listener.removeView(viewId, f, editId)
 					delete cachedViewIncludes[viewId]
 					delete viewCounts[viewId]
 				}
@@ -590,8 +602,8 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			return listener[ourDetachKey] = function(editId){
 				if(alreadyDid) _.errout('detached more than once: ' + key)
 				alreadyDid = true
+				//console.log('detaching rels')
 				detachers.forEach(function(d){
-					//console.log('d: ' + d)
 					d(editId);
 				})
 			}
@@ -601,9 +613,15 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 			if(editId){
 				listener.set(undefined, key, editId)
 			}
+			Object.keys(cachedViewIncludes).forEach(function(key){
+				listener.removeView(key, cachedViewIncludes[key], editId)
+			})
 			listener.removeView(key, handle, editId)
 		},
 		oldest: function(){
+			if(relDestroyed){
+				_.errout('rel has been destroyed')
+			}
 			var old = s.objectState.getCurrentEditId();
 			function reduceOldest(v){
 				var oldValue = v.oldest()
@@ -623,9 +641,15 @@ function internalView(s, cache, relSetGetters, typeCode, attachRelFuncs, paramKe
 		getPropertyValue: function(elem, propertyCode, cb){//for primitives only
 			var rel = rels[propertyCode]
 			cb(rel.getValues())
+		},
+		destroy: function(){
+		//	_.errout('TODO: destroy')
+			handle.attach = handle.oldest = handle.detach = handle.include = handle.destroy = function(){_.errout('destroyed');}
 		}
 	}
 	
-	return cache.store(key, handle)
+	//TODO cannot cache this until we have a reasonable way to trigger eviction
+	
+	return handle//cache.store(key, handle)
 }
 

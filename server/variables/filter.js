@@ -64,7 +64,7 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		return old
 	}
 	
-	inputValue.attach({
+	var inputListener = {
 		set: function(v, oldV, editId){
 			value = v
 			//console.log('set ' + v + ', passed: ' + passed)
@@ -75,9 +75,11 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
 	
-	passedValue.attach({
+	inputValue.attach(inputListener, editId)
+	
+	var passedListener = {
 		set: function(newPassed, oldPassed, editId){
 			_.assertNot(_.isInt(newPassed))
 			//_.assertBoolean(newPassed)
@@ -99,10 +101,12 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		removeView: function(){
 			_.errout('TODO')
 		}
-	},editId)
+	}
+	
+	passedValue.attach(passedListener,editId)
 	
 	var handle = {
-		name: 'filter',
+		name: 'filter (' + inputValue.name + ')',
 		attach: function(listener, editId){
 			listeners.add(listener)
 			if(passed && value !== undefined) listener.set(value, undefined, editId)
@@ -115,7 +119,15 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		descend: inputValue.descend
+		descend: inputValue.descend,
+		getTopParent: inputValue.getTopParent,
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = handle.destroy = function(){_.errout('destroyed');}
+			
+			passedValue.detach(passedListener)
+			inputValue.detach(inputListener)
+			listeners.destroyed()
+		}
 	}
 		
 	return cache.store(key, handle)

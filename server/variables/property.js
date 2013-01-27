@@ -36,6 +36,8 @@ function propertyType(rel, ch){
 	if(st.type === 'object'){
 		if(propertyName === 'id'){
 			return {type: 'primitive', primitive: 'int'}
+		}else if(propertyName === 'uid'){
+			return {type: 'primitive', primitive: 'string'}
 		}else if(propertyName === 'creationSession'){
 			return {type: 'primitive', primitive: 'int'}
 		}else{
@@ -192,7 +194,53 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 						listener.set(-1, value, editId)
 					}
 				},
-				oldest: context.oldest
+				oldest: context.oldest,
+				key: context.key
+				
+			}
+			return handle
+		}
+		f.wrapAsSet = function(v, editId){
+			return fixedPrimitive.make(s)(v, editId)
+		}
+		return f
+	}else if(rel.params[0].value === 'uid'){
+		var f = function(bindings, editId){
+			var context = contextGetter(bindings, editId)
+			if(!context.getTopParent) _.errout('no getTopParent: ' + context.name)
+			//_.assertFunction(context.getTopParent)
+			//console.log('context: ' + JSON.stringify(Object.keys(context)))
+			s.analytics.cachePut()
+			
+			var listeners = listenerSet()
+			var value
+			context.attach({
+				set: function(v, oldV, editId){
+					value = s.objectState.isTopLevelObject(v)?v+'':context.getTopParent(v)+':'+v
+					listeners.emitSet(value, oldV||'', editId)
+				},
+				includeView: function(){
+					_.errout('TODO')
+				},
+				removeView: function(){
+					_.errout('TODO')
+				}
+			}, editId)
+			var handle = {
+				name: 'object-property-handle?',
+				attach: function(listener, editId){
+					listeners.add(listener)
+					if(value !== undefined) listener.set(value, '', editId)
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId){
+						listener.set('', value, editId)
+					}
+				},
+				oldest: context.oldest,
+				key: context.key
+				
 			}
 			return handle
 		}
@@ -241,7 +289,8 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 						listener.set(undefined, value, editId)
 					}
 				},
-				oldest: context.oldest
+				oldest: context.oldest,
+				key: context.key
 			}
 			return handle
 		}
@@ -417,47 +466,7 @@ function svgMapValues(s, cache, contextGetter, isObjectProperty, propertyCode, b
 				}
 			}
 		},
-		descendTypes: function(path, editId, cb, continueListening){
-			//TODO if object is top, just go that way, otherwise junk it and use the key for the path?
-			var id = path[0].edit.id
-			if(s.objectState.isTopLevelObject(id)){
-				//_.errout('TODO?')
-				s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
-				return true
-			}else{
-				//_.errout('TODO?: ' + JSON.stringify(path))
-				var key = keyForValue[id]
-				if(key === undefined){
-					//console.log('no value for id: ' + id)
-					cb(undefined, editId)
-				}else{
-					//_.assertDefined(key)
-					var np = [
-						{op: editCodes.selectObject, edit: {id: rootId}},
-						{op: editCodes.selectProperty, edit: {typeCode: propertyCode}},
-						//{op: 'selectKey', edit: {key: key}}
-						{op: editCodes.selectObject, edit: {id: id}}
-						]
-					_.assert(path.length >= 2)
-					np = np.concat(path.slice(1))
-					//console.log('descending map-values: ' + JSON.stringify(np))
-					return elements.descendTypes(np, editId, function(pv, editId){
-						//console.log('descent result: ' + JSON.stringify(pv))
-						cb(pv, editId)
-					}, continueListening)
-				}
-			}
-		},
-		getType: function(v){
-			//_.errout('TODO')
-			if(!isObjectProperty) _.errout('internal error')
-			var res = oldTypeGetter(v)
-			if(res === undefined){
-				console.log('map-values cannot find type of id: ' + v)
-				//return
-			}
-			return res
-		}
+		getTopParent: function(){return element.getTopParent(rootId);}
 	}
 	
 	elements.attach({
@@ -647,6 +656,8 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		else return oldestEditId
 	}
 	
+	var elementsListener
+	
 	var handle = {
 		name: 'property-of-object',
 		attach: function(listener, editId){
@@ -674,7 +685,12 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		getTopParent: elements.getTopParent,
+		destroy: function(){
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 
 	if(isObjectProperty){
@@ -690,23 +706,17 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
-		handle.descendTypes = function(path, editId, cb){
-			//_.errout('TODO')
-			_.assertInt(path[0].edit.id)
-			var id = innerLookup[path[0].edit.id]
-			if(id === undefined){
-				return false
-			}
-			//_.assertInt(id)
-			//console.log('got id: ' + path[0].edit.id + ' <- ' + id)
-			return elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
-				.concat(path), editId, cb)
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			var upId = innerLookup[id]
+			_.assertInt(upId)
+			return elements.getTopParent(upId)
 		}
 	}
 	
 	var uid = Math.random()
 	
-	elements.attach({
+	elementsListener = {
 		set: function(id, oldId, editId){
 			if(ongoingEditId === undefined) ongoingEditId = editId
 			latestEditId = editId
@@ -756,7 +766,9 @@ function svgObjectSingleValue(s, cache, contextGetter, isObjectProperty, propert
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	
+	elements.attach(elementsListener, editId)
 	
 	return cache.store(key, handle)
 }
@@ -772,9 +784,11 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 	//console.log('making object collection variable: ' + key)
 	
 	var listeners = listenerSet()
+	var elementsListener
 
 	var values = []
 	var counts = {}
+	
 	
 	var ongoingEditId
 	var latestEditId
@@ -808,7 +822,12 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		destroy: function(){
+			elements.detach(elementsListener)
+			listeners.destroyed()
+			handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+		}
 	}
 	//TODO listen for changes
 	
@@ -825,12 +844,19 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			var upId = innerLookup[id]
+			if(!elements.getTopParent) _.errout('missing getTopParent: ' + elements.name)
+			return elements.getTopParent(upId)
+		}
 	}
 	
 	var oldPv
 	
 	var previousStreamListener
-	elements.attach({
+	
+	elementsListener = {
 		set: function(id, oldId, editId){
 			if(ongoingEditId === undefined) ongoingEditId = editId
 			latestEditId = editId
@@ -906,7 +932,8 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 	
 	return cache.store(key, handle)
 }
@@ -955,17 +982,13 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}/*,
-		getType: function(v){
-			//_.errout('TODO')
-			if(!isObjectProperty) _.errout('internal error')
-			var res = oldTypeGetter(v)
-			if(res === undefined){
-				//console.log('property-of-object-map cannot find type of id: ' + v)
-				//return
-			}
-			return res
-		}*/
+		descend: function(){_.errout('TODO?')},
+		getTopParent: elements.getTopParent,
+		destroy: function(){
+			elements.detach(elementsListener)
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			listeners.destroyed()
+		}
 	}
 	
 	if(isObjectProperty){
@@ -980,22 +1003,16 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
-		/*handle.descendTypes = function(path, editId, cb){
-			_.assertEqual(path[0].op, editCodes.selectObject)
-			var id = currentId
-			if(id === undefined){
-				s.log(JSON.stringify(innerLookup))
-				_.errout('tried to descend into unknown id: ' + path[0].edit.id)
-			}
-			return elements.descendTypes([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
-				.concat(path), editId, cb)
-		}*/
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			return elements.getTopParent(currentId)
+		}
 	}
 	
 	var oldTypeGetter
 	
 	var previousStreamListener
-	elements.attach({
+	var elementsListener = {
 		set: function(id, oldId, editId){
 			if(ongoingEditId === undefined) ongoingEditId = editId
 			latestEditId = editId
@@ -1057,7 +1074,8 @@ function svgObjectSingleMapValue(s, cache, contextGetter, isObjectProperty, prop
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 	
 	return cache.store(key, handle)
 }
@@ -1122,30 +1140,12 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		key: key,
 		descend: function(){
 			_.errout('TODO?')
-		}/*,
-		descendTypes: function(){
-			_.errout('TODO?')
 		},
-		getType: function(v){
-			//_.errout('TODO?: ' + v)
-			if(!isObjectProperty) _.errout('internal error')
-			
-			//return oldTypeGetter(v)
-			var res
-			for(var i=0;i<oldTypeGetters.length;++i){
-				res = oldTypeGetters[i](v, true)
-				if(res) break;
-			}
-			if(res === undefined){
-				res = elements.getType(v)
-			}
-			if(res === undefined){
-				//console.log('object-set-single-value-property cannot find type of id: ' + v + ' ' + oldTypeGetters.length + ' ' + JSON.stringify(innerLookup))//JSON.stringify(oldTypeGetters))
-				//_.errout('TOO HIGH')
-				//return
-			}
-			return res
-		}*/
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	if(isObjectProperty){
@@ -1168,9 +1168,14 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 				editId, 
 				cb)
 		}
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			var upId = innerLookup[id]
+			return elements.getTopParent(upId)
+		}
 	}
 	
-	elements.attach({
+	var elementsListener = {
 		add: function(id, outerEditId){
 			wait(outerEditId)
 			
@@ -1244,7 +1249,8 @@ function svgObjectSetSingleValue(s, cache, contextGetter, isObjectProperty, prop
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 	
 	return cache.store(key, handle)
 }
@@ -1302,9 +1308,12 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}//,
-		//descendTypes: function(){_.errout('TODO?')},
-	//	getType: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	if(isObjectProperty){
@@ -1316,9 +1325,14 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			var upId = innerLookup[id]
+			return elements.getTopParent(upId)
+		}
 	}
 	
-	elements.attach({
+	var elementsListener = {
 		add: function(id, outerEditId){
 			wait(outerEditId)
 			//s.log('got add ^@#@#@#@#@#@#@#@#@#@#: ', id, ' ', editId, ' ', propertyCode)
@@ -1407,7 +1421,8 @@ function svgObjectSetMapValue(s, cache, contextGetter, isObjectProperty, propert
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 	
 	return cache.store(key, handle)
 }
@@ -1424,6 +1439,7 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 	var pvCounts = {}
 	var ongoingEditIds = {}
 	
+	var elementsListener
 	
 	function wait(editId){
 		ongoingEditIds[editId] = 1 + (ongoingEditIds[editId] || 0)
@@ -1459,7 +1475,11 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		},
 		oldest: oldest,
 		key: key,
-		descend: function(){_.errout('TODO?')}
+		descend: function(){_.errout('TODO?')},
+		destroy: function(){
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	
@@ -1477,11 +1497,16 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 			return elements.descend([{op: editCodes.selectObject, edit: {id: id}}, {op: editCodes.selectProperty, edit: {typeCode: propertyCode}}]
 				.concat(path), editId, cb)
 		}
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			var upId = innerLookup[id]
+			return elements.getTopParent(upId)
+		}
 	}
 	
 	//var uid = Math.random()
 	
-	elements.attach({
+	elementsListener = {
 		add: function(id, outerEditId){
 			wait(outerEditId)
 			
@@ -1572,7 +1597,8 @@ function svgObjectSetCollectionValue(s, cache, contextGetter, isObjectProperty, 
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 	
 	return cache.store(key, handle)
 }

@@ -545,8 +545,10 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	var n = this._makeAndSaveNew(json, type)
 	_.assertObject(n)
 	
-	this.emit({}, 'add', n)
 	this.obj.push(n)
+	this.emit({}, 'add', n)
+	
+	//console.log('addNew done')
 
 	return n
 }

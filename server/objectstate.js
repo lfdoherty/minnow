@@ -853,7 +853,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 			
 			var outstandingEditCount = 0
 			var isListening = false
-
+			var dead = false
+			
 			var isPc = {}
 			for(var i=0;i<propertyCodes.length;++i){
 				isPc[propertyCodes[i]] = true
@@ -893,7 +894,6 @@ exports.make = function(schema, ap, broadcaster, ol){
 			}
 			function eventListener(typeCode, id, path, op, edit, syncId, editId){
 				
-				
 				//console.log('op: ' + op)
 				if(op === editCodes.destroy){
 					destroyedCb(id, editId)
@@ -902,13 +902,25 @@ exports.make = function(schema, ap, broadcaster, ol){
 				
 				updateSelf(id, editId)
 			}
+			var hasStartedBroadcastListening = false
+			
 			ol.getAllObjectsOfTypeIncludingForked(objTypeCode, function(id, res){
 				computeMap(id, res, attachmentEditId, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)				
 			}, function(){
 				//console.log('got all objects of type')
-				liveCb(true)				
+				if(dead) return
+				
+				liveCb(true)
+				hasStartedBroadcastListening = true			
 				broadcaster.output.listenByType(objTypeCode, eventListener)
 			})
+			
+			return function stopListening(){
+				dead = true
+				if(hasStartedBroadcastListening){
+					broadcaster.output.stopListeningByType(objTypeCode, eventListener)
+				}
+			}
 		},
 		streamAllPropertyValuesForSet: function(objTypeCode, propertyCodes, attachmentEditId, cb, liveCb, destroyedCb){
 
@@ -946,7 +958,10 @@ exports.make = function(schema, ap, broadcaster, ol){
 					--outstandingEditCount
 
 					if(ids[id]){
-						computeMap(id, res, undefined, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)
+						computeMap(id, res, undefined, function(id, map, resultEditId){
+							//console.log('editIdes: ' + editId + ' ' + resultEditId)
+							cb(id, map, resultEditId > editId?resultEditId:editId)//TODO is this right?
+						}, destroyedCb, ol, objSchema, propertyCodes, isPc)
 					}
 					
 					if(outstandingEditCount === 0){
@@ -971,13 +986,16 @@ exports.make = function(schema, ap, broadcaster, ol){
 					process.nextTick(function(){//wait a bit so edits can happen, to avoid unnecessary thrashing of property states (especially during the initial make transactoin)
 						ol.getAllIncludingForked(id, function(res){
 							if(!adding[id]) return
-							delete adding[id]
+							adding[id] = false
 							ids[id] = true
 							--outstandingEditCount
 							if(ids[id]){
-								computeMap(id, res, editId, cb, destroyedCb, ol, objSchema, propertyCodes, isPc)
+								computeMap(id, res, editId, function(id, map, resultEditId){
+									cb(id, map, resultEditId > editId?resultEditId:editId)//TODO is this right?
+								}, destroyedCb, ol, objSchema, propertyCodes, isPc)
 							}
 							if(outstandingEditCount === 0){
+								//adding = undefined
 								liveCb(true)
 							}
 						})
@@ -987,21 +1005,16 @@ exports.make = function(schema, ap, broadcaster, ol){
 					if(adding[id]){
 						--outstandingEditCount
 						if(outstandingEditCount === 0){
+							//adding = undefined
 							liveCb(true)
 						}
-						delete adding[id]
+						adding[id] = false
 					}
 					delete ids[id]
 				}
 			}
 			
 			return setListener
-			
-			/*ol.getAllObjectsOfType(objTypeCode, computeMap, function(){
-				//console.log('got all objects of type')
-				liveCb(true)				
-				broadcaster.output.listenByType(objTypeCode, eventListener)
-			})*/
 		},
 		//Note that these method's implementations will always return a result that is up-to-date,
 		//by fetching the async parts and then synchronously merging them with the AP parts

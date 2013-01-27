@@ -116,7 +116,7 @@ exports.fibonacciTraverse = function(config, done){
 		minnow.makeClient(config.port, function(otherClient){
 			otherClient.view('fibonacci', [20], function(err, v){
 				if(err) throw err
-			
+				console.log(JSON.stringify(v.v.toJson()))
 				if(JSON.stringify(v.v.toJson()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]'){
 					done()
 				}
@@ -142,17 +142,18 @@ exports.fibonacciShorterThenLonger = function(config, done){
 							arr.sort(function(a,b){return a-b;})
 							return arr
 						}
+						console.log('first: ' + JSON.stringify(arr()))
 			
 						if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]'){
 							control.v.set(19)
-							//console.log('shortening')
+							console.log('shortening')
 							poll(function(){
-								//console.log('now: ' + JSON.stringify(arr()))
+								console.log('now: ' + JSON.stringify(arr()))
 								if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181]'){
-								//console.log('lengthening')
+								console.log('lengthening')
 									control.v.set(21)
 									poll(function(){
-									//	console.log('now: ' + JSON.stringify(arr()))
+										console.log('now: ' + JSON.stringify(arr()))
 										if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765,10946]'){
 											done()
 											return true
@@ -283,15 +284,17 @@ exports.incrementTreeShorterThenLonger = function(config, done){
 					otherClient.view('incrementTreeProbe', [control], function(err, v){
 						if(err) throw err
 			
-						//console.log('got result: ' + JSON.stringify(v.values.toJson()))
+						console.log('got result: ' + JSON.stringify(v.values.toJson()))
 						if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7,8,9]'){
+							console.log('shorter: ' + 6)
 							control.v.set(6)
-							//console.log('shorter')
 							poll(function(){
-								//console.log('now: ' + JSON.stringify(v.values.toJson()))
+								console.log('now: ' + JSON.stringify(v.values.toJson()))
 								if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7]'){
 									control.v.set(10)
+									console.log('longer')
 									poll(function(){
+										console.log('now: ' + JSON.stringify(v.values.toJson()))
 										if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7,8,9,10,11]'){
 											done()
 											return true

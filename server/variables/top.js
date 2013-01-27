@@ -67,7 +67,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		return old
 	}
 	
-	many.attach({
+	var manyListener = {
 		set: function(value, oldValue, editId){
 			var oldMany = many
 			manyValue = value
@@ -104,7 +104,8 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 		removeView: function(){
 			_.errout('TODO')
 		}
-	}, editId)
+	}
+	many.attach(manyListener, editId)
 	
 	var handle = {
 		name: 'topByValues (' + elements.name + ')',
@@ -130,7 +131,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			}
 		},
 		descend: elements.descend,
-		getType: function(v){
+		/*getType: function(v){
 			if(elements.getType === undefined) _.errout('needs getType: ' + elements.name)
 
 			return elements.getType(v)
@@ -140,9 +141,14 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			if(elements.descendTypes === undefined) _.errout('needs descendTypes: ' + elements.name)
 
 			return elements.descendTypes(path, editId, cb)
-		},
+		},*/
 		oldest: oldest,
-		key: key
+		key: key,
+		destroy: function(){
+			elements.detach(elementListener)
+			many.detach(manyListener)
+			listeners.destroyed()
+		}
 	}
 	
 	var top = {}
@@ -197,6 +203,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 
 
 						removeFromTop(key)
+						//console.log('top emitting del: ' + editId)
 						listeners.emitDel(key,editId)
 						//console.log('full, del: ' + rkv.key)
 

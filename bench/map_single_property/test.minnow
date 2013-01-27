@@ -1,9 +1,9 @@
 
 entity 1
 	key int 1
-	value int 2
+	v int 2
 	
 general() 100
-	m map(*entity,{~.key},{add(~.value,2)},{add(~1,~2)}) 1
+	m map(*entity,{~.key},{add(~.v,2)},{add(~1,~2)}) 1
 	many count(*entity) 2
 

@@ -103,6 +103,7 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 		oldTime = newTime
 	}
 	var	timeoutHandle;
+	var intervalHandle;
 	function startInterval(){
 		if(intervalHandle){
 			clearInterval(intervalHandle)
@@ -161,7 +162,20 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 		},
 		oldest: oldest,
 		neverGetsOld: true,
-		key: key
+		key: key,
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			if(intervalHandle){
+				clearInterval(intervalHandle);
+			}
+			if(timeoutHandle){
+				clearTimeout(timeoutHandle)
+			}
+			if(delayVariable){
+				delayVariable.detach(delayListener)
+			}
+			listeners.destroyed()
+		}
 	}
 	
 	return cache.store(key, handle)

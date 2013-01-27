@@ -31,7 +31,7 @@ function recursivelyGetLeafTypes(objType, schema){
 		return [objType.name];
 	}
 	
-	var res = [];
+	var res = [objType.name];
 
 	_.each(objType.subTypes, function(v, subType){
 		res = res.concat(recursivelyGetLeafTypes(schema[subType], schema));
@@ -209,6 +209,18 @@ var typeSuffix = {
 	boolean: 'Boolean',
 	real: 'Real'
 }
+
+var primitiveTypeChecker = {
+	string: function(v){_.assertString(v);},
+	int: function(v){_.assertInt(v);},
+	long: function(v){_.assertLong(v);},
+	boolean: function(v){_.assertBoolean(v);},
+	real: function(v){_.assertReal(v);}
+}
+function objectIdTypeChecker(v){
+	_.assertInt(v)
+}
+
 exports.getAddOperator = function(schema){
 	var ts = typeSuffix[schema.type.members.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
@@ -247,6 +259,19 @@ exports.getKeyReOperator = function(schema){
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
 	return editCodes['reselect' + ts + 'Key']
 }
+exports.makeKeyTypeChecker = function(schema){
+	if(schema.type.key.type === 'primitive'){
+		//var ts = typeSuffix[schema.type.key.primitive]
+		var tc = primitiveTypeChecker[schema.type.key.primitive]
+		_.assertDefined(tc)
+		return tc
+	}else{
+		return objectIdTypeChecker//editCodes.reselectObjectKey
+	}
+	//if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
+	//return editCodes['reselect' + ts + 'Key']	
+}
+
 exports.getSetOperator = function(schema){
 	var ts = typeSuffix[schema.type.primitive]
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))

@@ -150,6 +150,12 @@ function svgGeneralSwitch(s, cache, primGetter, cases, defaultCase, bindings, ed
 		descend: function(path, editId, cb){
 			console.log('TODO? - switch.descend?: ' + JSON.stringify(path))
 			return false
+		},
+		getTopParent: function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			_.assert(caseVariable)
+			return caseVariable.getTopParent(id)
+			
 		}
 	}
 	

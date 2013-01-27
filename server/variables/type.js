@@ -51,6 +51,10 @@ function fixedType(s, element, cache){
 		isConstant: true,
 		get: function(){
 			return typeName
+		},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			listeners.destroyed()
 		}
 	}
 	
@@ -90,20 +94,16 @@ function svgGeneral(s, cache, elementGetter, bindings, editId){
 			}
 		},
 		oldest: element.oldest,
-		key: key
+		key: key,
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
-	//var ongoingEditId;
-	/*function oldest(){
-		var oldestEditId = element.oldest()
-		//console.log('p(' + propertyCode + ') oldest ' + oldestEditId + ' ' + ongoingEditId)
-		//if(ongoingEditId !== undefined) return Math.min(oldestEditId, ongoingEditId)
-		//else 
-		return oldestEditId
-	}*/
-	
 	var oldName;
-	element.attach({
+	var elementsListener = {
 		set: function(v, oldV, editId){
 			if(v !== undefined){
 				var typeCode = s.objectState.getObjectType(v)
@@ -123,7 +123,8 @@ function svgGeneral(s, cache, elementGetter, bindings, editId){
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
 	return cache.store(key, handle)
 }
 

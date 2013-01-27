@@ -83,7 +83,12 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		},
 		oldest: s.objectState.getCurrentEditId,
 		key: key,
-		descend: function(){_.errout('TODO');}
+		descend: function(){_.errout('TODO');},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 
 	function addForked(fid, editId){
@@ -126,8 +131,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 			recomputeForked(id, newAll, editId)
 		}
 	}
-
-	element.attach({
+	var elementsListener = {
 		add: function(id, editId){
 			m[id] = {}
 			var newAll = s.objectState.getAllForked(id)
@@ -141,6 +145,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
 	return cache.store(key, handle)
 }

@@ -54,6 +54,7 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 	var listeners = listenerSet()
 
 	var oldVersions
+	var oldValue
 	
 	var handle = {
 		name: 'versions',
@@ -79,8 +80,16 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		getType: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
-		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');}
+		//getType: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
+		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			if(oldVersions){
+				s.broadcaster.stopListeningByObject(oldValue, broadcastListener)
+			}
+			listeners.destroyed()
+		}
 	}
 	
 	
@@ -91,11 +100,27 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	var oldName;
-	element.attach({
+	function broadcastListener(typeCode, id, editPath, op, edit, syncId, editId){
+		_.assertInt(editId)
+		if(isPathOp(op)) return
+		
+		if(oldVersions.indexOf(editId) === -1){
+			oldVersions.push(editId)
+			//console.log('added version: ' + JSON.stringify([op, edit, syncId, editId]))
+			listeners.emitAdd(editId, editId)
+		}
+	}
+	
+	var elementsListener = {
 		set: function(v, oldV, editId){
+			
+			if(oldVersions){
+				s.broadcaster.stopListeningByObject(oldV, broadcastListener)
+			}
+			
 			if(v !== undefined){
 				ongoingEditId = editId
+				
 				s.objectState.getVersions(v, function(versions){
 					//console.log('versions: ' + JSON.stringify(versions))
 
@@ -119,16 +144,7 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 						}
 						oldVersions = versions						
 						ongoingEditId = undefined
-						s.broadcaster.listenByObject(v, function(typeCode, id, editPath, op, edit, syncId, editId){
-							_.assertInt(editId)
-							if(isPathOp(op)) return
-							
-							if(versions.indexOf(editId) === -1){
-								versions.push(editId)
-								//console.log('added version: ' + JSON.stringify([op, edit, syncId, editId]))
-								listeners.emitAdd(editId, editId)
-							}
-						})
+						s.broadcaster.listenByObject(v, broadcastListener)
 					}
 				})
 			}else if(oldVersions){
@@ -138,10 +154,13 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 				}
 				oldVersions = undefined
 			}
+			oldValue = v
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
+	
 	return cache.store(key, handle)
 }
 
@@ -154,6 +173,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 	
 	var listeners = listenerSet()
 
+	var listeningIds = []
 	var versions = []
 	var versionCounts = {}
 	
@@ -177,8 +197,15 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		getType: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
-		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');}
+		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			listeningIds.forEach(function(id){
+				s.broadcaster.stopListeningByObject(id, editListener)
+			})
+			listeners.destroyed()
+		}
 	}
 	
 	
@@ -192,8 +219,6 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	var oldName;
-	
 	function editListener(typeCode, id, editPath, op, edit, syncId, editId){
 		if(isPathOp(op)) return
 		
@@ -206,7 +231,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		}
 	}
 	
-	element.attach({
+	var elementsListener = {
 		add: function(id, editId){
 			ongoingEditIds.push(editId)
 			s.objectState.getVersions(id, function(vs){
@@ -219,6 +244,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 						listeners.emitAdd(v, editId)
 					}
 				}
+				listeningIds.push(id)
 				s.broadcaster.listenByObject(id, editListener)
 			})
 		},
@@ -234,11 +260,13 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 						listeners.emitRemove(v, editId)
 					}
 				}
+				listeningIds.splice(listeningIds.indexOf(id), 1)
 				s.broadcaster.stopListeningByObject(id, editListener)
 			})
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
 	return cache.store(key, handle)
 }

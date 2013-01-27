@@ -154,14 +154,24 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	var reconnectExpired = false
 	
 	var lastAck = 0
+	
+	function ackFunction(frameCount){
+		//console.log('client got ack: ' + frameCount)
+		if(frameCount > lastAck){
+			backingWriter.discardReplayableFrames(frameCount - lastAck)
+			lastAck = frameCount
+			//console.log('increased client ack: ' + lastAck + ', sent: ' + backingWriter.getFrameCount())
+		}
+	}
+	
 	var reader = {
-		increaseAck: function(e){
+		/*increaseAck: function(e){
 			if(e.frameCount > lastAck){
 				backingWriter.discardReplayableFrames(e.frameCount - lastAck)
 				lastAck = e.frameCount
 				//console.log('increased client ack: ' + lastAck + ', sent: ' + backingWriter.getFrameCount())
 			}
-		},	
+		},*/	
 		reconnectExpired: function(e){
 			//console.log('reconnect expired')
 			//_.errout('TODO')
@@ -286,6 +296,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			}
 			//console.log('tcpclient got response ready(' + e.syncId + '): ' + JSON.stringify(e))
 			var cb = syncReadyCallbacks[e.requestId];
+			delete syncReadyCallbacks[e.requestId]
 			_.assertFunction(cb);
 			cb(undefined, e);
 		},
@@ -397,12 +408,14 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	});
 	
 	w = backingWriter.fs
-	backingWriter.beginFrame()
+	//backingWriter.beginFrame()
 	w.flush = function(){
 		//if(backingWriter.hasWritten()){
 			//console.log('writing frame')
-			backingWriter.endFrame()
-			backingWriter.beginFrame()
+			if(backingWriter.shouldWriteFrame()){
+				backingWriter.endFrame()
+				//backingWriter.beginFrame()
+			}
 		//}else{
 		//	console.log('nothing written')
 		//}
@@ -415,13 +428,16 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		
 		handle.schema = schema
 		
-		deser = fparse.makeReadStream(shared.serverResponses, reader)
+		deser = fparse.makeReadStream(shared.serverResponses, reader, ackFunction)
 
 		var last = 0
 		increaseAckHandle = setInterval(function(){
 			var v = deser.getFrameCount()
 			if(v > last){
-				w.increaseAck({frameCount: v})
+				w.flush()
+				//w.increaseAck({frameCount: v})
+				backingWriter.writeAck(v)
+				w.flush()
 				//console.log('client increased ack: ' + v + ' <- ' + last + ' (sent: ' + backingWriter.getFrameCount()+')')
 				last = v
 			}else{
@@ -520,7 +536,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			});
 
 			var tw = temporaryBw.fs
-			temporaryBw.beginFrame()
+			//temporaryBw.beginFrame()
 			
 			console.log('about to request reconnect')
 	
@@ -590,6 +606,8 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				if(op === editCodes.make && !edit.forget){
 					requestId = makeRequestId()
 				}
+				
+				backingWriter.forceBeginFrame()
 				
 				var bw = backingWriter.writer
 				bw.putByte(3)

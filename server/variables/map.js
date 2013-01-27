@@ -333,6 +333,8 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 	var state = {}
 	var keys = []
 	
+	var elementListener
+	
 	if(reduceGetter){
 		var multiState = {}
 		
@@ -348,7 +350,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			Eventually, we'll want to have specialized implementations for cases where the reduce operator is a synchronous
 			function of only the values being reduced, in which case it should be implemented as a simple function call.
 		*/
-		elements.attach({
+		var elementListener = {
 			add: function(v, editId){
 				
 				var newBindingsKey = copyBindings(bindings)
@@ -386,6 +388,8 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					}
 				}
 				
+				_.assertUndefined(allSets[v])
+				
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
 
 				newKeyVariable.attach({
@@ -403,13 +407,14 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				var r = allSets[v]
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
+				delete allSets[v]
 			},
 			objectChange: stub,
 			includeView: listeners.emitIncludeView.bind(listeners),
 			removeView: listeners.emitRemoveView.bind(listeners)
-		}, editId)
+		}
 	}else{
-		elements.attach({
+		elementListener = {
 			add: function(v, editId){
 
 				//console.log('map add: ' + v)
@@ -482,6 +487,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					removeView: listeners.emitRemoveView.bind(listeners)
 				}
 				
+				_.assertUndefined(allSets[v])
 				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: kl, valueListener: vl}
 
 				newKeyVariable.attach(kl, editId)
@@ -492,12 +498,15 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				//console.log('detaching from map')
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
+				delete allSets[v]
 			},
 			objectChange: stub,
 			includeView: listeners.emitIncludeView.bind(listeners),
 			removeView: listeners.emitRemoveView.bind(listeners)
-		}, editId)
+		}
+		//elements.attach(elementListener, editId)
 	}
+	elements.attach(elementListener, editId)
 	
 	var handle = {
 		name: 'map-single (' + elements.name + ')',
@@ -519,11 +528,19 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 		},
 		oldest: oldest,
 		key: key,
-		/*getType: function(v){
-			return elements.getType(v)
-		},*/
-		descend: elements.descend//,
-		//descendTypes: elements.descendTypes
+		descend: elements.descend,
+		destroy: function(){
+			handle.attach = handle.detach = handle.descent = handle.oldest = handle.destroy = function(){_.errout('destroyed');}
+			
+			elements.detach(elementListener)
+			
+			Object.keys(allSets).forEach(function(k){
+				var r = allSets[k]
+				r.key.detach(r.keyListener)
+				r.value.detach(r.valueListener)
+			})
+			
+		}
 	}
 		
 	return cache.store(key, handle)

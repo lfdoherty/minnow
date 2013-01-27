@@ -254,7 +254,8 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 	}
 
 	var listeners = listenerSet()
-
+	var elementsListener
+	
 	var state = {}
 	var keyForId = {}
 
@@ -283,8 +284,12 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		oldest: oldest,
 		key: key,
 		descend: elements.descend,
-		descendTypes: elements.descendTypes,
-		getType: elements.getType
+		//descendTypes: elements.descendTypes,
+		//getType: elements.getType
+		destroy: function(){
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	var streamUpToDate = false
@@ -444,7 +449,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		})
 	}
 		
-	elements.attach({
+	elementsListener = {
 		add: function(v, editId){
 			//console.log('added: ' + v + ' ' + editId)
 			idSet.add(v, editId)
@@ -455,7 +460,8 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		objectChange: stub,
 		includeView: listeners.emitIncludeView.bind(listeners),//TODO may pass invalid inclusions through
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
 
 	//console.log('successfully made sync optimized map')
 	

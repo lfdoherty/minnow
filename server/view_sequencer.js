@@ -271,10 +271,11 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 
 			editBuffer.add({order: ++orderingIndex, typeCode: typeCode, id: id, path: path, op: op, edit: edit, syncId: syncId, editId: editId})
 		},
-		includeView: function(viewId, viewHandle, editId){
+		includeView: function(viewId, f, editId){
 			_.assertInt(editId)
 			if(viewInclusionCount[viewId] === undefined){
 				viewInclusionCount[viewId] = 1
+				var viewHandle = f(editId)
 				includedViews[viewId] = viewHandle
 				viewDetachers[viewId] = viewHandle.include(viewListeners, editId)
 			}else{
@@ -298,6 +299,8 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 	var lastOldest = viewVariable.oldest()
 	//console.log('initial oldest: ' + lastOldest)
 	
+	var lastErr = Date.now()
+	
 	var intervalHandle = setInterval(function(){
 
 		var oldest = viewVariable.oldest()
@@ -319,7 +322,11 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 
 			readyCb(snapshot)
 		}else{
-			//log('waiting for snapshot ' + manyObjectsOut + ' ' + oldest + ' <? ' + endEditId + ' ' + objectState.getCurrentEditId() + ' ' + viewId)
+			var now = Date.now()
+			if(now - lastErr > 10000){
+				console.log('waiting for snapshot ' + manyObjectsOut + ' ' + oldest + ' <? ' + endEditId + ' ' + objectState.getCurrentEditId() + ' ' + viewId)
+				lastErr = now
+			}
 		}
 	}, 10)
 
@@ -540,11 +547,12 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 						inclusionsListener(id, editId)
 					}
 				},
-				includeView: function(viewId, handle, editId){
+				includeView: function(viewId, f, editId){
 					//console.log('already included: ' + viewId)
 					if(viewInclusionCount[viewId] === undefined){
 						//console.log('including view: ' + viewId + ' ' + editId)
 						viewInclusionCount[viewId] = 1
+						var handle = f(editId)
 						includedViews[viewId] = handle
 						viewDetachers[viewId] = handle.include(listenHandle, editId)
 					}
@@ -630,8 +638,10 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 				}
 			}
 			//we attach with -20 so that we can accumulate the object inclusions
-			var detachFunc = viewVariable.attach(listenHandle, -20)//objectState.getCurrentEditId()-1)
-			//detachFuncs.push(detachFunc)
+			viewVariable.attach(listenHandle, -20)//objectState.getCurrentEditId()-1)
+			detachFuncs.push(function(){
+				viewVariable.detach(listenHandle)
+			})
 			isReadyYet()
 		},
 		subscribeToObject: function(id){
@@ -652,7 +662,13 @@ exports.make = function(schema, objectState, broadcaster, alreadyHasCb, includeO
 			if(editBuffer === undefined) _.errout('already ended before')
 			editBuffer = undefined
 			clearInterval(timeoutHandle)
-			//detachFuncs.forEach(lambdaRunner)
+			detachFuncs.forEach(lambdaRunner)
+			//viewVariable.detach(listenHandle)
+			
+			/*viewVariables.forEach(function(v){
+				v.detach(listenHandle)
+			})*/
+			
 			Object.keys(viewDetachers).forEach(function(viewId){
 				var d = viewDetachers[viewId]
 				viewDetachers[viewId] = undefined

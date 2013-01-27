@@ -53,6 +53,7 @@ function aggregateMaker(compareFunction, s, self, expr, typeBindings){
 function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGetterList, bindings, editId){
 
 	var elementsList = []
+	var elementsListenerList = []
 	var key = ''
 	elementsGetterList.forEach(function(eg){
 		var e = eg(bindings, editId)
@@ -81,7 +82,7 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 	
 	elementsList.forEach(function(elements){
 	
-		elements.attach({
+		var elementsListener = {
 			add: function(v, editId){
 				_.assertDefined(v)
 				//console.log('adding to aggregate: ' + v)
@@ -104,7 +105,9 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 			},
 			includeView: stub,
 			removeView: stub
-		}, editId)
+		}
+		elementsListenerList.push(elementsListener)
+		elements.attach(elementsListener, editId)
 	})
 	
 	function oldest(){
@@ -133,7 +136,17 @@ function svgGeneralAggregate(s, cache, compareFunction, defaultValue, elementsGe
 				listener.set(defaultValue, root, editId)
 			}
 		},
-		key: key
+		key: key,
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			elementsList.forEach(function(elements, index){
+				
+				var elementsListener = elementsListenerList[index]
+				elements.detach(elementsListener)
+				
+			})
+			listeners.destroyed()
+		}
 	}
 	if(elementsList.length === 1){
 		handle.oldest = elementsList[0].oldest

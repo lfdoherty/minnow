@@ -20,7 +20,9 @@ function makeAnalytics(expr, parent, name, s){
 	var counts = {
 		hit: 0,
 		put: 0,
-		evict: 0
+		evict: 0,
+		resident: 0,
+		rescue: 0
 	}
 
 	var exprName = expr.view || expr.type || expr.name || expr.value
@@ -31,14 +33,20 @@ function makeAnalytics(expr, parent, name, s){
 		},
 		cachePut: function(){
 			++counts.put
+			++counts.resident
 		},
 		cacheEvict: function(){
 			++counts.evict
+			--counts.resident
+		},
+		cacheRescue: function(){
+			++counts.rescue
 		},
 		children: [],
 		counts: counts,
 		parent: parent,
 		report: report,
+		reportResident: reportResident,
 		name: (name?name+'^':'') + exprName
 	}
 	
@@ -47,17 +55,27 @@ function makeAnalytics(expr, parent, name, s){
 	
 	//console.log('made analytics: ' + (expr.view || expr.type) + ' < ' + parent.name)
 
+	function reportResident(depth){
+		depth = depth || 0
+		var str = ''
+		if(counts.resident > 0) str += handle.name + ' ' + counts.resident + '\n'
+		handle.children.forEach(function(a){
+			str += a.reportResident(depth+1)
+		})
+		return str
+	}
 	function report(depth){
 		depth = depth || 0
 		var str = ''
 		var sum = counts.hit+counts.put+counts.evict
-		str += tabs(depth) + handle.name + ' -- hit: ' + counts.hit+', put: '+counts.put+', evict: '+counts.evict+'\n'
+		str += tabs(depth) + handle.name + ' -- hit: ' + counts.hit+', put: '+counts.put+', evict: '+counts.evict+' , rescue: ' + counts.rescue + ' ' + (handle.varName?handle.varName:'')+'\n'
 		//if(sum > 0){
 			handle.children.forEach(function(a){
 				str += a.report(depth+1)
 			})
 		//}else if(handle.children.length > 0){str += tabs(depth+1)+'...\n'}
-		
+
+				
 
 		return str
 	}
@@ -324,13 +342,10 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 			s.objectState.streamProperty(path, editId, cb)
 			return true
 		},
-		descendTypes: function(path, editId, cb, continueListening, mustMatch){
-			//console.log('descending: ' + JSON.stringify(path))
-			s.objectState.streamPropertyTypes(path, editId, cb, continueListening, mustMatch)
-			return true
-		},
-		getType: function(id){
-			return s.objectState.getObjectType(id)
+		getTopParent: function(id){
+			//_.assert(s.objectState.isTopLevelObject(id))
+			if(!s.objectState.isTopLevelObject(id)) _.errout('not a top-level object, translation failure: ' + id)
+			return id
 		}
 	}
 	return function(params, startingEditId){

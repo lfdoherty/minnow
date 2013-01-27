@@ -62,22 +62,24 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 		return old	
 	}
 	
-	objValue.attach({
+	var objValueListener = {
 		set: function(v, oldV, editId){
 			value = v
 			listeners.emitSet(value, oldV, editId)
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	objValue.attach(objValueListener, editId)
 	
-	preforkedValue.attach({
+	var preforkedValueListener = {
 		set: function(newValue, oldValue, editId){
 			pfValue = newValue
 		},
 		includeView: function(){_.errout('TODO')},
 		removeView: function(){_.errout('TODO')}
-	},editId)
+	}
+	preforkedValue.attach(preforkedValueListener,editId)
 	
 	function descend(path, editId, cb){
 		//_.errout('TODO')
@@ -113,7 +115,18 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		descend: descend
+		descend: descend,
+		getTopParent: function(id){
+			return value
+		},
+		destroy: function(){
+			handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+			
+			objValue.detach(objValueListener)
+			preforkedValue.detach(preforkedValueListener)
+			
+			listeners.destroyed()
+		}
 	}
 		
 	return cache.store(key, handle)

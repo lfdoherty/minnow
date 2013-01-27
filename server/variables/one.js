@@ -47,31 +47,7 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 	var value;	
 	var all = []
 	
-	var handle = {
-		name: 'one('+elements.name+')',
-		attach: function(listener, editId){
-			listeners.add(listener)
-			_.assertInt(editId)
-			if(value !== undefined){
-				listener.set(value, undefined, editId)
-			}
-		},
-		detach: function(listener, editId){
-			listeners.remove(listener)
-			if(editId){
-				if(value !== undefined){
-					listener.set(undefined, value, editId)
-				}
-			}
-		},
-		oldest: elements.oldest,
-		key: key,
-		descend: elements.descend//,
-		//descendTypes: elements.descendTypes,
-		//getType: elements.getType
-	}
-	
-	elements.attach({
+	var elementsListener = {
 		add: function(v, editId){
 			all.push(v)
 			//console.log('one got add: ' + value)
@@ -97,7 +73,34 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 		objectChange: listeners.emitObjectChange.bind(listeners),//Unfortunately, there's no easy way to optimize this
 		includeView: listeners.emitIncludeView.bind(listeners),
 		removeView: listeners.emitRemoveView.bind(listeners)
-	}, editId)
+	}
+	elements.attach(elementsListener, editId)
+	
+	var handle = {
+		name: 'one('+elements.name+')',
+		attach: function(listener, editId){
+			listeners.add(listener)
+			_.assertInt(editId)
+			if(value !== undefined){
+				listener.set(value, undefined, editId)
+			}
+		},
+		detach: function(listener, editId){
+			listeners.remove(listener)
+			if(editId){
+				if(value !== undefined){
+					listener.set(undefined, value, editId)
+				}
+			}
+		},
+		oldest: elements.oldest,
+		key: key,
+		descend: elements.descend,
+		destroy: function(){
+			elements.detach(elementsListener)
+			listeners.destroyed()
+		}
+	}	
 	return cache.store(key, handle)
 }
 

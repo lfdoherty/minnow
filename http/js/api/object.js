@@ -699,7 +699,8 @@ ObjectHandle.prototype.propertyByCode = function property(propertyCode){
 	//console.log(JSON.stringify(this.typeSchema.propertiesByCode))
 	var p = this.typeSchema.propertiesByCode[propertyCode]
 	if(p === undefined){
-		_.errout('cannot find property with code: ' + propertyCode)
+		//_.errout('cannot find property with code: ' + propertyCode)
+		return
 	}
 	var propertyName = p.name
 	var handle = this.property(propertyName)

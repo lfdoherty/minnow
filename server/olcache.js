@@ -1,6 +1,7 @@
 "use strict";
 
 var _ = require('underscorem')
+var fparse = require('fparse')
 
 var olbuf = require('./olbuf')
 
@@ -147,6 +148,21 @@ exports.make = function(){
 				}
 			}else{
 				return ob.get(id)
+			}
+		},
+		getBinary: function(id){
+			if(cache[id]){
+				var edits
+				if(ob.isNew(id)){
+					edits = cache[id]
+				}else{
+					edits = ob.get(id).concat(cache[id])
+				}
+				var w = fparse.makeSingleBufferWriter(100)
+				ob.serializeEdits(edits, w)
+				return w.finish()
+			}else{
+				return ob.getBinary(id)//TODO cache?
 			}
 		},
 		serializeBinaryRange: function(id, startEditId, endEditId, w){

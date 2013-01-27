@@ -1,5 +1,5 @@
 /* 
-	Time to beat (N,K,T ms): (200000,10,28255)
+	Time to beat (N,K,T ms): (200000,10,23971)
 */
 
 var N = 200000
@@ -38,7 +38,7 @@ function run(){
 					
 				for(var i=0;i<N;++i){
 					
-					c.make('entity', {key: i%K, value: i}, true)
+					c.make('entity', {key: i%K, v: i}, true)
 				}
 			})
 		})

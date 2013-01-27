@@ -45,6 +45,6 @@ reconnect 10
 	
 originalConnection 11
 
-increaseAck 12
-	frameCount int 1
+/*increaseAck 12
+	frameCount int 1*/
 	

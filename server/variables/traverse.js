@@ -125,7 +125,6 @@ function traverseMaker(s, self, rel, typeBindings){
 function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGetters, paramType, depthGetter, makeFixedMacroVariable, bindings, editId){
 
 	var concreteGetter = exprExprGetter(bindings, editId)
-	//console.log(require('util').inspect(exprExprGetter))
 	_.assertDefined(concreteGetter.key)
 	
 	var key = concreteGetter.key
@@ -154,7 +153,8 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 	var depth = 0
 
 	var variables = []
-
+	var leaves = []
+	
 	function oldest(){
 	//	console.log('oldest')
 		var oldestEditId = s.objectState.getCurrentEditId()
@@ -177,51 +177,15 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 	
 	var root;
 	
-	function makeResultListener(previous, ourDepth, attachedTo, editId){
+	function makeResultListener(previous, ourDepth, f, editId){
 		
 		//console.log('made result listener: ' + ourDepth)
-		
-		var isLeaf = false
-		var isAttached = false
-		
-		function depthChange(d, editId){
-			if(d <= ourDepth){
-				attachedTo.detach(resultListener, editId)
-				isLeaf = true
-				isAttached = false
-			}else if(isLeaf && d > ourDepth+1){
-				isLeaf = false
-				//
-				value.forEach(function(v){
-					extendSelf(v, editId, attachedTo)
-				})
-				if(!isAttached){
-					isAttached = true
-					attachedTo.attach(resultListener, editId)
-				}
-			}
-		}
-
+		var attachedTo = f()
 		
 		function extendSelf(v, editId){
-			/*var vv = variables[variables.length-1]
-			var context = {
-				name: 'context-mixing',
-				key: Math.random()+'',
-				descend: function(path, editId, cb){
-					var res = vv.descend(path, editId, cb)
-					if(res) return res
-					for(var i=0;i<paramVariables.length;++i){
-						var pv = paramVariables[i]
-						var res = pv.descend(path, editId, cb)
-						if(res) return res
-					}
-					return false
-				}
-			}*///variables.length > 0 ? variables[variables.length-1] : paramVariables[paramVariables.length-1]//TODO merge paramVariables contexts for fixed objects (for descent purposes)
 			var newPrevious = [].concat(previous)
 			newPrevious.shift()
-			var mv = makeMacroVariable(v)//, editId, context)
+			var mv = makeMacroVariable(v)
 			newPrevious.push(mv)
 			extendMacroChain(newPrevious, ourDepth+1, editId)
 		}
@@ -235,7 +199,8 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				_.assertPrimitive(v)
 				value.push(v)
 				
-				//console.log('added value: ' + v)
+				//console.log('added value: ' + v + ' ' + JSON.stringify(count))
+				//console.log(new Error().stack)
 				
 				attachedListeners.emitAdd(v, editId)				
 				
@@ -246,18 +211,19 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				}
 				++count[v]
 				
-				/*if(depth > ourDepth){
-
-					extendSelf(v, editId)
-				}*/
 				if(depth > ourDepth+1){
 					//console.log('descending: ' + (ourDepth + 1))
 					extendSelf(v, editId)
 				}else{
+					if(!isLeaf){
+						leaves.push(variable)
+					}
 					isLeaf = true
 				}
 			},
 			remove: function(v, editId){
+			
+				//console.log('removed value: ' + v + ' ' + JSON.stringify(count))
 
 				value.splice(value.indexOf(v), 1)
 
@@ -274,6 +240,52 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 			removeView: vi.includeView
 		}
 		
+		var isLeaf = false
+		var isAttached = false
+		
+		function depthChange(d, editId){
+			//console.log('depth change ' + d + ' ' + ourDepth + ' ' + JSON.stringify(value) + ' ' + attachedTo.name + ' ' + isAttached + ' ' + isLeaf)
+			if(d < ourDepth){
+				if(isAttached){
+					attachedTo.detach(resultListener, editId)
+
+					isAttached = false
+				}
+				
+				_.assertEqual(attachedListeners.many(), 0)
+				variables.splice(variables.indexOf(variable), 1)
+				//console.log('discarded: ' + JSON.stringify(value))
+			}else if(d === ourDepth){
+				isLeaf = true
+				//console.log('leaf')
+				if(isAttached){
+					attachedTo.detach(resultListener, editId)
+					isAttached = false
+
+					_.assertEqual(attachedListeners.many(), 0)				
+					variables.splice(variables.indexOf(variable), 1)
+					leaves.push(variable)
+				}
+			}else if(d > ourDepth){
+				if(isLeaf){
+					isLeaf = false
+					leaves.splice(leaves.indexOf(variable), 1)
+				}
+				
+				//_.assert(!isAttached)
+				if(!isAttached){
+					attachedTo = f()
+					value.forEach(function(v){
+						extendSelf(v, editId, attachedTo)
+					})
+					variables.push(variable)
+					attachedTo.attach(resultListener, editId)
+					isAttached = true
+				}
+			}
+		}
+		
+		
 		function makeMacroVariable(v){
 			_.assertDefined(v)
 			
@@ -282,8 +294,7 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 			var mv = {
 				name: 'traverse-macro-variable',
 				attach: function(listener, editId){
-					//if(attached) _.errout('dup?')
-					//attached = listener
+
 					_.assertInt(editId)
 					
 					listeners.add(listener)
@@ -297,6 +308,10 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				},
 				descend: function(path, editId, cb){
 					return attachedTo.descend(path, editId, cb)
+				},
+				getTopParent: function(id){
+					if(!attachedTo.getTopParent) _.errout('missing getTopParent: ' + attachedTo.name)
+					return attachedTo.getTopParent(id)
 				},
 				key: '*'+v+':'+variable.key,
 				oldest: s.objectState.getCurrentEditId
@@ -325,6 +340,9 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				//_.errout('TODO');
 				return attachedTo.descend(path, editId, cb)
 			},
+			getTopParent: function(id){
+				return attachedTo.getTopParent(id)
+			},
 			key: '*'+attachedTo.key,
 			oldest: attachedTo.oldest,
 			depthChange: depthChange
@@ -332,32 +350,35 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 		
 		variables.push(variable)
 
+		isAttached = true
 		attachedTo.attach(resultListener, editId)		
 	}
 	
 	function extendMacroChain(previous, ourDepth, editId){
 		_.assertInt(editId)
 	
-		var prevKey = ''
+		//var prevKey = ''
 		var newBindings = _.extend({},bindings)
 		
 		for(var i=0;i<previous.length;++i){
 			newBindings[implicits[i]] = previous[i]
-			prevKey += previous[i].key+','
+			//prevKey += previous[i].key+','
 		}
 		
 		//console.log('extending: ' + prevKey + ' ' + ourDepth)
-		if(alreadyTraversed[prevKey]){
+		/*if(alreadyTraversed[prevKey]){
 			return//TODO something else? count?
 		}
-		alreadyTraversed[prevKey] = 1
+		alreadyTraversed[prevKey] = 1*/
 		
-		var m = concreteGetter(newBindings, editId)
-		
+		//var m = 
+		var f = function(){
+			return concreteGetter(newBindings, editId)
+		}
 		//console.log('extending macro chain: ' + ourDepth)// + ' '+ require('util').inspect(newBindings))
 
 
-		makeResultListener(previous, ourDepth, m, editId)
+		makeResultListener(previous, ourDepth, f, editId)
 	}
 	
 	function reduceMacroChain(correctDepth, editId){
@@ -372,7 +393,7 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 	
 	var initialized = false
 	
-	depthVariable.attach({
+	var depthListener = {
 		set: function(v, old, editId){
 			//console.log(' got depth: ' + v)
 
@@ -384,18 +405,14 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				//console.log('initialized: ' + v + ' ' + values.length)
 			}
 			
-			variables.forEach(function(v){
+			[].concat(variables).concat(leaves).reverse().forEach(function(v){
 				v.depthChange(depth, editId)
 			})
 		},
 		includeView: function(){_.errout('ERROR');},
 		removeView: function(){_.errout('ERROR');}
-	}, editId)
-	
-
-	//var rr = Math.random()
-
-	//listeners.rr = rr
+	}
+	depthVariable.attach(depthListener, editId)
 	
 	var paramStr = ' ['
 	for(var i=0;i<paramVariables.length;++i){
@@ -446,6 +463,37 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				}
 			}
 			return false
+		},
+		getTopParent: function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			
+			for(var i=0;i<paramVariables.length;++i){
+				var pv = paramVariables[i]
+				if(pv.getTopParent){
+					var worked = pv.getTopParent(id)
+					if(worked) return true
+				}else{
+					console.log('has no getTopParent: ' + pv.name)
+				}
+			}
+			for(var i=0;i<variables.length;++i){
+				var pv = variables[i]
+				if(pv.getTopParent){
+					var res = pv.getTopParent(id)
+					if(res) return res
+				}else{
+					console.log('has no getTopParent: ' + pv.name)
+				}
+			}
+			return false
+		},
+		destroy: function(){
+			depthVariable.detach(depthListener);
+			//reduceMacroChain(0)
+			[].concat(variables).reverse().forEach(function(v){
+				v.depthChange(0)
+			})
+			listeners.destroyed()
 		}
 	}
 		
@@ -483,7 +531,8 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 	var depth = 0
 
 	var variables = []
-
+	var leaves = []
+	
 	function oldest(){
 		//console.log('*oldest')
 		//console.log(new Error().stack)
@@ -496,8 +545,8 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 				oldestEditId = old
 			}
 		}
-		paramVariables.forEach(f)
 		variables.forEach(f)
+		paramVariables.forEach(f)
 		return oldestEditId
 	}
 	
@@ -507,23 +556,45 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 	
 	var root;
 	
-	function makeResultListener(previous, ourDepth, attachedTo, editId){
+	function makeResultListener(previous, ourDepth, f, editId){
 		
 		//console.log(rr+' made result listener: ' + ourDepth)
+		var attachedTo = f()
 		
 		var isLeaf = false
 		var isAttached = false
 		
 		function depthChange(d, editId){
-			if(d <= ourDepth){
-				attachedTo.detach(resultListener, editId)
-				isLeaf = true
-				isAttached = false
-			}else if(isLeaf && d > ourDepth+1){
+			//console.log('got depth change: ' + d + ' ' + ourDepth)
+			if(d < ourDepth+1){
+				if(isAttached){
+					attachedTo.detach(resultListener, editId)
+					//variable.destroy()
+					variables.splice(variables.indexOf(variable), 1)
+					isAttached = false
+				}
+			}else if(d === ourDepth+1){
+				if(isAttached){
+					attachedTo.detach(resultListener, editId)
+					//variable.destroy()
+					variables.splice(variables.indexOf(variable), 1)
+					isAttached = false
+				}
+				if(!isLeaf){
+					leaves.push(variable)
+					isLeaf = true
+				}
+			}else if(d > ourDepth+1){
+				if(isLeaf){
+					leaves.splice(leaves.indexOf(variable), 1)
+				}
 				isLeaf = false
 				extendSelf(editId)
 				if(!isAttached){
 					isAttached = true
+					attachedTo = f()
+					//remakeVariable()
+					//variables.push(variable)
 					attachedTo.attach(resultListener, editId)
 				}
 			}
@@ -572,48 +643,59 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 					}
 					++count[v]
 
-					if(depth > ourDepth+1){
+					if(depth > ourDepth + 1){
 						//console.log('descending: ' + (ourDepth + 1))
+						//console.log('extending: ' + (ourDepth + 1))
 						extendSelf(editId)
 					}else{
+						//console.log('leaf: ' + (ourDepth+1) + ' ' + depth)
+						
 						isLeaf = true
 					}
-				}/*else{
-					//console.log(rr+' detaching: ' + old)
-					attachedTo.detach(resultListener, editId)
-				}*/
+				}else{
+					
+				}
 			},
 			includeView: vi.includeView,
 			removeView: vi.includeView
 		}
 
-		variable = {
-			name: 'traverse-macro-result',
-			attach: function(listener, editId){
+		function remakeVariable(){
+			value = undefined
+			variable = {
+				name: 'traverse-macro-result',
+				attach: function(listener, editId){
 
-				attachedListeners.add(listener)
-				if(value !== undefined){
-					listener.set(value, undefined, editId)
-				}
-			},
-			detach: function(listener, editId){
-				attachedListeners.remove(listener)
-				if(editId && value !== undefined){
-					listener.set(undefined, value, editId)
-				}
-			},
-			listener: resultListener,
-			descend: function(path, editId, cb){
-				//_.errout('TODO');
-				attachedTo.descend(path, editId, cb)
-			},
-			key: '*'+attachedTo.key,
-			oldest: attachedTo.oldest,
-			depthChange: depthChange
+					attachedListeners.add(listener)
+					if(value !== undefined){
+						listener.set(value, undefined, editId)
+					}
+				},
+				detach: function(listener, editId){
+					attachedListeners.remove(listener)
+					//console.log('detaching traverse-macro-result')
+					if(editId && value !== undefined){
+						listener.set(undefined, value, editId)
+					}
+				},
+				listener: resultListener,
+				descend: function(path, editId, cb){
+					//_.errout('TODO');
+					attachedTo.descend(path, editId, cb)
+				},
+				key: '*'+attachedTo.key,
+				oldest: attachedTo.oldest,
+				depthChange: depthChange/*,
+				destroy: function(){
+					variable.oldest = variable.attach = variable.detach = function(){_.errout('destroyed');}
+					variables.splice(variables.indexOf(variable), 1)
+				}*/
+			}
+			variables.push(variable)
 		}
-		
-		variables.push(variable)
+		remakeVariable()		
 
+		_.assert(depth > ourDepth)
 		isAttached = true
 		attachedTo.attach(resultListener, editId)		
 	}
@@ -627,9 +709,11 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 		for(var i=0;i<previous.length;++i){
 			newBindings[implicits[i]] = previous[i]
 		}
-		var m = concreteGetter(newBindings, editId)
 
-		makeResultListener(previous, ourDepth, m, editId)
+		var f = function(){
+			return concreteGetter(newBindings, editId)
+		}
+		makeResultListener(previous, ourDepth, f, editId)
 	}
 	
 	function reduceMacroChain(correctDepth, editId){
@@ -644,7 +728,7 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 	
 	var initialized = false
 	
-	depthVariable.attach({
+	var depthListener = {
 		set: function(v, old, editId){
 			//console.log(' got depth: ' + v)
 
@@ -652,17 +736,19 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 
 			if(v !== undefined && !initialized){
 				initialized = true
-				root = extendMacroChain(paramVariables, 0, editId)
+				//console.log('extending macro chain')
+				root = extendMacroChain(paramVariables, 1, editId)
 				//console.log('initialized: ' + v + ' ' + values.length)
 			}
 			
-			variables.forEach(function(v){
+			variables.concat(leaves).forEach(function(v){
 				v.depthChange(depth, editId)
 			})
 		},
 		includeView: function(){_.errout('ERROR');},
 		removeView: function(){_.errout('ERROR');}
-	}, editId)
+	}
+	depthVariable.attach(depthListener, editId)
 
 	var handle = {
 		name: 'traverse-single',
@@ -702,10 +788,18 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 					var res = pv.descend(path, editId, cb)
 					if(res) return res
 				}else{
-					console.log('has no descendTypes: ' + pv.name)
+					console.log('has no descend: ' + pv.name)
 				}
 			}
 			return false
+		},
+		destroy: function(){
+			depthVariable.detach(depthListener);
+			//reduceMacroChain(0)
+			[].concat(variables).reverse().forEach(function(v){
+				v.depthChange(-1)
+			})
+			listeners.destroyed()
 		}
 	}
 		

@@ -73,8 +73,12 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		getType: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
-		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');}
+		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	
@@ -85,8 +89,7 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	var oldName;
-	element.attach({
+	var elementsListener = {
 		set: function(v, oldV, editId){
 			if(v !== undefined){
 				ongoingEditId = editId
@@ -118,7 +121,8 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
 	return cache.store(key, handle)
 }
 
@@ -154,8 +158,12 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		getType: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
-		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');}
+		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	
@@ -169,8 +177,6 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	var oldName;
-	
 	function editListener(typeCode, id, editPath, op, edit, syncId, editId){
 		if(isPathOp(op)) return
 		
@@ -182,8 +188,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 			++versionCounts[editId]
 		}
 	}
-	
-	element.attach({
+	var elementsListener = {
 		add: function(id, editId){
 			ongoingEditIds.push(editId)
 			s.objectState.getLastVersion(id, function(lastVersion){
@@ -210,6 +215,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
 	return cache.store(key, handle)
 }

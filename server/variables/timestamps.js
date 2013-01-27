@@ -74,8 +74,12 @@ function svg(s, cache, elementGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
-		getType: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
-		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');}
+		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
+		destroy: function(){
+			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
+			element.detach(elementsListener)
+			listeners.destroyed()
+		}
 	}
 	
 	
@@ -86,8 +90,7 @@ function svg(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	var oldName;
-	element.attach({
+	var elementsListener = {
 		add: function(v, editId){
 			_.assertInt(v)
 			_.assert(v > 0)
@@ -104,6 +107,7 @@ function svg(s, cache, elementGetter, bindings, editId){
 		},
 		includeView: stub,
 		removeView: stub
-	}, editId)
+	}
+	element.attach(elementsListener, editId)
 	return cache.store(key, handle)
 }

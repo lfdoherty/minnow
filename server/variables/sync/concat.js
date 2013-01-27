@@ -27,8 +27,12 @@ exports.minParams = 2
 exports.maxParams = -1
 exports.syntax = 'concat(string,string,...)'
 
+var log = require('quicklog').make('minnow/concat')
+
 exports.compute = function(paramValues){
 
+	log(JSON.stringify(paramValues))
+	
 	if(_.isArray(paramValues[0])){
 		var v = []
 		for(var i=0;i<paramValues.length;++i){

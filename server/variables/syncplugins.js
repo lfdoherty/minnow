@@ -31,34 +31,63 @@ function wrapParam(v, schemaType, s){
 			if(!_.isBoolean(worked)) _.errout('did not provide a boolean: ' + t.name)
 			return worked
 		}
+		
+		if(t.getTopParent){
+			handle.getTopParent = function(id){
+				if(s.objectState.isTopLevelObject(id)) return id
+				if(!t.getTopParent) _.errout('no getTopParent: ' + t.name)
+				return t.getTopParent(id)
+			}
+		}else{
+			handle.getTopParent = function(id){
+				_.errout('TODO getTopParent: ' + t.name)
+			}
+		}
 	}
 	
 	if(schemaType.type === 'primitive'){
 		return function(bindings, editId){
 
 			var listeners = listenerSet()
+			
+			//console.log('created primitive param wrapper')
+			//console.log(new Error().stack)
 
 			var t = v(bindings, editId)
+			if(t.key === undefined) _.errout('no key: ' + t.name)
 			var cachedValue
-			t.attach({
+			var tListener = {
 				set: function(v, oldV, editId){
 					cachedValue = v
+					//console.log('primitive set happened: ' + v + ' ' + oldV + ' ' + listeners.many())
+					//console.log(new Error().stack)
 					listeners.emitChanged(editId)
 				},
 				includeView: stub,
 				removeView: stub
-			}, editId)
-			return {
+			}
+			t.attach(tListener, editId)
+			var handle = {
 				name: 'syncplugin-primitive-wrapper',
 				attach: function(listener, editId){
 					_.assertInt(editId)
 					listeners.add(listener)
 
 					listener.changed(editId)
+					//console.log('attached to primitive: ' + cachedValue)
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					_.assertEqual(listeners.many(), 0)
+					t.detach(tListener, editId)
+					handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+					//console.log('detaching primitive: ' + cachedValue)
 				},
 				get: function(){return cachedValue;},
-				oldest: t.oldest
+				oldest: t.oldest,
+				key: t.key
 			}
+			return handle
 		}
 	}else if(schemaType.type === 'object'){
 		return function(bindings, editId){
@@ -67,14 +96,15 @@ function wrapParam(v, schemaType, s){
 
 			var t = v(bindings, editId)
 			var cachedValue
-			t.attach({
+			var tListener = {
 				set: function(v, oldV, editId){
 					cachedValue = v
 					listeners.emitChanged(editId)
 				},
 				includeView: listeners.emitIncludeView.bind(listeners),
 				removeView: listeners.emitRemoveView.bind(listeners)
-			}, editId)
+			}
+			t.attach(tListener, editId)
 			var handle = {
 				name: 'syncplugin-object-wrapper (' + t.name + ')',
 				attach: function(listener, editId){
@@ -82,8 +112,15 @@ function wrapParam(v, schemaType, s){
 					listeners.add(listener)
 					listener.changed(editId)
 				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					_.assertEqual(listeners.many(), 0)
+					t.detach(tListener, editId)
+					handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+				},
 				get: function(){return cachedValue;},
-				oldest: t.oldest
+				oldest: t.oldest,
+				key: t.key
 			}
 			addDescend(handle, t)
 			return handle
@@ -96,7 +133,7 @@ function wrapParam(v, schemaType, s){
 			var cachedValues = []
 			var re = Math.random()
 
-			t.attach({
+			var tListener = {
 				add: function(v, editId){
 					_.assert(cachedValues.indexOf(v) === -1)
 					cachedValues.push(v)
@@ -109,15 +146,25 @@ function wrapParam(v, schemaType, s){
 				objectChange: function(){_.errout('TODO?');},
 				includeView: listeners.emitIncludeView.bind(listeners),
 				removeView: listeners.emitRemoveView.bind(listeners)
-			}, editId)
+			}
+			
+			t.attach(tListener, editId)
+			
 			var handle = {
 				name: 'syncplugin-set-wrapper ('+t.name+')',
 				attach: function(listener, editId){
 					listeners.add(listener)
 					listener.changed(editId)
 				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					_.assertEqual(listeners.many(), 0)
+					t.detach(tListener, editId)
+					handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+				},
 				get: function(){return cachedValues;},
-				oldest: t.oldest
+				oldest: t.oldest,
+				key: t.key
 			}
 			
 			if(schemaType.members.type === 'object'){
@@ -135,7 +182,7 @@ function wrapParam(v, schemaType, s){
 			var re = Math.random()
 			//s.log('attaching ' + re + ' ' + t.attach)
 
-			t.attach({
+			var tListener = {
 				add: function(v, editId){
 					//console.log(re + ' cachedValues: ' + JSON.stringify(cachedValues))
 					//console.log('adding: ' + v)
@@ -155,15 +202,23 @@ function wrapParam(v, schemaType, s){
 				removeView: function(){
 					_.errout('TODO')
 				}
-			}, editId)
+			}
+			t.attach(tListener, editId)
 			var handle = {
 				name: 'syncplugin-list-wrapper (' + t.name + ')',
 				attach: function(listener, editId){
 					listeners.add(listener)
 					listener.changed(editId)
 				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					_.assertEqual(listeners.many(), 0)
+					t.detach(tListener, editId)
+					handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+				},
 				get: function(){return cachedValues;},
-				oldest: t.oldest
+				oldest: t.oldest,
+				key: t.key
 			}
 			
 			if(schemaType.members.type === 'object'){
@@ -179,12 +234,12 @@ function wrapParam(v, schemaType, s){
 			var t = v(bindings, editId)
 			var cachedValues = {}
 
-			t.attach({
+			var tListener = {
 				put: function(key, value, oldValue, editId){
 					cachedValues[key] = value
 					listeners.emitChanged(editId)
 				},
-				del: function(key){
+				del: function(key, editId){
 					delete cachedValues[key]
 					listeners.emitChanged(editId)
 				},
@@ -193,15 +248,23 @@ function wrapParam(v, schemaType, s){
 				},
 				includeView: listeners.emitIncludeView.bind(listeners),
 				removeView: listeners.emitRemoveView.bind(listeners)
-			}, editId)
+			}
+			t.attach(tListener, editId)
 			var handle = {
 				name: 'syncplugin-map-wrapper',
 				attach: function(listener, editId){
 					listeners.add(listener)
 					listener.changed(editId)
 				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					_.assertEqual(listeners.many(), 0)
+					t.detach(tListener, editId)
+					handle.attach = handle.detach = handle.oldest = function(){_.errout('destroyed');}
+				},
 				get: function(){return cachedValues;},
-				oldest: t.oldest
+				oldest: t.oldest,
+				key: t.key
 			}
 
 			if(schemaType.value.type === 'object' || schemaType.key.type === 'object'){
@@ -220,6 +283,7 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 
 
 	function setupDescent(handle, paramsForDescent){
+		
 		if(makeDescend){//TODO require makeDescend for object results?
 			var descender = makeDescend(paramTypes)
 			_.assertFunction(descender)
@@ -234,6 +298,7 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 				_.assertBoolean(worked)
 				return worked
 			}
+			
 		}else{
 			handle.descend = function(path, editId, cb, continueListening){
 				_.assertFunction(cb)
@@ -259,6 +324,26 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 				}
 				//_.errout('TODO use makeDescend if available')
 			}
+			
+		}
+		handle.getTopParent = function(id){
+			if(s.objectState.isTopLevelObject(id)) return id
+			for(var i=0;i<paramsForDescent.length;++i){
+				var pt = paramsForDescent[i]
+				
+				if(pt.getTopParent) return pt.getTopParent(id)
+				
+				/*var worked = pt.descend(path, editId, cb, continueListening)
+				if(worked){
+					//console.log('trying all parameters for descend worked: ' + JSON.stringify(path))
+					//console.log(new Error().stack)
+					return true
+				}*/
+			}
+			//console.log('output handler tried all, could not descend: ' + JSON.stringify(path))
+			//console.log(JSON.stringify(paramsForDescent))
+			//return false
+			_.errout('getTopParent must be uniquely findable: ' + id + ' ' + JSON.stringify(_.map(paramsForDescent, function(t){return t.name})))
 		}
 	}
 	
@@ -394,6 +479,7 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 				detach: function(listener, editId){
 					listeners.remove(listener)
 					if(editId){
+						console.log('removing: ' + JSON.stringify(list))
 						for(var i=0;i<list.length;++i){
 							listener.remove(list[i], editId)
 						}
@@ -630,9 +716,13 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 
 	var paramsForDescent = []
 
+	var key = ''
 	var params = []
 	for(var i=0;i<paramSets.length;++i){
 		var ps = paramSets[i](bindings, editId)
+		if(ps.key === undefined) _.errout('no key: ' + ps.name)
+		_.assertDefined(ps.key)
+		key += ps.key+','
 		_.assertDefined(ps)
 		params.push(ps)
 		if(descendableParams[i]){
@@ -643,15 +733,26 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 		}
 	}
 	
+	if(cache.has(key)){
+		return cache.get(key)
+	}
+	
 	var outputHandler = makeOutputHandle(oldest, paramsForDescent)
 	
+	var settingUp = true
+	var recomputeAfter = false
 	
 	var recomputing
 	var listener = {
 		changed: function(editId){
 			_.assertInt(editId)
 			_.assertNot(recomputing)
+			if(settingUp){
+				recomputeAfter = true
+				return
+			}
 			//console.log('recomputing: ' + plugin.callSyntax)
+			//console.log(new Error().stack)
 			recomputing = true
 			recompute(editId)
 			recomputing = false
@@ -666,12 +767,21 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 
 	//_.assert(paramSets.length > 0)
 
+	var isDestroyed = false
+	outputHandler.destroy = function(){
+		isDestroyed = true
+		params.forEach(function(p, i){
+			if(p.detach === undefined) _.errout('missing detach method: ' + p.name)
+			p.detach(listener)
+		})
+		outputHandler.attach = outputHandler.detach = outputHandler.oldest = function(){_.errout('destroyed');}
+	}
+	
 
 	var valueArray = []
 	valueArray.length = params.length
 	
 	outputHandler.descenders = []
-	//outputHandler.typeDescenders = []
 
 	var oldestParams = []
 
@@ -692,10 +802,11 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 		}
 	})
 	
-
 	
 	function oldest(){
 		//console.log(new Error().stack)
+		if(isDestroyed) _.errout('destroyed')
+		
 		var o = s.objectState.getCurrentEditId()
 		for(var i=0;i<oldestParams.length;++i){
 			var p = oldestParams[i]
@@ -726,11 +837,20 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 		var rr = plugin.implementation(valueArray)
 		//console.log(nr + ' ' + plugin.callSyntax + ' recomputed('+JSON.stringify(valueArray)+ '): '+ JSON.stringify(result) + ' -> ' + JSON.stringify(rr))
 		result = rr
+		//console.log('updating: ' + editId)
 		outputHandler.update(result, editId)
 	}	
+
+	if(recomputeAfter){
+		//console.log('doing initial recompute')
+		recomputing = true
+		recompute(editId)
+		recomputing = false
+	}
+	settingUp = false
 	
 	//if(recomputing === undefined) recompute(editId)
 	
-	return outputHandler
+	return cache.store(key, outputHandler)
 }
 

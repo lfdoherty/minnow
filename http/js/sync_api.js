@@ -305,10 +305,17 @@ function setLocalMode(v){
 
 function getTopId(){return this.parent.getTopId();}
 
+function getById(id){
+	_.assertInt(id)
+	_.assert(id > 0)
+	return this.getObjectApi(id)
+}
+
 function addCommonFunctions(classPrototype){
 	addRefreshFunctions(classPrototype);
 	if(classPrototype.getEditingId === undefined) classPrototype.getEditingId = getEditingId;
 	if(classPrototype.getObjectApi === undefined) classPrototype.getObjectApi = getObjectApi;
+	if(classPrototype.getById === undefined) classPrototype.getById = getById;
 	if(classPrototype.wrapObject === undefined) classPrototype.wrapObject = wrapObject;
 	if(classPrototype.getFullSchema === undefined) classPrototype.getFullSchema = getFullSchema;
 	if(classPrototype.removeParent === undefined) classPrototype.removeParent = removeParent;
@@ -431,7 +438,7 @@ SyncApi.prototype.hasView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
-	console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
+	//console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
@@ -546,6 +553,8 @@ SyncApi.prototype._destroyed = function(objHandle){
 	delete this.snap.objects[id]
 	this.currentTopObject = DESTROYED_LOCALLY
 }
+
+
 
 SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertLength(arguments, 3);
