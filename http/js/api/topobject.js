@@ -169,7 +169,7 @@ function changeOnPath(local, path, op, edit, syncId, editId){
 		var currentHandle = descend(local, path)
 		
 		if(currentHandle === undefined){
-			local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
+			//local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
 			return
 		}
 
@@ -887,22 +887,22 @@ function descend(start, pathEdits){
 			if(ch.getObjectValue){//map descent
 				ch = ch.getObjectValue(pe.edit.id)
 				if(ch === undefined){
-					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
-					console.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					//start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					//console.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}else if(ch.get){//list/set descent?
 				ch = ch.get(pe.edit.id)
 				if(ch === undefined){
-					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
-					console.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					//start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					//console.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}else{
 				//we don't actually do anything except check that the object property's object hasn't changed
 				if(ch.objectId !== pe.edit.id){
-					start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
-					console.log('*WARNING: might be ok, but cannot descend into path due to id not found(' + ch.objectId + ' !=- ' + pe.edit.id+'): ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					//start.log('WARNING: might be ok, but cannot descend into path due to id not found: ' + JSON.stringify(pathEdits.slice(0,i+1)))
+					//console.log('*WARNING: might be ok, but cannot descend into path due to id not found(' + ch.objectId + ' !=- ' + pe.edit.id+'): ' + JSON.stringify(pathEdits.slice(0,i+1)))
 					return
 				}
 			}

@@ -176,7 +176,7 @@ ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit
 		var res = this.get(descendId);
 		var index = this.obj.indexOf(res)
 		if(index === -1){
-			console.log('ignoring redundant remove: ' + edit.id);
+			//console.log('ignoring redundant remove: ' + edit.id);
 		}else{
 			this.obj.splice(index, 1);
 
@@ -190,13 +190,13 @@ ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit
 		}
 		
 		if(this.obj.indexOf(objHandle) !== -1){
-			console.log('ignoring redundant add: ' + edit.id)
+			//console.log('ignoring redundant add: ' + edit.id)
 			return
 		}
 		
 		var beforeHandle = this.get(descendId);
 		if(beforeHandle === undefined){
-			console.log('cannot find before(' + descendId+'), falling back to append-add')
+			//console.log('cannot find before(' + descendId+'), falling back to append-add')
 			this.obj.push(objHandle)
 			objHandle.prepare()
 	
@@ -220,7 +220,7 @@ ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit
 		
 		var beforeHandle = this.get(descendId);
 		if(beforeHandle === undefined){
-			console.log('cannot find before(' + descendId+'), falling back to append-add')
+			//console.log('cannot find before(' + descendId+'), falling back to append-add')
 			this.obj.push(objHandle)
 			objHandle.prepare()
 	

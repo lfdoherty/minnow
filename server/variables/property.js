@@ -860,15 +860,33 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 		set: function(id, oldId, editId){
 			if(ongoingEditId === undefined) ongoingEditId = editId
 			latestEditId = editId
+			
+			if(!id){
+				_.assert(oldId)
+				//_.errout('TODO source object removed via one')
+				console.log('removing all: ' + JSON.stringify(oldPv))
+				oldPv.forEach(function(v){
+					listeners.emitRemove(v)
+				})
+				//s.objectState.stopStreamingProperty(id, propertyCode, previousStreamListener)
+				previousStreamListener.isStopped = true
+				previousStreamListener = undefined
+				oldPv = undefined
+				return
+			}
+			
 			_.assertInt(id)
 			_.assertInt(editId)
 			
 			//TODO stop streaming previous
 			if(previousStreamListener){
+				previousStreamListener.isStopped = true//cleanup this mem leaky hack
 				//s.objectState.stopStreamingProperty(id, propertyCode, previousStreamListener)
-				_.errout('TODO')
+				//_.errout('TODO')
 			}
 			function streamListener(pv, editId){
+				if(streamListener.isStopped) return
+				
 				ongoingEditId = undefined
 				
 				//console.log('streaming object property(' + propertyCode + ') for(' + id + '): ' + JSON.stringify(pv))
@@ -877,7 +895,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 					//console.log('cleaning up oldPv ' + JSON.stringify(oldPv) + ' -> ' + JSON.stringify(pv))
 					//console.log('counts: ' + JSON.stringify(counts))
 					oldPv.forEach(function(v){
-						if(pv.indexOf(v) === -1){
+						if(pv && pv.indexOf(v) === -1){
 							--counts[v]
 							if(counts[v] === 0){
 								//console.log('emitting remove')
@@ -886,7 +904,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 						}
 					})
 				}
-				oldPv = [].concat(pv)
+				oldPv = pv?[].concat(pv):[]
 
 				if(isObjectProperty && pv !== undefined){
 					//_.assertInt(pv)
@@ -905,7 +923,7 @@ function svgObjectCollectionValue(s, cache, contextGetter, isObjectProperty, pro
 							//s.log('emitting add: ', v)
 							//console.log('emitting add')
 							listeners.emitAdd(v, editId)
-						}else if(oldPv.indexOf(v) === -1){
+						}else if(!oldPv || oldPv.indexOf(v) === -1){
 							++counts[v]
 						}
 					})

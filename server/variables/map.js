@@ -258,29 +258,10 @@ function reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cRe
 		var cur = arr[0].value
 		for(var i=1;i<arr.length;++i){
 			var nv = arr[i].value
-			/*var newBindingsReduce = copyBindings(bindings)
-			newBindingsReduce[reduceImplicitFirst] = valueGetter.wrapAsSet(cur)
-			newBindingsReduce[reduceImplicitSecond] = valueGetter.wrapAsSet(nv)
-			//s.log(''+valueGetter.wrapAsSet)
-			_.assertObject(newBindingsReduce[reduceImplicitFirst])
-			_.assertObject(newBindingsReduce[reduceImplicitSecond])*/
-			
-			//TODO for performance, use sync wrapper when possible
-			_.assert(cReduceGetter.isSyncMacro)
+		
+			//for performance, use sync wrapper when possible
+			_.assert(cReduceGetter.isSyncMacro)//TODO work when not sync
 			cur = cReduceGetter(cur, nv)
-			
-			/*
-			var newMerge = cReduceGetter(newBindingsReduce, editId)					
-			var newResult
-			var did = false
-			newMerge.attach({
-				set: function(value, oldValue, editId){
-					newResult = value
-					did = true
-				}
-			})
-			if(!did) _.errout('reduce operation must be synchronous (this may be relaxed in future versions of minnow.)')
-			cur = newResult*/
 		}
 		if(cur !== old){
 			_.assertPrimitive(cur)
@@ -495,7 +476,10 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
-				//console.log('detaching from map')
+				console.log('removing from map: ' + v)
+				if(!r){
+					_.errout('tried to remove value not present')
+				}
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 				delete allSets[v]

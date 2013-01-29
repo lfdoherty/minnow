@@ -97,14 +97,21 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 	_.assertArray(implicits)
 	
 	if(expr.type === 'param'){
+		//console.log('processing param: ' + expr.name)
 		if(bindings[expr.name] !== undefined){
-			if(bindings[expr.name].type === 'param') return bindings[expr.name]
-			if(leavePartials){
+			if(bindings[expr.name].type === 'param'){
+				//console.log('here')
+				return bindings[expr.name]
+			}else if(leavePartials){
+				//console.log('there: ' + JSON.stringify(bindings[expr.name]))
 				return bindings[expr.name]
 			}else{
+				//console.log('recursing')
 				return replaceReferencesToParams(bindings[expr.name], viewMap, bindings, implicits)
 			}
+			//console.log('done: ' + expr.name)
 		}else{
+			//console.log('unfound binding: ' + expr.name)
 			if(expr.name.charAt(0) === '~'){
 				if(expr.name.length === 1){
 					if(implicits[0] === undefined) _.errout('tried to use ~ param outside of macro')
@@ -116,6 +123,8 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 					_.assertString(implicits[num])
 					return {type: 'param', name: implicits[num]}
 				}
+			}else{
+				//_.errout('missing binding: ' + JSON.stringify(expr))
 			}
 			
 			return expr;
@@ -132,24 +141,42 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 				_.errout('TODO: ' + JSON.stringify(expr) + '\n' + JSON.stringify(bindings[expr.view]))			
 			}
 		}
+
 		
 		var newParams = []
 		expr.params.forEach(function(p, index){
 			_.assertDefined(p)
-			//console.log('replacing references for param: ' + JSON.stringify(p))
+			//if(p.name === 'tabUrl') console.log('replacing references for param: ' + JSON.stringify(p))
 			//console.log(new Error().stack)
-			var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
-			if(!gm) _.assert(np.type !== 'partial-application')
+			try{
+				var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
+				if(!gm) _.assert(np.type !== 'partial-application')
+			}catch(e){
+				//console.log('view: ' + expr.view + ' ' + JSON.stringify(Object.keys(bindings)))
+				throw e
+			}
 		})
 		
 		if(gm){
-			if(leavePartials) return expr
+			if(leavePartials){
+				//console.log('leaving partials: ' + JSON.stringify(newParams))
+				return expr
+			}
 			if(gm.type === 'global-macro'){
-				var newBindings = {}
+				var newBindings = _.extend({}, bindings)//due to inlining we should include all bindings, not just the ones passed via the view call
 				gm.params.forEach(function(p, index){
 					newBindings[p.name] = newParams[index]
 				})
-				var res = replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
+				try{
+					var res = replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
+				}catch(e){
+					//console.log(JSON.stringify(expr) + '\n\t' + JSON.stringify(gm))
+					console.log(gm.name + ' params: ' + JSON.stringify(_.map(gm.params, function(v){return v.name;})))
+					throw e
+				}
+				if(expr.view === 'computeSnippetStates'){
+					console.log('replacing: ' + JSON.stringify(newBindings))
+				}
 				return res
 			}else if(gm.type === 'specialization'){
 				var concreteCases = []
@@ -362,6 +389,17 @@ function makeMergeTypes(schema){
 					if(v !== 'boolean') _.errout('cannot merge booleans and non-booleans: ' + JSON.stringify(types))
 				})
 				return types[0]
+			}if(prim === 'int'){
+				var foundReal = false
+				var foundLong = false
+				primitives.forEach(function(v){
+					if(v === 'real') foundReal = true
+					if(v === 'long') foundLong = true
+					if(v !== 'int' && v !== 'long' && v !== 'real') _.errout('cannot merge numbers and non-numbers: ' + JSON.stringify(types))
+				})
+				if(foundReal) return {type: 'primitive', primitive: 'real'}
+				else if(foundLong) return {type: 'primitive', primitive: 'long'}
+				return {type: 'primitive', primitive: 'int'}
 			}else if(prim === 'string'){
 				primitives.forEach(function(v){
 					if(v !== 'string') _.errout('cannot merge string and non-strings: ' + JSON.stringify(types))
@@ -1049,6 +1087,8 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			viewMap: viewMap,
 			bindingTypes: bindingTypes
 		}
+
+		//console.log('descending into view: ' + rel.view)
 		
 		if(v){//view is creating a view object
 			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
@@ -1060,7 +1100,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
 			return bindingTypes[rel.view].schemaType//TODO should be setting rel.schemaType here?
 		}
-		
+
 		if(schema[rel.view]){
 			computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
 			if(rel.view === 'undefined') _.errout('here')
@@ -1085,6 +1125,10 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		
 		if(rel.params.length < def.minParams) throw new Error(def.callSyntax + ' called with ' + rel.params.length + ' params.')
 		_.assert(def !== undefined)
+		
+		//console.log(JSON.stringify(rel.schemaType))
+		//console.log(JSON.stringify(rel))
+		
 		computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
 		
 		var mergeTypesFunction = makeMergeTypes(schema)
@@ -1095,7 +1139,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		var local = {
 			mergeTypes: mergeTypesFunction
 		}
-		
+		//console.log('computing view: ' + rel.view)
 		var res = def.schemaType.bind(local)(rel, ch)
 		rel.params.forEach(function(p){
 			if(p.type === 'macro' || p.type === 'partial-application'){//must be computed by def.schemaType
@@ -1179,33 +1223,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		return rel.schemaType = {type: 'primitive', primitive: 'int'}
 	}else if(rel.type === 'nil'){
 		return rel.schemaType = {type: 'nil'}
-	}/*else if(rel.type === 'array'){
-		var foundStr = false
-		var foundInt = false
-		var foundNumber = false
-
-		//computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
-		rel.array.forEach(function(v){
-			computeTypeWrapper(v, bindingTypes, implicits)
-		})
-				
-		rel.array.forEach(function(v){
-			if(v.schemaType.type === 'int' || v.schemaType.primitive === 'int') foundInt = true
-			else if(v.schemaType.type === 'real' || v.schemaType.primitive === 'real') foundNumber = true
-			else if(v.schemaType.primitive === 'string') foundStr = true
-			else{
-				_.errout('cannot handle array type: ' + JSON.stringify(v))
-			}
-		})
-		var prim
-		if(foundStr) prim = 'string'
-		else if(foundNumber) prim = 'real'
-		else if(foundInt) prim = 'int'
-		else{
-			_.errout('unknown type: ' + JSON.stringify(rel))
-		}
-		return rel.schemaType = {type: 'list', members: {type: 'primitive', primitive: prim}}
-	}*/else{
+	}else{
 		_.errout('TODO: support rel type: ' + rel.type);
 	}
 }
@@ -1327,6 +1345,8 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 			_.each(params, function(p){
 				vn.paramsByName[p.name] = p;
 			});
+			
+			//console.log('inlining view call: ' + name)
 		
 			var relTakenCodes = {};
 			_.each(v.children, function(r){

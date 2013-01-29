@@ -23,7 +23,7 @@ exports.maxParams = -1
 exports.syntax = 'add(number|set:number,number|set:number,...)'
 exports.nullsOk = true
 
-var log = require('quicklog').make('add')
+var log = require('quicklog').make('minnow/add')
 
 exports.compute = function(paramValues){
 	var v = 0
@@ -39,5 +39,6 @@ exports.compute = function(paramValues){
 			v += paramValues[i]
 		}
 	}
+	log(JSON.stringify(paramValues) + ' ' + v)
 	return v
 }

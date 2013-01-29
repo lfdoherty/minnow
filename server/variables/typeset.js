@@ -99,15 +99,6 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			s.objectState.streamProperty(path, editId, cb, continueListening)
 			return true
 		},
-		/*descendTypes: function(path, editId, cb, continueListening){
-			if(!s.objectState.isTopLevelObject(path[0].edit.id)) return false
-			s.objectState.streamPropertyTypes(path, editId, cb, continueListening)
-			return true
-		},
-		getType: function(v){
-			if(!s.objectState.isTopLevelObject(v)) return
-			return s.objectState.getObjectType(v)
-		}*/
 		destroy: function(){
 			s.getAllSubtypes(typeCode).forEach(function(objSchema){
 				//console.log('listening for new')

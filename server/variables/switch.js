@@ -160,7 +160,12 @@ function svgGeneralSwitch(s, cache, primGetter, cases, defaultCase, bindings, ed
 	}
 	
 	function useCase(getter, editId){
-		if(caseVariable) _.errout('TODO support varying prim variable');
+		if(caseVariable){
+			//_.errout('TODO support varying prim variable');
+			listeners.forEach(function(listener){
+				caseVariable.detach(listener, editId)
+			})
+		}
 		caseVariable = getter(bindings, editId)
 		handle.descend = caseVariable.descend
 		//handle.descendTypes = caseVariable.descendTypes

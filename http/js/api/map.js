@@ -290,6 +290,10 @@ MapHandle.prototype.get = function(desiredKey){
 	
 	if(this.obj === undefined) return;
 
+	if(desiredKey._internalId){
+		desiredKey = desiredKey._internalId()
+	}
+
 	var idOrValue = this.obj[desiredKey];
 	if(idOrValue === undefined) return;
 	
@@ -319,6 +323,10 @@ MapHandle.prototype.value = function(desiredKey){
 
 	if(this.obj === undefined) return;
 
+	if(desiredKey._internalId){
+		desiredKey = desiredKey._internalId()
+	}
+	
 	var idOrValue = this.obj[desiredKey];
 	if(idOrValue === undefined) return;
 	
@@ -418,16 +426,18 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 	}else if(lookup.isPutRemoveCode[op]){//op.indexOf('putRemove') === 0){
 		//if(this.obj[key] === undefined) this.obj[key] = []
 		var list = this.obj[key]
-		list.splice(list.indexOf(edit.value), 1)//.push(edit.value)
-		//this.log('key: ' + key)
-		//console.log('put-removed: ' + edit.value)
-		//console.log(JSON.stringify(this.obj))
-		if(list.length === 0){
-			delete this.obj[key]
-		}
-		return this.emit(edit, 'put-remove', key, edit.value, editId)
-		if(list.length === 0){
-			this.emit(edit, 'del', key, editId)
+		if(list){
+			list.splice(list.indexOf(edit.value), 1)//.push(edit.value)
+			//this.log('key: ' + key)
+			//console.log('put-removed: ' + edit.value)
+			//console.log(JSON.stringify(this.obj))
+			if(list.length === 0){
+				delete this.obj[key]
+			}
+			return this.emit(edit, 'put-remove', key, edit.value, editId)
+			if(list.length === 0){
+				this.emit(edit, 'del', key, editId)
+			}
 		}
 	}else if(op === editCodes.didPutNew){
 		/*this.obj[key] = edit.value;

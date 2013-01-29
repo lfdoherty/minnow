@@ -17,6 +17,9 @@ function eachType(rel, ch){
 	var inputType = rel.params[0].schemaType
 
 	var singleInputType = inputType.members
+
+	if(singleInputType === undefined) _.errout('invalid input type for each: ' + JSON.stringify(inputType))
+	
 	_.assertDefined(singleInputType)
 	var newBindings = {}
 	var implicits = rel.params[1].implicits
@@ -319,7 +322,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 		var oldestEditId = elements.oldest()
 		Object.keys(allSets).forEach(function(key){
 			var valueSet = allSets[key]
-			var old = valueSet.oldest()
+			var old = valueSet.set.oldest()
 			if(old < oldestEditId) oldestEditId = old
 		})
 		//console.log('each oldest ' + oldestEditId + ' ' + elements.oldest())
@@ -339,16 +342,17 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			var newSet = concreteGetter(newBindings, editId)
 			//console.log('attaching to: ' + newSet.name)
 			_.assertUndefined(allSets[v])
-			allSets[v] = newSet
-			newSet.resultSetListener = new ResultSetListener(newSet)
-			_.assertFunction(newSet.resultSetListener.set)
-			newSet.attach(newSet.resultSetListener, editId)
+			var as = allSets[v] = {set: newSet, resultSetListener: new ResultSetListener(newSet)}
+			_.assertFunction(as.resultSetListener.set)
+			newSet.attach(as.resultSetListener, editId)
 		},
 		remove: function(v, editId){
 			var removedSet = allSets[v]
+			_.assertDefined(removedSet)
+			//_.assertNot(removedSet.blah)
 			delete allSets[v]
 			removedSet.blah = true
-			removedSet.detach(removedSet.resultSetListener, editId)
+			removedSet.set.detach(removedSet.resultSetListener, editId)
 		},
 		objectChange: stub,//ignore object changes - that's the result set listener's job?
 		includeView: vi.includeView,
@@ -404,8 +408,9 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			elements.detach(elementsListener)
 			Object.keys(allSets).forEach(function(k){
 				var set = allSets[k]
-				if(set.blah) _.errout('blah!')
-				set.detach(set.resultSetListener)
+				//if(set.blah) _.errout('blah!')
+				if(!set.set.detach) _.errout('missing detach: ' + set.set.name)
+				set.set.detach(set.resultSetListener)
 			})
 			allSets = undefined
 			listeners.destroyed()

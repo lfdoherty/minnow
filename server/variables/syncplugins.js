@@ -459,6 +459,8 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 					for(var i=0;i<list.length;++i){
 						var v = list[i]
 						if(newHas[v] === undefined){
+							//console.log('removing: ' + v + ' ' + r)
+							//console.log(JSON.stringify(list))
 							listeners.emitRemove(v, editId)
 						}
 					}
