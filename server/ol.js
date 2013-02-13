@@ -164,6 +164,8 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
 	this.olc.addEdit(id, {op: editCodes.made, edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
 	this.objectCurrentSyncId[id] = syncId
+	_.assertInt(edit.typeCode)
+	//console.log('edit.typeCode: ' + edit.typeCode)
 	this.idsByType[edit.typeCode].push(this.idCounter)
 	_.assertInt(edit.following)
 	//console.log('following: ' + edit.following)

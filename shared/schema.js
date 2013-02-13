@@ -176,7 +176,7 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 					throw e
 				}
 				if(expr.view === 'computeSnippetStates'){
-					console.log('replacing: ' + JSON.stringify(newBindings))
+					//console.log('replacing: ' + JSON.stringify(newBindings))
 				}
 				return res
 			}else if(gm.type === 'specialization'){

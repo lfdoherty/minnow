@@ -445,8 +445,8 @@ SyncApi.prototype.getTopObject = function(id){
 }
 
 SyncApi.prototype.getView = function(viewId, historicalKey){
-	_.assertLength(arguments, 2)
-	console.log('historicalKey: ' + historicalKey)
+	//_.assertLength(arguments, 2)
+	//console.log('historicalKey: ' + historicalKey)
 	var view = this.getObjectApi(viewId, historicalKey);
 	if(historicalKey){
 		

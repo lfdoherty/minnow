@@ -341,7 +341,7 @@ exports.make = function(s, self, rel, typeBindings){
 	var makeBindingWrappers = makeBindingWrappersFunction(s, self, rel.params[1], typeBindings)
 
 	var streamAllPropertyValues
-	console.log('isHistorical: ' + s.isHistorical)
+	//console.log('isHistorical: ' + s.isHistorical)
 	if(s.isHistorical){
 		streamAllPropertyValues = s.objectState.streamAllPropertyValuesHistorically
 	}else{
@@ -463,8 +463,8 @@ function makeF(s, rel, objTypeCode, propertyCodes, wrapper, makeBindingWrappers,
 				}			
 			})
 		}
-		console.log('streaming all: ' + editId)
-		console.log(new Error().stack)
+		//console.log('streaming all: ' + editId)
+		//console.log(new Error().stack)
 		
 		streamAll(editId)
 				

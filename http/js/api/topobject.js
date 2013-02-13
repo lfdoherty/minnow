@@ -90,7 +90,7 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id, forkedObject){
 }
 
 TopObjectHandle.prototype.getObjectApi = function(id){
-	console.log(this.historicalKey + ' -> ' + this.objectId + ' ' + id)
+	//console.log(this.historicalKey + ' -> ' + this.objectId + ' ' + id)
 	return this.parent.getObjectApi(id, this.historicalKey)
 }
 
