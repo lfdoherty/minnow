@@ -1022,6 +1022,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 		streamAllPropertyValuesForSetHistorically: function(objTypeCode, propertyCodes, attachmentEditId, cb, liveCb, destroyedCb){
 
 			_.assertFunction(destroyedCb)
+
+			console.log(new Error().stack)
 			
 			var outstandingEditCount = 0
 			var isListening = false
@@ -1183,7 +1185,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 							--outstandingEditCount
 							if(ids[id]){
 								computeMap(id, res, editId, function(id, map, resultEditId){
-									console.log('here('+resultEditId+','+editId+'): ' + JSON.stringify(res))
+									//console.log('here('+resultEditId+','+editId+'): ' + JSON.stringify(res))
 									cb(id, map, resultEditId > editId?resultEditId:editId)//TODO is this right?
 								}, destroyedCb, ol, objSchema, propertyCodes, isPc)
 							}
@@ -1396,7 +1398,8 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 function computeAllHistoricalMaps(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, propertyCodes, isPc){
 	_.assertLength(arguments, 9)
 	
-	console.log('computing all historical maps: ' + JSON.stringify(res))
+	//console.log('computing all historical maps: ' + JSON.stringify(res))
+	//console.log(new Error().stack)
 	
 	_.assertObject(isPc)
 	//var pu = pathsplicer.make()

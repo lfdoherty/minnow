@@ -408,7 +408,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}			
 		})
 	}else{
-		var idSet = s.objectState.streamAllPropertyValuesForSetHistorically(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
+		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 			var macroParams = [id]
 			var keyResult = boundKeyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
