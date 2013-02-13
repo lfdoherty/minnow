@@ -457,7 +457,7 @@ function makeF(s, rel, objTypeCode, propertyCodes, wrapper, makeBindingWrappers,
 				if(has[id]){
 					//console.log('deleting id')
 					delete has[id]
-					ids.splice(i, 1)
+					ids.splice(ids.indexOf(id), 1)
 					if(s.isHistorical) changeHistory.push({type: 'remove', id: id, editId: realEditId})
 					listeners.emitRemove(id, editId)
 				}			
