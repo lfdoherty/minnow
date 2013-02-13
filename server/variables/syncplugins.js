@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 //var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
 
@@ -535,11 +535,15 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 					//TODO optimize
 					
 					for(var i=0;i<list.length;++i){
-						listeners.emitRemove(list[i], editId)
+						if(result.indexOf(list[i]) === -1){
+							listeners.emitRemove(list[i], editId)
+						}
 					}
 					has = {}
 					for(var i=0;i<result.length;++i){
-						listeners.emitAdd(result[i], editId)
+						if(list.indexOf(result[i]) === -1){
+							listeners.emitAdd(result[i], editId)
+						}
 						has[result[i]] = true
 					}
 					list = [].concat(result)
@@ -674,7 +678,7 @@ exports.wrap = function(s, self, callExpr, typeBindings, plugin){
 		a)  Every time any of the parameter wrapper's value changes, call the plugin.implementation function with the value array
 	*/
 	
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 
 	//1. one set for each parameter
 	var paramSets = []
@@ -828,7 +832,7 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 			valueArray[i] = params[i].get()
 			//_.assertDefined(valueArray[i])
 			if(valueArray[i] === undefined && !plugin.nullsOk){
-				console.log('WARNING: null input found for plugin that will not take nulls: ' + plugin.callSyntax + ' ' + JSON.stringify(valueArray))
+				//console.log('WARNING: null input found for plugin that will not take nulls: ' + plugin.callSyntax + ' ' + JSON.stringify(valueArray))
 				return
 			}
 		}

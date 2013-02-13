@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -66,7 +66,7 @@ function eachMaker(s, self, rel, typeBindings){
 		throw new Error('each param 1 must be a collection, not: ' + JSON.stringify(rel.params[0].schemaType))
 	}
 
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	s = _.extend({}, s)
 	s.outputType = rel//.params[1].schemaType
 	if(rel.params[1].type === 'macro' || rel.params[1].type === 'partial-application' || rel.params[1].type === 'param'){
@@ -75,6 +75,8 @@ function eachMaker(s, self, rel, typeBindings){
 		
 		res = eachSubsetOptimization.make(s, self, rel, typeBindings)
 		if(res !== undefined) return res
+		
+		//console.log('subset optimization failed for: ' + JSON.stringify(rel))
 
 		var contextGetter = self(rel.params[0], typeBindings)
 	

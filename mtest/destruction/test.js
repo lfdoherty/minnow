@@ -49,14 +49,21 @@ exports.gracefulFailureForDestroyedIdView = function(config, done){
 				
 				var e = c.make('entity', function(id){
 					e.del()
-					minnow.makeClient(config.port, function(otherClient){
-						console.log('got client for destroy')
-						otherClient.view('specific', [id], function(err, v){
-							//console.log(JSON.stringify(v.toJson()))
-							_.assertNot(v.has('e'))
-							done()
+					//setTimeout(function(){
+						minnow.makeClient(config.port, function(otherClient){
+							//console.log('got client for destroy')
+							otherClient.view('specific', [id], function(err, v){
+								if(err){
+									console.log(err)
+									done()
+									return
+								}
+								//console.log(v)
+								_.assertNot(v.has('e'))
+								done()
+							})
 						})
-					})
+					//},1000)
 				})				
 			})
 		})

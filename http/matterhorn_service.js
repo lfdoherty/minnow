@@ -41,8 +41,8 @@ function sendData(req, res, data, zippedData){
 	}
 }
 
-exports.make = function(appName, schema, local, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
-	_.assertLength(arguments, 7)
+exports.make = function(appName, schema, local, secureLocal, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
+	_.assertLength(arguments, 8)
 	_.assertString(appName)
 	_.assertFunction(authenticator)
 	
@@ -60,14 +60,16 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 	
 	var schemaUrl;
 	var schemaStr = 'gotSchema(' + JSON.stringify(simplifiedSchema) + ');'
-	local.serveJavascript(exports, appName, function(ccc){
+	function generateSchemaUrl(ccc){
 		_.assertFunction(ccc);
 		schemaUrl = ccc(schemaStr);
-	});
+	}
+	local.serveJavascript(exports, appName, generateSchemaUrl);
+	secureLocal.serveJavascript(exports, appName, generateSchemaUrl);
 	
 	//var bb = {};
 	
-	local.get(exports, snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, function(req, res){
+	function generateSnap(req, res){
 
 		var viewId = parseInt(req.params.viewId);
 		var viewSchema = schema._byCode[viewId]
@@ -135,7 +137,9 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				});
 			}
 		}, params, req.userToken)
-	});
+	}
+	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
+	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
 
 	
 	//local.serveJavascriptFile(exports, 
@@ -164,6 +168,8 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
 				vars.applicationName = appName
 				vars.mainViewParams = params
+				//vars.httpPort = local.getPort()
+				//vars.httpsPort = secureLocal.getSecurePort()
 				
 				for(var i=0;i<paths.length;++i){
 					var p = paths[i];

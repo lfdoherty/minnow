@@ -31,6 +31,8 @@ console.log = function(msg){
 var oldMakeClient = minnow.makeClient
 var oldMakeServer = minnow.makeServer
 
+var usingSameClient = false
+
 var currentClientList
 var currentServerList
 minnow.makeClient = function(port, host, cb){
@@ -38,6 +40,12 @@ minnow.makeClient = function(port, host, cb){
 		cb = host
 		host = undefined
 	}
+	
+	if(usingSameClient && currentClientList.length === 1){
+		cb(currentClientList[0])
+		return
+	}
+	
 	oldMakeClient(port, host, function(client){
 		currentClientList.push(client)
 		cb(client)
@@ -45,6 +53,7 @@ minnow.makeClient = function(port, host, cb){
 }
 minnow.makeServer = function(config, cb){
 	oldMakeServer(config, function(server){
+		currentClientList = []//TODO cleanup?
 		currentServerList.push(server)
 		cb(server)
 	})
@@ -52,9 +61,11 @@ minnow.makeServer = function(config, cb){
 
 var includedTestDir
 var includedTest
+var useSameClient
 if(process.argv.length > 2){
 	includedTestDir = process.argv[2]
 	includedTest = process.argv[3]
+	useSameClient = process.argv[4]
 	//console.log('including only dirs: ' + JSON.stringify(includedTestDirs))
 }
 
@@ -174,23 +185,46 @@ function moreCont(doneCb){
 		if(!t) return
 		
 		currentTest = t
-	
-		runTest(t, runNextTest)
+
+		if(t.test.forbidSameClient){
+			if(useSameClient === 'yes'){
+				console.log('cannot run same client test: forbidden by test')
+				runNextTest()
+			}else{
+				runTest(t, false, runNextTest)
+			}
+		}else{
+			if(useSameClient === 'yes'){
+				runTest(t, true, runNextTest)
+			}else{	
+				runTest(t, false, function(){
+					if(useSameClient === 'no'){
+						runNextTest()
+					}else{
+						runTest(t, true, runNextTest)
+					}
+				})
+			}
+		}
 	}
 	runNextTest()
 	
-	function runTest(t, cb){
+	function runTest(t, useSameClient, cb){
+		_.assertLength(arguments, 3)
+		
 		var port = portCounter
 		++portCounter;
 		inProgress.push(t)
-		var testDir = t.dir + '/' + t.name + '_test'
+		var testDir = t.dir + '/' + t.name + '_test_'+(useSameClient?'yes':'no')
+		
+		usingSameClient = useSameClient
 
 		var myServerList = currentServerList = []
 		var myClientList = currentClientList = []
 
 		var donePassed
 		function done(){
-			log('test passed: ' + t.dirName + '.' + t.name)
+			log('test passed: ' + t.dirName + '.' + t.name+'[sameClient: ' + (useSameClient?'yes':'no') + ']')
 			donePassed = true
 			++passedCount
 			finish()
@@ -198,10 +232,10 @@ function moreCont(doneCb){
 		function fail(e){
 			e = e || new Error('fail called, error unknown')
 			if(donePassed) return
-			log('test failed: ' + t.dirName + '.' + t.name)
+			log('test failed[sameClient: ' + (useSameClient?'yes':'no') + ']: ' + t.dirName + '.' + t.name)
 			++failedCount
 			//console.log(e)
-			failedList.push([t.dirName+'.'+t.name, e.stack])
+			failedList.push([t.dirName+'.'+t.name+'[sameClient: ' + (useSameClient?'yes':'no') + ']', e.stack])
 			log(e.stack)
 			//process.exit(0)
 			finish()
@@ -215,6 +249,8 @@ function moreCont(doneCb){
 		/*var timeoutHandle = setTimeout(function(){
 			fail(new Error('test timed out'))
 		}, 4000)*/
+		
+		var timeoutHandle
 		
 		function finish(){
 			setTimeout(function(){

@@ -9,6 +9,7 @@ TODO support inner objects
 
 exports.convertJsonToEdits = convertJsonToEdits;
 var _ = require('underscorem')
+var random = require('seedrandom')
 
 var lookup = require('./lookup')
 var editCodes = lookup.codes
@@ -248,6 +249,7 @@ function generateJsonConverter(dbSchema, type){
 			})
 		}
 	}
+	
 		
 	for(var j=0;j<allProperties.length;++j){
 		propertyConverters.push(generatePropertyConverter(allProperties[j], dbSchema))
@@ -264,6 +266,7 @@ function generateJsonConverter(dbSchema, type){
 		});
 
 		var edits = []
+
 		for(var i=0;i<propertyConverters.length;++i){
 			var pc = propertyConverters[i]
 			var pv = json[pc.propertyName]
@@ -278,11 +281,16 @@ function generateJsonConverter(dbSchema, type){
 		}
 		
 		if(edits.length > 0) edits.push({op: editCodes.ascend1, edit: {}})
+
+		if(t.superTypes && t.superTypes.uuided){
+			edits.unshift({op: editCodes.initializeUuid, edit: {uuid: random.uid()}})
+		}
 	
 		edits.forEach(function(e){
 			e.editId = -2
 		})
-		
+
+				
 		return edits
 	}
 	

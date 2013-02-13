@@ -57,6 +57,6 @@ exports.compute = function(paramValues){
 			}
 		})
 	})
-	log('union ', paramValues, results)
+	//log('union ', paramValues, results)
 	return results
 }

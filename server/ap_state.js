@@ -173,7 +173,7 @@ function make(schema, ol){
 			if(e.sourceId < 0) e.sourceId = translateTemporary(e.sourceId, syncId)
 		}else if(op === editCodes.putExisting){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === editCodes.addExisting){
+		}else if(op === editCodes.addExisting || op === editCodes.unshiftExisting){
 			_.assert(e.id !== -1)
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.replaceInternalExisting){
@@ -250,7 +250,7 @@ function make(schema, ol){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId, syncId)
-		}else if(op === editCodes.addNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt || op === editCodes.addNewAfter){
+		}else if(op === editCodes.addNew || op === editCodes.unshiftNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt || op === editCodes.addNewAfter){
 			var temporary = computeTemporary()
 			mapTemporary(temporary, newId, syncId)
 			if(reifyCb) reifyCb(temporary, newId, syncId)

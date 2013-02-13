@@ -33,7 +33,8 @@ function removeTypeListener(typeCode, listener, typeMap){
 		}
 	}
 }
-exports.make = function(){
+exports.make = function(schema){
+	_.assertObject(schema)
 
 	var byType = {};
 	var byObject = {};
@@ -47,16 +48,23 @@ exports.make = function(){
 	
 	var all = []
 	
-	function notifyChanged(typeCode, id, path, op, edit, syncId, editId){
-		_.assertLength(arguments, 7);
-		_.assertArray(path);
-		_.assertInt(syncId);
-		_.assertInt(editId);
-
-		//_.assertInt(subjTypeCode);
-		//_.assertInt(subjId);
-
-		var t = byType[typeCode];
+	
+	var typeAndSuperTypes = {}
+	Object.keys(schema._byCode).forEach(function(codeStr){
+		var sch = schema._byCode[codeStr]
+		var list = typeAndSuperTypes[sch.code] = [sch.code]
+		if(sch.superTypes){
+			Object.keys(sch.superTypes).forEach(function(superTypeName){
+				//console.log('name: ' + superTypeName)
+				var st = schema[superTypeName]
+				if(st){
+					list.push(st.code)
+				}
+			})
+		}
+	})
+	
+	function notifyByType(t, typeCode, id, path, op, edit, syncId, editId){
 		if(t !== undefined){
 			for(var i=0;i<t.length;++i){
 				var listener = t[i];
@@ -66,6 +74,24 @@ exports.make = function(){
 				listener(typeCode, id, path, op, edit, syncId, editId);
 			}
 		}
+
+	}
+	function notifyChanged(typeCode, id, path, op, edit, syncId, editId){
+		_.assertLength(arguments, 7);
+		_.assertArray(path);
+		_.assertInt(syncId);
+		_.assertInt(editId);
+
+		//console.log('notify: ' + typeCode + ' ' + id)
+		//_.assertInt(subjTypeCode);
+		//_.assertInt(subjId);
+
+		typeAndSuperTypes[typeCode].forEach(function(tc){
+			var t = byType[tc];
+			//console.log(schema._byCode[typeCode].name + ' ' + schema._byCode[tc].name)
+			notifyByType(t, typeCode, id, path, op, edit, syncId, editId)
+		})
+		
 		var ob = byObject
 		var obj = ob[id];
 		if(obj !== undefined){
@@ -134,23 +160,30 @@ exports.make = function(){
 				objectChanged(typeCode, id, path, op, edit, syncId, editId);
 			},
 			objectDeleted: function(typeCode, id, editId){
-				var c = delByType[typeCode];
-				if(c !== undefined){
-					for(var i=0;i<c.length;++i){
-						c[i](typeCode, id, editId);
+
+				typeAndSuperTypes[typeCode].forEach(function(tc){
+					var c = delByType[tc];
+					if(c !== undefined){
+						for(var i=0;i<c.length;++i){
+							c[i](typeCode, id, editId);
+						}
 					}
-				}
+				})
 			},
 			objectCreated: function(typeCode, id, editId){
 				_.assertLength(arguments, 3);
 				_.assertInt(typeCode)
-				var c = createdByType[typeCode];
-				//console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
-				if(c !== undefined){
-					for(var i=0;i<c.length;++i){
-						c[i](typeCode, id, editId);
+
+				typeAndSuperTypes[typeCode].forEach(function(tc){
+				
+					var c = createdByType[tc];
+					//console.log('object created: ' + (c === undefined ? 0 : c.length) + '(tc: ' + typeCode + ', id: ' + id + ')');
+					if(c !== undefined){
+						for(var i=0;i<c.length;++i){
+							c[i](typeCode, id, editId);
+						}
 					}
-				}
+				})
 			}
 		},
 		output: {

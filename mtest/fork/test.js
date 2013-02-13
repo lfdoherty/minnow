@@ -9,7 +9,8 @@ exports.basicFork = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
-			
+				if(err) throw err
+				
 				poll(function(){
 					//console.log(c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){

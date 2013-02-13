@@ -12,7 +12,9 @@ function makeWrapper(check, set){
 				client.view('general', function(err, c){
 			
 					poll(function(){
-						if(c.has('v') && check(c)){
+						//console.log(c.has('v') + ' ' + (c.v.intValue.value() === 20))
+						if(c.has('v') && check(c)){	
+							//console.log('doin')
 							done()
 							return true
 						}

@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -61,7 +61,7 @@ function multimapMaker(s, self, rel, typeBindings){
 	var keyGetter = self(rel.params[1], newTypeBindingsKey)
 	var valueGetter = self(rel.params[2], newTypeBindingsValue)
 
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
@@ -383,6 +383,8 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 			}
 			function removeValue(v, editId){
 				var i = values.indexOf(v)
+				//console.log('removing multimap value: ' + v + ' ' + editId)
+				//console.log(new Error().stack)
 				values.splice(i, 1)
 				if(k !== undefined){
 					var kvk = k+':'+v
@@ -416,6 +418,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 		},
 		remove: function(v, editId){
 			var r = allSets[v]
+			//console.log('removing&: ' + v)
 			r.key.detach(r.keyListener, editId)
 			r.value.detach(r.valueListener, editId)
 			delete allSets[v]

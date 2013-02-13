@@ -1,0 +1,73 @@
+
+webpageVersion 6
+	url string 1
+	html string 2
+	hash string 3
+
+user 301
+	data userData 11
+	admin boolean 15
+	settings settings 55
+	contact contact 56
+
+userData 5
+	contacts set:contact 14
+	sidebarForm sidebar 57
+	sidebar sidebar 56
+	expansionToggles string:boolean 58
+	settingsToggles string:boolean 61
+	sidebarWidth int 59
+	quoteExpansionToggles int:boolean 62
+	panelIsVisible boolean 7
+	sidebarsByForked sidebar:sidebar 8//key is original 'form' sidebar, value is the user's fork
+	
+userSession 19
+	user int 1
+	syncId int 2
+	tabsOpen set:webpage 3
+	searchQuery string 4
+	activeUrl string 5
+	activeTitle string 7
+	isExtensionSession boolean 6
+	
+settings 13
+	chatDisabled boolean 1
+	eventsDisabled boolean 2
+	searchDisabled boolean 3
+	widgetDisabled boolean 45
+	formEditingDisabled boolean 48
+	groupAdminEnabled boolean 47
+	role role 50
+	usePrompts boolean 51
+	
+role 21
+	name string 1
+	prompts set:string 2
+
+chatEntry 15
+	created long 10
+	
+chat 7 nest
+	chatUid string 51
+	participants list:contact 21
+	comments list:chatEntry 47 //these should stay inline/denormalized
+	participantRoles int:role 48
+	
+chatComment 8 chatEntry
+	userId int 1
+	text string 211
+
+concept 23
+	x int 1
+	y int 2
+	title string 3
+	
+conceptmap 22 nest
+	mapUid string 10
+	title string 12
+	xp entry:int 13
+	yp entry:int 14
+	concepts set:concept 16
+	offsetX int 17
+	offsetY int 18
+	links int:int 20 //the ints are ids (concepts or entities)

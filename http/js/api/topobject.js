@@ -89,6 +89,86 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id, forkedObject){
 	this.log = this.parent.log
 }
 
+TopObjectHandle.prototype.getObjectApi = function(id){
+	console.log(this.historicalKey + ' -> ' + this.objectId + ' ' + id)
+	return this.parent.getObjectApi(id, this.historicalKey)
+}
+
+TopObjectHandle.prototype.getHistoricalKey = function(){
+	return this.historicalKey
+}
+
+TopObjectHandle.prototype.makeHistorical = function(historicalKey){
+	_.assertInt(historicalKey)
+	
+	this.currentHistoricalVersion = 0
+	this.historicalKey = historicalKey
+	
+	this.nextVersion = function(version){
+		//console.log('realEdits: ' + JSON.stringify(this.realEdits, null, 2))
+		var initialJump = this.isView() ? 0 : this.realEdits[1].edit.following
+		_.assertInt(initialJump)
+		for(var i=initialJump;i<this.realEdits.length;++i){
+			var e = this.realEdits[i]
+			if(e.editId > version){
+				console.log('next ' + e.editId + ' < ' + version)
+				return e.editId
+			}
+		}
+	}
+	
+	
+	this.advanceTo = function(version){
+		//_.errout('TODO')
+		
+		var s = this
+
+		//console.log('realEdits: ' + JSON.stringify(this.realEdits, null, 2))
+		
+		s.currentSyncId=-1
+		//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
+		
+		console.log('advancing edits: ' + s.realEdits.length + ' ' + version)
+		
+		var applied = false// = s.currentHistoricalVersion
+		var next
+		s.realEdits.forEach(function(e, index){
+			if(e.editId < s.currentHistoricalVersion || e.editId > version){
+				console.log('skipped edit: ' + e.editId + ' ' + editNames[e.op])
+				if(e.editId > version && !next){
+					next = e.editId
+				}
+				return
+			}
+			
+			console.log('applied edit: ' + e.editId + ' ' + editNames[e.op])
+			
+			if(e.op === editCodes.setSyncId){
+				s.currentSyncId = e.edit.syncId
+			}else if(e.op === editCodes.madeViewObject){
+				//s.log('ignoring view object creation')
+			}else if(e.op === editCodes.made){
+				//s.log('ignoring object creation')
+				s.pathEdits = []
+			}else{
+				s.changeListener(e.op, e.edit, s.currentSyncId, e.editId, true)
+				s.lastEditId = e.editId
+			}
+			
+			applied = true
+			
+			s.currentHistoricalVersion = e.editId
+			console.log('currentHistoricalVersion: ' + s.currentHistoricalVersion)
+		})
+		
+		if(applied){
+			++s.currentHistoricalVersion
+		}
+		console.log('*currentHistoricalVersion: ' + s.currentHistoricalVersion)
+		return next
+	}
+}
+
 TopObjectHandle.prototype.getForked = function(){
 	return this._forkedObject
 }
@@ -177,12 +257,23 @@ function changeOnPath(local, path, op, edit, syncId, editId){
 
 		if(currentHandle === local){
 			console.log(local.uid + ' YY: ' + JSON.stringify(local.edits, null, 2))
-			_.errout(local.getEditingId()+ ' TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit))
+			if(op === editCodes.initializeUuid){
+				this._uuid = edit.uuid
+			}else{
+				console.log(local.getEditingId()+ ' TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit))
+				return
+			}
 		}else{
 			//console.log('calling change listener: ' + JSON.stringify(local.pathEdits) + ': ' + op + ' ' + JSON.stringify(edit))
 			currentHandle.changeListener(op, edit, syncId, editId)
 		}
 	}	
+}
+
+TopObjectHandle.prototype.uuid = function(){
+	//if(this.typeSchema.superTypes && this.typeSchema.superTypes.uuid
+	if(!this._uuid) _.errout('type is not a uuid type: ' + this.typeSchema.name)
+	return this._uuid
 }
 
 TopObjectHandle.prototype._maintainFork = function(fork){
@@ -297,6 +388,110 @@ TopObjectHandle.prototype.setForked = function fork(objHandle){
 	this._applyRefork(sourceId)
 }
 
+function applyReversions(edits){
+	var realEdits = []
+	var reverts = []
+	for(var i=edits.length-1;i>=0;--i){//note how we go backwards to ensure that we can revert reversions as well.
+		var e = edits[i]
+		if(e.op === editCodes.revert){
+			reverts.push({version: e.edit.version, path: e.path})
+			//console.log('reverting')
+		}else{
+			var skip = false
+			if(e.path !== undefined){
+				for(var j=0;j<reverts.length;++j){
+					var r = reverts[j]
+					if(r.version < e.editId){
+						//console.log('[' + JSON.stringify(r) + ']')
+						//console.log('{' + JSON.stringify(e.path) + '}')
+						if(e.path && (r.path.length === 0 || samePath(r.path, e.path))){
+							//console.log('skip on')
+							skip = true
+						}
+					}else{
+						reverts.splice(j, 1)
+						--j;
+					}
+				}
+			}
+			
+			if(!skip){
+				realEdits.push(e)
+			}else{
+				//console.log('skipping: ' + JSON.stringify(e))
+			}
+		}
+	}
+	return realEdits
+}
+TopObjectHandle.prototype.prepareHistorically = function prepareHistorically(version){
+
+	//TODO make readonly
+	
+	if(this.isReadonlyAndEmpty) return
+	if(this.prepared) return;
+	if(this._destroyed){
+		_.errout('cannot prepare destroyed object - internal error')
+	}
+	this.prepared = true;
+	var s = this;
+
+	var fakeObject = {pathEdits: []}
+	var cur = []
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		var did = updatePath(fakeObject, e.op, e.edit, e.editId)
+		if(!did){
+			e.path = cur
+		}else{
+			cur = [].concat(fakeObject.pathEdits)
+		}
+	}
+	//console.log('prepare: ' + JSON.stringify(this.edits))
+	//first we apply reversions
+	//var reverts = []
+	var realEdits = applyReversions(this.edits)//[]//edits without reverts or reverted
+	//applyReversions(realEdits)
+	realEdits.reverse()
+	
+	/*console.log('real edits: ' + JSON.stringify(realEdits))
+	realEdits.forEach(function(e, index){
+		console.log(index + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
+	})*/
+	
+	//apply edits
+	this.realEdits = realEdits
+	/*
+	s.currentSyncId=-1
+	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
+	realEdits.forEach(function(e, index){
+		if(e.op === editCodes.setSyncId){
+			s.currentSyncId = e.edit.syncId
+		}else if(e.op === editCodes.madeViewObject){
+			//s.log('ignoring view object creation')
+		}else if(e.op === editCodes.made){
+			//s.log('ignoring object creation')
+			s.pathEdits = []
+		}else{
+			s.changeListener(e.op, e.edit, s.currentSyncId, e.editId, true)
+			s.lastEditId = e.editId
+		}
+	})
+	
+	*/
+	
+	if(s.typeSchema.properties){
+		var keys = Object.keys(s.typeSchema.properties);
+		keys.forEach(function(name){
+			//console.log('preparing: ' + name)
+			var p = s.typeSchema.properties[name];
+			var v = s.property(name);
+			v.prepareHistorically(version);
+			s[name] = v;
+		
+		});
+	}
+}
 
 TopObjectHandle.prototype.prepare = function prepare(){
 	//console.log('*prepare')
@@ -323,7 +518,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	}
 	//console.log('prepare: ' + JSON.stringify(this.edits))
 	//first we apply reversions
-	var reverts = []
+	/*var reverts = []
 	var realEdits = []//edits without reverts or reverted
 	for(var i=this.edits.length-1;i>=0;--i){//note how we go backwards to ensure that we can revert reversions as well.
 		var e = this.edits[i]
@@ -355,13 +550,14 @@ TopObjectHandle.prototype.prepare = function prepare(){
 				//console.log('skipping: ' + JSON.stringify(e))
 			}
 		}
-	}
+	}*/
+	var realEdits = applyReversions(this.edits)
 	realEdits.reverse()
 	
-	//console.log('real edits: ' + JSON.stringify(realEdits))
-	//realEdits.forEach(function(e, index){
-	//	console.log(index + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
-	//})
+	/*console.log('real edits: ' + JSON.stringify(realEdits))
+	realEdits.forEach(function(e, index){
+		console.log(index + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
+	})*/
 	
 	//apply edits
 	s.currentSyncId=-1
@@ -373,6 +569,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 			//s.log('ignoring view object creation')
 		}else if(e.op === editCodes.made){
 			//s.log('ignoring object creation')
+			s.pathEdits = []
 		}else{
 			s.changeListener(e.op, e.edit, s.currentSyncId, e.editId, true)
 			s.lastEditId = e.editId
@@ -610,6 +807,30 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
 	}
 }
 
+TopObjectHandle.prototype.getTopParent = function(){
+	return this
+}
+
+TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
+	this.edits.forEach(function(e){
+		if(e.op === editCodes.addNew){
+			if(temporaryId !== e.edit.temporary) return
+			e.op = editCodes.addedNew
+			e.edit = {id: realId, typeCode: e.edit.typeCode}
+		}else if(e.op === editCodes.selectObject){
+			if(e.edit.id  !== temporaryId) return
+			e.edit.id = realId
+		}else{
+			return
+		}
+		console.log('reified edit: ' + JSON.stringify(e))
+
+		/*
+			e.edit.id = realId
+		}*/
+	})
+}
+
 TopObjectHandle.prototype.changeListenerElevated = ObjectHandle.prototype.changeListenerElevated
 
 function updatePath(local, op, edit, editId){
@@ -629,14 +850,16 @@ function updatePath(local, op, edit, editId){
 		//console.log(local.uid + ' selected property: ' + edit.typeCode)
 		local.pathEdits.push({op: op, edit: edit})
 	}else if(op === editCodes.reselectProperty){
-		_.assert(local.pathEdits.length > 0)
+		//_.assert(local.pathEdits.length > 0)
+		if(local.pathEdits.length === 0) _.errout('invalid path state for reselectProperty operation: ' + JSON.stringify(local.pathEdits))
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(op === editCodes.selectObject){
 		local.pathEdits.push({op: op, edit: edit})
 	}/*else if(op === editCodes.addedNew || op === editCodes.addedNewAt){
 		local.pathEdits.push({op: op, edit: edit})
 	}*/else if(op === editCodes.reselectObject){
-		_.assert(local.pathEdits.length > 0)
+		if(local.pathEdits.length === 0) _.errout('invalid path state for reselectProperty operation: ' + JSON.stringify(local.pathEdits))
+		//_.assert(local.pathEdits.length > 0)
 		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
 	}else if(lookup.isKeySelectCode[op]){//op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
 		local.pathEdits.push({op: op, edit: edit})		
@@ -671,12 +894,14 @@ function maintainPath(local, op, edit, syncId, editId){
 	
 	_.assertInt(op)
 
-	if(local.lastEditId !== undefined && editId < local.lastEditId && editId >= 0){
+	/*if(local.lastEditId !== undefined && editId < local.lastEditId && editId >= 0){
 		console.log('HERE**: ' + JSON.stringify(local.edits))
 		_.errout('invalid old edit received: ' + editId + ' < ' + local.lastEditId + ': ' + JSON.stringify([op, edit, syncId, editId]))
-	}
+	}*/
 
-	local.lastEditId = editId
+	if(local.lastEditId < editId){
+		local.lastEditId = editId
+	}
 	
 	if(local.pathEdits === undefined){
 		//local.path = []
@@ -687,7 +912,11 @@ function maintainPath(local, op, edit, syncId, editId){
 	if(did){
 		return
 	}else if(op === editCodes.made){
+		local.pathEdits = []
 	}else if(op === editCodes.madeFork){
+		local.pathEdits = []
+	}else if(op === editCodes.initializeUuid){
+		local._uuid = edit.uuid
 	}else if(op === editCodes.wasSetToNew && local.pathEdits.length === 1){
 
 		
@@ -1041,8 +1270,8 @@ TopObjectHandle.prototype.versions = function(){
 }
 
 //includes local versions as well as global ones, with local versions having negative edit ids, e.g. -1,-2,-3,...
-TopObjectHandle.prototype.localVersions = function(){
-}
+//TopObjectHandle.prototype.localVersions = function(){
+//}
 
 //given a version or array of versions (editIds), retrieves the timestamps for those versions asynchronously
 //the retrieval is async because by default we do not transmit timestamps for each edit (because they are usually not needed

@@ -197,10 +197,15 @@ MapHandle.prototype.del = function(key){
 	this.emit(e, 'del', key)//()
 }
 
-MapHandle.prototype.put = function(newKey, newValue){
-	if(newKey._internalId){
-		newKey = newKey._internalId()
+MapHandle.prototype.put = function(newKeyObj, newValue){
+	
+	var newKey
+	if(newKeyObj._internalId){
+		newKey = newKeyObj._internalId()
+	}else{
+		newKey = newKeyObj
 	}
+	
 	_.assertPrimitive(newKey)
 
 	this.checkKeyType(newKey)
@@ -223,7 +228,7 @@ MapHandle.prototype.put = function(newKey, newValue){
 		this.persistEdit(this.putOp, e)
 		this.obj[newKey] = newValue
 	}		
-	this.emit(e, 'put', newKey, newValue)
+	this.emit(e, 'put', newKeyObj, newValue)
 }
 
 MapHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
@@ -309,10 +314,19 @@ MapHandle.prototype.get = function(desiredKey){
 		idOrValue.prepare()
 		return idOrValue
 	}else if(this.schema.type.value.type === 'primitive' || this.schema.type.value.type === 'set'){
-
+		
+		if(!this.valueCache){
+			this.valueCache = {}
+		}
+		var n = this.valueCache[desiredKey]
+		if(n){
+			return n
+		}
+		
 		var c = api.getClassForType(this.schema.type.value, this.schema.isView);
 		var n = new c(undefined, idOrValue, desiredKey, this, this.schema.isView);
 		n.prepare()
+		this.valueCache[desiredKey] = n
 		return n
 	}else{
 		_.errout('TODO: ' + JSON.stringify(this.schema));
@@ -416,13 +430,37 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		var arr = this.obj[key]
 		if(arr.indexOf(edit.id) === -1){//TODO ensure this never happens
 			arr.push(edit.id)
-			this.emit(edit, 'put-add')
+			
+			var res = this.getObjectApi(edit.id);
+			
+			if(this.valueCache && this.valueCache[key]){
+				this.valueCache[key]._forceAdd(res, editId)
+			}
+			
+			this.emit(edit, 'put-add', key, res, editId)
+		}else{
 		}
 	}else if(lookup.isPutAddCode[op]){//op.indexOf('putAdd') === 0){
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.value)
 		//this.log('key: ' + key)
 		return this.emit(edit, 'put-add', key, edit.value, editId)
+	}else if(op === editCodes.putRemoveExisting){
+		var list = this.obj[key]
+		if(list){
+			list.splice(list.indexOf(edit.id), 1)//.push(edit.value)
+			//this.log('key: ' + key)
+			console.log('put-removed-existing: ' + edit.id)
+			//console.log(JSON.stringify(this.obj))
+			if(this.valueCache && this.valueCache[key]){
+				this.valueCache[key]._forceRemove(edit.id, editId)
+			}
+			if(list.length === 0){
+				delete this.obj[key]
+				this.emit(edit, 'del', key, editId)
+			}
+			this.emit(edit, 'put-remove', key, edit.id, editId)
+		}
 	}else if(lookup.isPutRemoveCode[op]){//op.indexOf('putRemove') === 0){
 		//if(this.obj[key] === undefined) this.obj[key] = []
 		var list = this.obj[key]

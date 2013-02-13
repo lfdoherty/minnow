@@ -78,8 +78,9 @@ ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId
 		//_.assertString(edit.id)
 		var addedObjHandle = this.getObjectApi(edit.id);
 		if(addedObjHandle === undefined){
-			this.log.warn('object not found, may have been del\'ed: ' + edit.id)
+			console.log.warn('object not found, may have been del\'ed: ' + edit.id)
 		}else{
+			//console.log('added object: ' + edit.id)
 			this.obj.push(addedObjHandle)
 			addedObjHandle.prepare()
 			

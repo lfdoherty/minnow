@@ -9,13 +9,13 @@ exports.maxParams = 2
 exports.syntax = 'eq(*,*)'
 exports.nullsOk = true
 
-//var log = require('quicklog').make('intersection')
+var log = require('quicklog').make('eq')
 
 exports.compute = function(paramValues){
 
 	/*if(paramValues[0] !== paramValues[1]){
 		console.log(new Error().stack)
 	}*/
-	//console.log('eq: ' + JSON.stringify(paramValues) + ' ' + (paramValues[0] === paramValues[1]))
+	log('eq: ' + JSON.stringify(paramValues) + ' ' + (paramValues[0] === paramValues[1]))
 	return paramValues[0] === paramValues[1]
 }

@@ -289,22 +289,14 @@ exports.accessObjectKeys = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('objkeys', function(err, c){
 			
-				/*poll(function(){
-					//if(c.has('s')){
-						if(c.s.size() === 1){
-							c.s.each
-						}else{
-							//console.log('here: ' + c.s.data.size())
-						}
-					//}else{
-						//console.log('no s')
-					//}
-				})*/
 				c.on('set', function(propertyName, objkeyer){
 					if(propertyName === 's'){
 						//console.log('got keyer')
 						objkeyer.members.on('put', function(key, value){
 							//console.log('got put')
+							if(!key.name){
+								done.fail('invalid key: ' + key)
+							}
 							if(value === 'testValue' && key.name.value() === 'bill'){
 								done()
 							}
@@ -316,11 +308,7 @@ exports.accessObjectKeys = function(config, done){
 					otherClient.view('empty', function(err, v){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('entity', {name: 'bill'})
-						/*v.s.set(obj)
-						_.assertDefined(obj)
-						_.assertDefined(obj.data)
-						obj.data.put('testKey', 'testValue')
-						obj.data.put('testKey', 'testValueTwo')*/
+
 						var keyer = v.make('objkeyer')
 						setTimeout(function(){
 							keyer.members.put(obj, 'testValue')

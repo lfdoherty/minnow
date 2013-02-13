@@ -349,7 +349,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				_.assertInt(typeCode);
 
 				if(schema._byCode[typeCode].isView){
-					viewState.getSnapshots(typeCode, params, cb);
+					viewState.getSnapshots(typeCode, params, e.historicalKey, cb);
 				}else{
 					//_.errout('ERROR')
 					cb(new Error('view does not exist: ' + schema._byCode[typeCode].name))
@@ -365,7 +365,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
 					try{
-						viewState.getAllSnapshotStates(typeCode, params, snapshotIds, function(states){
+						viewState.getAllSnapshotStates(typeCode, params, snapshotIds, e.historicalKey, function(states){
 							cb(undefined, states)
 						}, function(e){
 							console.log('ERROR: ' + e.stack)						

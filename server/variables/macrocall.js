@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 function findAndCountMacroParameters(rel){
 	//console.log(JSON.stringify(rel))

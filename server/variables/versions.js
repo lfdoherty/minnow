@@ -1,7 +1,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 var fixedPrimitive = require('./../fixed/primitive')
 var schema = require('./../../shared/schema')
@@ -26,7 +26,7 @@ schema.addFunction('versions', {
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 
 	var f
 	if(rel.params[0].schemaType.type === 'object'){

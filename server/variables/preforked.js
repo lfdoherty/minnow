@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -25,7 +25,7 @@ schema.addFunction('preforked', {
 })
 
 function maker(s, self, rel, typeBindings){
-	var cache = new Cache(s.analytics)	
+	var cache = s.makeCache()//new Cache(s.analytics)	
 	var objGetter = self(rel.params[0], typeBindings)
 	var f = svgPreforked.bind(undefined, s, cache, objGetter, self(rel.params[1], typeBindings))
 	_.assertFunction(objGetter.wrapAsSet)

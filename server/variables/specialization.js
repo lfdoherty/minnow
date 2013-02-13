@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
@@ -31,7 +31,7 @@ function maker(s, self, rel, typeBindings){
 		cases.push(self(c, typeBindings))//{value: caseValue, getter: caseGetter})
 	}
 	
-	var cache = new Cache()
+	var cache = s.makeCache()//new Cache()
 	var f = svgSpecialization.bind(undefined, s, cache, rel.cases, cases)
 	return f
 }

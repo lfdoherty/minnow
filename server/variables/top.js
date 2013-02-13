@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var buckets = require('./../../deps/buckets')
@@ -28,7 +28,7 @@ schema.addFunction('topByValues', {
 function topByValuesMaker(s, self, rel, typeBindings){
 	var manyGetter = self(rel.params[0], typeBindings)
 	var elementsGetter = self(rel.params[1], typeBindings)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	var f = svgTopByValues.bind(undefined, s, cache, manyGetter, elementsGetter)
 	f.wrapAsSet = elementsGetter.wrapAsSet
 	return f

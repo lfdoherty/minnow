@@ -7,7 +7,7 @@ var WebSocketServer = require('ws').Server
 
 function stub(){}
 
-exports.make = function(authenticateByToken, local){
+exports.make = function(authenticateByToken, local, secureLocal){
 	_.assertFunction(authenticateByToken)
 
 	var receiver
@@ -23,7 +23,7 @@ exports.make = function(authenticateByToken, local){
 		},
 		exposeBeginSync: function(cb, endCb){
 
-			wss = new WebSocketServer({server: local.getServer()/*, path: '/websocket'*/})
+			wss = new WebSocketServer({server: local.getSecureServer()/*, path: '/websocket'*/})
 			
 			wss.on('error', function(err){
 				console.log('ERROR: ' + err)

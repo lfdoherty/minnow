@@ -30,6 +30,7 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 	if(this.isView()){
 		this.remove = readonlyError;
 		this.add = readonlyError;
+		this.unshift = readonlyError;
 		this.replaceNew = readonlyError;
 		this.replaceExisting = readonlyError;
 		this.shift = readonlyError;
@@ -250,7 +251,20 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		_.assertInt(id)
 
 		var res = this.wrapObject(id, edit.typeCode, [], this)
+		
 		this.obj.push(res)
+		res.prepare()
+		return this.emit(edit, 'add', res)
+
+	}else if(op === editCodes.unshiftedNew){
+		var id = edit.id
+		var temporary = edit.temporary
+
+		_.assertInt(id)
+
+		var res = this.wrapObject(id, edit.typeCode, [], this)
+		
+		this.obj.unshift(res)
 		res.prepare()
 		return this.emit(edit, 'add', res)
 
@@ -260,6 +274,14 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		var res = this.wrapObject(temporary, edit.typeCode, [], this)
 		this.saveTemporaryForLookup(temporary, res, this)
 		this.obj.push(res)
+		res.prepare()
+		return this.emit(edit, 'add', res)
+	}else if(op === editCodes.unshiftNew){
+		var temporary = edit.temporary
+
+		var res = this.wrapObject(temporary, edit.typeCode, [], this)
+		this.saveTemporaryForLookup(temporary, res, this)
+		this.obj.unshift(res)
 		res.prepare()
 		return this.emit(edit, 'add', res)
 	}if(op === editCodes.addedNewAt){
@@ -332,7 +354,20 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 	}else if(op === editCodes.addExisting || op === editCodes.addExistingViewObject){
 		var addedObj = this.getObjectApi(edit.id)
 		_.assertDefined(addedObj)
+		
+		if(this.obj.indexOf(addedObj) !== -1) return
+		
 		this.obj.push(addedObj)
+		addedObj.prepare()
+		return this.emit(edit, 'add', addedObj)
+	}else if(op === editCodes.unshiftExisting){
+		var addedObj = this.getObjectApi(edit.id)
+		//_.assertDefined(addedObj)
+		if(addedObj === undefined) _.errout('cannot find: ' + edit.id)
+		
+		if(this.obj.indexOf(addedObj) !== -1) return
+		
+		this.obj.unshift(addedObj)
 		addedObj.prepare()
 		return this.emit(edit, 'add', addedObj)
 	}else if(op === editCodes.replaceInternalExisting || op === editCodes.replaceExternalExisting){
@@ -410,7 +445,7 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 
 	this.obj.push(n)
 
-	this.emit(e, 'replace', objHandle, n)//()
+	this.emit(e, 'replace', objHandle, n)
 }
 
 //TODO differentiate between replaceInternal and replaceExternal
@@ -444,7 +479,7 @@ ObjectListHandle.prototype.replaceExisting = function(oldObjHandle, newObjHandle
 
 	}	
 
-	this.emit(e, 'replace', oldObjHandle, newObjHandle)//()
+	this.emit(e, 'replace', oldObjHandle, newObjHandle)
 }
 
 ObjectListHandle.prototype.shift = function(){
@@ -456,7 +491,7 @@ ObjectListHandle.prototype.shift = function(){
 
 	var v = this.obj.shift();
 		
-	this.emit(e, 'shift', v)//()
+	this.emit(e, 'shift', v)
 	return v;
 }
 
@@ -486,6 +521,11 @@ ObjectListHandle.prototype.addNewAfter = function(beforeHandle, typeName, json){
 ObjectListHandle.prototype.addAfter = function(beforeHandle, objHandle){
 	var index = this.obj.indexOf(beforeHandle)
 	if(index === -1) _.errout('before is not a member of the list: ' + beforeHandle)
+	
+	if(this.obj.indexOf(objHandle) !== -1){
+		this.remove(objHandle)
+		index = this.obj.indexOf(beforeHandle)
+	}
 		
 	var id = objHandle._internalId()
 	
@@ -526,6 +566,33 @@ ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
 	return n
 }
 
+ObjectListHandle.prototype.unshiftNew = function(typeName, json){
+
+	if(arguments.length === 1){
+		if(_.isObject(typeName)){
+			json = typeName
+			typeName = undefined;
+		}
+	}
+	
+	json = json || {}
+
+	
+	var type = u.getOnlyPossibleType(this, typeName);
+	
+	this.saveEdit(editCodes.unshiftNew, {typeCode: type.code})
+
+	var n = this._makeAndSaveNew(json, type)
+	_.assertObject(n)
+	
+	this.obj.unshift(n)
+	this.emit({}, 'add', n)
+	
+	//console.log('addNew done')
+
+	return n
+}
+
 ObjectListHandle.prototype.addNew = function(typeName, json){
 
 	if(arguments.length === 1){
@@ -553,12 +620,37 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	return n
 }
 
+ObjectListHandle.prototype.unshift = function(objHandle){
+	_.assertLength(arguments, 1);
+	
+	if(!_.isObject(objHandle)) _.errout('add param 0 must be a minnow object, is a: ' + typeof(objHandle))
+	
+	if(objHandle.isInner()) _.errout('TODO implement hoist to top: ' + objHandle);
+	
+	if(this.obj.indexOf(objHandle) !== -1){
+		this.remove(objHandle)
+	}
+	
+	var e = {id: objHandle._internalId(), typeCode: objHandle.typeSchema.code}
+	
+	this.saveEdit(editCodes.unshiftExisting,e);
+	
+	this.obj.unshift(objHandle);
+		
+	this.emit(e, 'add', objHandle)//()
+	
+}
+
 ObjectListHandle.prototype.add = function(objHandle){
 	_.assertLength(arguments, 1);
 	
 	if(!_.isObject(objHandle)) _.errout('add param 0 must be a minnow object, is a: ' + typeof(objHandle))
 	
-	if(objHandle.isInner()) _.errout('TODO implement hoist to top');
+	if(objHandle.isInner()) _.errout('TODO implement hoist to top: ' + objHandle);
+	
+	if(this.obj.indexOf(objHandle) !== -1){
+		return
+	}
 	
 	var e = {id: objHandle._internalId(), typeCode: objHandle.typeSchema.code}
 	

@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -56,7 +56,7 @@ function traverseMaker(s, self, rel, typeBindings){
 	var depthParam = rel.params[rel.params.length-1]
 	var inputParams = rel.params.slice(0, rel.params.length-2)
 
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	s = _.extend({}, s)
 	s.outputType = rel
 	

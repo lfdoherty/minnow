@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
@@ -31,7 +31,7 @@ Note that the delay-optimization here is a good demonstration of how editIds and
 
 function countMaker(s, self, rel, typeBindings){
 	var elementsExpr = rel.params[0]
-	var cache = new Cache(s.analytics)	
+	var cache = s.makeCache()//new Cache(s.analytics)	
 	
 	if(elementsExpr.type === 'view' && elementsExpr.view === 'typeset'){//optimization to avoid loading all the object ids into memory just to count them
 		var typeName = elementsExpr.params[0].value
@@ -59,6 +59,7 @@ function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 	var elementsListener
 	
 	var handle = {
+		key: key,
 		name: 'general-count',
 		attach: function(listener, editId){
 			listeners.add(listener)

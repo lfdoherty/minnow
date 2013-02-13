@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
@@ -61,7 +61,7 @@ function maker(s, self, rel, typeBindings){
 		}
 	}
 	
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	
 	var f = svgGeneralSwitch.bind(undefined, s, cache, primGetter, cases, defaultCase)
 	f.wrapAsSet = function(v, editId, context){

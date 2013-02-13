@@ -1,22 +1,26 @@
 make 1 //implicitly does a selectTopObject, as does makeViewObject
 	typeCode int 1
 	forget boolean 4
-
+	following int 5
+	
 made 2//what gets broadcast when 'make' happens
 	id int 1
 	typeCode int 2
+	following int 5
 makeMapped 3//what gets sent back to the make source syncId (for make and the various *New edits as well for internal ops.)
 	id int 1
 	temporary int 2
 
 makeFork 153
 	sourceId int 1
+	following int 5
 
 madeFork 154
 	sourceId int 1
 	id int 2
 	temporary int 3
 	typeCode int 4
+	following int 5
 
 refork 155
 	sourceId int 1
@@ -163,30 +167,45 @@ setRealAt 146
 	
 addNew 11
 	typeCode int 1
+	following int 5
+unshiftNew 157
+	typeCode int 1
+	following int 5
+unshiftedNew 158
+	id int 1
+	temporary int 2
+	typeCode int 3
+	following int 5
+	
 addedNew 96
 	id int 1
 	temporary int 2
 	typeCode int 3
+	following int 5
 
 addNewAt 147
 	typeCode int 1
 	index int 2
+	following int 5
 addedNewAt 148
 	id int 1
 	temporary int 2
 	typeCode int 3
 	index int 4
+	following int 5
 
 addAfter 150
 	id int 1	
 
 addNewAfter 151
 	typeCode int 1
+	following int 5
 
 addedNewAfter 152
 	typeCode int 1
 	id int 2
 	temporary int 3
+	following int 5
 
 //TODO
 removeAt 149
@@ -199,6 +218,9 @@ addExisting 12
 addExistingViewObject 35
 	id string 1
 
+unshiftExisting 156
+	id int 1
+	
 syntheticEdit 98//for time-based updating
 madeSyncId 111
 
@@ -219,14 +241,17 @@ removeViewObject 109
 replaceExternalNew 16
 	id int 2 //id being replaced
 	typeCode int 3
+	following int 5
 replaceInternalNew 28 //the id being replaced is in the path
 	id int 2 //id being replaced
 	typeCode int 3
+	following int 5
 replacedNew 95
 	newId int 1
 	typeCode int 2
 	temporary int 3
 	oldId int 4
+	following int 5
 	
 replaceExternalExisting 17
 	oldId int 1
@@ -280,9 +305,11 @@ del 31
 
 putNew 24
 	typeCode int 1
+	following int 5
 didPutNew 110
 	typeCode int 1
 	id int 2
+	following int 5
 		
 putExisting 30
 	id int 2
@@ -295,3 +322,7 @@ destroy 108
 
 revert 40
 	version int 1
+	
+initializeUuid 159
+	uuid string 1
+	

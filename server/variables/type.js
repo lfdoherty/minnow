@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
@@ -22,7 +22,7 @@ function stub(){}
 
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	var f = svgGeneral.bind(undefined, s, cache, elementGetter)
 	return f
 }

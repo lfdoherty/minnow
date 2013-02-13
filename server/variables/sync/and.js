@@ -21,6 +21,6 @@ exports.compute = function(paramValues){
 		}
 	}
 
-	//console.log('and ' + JSON.stringify(paramValues) + ' -> ' + (!failed))
+	log('and ' + JSON.stringify(paramValues) + ' -> ' + (!failed))
 	return !failed
 }

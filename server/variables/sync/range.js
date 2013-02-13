@@ -32,5 +32,8 @@ exports.compute = function(paramValues){
 	for(var i=a;i<b;++i){
 		arr.push(i)
 	}
+	
+	log(a + ' ' + b + ' ' + JSON.stringify(arr))
+	
 	return arr
 }

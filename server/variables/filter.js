@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -21,7 +21,7 @@ schema.addFunction('filter', {
 })
 
 function filterMaker(s, self, rel, typeBindings){
-	var cache = new Cache(s.analytics)	
+	var cache = s.makeCache()//new Cache(s.analytics)	
 	var inputGetter = self(rel.params[0], typeBindings)
 	var f = svgFilter.bind(undefined, s, cache, inputGetter, self(rel.params[1], typeBindings))
 	//console.log(JSON.stringify(rel.params[0]))

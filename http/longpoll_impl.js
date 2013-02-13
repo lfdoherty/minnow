@@ -14,7 +14,7 @@ exports.make = function(app, appName, identifier){
 		},
 		exposeBeginSync: function(cb){
 		
-			app.get(exports, '/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
+			app.get('/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
 				
 				cb(req.userToken, function(syncId){
 					var data = JSON.stringify({syncId: syncId})
@@ -29,7 +29,7 @@ exports.make = function(app, appName, identifier){
 			})
 		},
 		receiveUpdates: function(cb){
-			app.post(exports,  '/mnw/xhr/update/' + appName + '/:syncId', identifier, function(req, res){
+			app.post('/mnw/xhr/update/' + appName + '/:syncId', identifier, function(req, res){
 				var msgs = req.body
 				var syncId = parseInt(req.params.syncId)
 				function replyCb(){
@@ -63,7 +63,7 @@ exports.make = function(app, appName, identifier){
 	var longPollCaller = {}
 	//long poll connections to send update server->client for a sync handle
 	//TODO if no longpoll connection is made for a syncId for awhile, delete it
-	app.get(exports, '/mnw/xhr/longpoll/' + appName + '/:syncId', identifier, function(req, res){
+	app.get('/mnw/xhr/longpoll/' + appName + '/:syncId', identifier, function(req, res){
 		var syncId = parseInt(req.params.syncId)
 
 		/*var syncHandle = getSyncHandle(syncId)//syncHandles[syncId]

@@ -96,6 +96,7 @@ VariableListeners.prototype.emitRemove = function(value, editId){
 	}*/
 	for(var i=0;i<this.listeners.length;++i){
 		var listener = this.listeners[i]
+		//console.log(''+listener.remove)
 		listener.remove(value, editId)
 	}
 }

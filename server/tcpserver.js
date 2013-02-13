@@ -583,7 +583,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 						_.errout('TODO: ' + err)
 					}
 					
-					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList)}
+					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList), historicalKey: e.historicalKey}
 					res.requestId = e.requestId;
 					conn.w.gotSnapshots(res);
 					conn.w.flush();
@@ -598,6 +598,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					}
 					res.requestId = e.requestId;
 					res.snapshots = serializeAllSnapshots(res.snapshots)
+					res.historicalKey = e.historicalKey
 					conn.w.gotAllSnapshots(res);
 					conn.w.flush();
 				});
@@ -619,9 +620,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 		}
 		
 		function cleanupClient(){
-			//console.log('client closed')
+			console.log('client closed')
 			if(isDead){
-				//console.log('already closed')
+				console.log('already closed')
 				return
 			}
 			c.isDead = true
@@ -642,7 +643,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		c.on('end', function(){
 			cleanupClient()
 			
-			//console.log('server ending the connection stream')
+			console.log('server ending the connection stream')
 			//console.log(new Error().stack)
 			
 			if(conn){

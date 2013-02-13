@@ -16,6 +16,7 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	
 	_.assert(objId !== 0)
 	_.assertNot(objId !== -1 && parent.isView())
+	//_.assertObject(typeSchema)
 
 	if(typeSchema && !typeSchema.isView){
 		_.assertInt(objId);
@@ -35,6 +36,7 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 		this.setProperty = emptyReadonlyObject
 		this.add = emptyReadonlyObject
 		this.del = emptyReadonlyObject
+		this.isa = emptyReadonlyObject
 	}else{
 		//this.log('not readonlyandempty')
 	}
@@ -281,7 +283,10 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 	if(op === editCodes.setObject || op === editCodes.setViewObject){// || op === editCodes.clearObject){
 		_.assertInt(descentCode)
 		var ps = this.typeSchema.propertiesByCode[descentCode];
-		if(ps === undefined) _.errout('logic error, cannot find property with descent code: ' + descentCode)
+		if(ps === undefined){
+			console.log('WARNING: logic error or removed property, cannot find property with descent code: ' + descentCode)
+			return
+		}
 		_.assertObject(ps)
 		if(op === editCodes.setObject){
 			if(ps.type.type !== 'object'){
@@ -364,10 +369,11 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 		
 		this.parent.replaceObjectHandle(this, n, this.part)
 	}else{
-		this.log('TODO: ' + op)
-		this.log(new Error().stack)
+		//this.log('TODO: ' + op)
+		//this.log(new Error().stack)
 		//process.exit(0)
-		_.errout('TODO: ' + editNames[op] + ' ' + JSON.stringify(edit))
+		//_.errout('TODO: ' + editNames[op] + ' ' + JSON.stringify(edit))
+		console.log('WARNING: ' + editNames[op] + ' ' + JSON.stringify(edit))
 	}
 	/*
 		setPropertyValue(this.obj, path[0], edit.value);
@@ -666,7 +672,7 @@ ObjectHandle.prototype.hasProperty = function(propertyName){
 	if(pt === undefined) _.errout('not a valid property(' + propertyName + ') for this type: ' + this.typeSchema.code)
 	_.assertDefined(pt);
 	if(pt.type.type === 'object' && pt.tags && pt.tags['always_local']) return true;
-	var pv = this.obj[pt.code]//getPropertyValue(this.obj, pt.code);
+	var pv = this[propertyName]//this.obj[pt.code]//getPropertyValue(this.obj, pt.code);
 	//this.log('has ' + this.obj[pt.code] + ' ' + pt.code + ' ' + this.objectId)
 	if(pv && pv.isReadonlyAndEmpty){
 		return false

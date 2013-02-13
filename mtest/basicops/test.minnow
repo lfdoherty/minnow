@@ -78,3 +78,12 @@ stringUpdateTest() 115
 objectSetProperty(name string) 122
 	ages each(*entity, {filter(~,sameNameMacro(name, ~.name))}).age 1
 
+base 9
+	name string 1
+	age int 2
+	
+child 10 base
+
+childTypeSubsetUpdate() 123
+	s one(subset(*base, {greaterThan(~.age,40)})) 1
+

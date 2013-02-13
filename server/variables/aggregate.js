@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var buckets = require('./../../deps/buckets')
@@ -46,7 +46,7 @@ function aggregateMaker(compareFunction, s, self, expr, typeBindings){
 		elementsGetterList.push(elementsGetter)
 	})
 
-	var cache = new Cache(s.analytics)		
+	var cache = s.makeCache()//new Cache(s.analytics)		
 	return svgGeneralAggregate.bind(undefined, s, cache, compareFunction, defaultValue, elementsGetterList)//, elementsGetter)
 }
 

@@ -13,12 +13,13 @@ var util = require('util');
 //builtin stuff
 
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
-	'is', 'and', 'or', 'id',
+	'is', 'and', 'or', 'id', 'uid',
 	'div', 'add', 'sub', 'mul',
 	'nil',
 	'creationSession',
 	'object',
-	'parent','isfork', 'value'];
+	'parent','isfork', 'value',
+	'uuided'];
 
 var builtinFunctions = {}
 exports.addFunction = function(name, def){
@@ -448,7 +449,7 @@ function makeMergeTypes(schema){
 					//allNames = allNames.concat(Object.keys(sch.superTypes||{}))
 					Object.keys(sch.superTypes||{}).forEach(function(k){
 						var os = schema[k]
-						if(all.indexOf(os) === -1){
+						if(os && all.indexOf(os) === -1){
 							all.push(os)
 						}
 					})

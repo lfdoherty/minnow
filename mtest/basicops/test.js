@@ -1,3 +1,4 @@
+"use strict";
 
 var minnow = require('./../../client/client')
 
@@ -271,7 +272,7 @@ exports.macroParameterAgain = function(config, done){
 	})
 }
 
-
+/*
 exports.nowTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -289,7 +290,7 @@ exports.nowTest = function(config, done){
 			})
 		})
 	})
-}
+}*/
 
 exports.mergeTest = function(config, done){
 	minnow.makeServer(config, function(){
@@ -595,6 +596,31 @@ exports.objectSubsetProperty = function(config, done){
 						v.make('entity', {age: 13, name: 'sue'})
 						v.make('entity', {age: 18, name: 'brian'})
 						v.make('entity', {age: 19, name: 'sue'})
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.childTypeSubsetUpdate = function(config, done){//checks that simple subsets track all objects of the child type as well as the selected type
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('childTypeSubsetUpdate', function(err, c){
+			
+				poll(function(){
+					
+					if(c.has('s') && c.s.name.value() === 'sue'){
+					
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('general', function(err, v){
+						v.make('child', {age: 53, name: 'sue'})
 					})
 				})
 				

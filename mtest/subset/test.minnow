@@ -1,0 +1,10 @@
+
+entity 1
+	name string 1
+	removed boolean 2
+
+general(name string) 100
+	matches subset(*entity,{and(eq(~.name,name),not(~.removed))}) 1
+	
+empty() 101
+

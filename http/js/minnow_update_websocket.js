@@ -159,7 +159,7 @@ function establishSocket(appName, schema, host, cb){
 
 			var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
 
-			sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget})
+			sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length})
 
 			if(cb) {
 				makeIdCbListeners[temporary] = cb

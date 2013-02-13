@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -118,7 +118,7 @@ function mapMaker(s, self, rel, typeBindings){
 		reduceGetter = self(rel.params[3], newTypeBindingsReduce)
 	}
 
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
@@ -340,7 +340,8 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
 				var newValueVariable = cValueGetter(newBindingsValue, editId)
 				
-				//console.log('map add: ' + v)
+				console.log('map add: ' + v + ' ' + editId)
+				
 				var kv = {}
 							
 				function keyListener(value, oldValue, editId){
@@ -386,6 +387,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
+				//console.log('removing from map*: ' + v)
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 				delete allSets[v]
@@ -411,6 +413,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				
 				function keyListener(value, oldValue, editId){
 					kv.key = value	
+					console.log('key: ' + value + ' ' + editId)
 					if(value === undefined){
 						//console.log('got undefined value , old: ' + oldValue)
 						if(oldValue !== undefined){
@@ -436,8 +439,9 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				function valueListener(value, oldValue, editId){
 					_.assertInt(editId)
 					kv.value = value
+					//console.log('map value: ' + value + ' ' + editId)
 					//s.log('map value: ' + kv.key + '->'+value)
-					//console.log('map value: ' + kv.key + ' -> ' + value)
+					console.log('map value: ' + kv.key + ' -> ' + value)
 					if(kv.key !== undefined){
 						state[kv.key] = kv.value
 						//s.log('emitting put')
@@ -476,7 +480,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
-				console.log('removing from map: ' + v)
+				//console.log('removing from map: ' + v)
 				if(!r){
 					_.errout('tried to remove value not present')
 				}
@@ -642,6 +646,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 			},
 			remove: function(v, editId){
 				var r = allSets[v]
+				//console.log('removing from map^: ' + v)
 				r.key.detach(r.keyListener, editId)
 				r.value.detach(r.valueListener, editId)
 			},

@@ -105,9 +105,11 @@ function Ol(schema){
 	this.idCounter = 0
 	
 	this.idsByType = {}
+	this.creationEditIdsByType = {}
 	this.objectTypeCodes = {}
 	this.destroyed = {}
 	this.lastEditId = {}
+	this.uuid = {}
 	
 	this.schema = schema
 	
@@ -133,6 +135,7 @@ function Ol(schema){
 	_.each(schema._byCode, function(objSchema){
 		var list = tcst[objSchema.code] = [objSchema.code]
 		local.idsByType[objSchema.code] = []
+		local.creationEditIdsByType[objSchema.code] = []
 		if(objSchema.subTypes){
 			Object.keys(objSchema.subTypes).forEach(function(stName){
 				if(schema[stName]){//might be a contract keyword like 'readonly'
@@ -162,6 +165,9 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	this.olc.addEdit(id, {op: editCodes.made, edit: {typeCode: edit.typeCode, id: this.idCounter}, editId: editId})
 	this.objectCurrentSyncId[id] = syncId
 	this.idsByType[edit.typeCode].push(this.idCounter)
+	_.assertInt(edit.following)
+	//console.log('following: ' + edit.following)
+	this.creationEditIdsByType[edit.typeCode].push(editId+edit.following)
 
 	
 	this.readers.currentId = this.idCounter
@@ -177,6 +183,9 @@ Ol.prototype.isFork = function(id){
 }
 Ol.prototype.getForked = function(id){
 	return this.forks[id]
+}
+Ol.prototype.getUuid = function(id){
+	return this.uuid[id]
 }
 Ol.prototype.getAllForked = function(id){
 	var ids = []
@@ -213,6 +222,7 @@ Ol.prototype._makeFork = function make(edit, timestamp, syncId){
 	//console.log('cannot find type: ' + JSON.stringify(edit))
 
 	this.idsByType[sourceTypeCode].push(this.idCounter)
+	this.creationEditIdsByType[sourceTypeCode].push(editId)
 
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes[this.idCounter] = sourceTypeCode
@@ -229,6 +239,7 @@ Ol.prototype.isDeleted = function(id){
 	return this.destroyed[id]
 }
 Ol.prototype._destroy = function(id){
+	//console.log('id destroyed: ' + id)
 	this.destroyed[id] = true
 }
 Ol.prototype._getForeignIds = function(id, editId, cb){
@@ -248,7 +259,7 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 		//console.log('getting foreign edits in: ' + JSON.stringify(edits))
 		for(var i=0;i<de.length;++i){
 			var e = de[i]
-			if(e.op === editCodes.setExisting || e.op === editCodes.addExisting || e.op === editCodes.setObject || 
+			if(e.op === editCodes.setExisting || e.op === editCodes.addExisting ||  e.op === editCodes.unshiftExisting || e.op === editCodes.setObject || 
 					e.op === editCodes.putExisting || e.op === editCodes.addAfter){
 				var id = e.edit.id
 				if(!has[id]){
@@ -507,8 +518,17 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 
 	this.timestamps[res.editId]  = timestamp
 
-	if(op === editCodes.addNew){
+	if(op === editCodes.initializeUuid){
+		this.uuid[res.id] = edit.uuid
+	}else if(op === editCodes.addNew){
 		op = editCodes.addedNew
+		++this.idCounter
+		res.id = this.idCounter
+		edit = {id: res.id, typeCode: edit.typeCode}
+		this.objectTypeCodes[res.id] = edit.typeCode
+	//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
+	}else if(op === editCodes.unshiftNew){
+		op = editCodes.unshiftedNew
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
@@ -633,16 +653,31 @@ Ol.prototype.getLatestVersionId = function(){
 Ol.prototype.getMany = function(typeCode){
 	return (this.idsByType[typeCode] || []).length
 }
-Ol.prototype.getAllIdsOfType = function(typeCode, cb){
-	_.assertLength(arguments, 2)
-	
+Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
-	//console.log('ol types ' + typeCode + ' -> ' + JSON.stringify(sts))
 	for(var j=0;j<sts.length;++j){
 		var tc = sts[j]
 		var ids = this.idsByType[tc] || [];
-		//console.log('ol getting ids(' + tc + '): ' + JSON.stringify(ids))
+		var editIds = this.creationEditIdsByType[tc]
+		for(var i=0;i<ids.length;++i){
+			var id = ids[i]
+			if(!this.destroyed[id]){
+				var editId = editIds[i]
+				res.push({id: id, editId: editId})
+			}
+		}
+	}
+	if(cb) cb(res)
+	return res
+}
+Ol.prototype.getAllIdsOfType = function(typeCode, cb){
+	
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.idsByType[tc] || [];
 		for(var i=0;i<ids.length;++i){
 			var id = ids[i]
 			if(!this.destroyed[id]){
@@ -650,13 +685,17 @@ Ol.prototype.getAllIdsOfType = function(typeCode, cb){
 			}
 		}
 	}
-	cb(res)
+	if(cb) cb(res)
+	return res
 }
+
 Ol.prototype.getAllOfType = function(typeCode, cb){//gets a read-only copy of all objects of that type
 	_.assertLength(arguments, 2)
 	//_.errout('TODO')
 	var objs = []
-	var ids = this.idsByType[typeCode] || [];
+	
+	var ids = this.getAllIdsOfType(typeCode)
+	
 	var cdl = _.latch(ids.length, function(){
 		cb(objs)
 	})
@@ -668,7 +707,9 @@ Ol.prototype.getAllOfType = function(typeCode, cb){//gets a read-only copy of al
 	ids.forEach(function(id){handle.get(id, storeCb);})
 }
 Ol.prototype.getAllObjectsOfTypeIncludingForked = function(typeCode, cb, doneCb){
-	var ids = this.idsByType[typeCode] || [];
+//	var ids = this.idsByType[typeCode] || [];
+	var ids = this.getAllIdsOfType(typeCode)
+	
 	var cdl = _.latch(ids.length, function(){
 		doneCb()
 	})

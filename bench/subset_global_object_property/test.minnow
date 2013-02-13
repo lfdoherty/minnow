@@ -1,0 +1,18 @@
+
+entity 1
+	numbers set:int 1		
+	
+general() 100
+	plussed add(each(*entity.numbers,{add(1,~)})) 1
+
+person 5
+	age int 1
+
+settings 4
+	minAge int 1
+	
+specific(s settings) 102
+	oldEnough subset(*person,{greaterThan(s.minAge,~.age)}) 1
+	many count(*person) 2
+	
+empty() 103

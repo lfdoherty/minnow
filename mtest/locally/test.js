@@ -41,4 +41,5 @@ exports.localEdit = function(config, done){
 		})
 	})
 }
+exports.localEdit.forbidSameClient = true
 

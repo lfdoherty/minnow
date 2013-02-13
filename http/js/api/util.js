@@ -150,7 +150,7 @@ function wrapCollection(local, arr){
 	if(arr){
 		arr.forEach(function(idOrObject){
 			if(_.isInt(idOrObject) || _.isString(idOrObject)){
-				var a = local.getObjectApi(idOrObject, local);
+				var a = local.getObjectApi(idOrObject)//, local);
 				if(a == undefined) _.errout('cannot find object: ' + idOrObject)
 				res.push(a)
 			}else{

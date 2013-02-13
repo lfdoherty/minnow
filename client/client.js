@@ -38,7 +38,9 @@ var editNames = editFp.names
 
 var log = require('quicklog').make('minnow/client')
 
-function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
+var historicalKeyCounter = 1
+
+function getView(dbSchema, cc, st, type, params, syncId, api, beginView, historicalKey, cb){
 	_.assertInt(syncId)
 
 	_.assertFunction(cb)
@@ -51,7 +53,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 	_.assertInt(st.code);
 	//console.log(new Error().stack)
 	
-	cc.getSnapshots({typeCode: st.code, params: paramsStr}, function(err, res){
+	cc.getSnapshots({typeCode: st.code, params: paramsStr, historicalKey: historicalKey}, function(err, res){
 		if(err){
 			console.log('getView error: ' + err)
 			cb(err)
@@ -62,7 +64,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 		for(var i=0;i<snapshotIds.length;++i){
 			_.assertInt(snapshotIds[i]);
 		}
-		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds}, function(err, snapshotsRes){
+		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds, historicalKey: historicalKey}, function(err, snapshotsRes){
 		
 			if(err){
 				console.log('getAllSnapshots error: ' + err)
@@ -93,7 +95,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 			snapshots.forEach(function(snapshot){
 				log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
 				//process.exit(0)
-				api.addSnapshot(snapshot)
+				api.addSnapshot(snapshot, historicalKey)
 			})
 		
 			//var key = st.isView ? st.code+':'+JSON.stringify(params) : params;
@@ -107,6 +109,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, cb){
 				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
 				syncId: syncId
 			}
+			if(historicalKey) req.historicalKey = historicalKey
 			beginView(req, readyCb);
 
 		});
@@ -256,7 +259,7 @@ function makeClient(host, port, clientCb){
 		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, makeTemporary)
 		
 		var dsh = cc.getDefaultSyncHandle()
-		var requestId = dsh.persistEdit(editCodes.make, {typeCode: st.code, forget: forget}, listeningSyncId)
+		var requestId = dsh.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length}, listeningSyncId)
 		if(cb){
 			_.assertInt(requestId)
 			_.assertFunction(cb)
@@ -312,11 +315,11 @@ function makeClient(host, port, clientCb){
 		
 		_.extend(wrapper, cc);
 		
-		var viewGetter = _.memoizeAsync(function(type, params, st, syncId, sc, cb){
+		var viewGetter = _.memoizeAsync(function(type, params, historicalKey, st, syncId, sc, cb){
 			_.assertFunction(cb)
 			//console.log(uid + ' getting view ' + type + JSON.stringify(params))
 			//_.assert(errorListeners.length > 0)
-			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, function(err){
+			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, historicalKey, function(err){
 				if(err){
 					if(cb.length === 1){
 						throw err
@@ -329,15 +332,20 @@ function makeClient(host, port, clientCb){
 				var viewId = st.code+':'+JSON.stringify(params)
 				//log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
+				/*
 				if(cb.length === 1){
-					cb(api.getView(viewId))
+					cb(api.getView(viewId, historicalKey))
+				}else{*/
+				if(historicalKey){
+					cb(undefined, api.getView(viewId, historicalKey))
 				}else{
-					cb(undefined, api.getView(viewId))
+					cb(undefined, api.getView(viewId, historicalKey))
 				}
+				//}
 			})
-		},function(type, params){
+		},function(type, params, historicalKey){
 			//console.log(require('util').inspect(params))
-			var key = type + JSON.stringify(params)
+			var key = type + JSON.stringify(params) + ':'+historicalKey
 			//console.log(uid + ' view key (' + key + ')')
 			return key
 		})
@@ -374,10 +382,10 @@ function makeClient(host, port, clientCb){
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
-			setupService: function(name, local, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener){
+			setupService: function(name, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener){
 				//_.assertLength(arguments, 5)
-				_.assert(arguments.length >= 5)
-				_.assert(arguments.length <= 6)
+				_.assert(arguments.length >= 6)
+				_.assert(arguments.length <= 7)
 				_.assertFunction(identifier)
 				_.assert(_.isObject(viewSecuritySettings) || _.isFunction(viewSecuritySettings))
 				_.assertNot(serviceIsSetup);
@@ -387,7 +395,7 @@ function makeClient(host, port, clientCb){
 				var ws = websocket.load(local, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
 				
 				xhrService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
-				return matterhornService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
+				return matterhornService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);
 			},
 			view: function(type, params, cb){
 	
@@ -411,7 +419,31 @@ function makeClient(host, port, clientCb){
 				var syncHandle = syncHandles[syncId]
 				_.assertObject(syncHandle)
 				_.assertArray(params)
-				viewGetter(type, params, st, syncId, syncHandle, cb)
+				viewGetter(type, params, 0, st, syncId, syncHandle, cb)
+			},
+			historicalView: function(type, params, cb){
+				var st = dbSchema[type];
+				if(st === undefined){_.errout('unknown view: ' + type);}
+
+
+				_.assertNot(st.superTypes.abstract);
+				if(arguments.length === 2 && st.isView && st.viewSchema.params.length === 0){
+					cb = params;
+					params = [];
+
+				}else{
+					_.assertLength(arguments, 3)
+				}
+
+				_.assertFunction(cb)
+
+				params = translateParamObjects(st, params)
+				
+				var syncHandle = syncHandles[syncId]
+				_.assertObject(syncHandle)
+				_.assertArray(params)
+				var historicalKey = historicalKeyCounter++
+				viewGetter(type, params, historicalKey, st, syncId, syncHandle, cb)
 			},
 			make: function(type, json, cb){
 				_.assertString(type)
@@ -470,7 +502,7 @@ var sync = require('./../server/variables/sync/index')
 exports.makeServer = function(config, cb){
 	_.assertLength(arguments, 2)
 	_.assert(_.isString(config.schemaDir) || _.isArray(config.schemaDir))
-	//console.log('here')
+	//console.log('here: ' + config.schemaDir)
 	//_.assertString(config.dataDir)
 	_.assertInt(config.port)
 	if(config.synchronousPlugins !== undefined) _.assertObject(config.synchronousPlugins)

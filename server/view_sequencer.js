@@ -180,7 +180,7 @@ exports.makeSnapshot = function(schema, objectState, viewTypeCode, viewVariable,
 		
 		//_.errout('TODO: ' + JSON.stringify(e.path))
 		
-		if(e.op === editCodes.addExisting){
+		if(e.op === editCodes.addExisting || e.op === editCodes.unshiftExisting){
 			ensureHasObject(e.edit.id, e.editId)
 		}else if(e.op === editCodes.addAfter){
 			ensureHasObject(e.edit.id, e.editId)
@@ -339,7 +339,7 @@ function filterInclusions(op, edit, editId, includeObjectCb){
 	//console.log('filtering:', op,edit)
 
 	if(_.isInt(edit.id)){//for view objects, we require that the constructing variables correctly include them
-		if(op === editCodes.addExisting || op === editCodes.setObject || op === editCodes.putExisting || op === editCodes.addAfter || op === editCodes.putAddExisting){
+		if(op === editCodes.addExisting || op === editCodes.unshiftExisting || op === editCodes.setObject || op === editCodes.putExisting || op === editCodes.addAfter || op === editCodes.putAddExisting){
 			
 			includeObjectCb(edit.id, editId)
 		}

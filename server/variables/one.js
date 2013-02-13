@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 var fixedObject = require('./../fixed/object')
 var schema = require('./../../shared/schema')
@@ -21,7 +21,7 @@ schema.addFunction('one', {
 
 function oneMaker(s, self, rel, typeBindings){
 	var elementsGetter = self(rel.params[0], typeBindings)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	var f = svgGeneralOne.bind(undefined, s, cache, elementsGetter)
 	//f.getDescender = elementsGetter.getDescender
 	
@@ -99,7 +99,8 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 		destroy: function(){
 			elements.detach(elementsListener)
 			listeners.destroyed()
-		}
+		},
+		getTopParent: elements.getTopParent
 	}	
 	return cache.store(key, handle)
 }

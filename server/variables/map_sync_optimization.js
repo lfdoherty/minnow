@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
@@ -59,7 +59,7 @@ function mapMaker(s, self, rel, typeBindings){
 		reduceGetter = self(rel.params[3], newTypeBindingsReduce)
 	}*/
 
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	
 	var kt = rel.params[1].schemaType
 	var t = rel.params[2].schemaType
@@ -145,10 +145,10 @@ function mapMaker(s, self, rel, typeBindings){
 			}
 
 			try{	
-				var keyWrapper = eachSubsetOptimization.makeSynchronousFunction(s, keyPes, typeBindings, objSchema, rel.params[1].implicits, rel.params[1].expr)
-				var valueWrapper = eachSubsetOptimization.makeSynchronousFunction(s, valuePes, typeBindings, objSchema, rel.params[2].implicits, rel.params[2].expr)
+				var keyWrapper = eachSubsetOptimization.makeSynchronousFunction(s, self, keyPes, typeBindings, objSchema, rel.params[1].implicits, rel.params[1].expr)
+				var valueWrapper = eachSubsetOptimization.makeSynchronousFunction(s, self, valuePes, typeBindings, objSchema, rel.params[2].implicits, rel.params[2].expr)
 				if(rel.params.length > 3){
-					var reduceWrapper = eachSubsetOptimization.makeSynchronousFunction(s, reducePes, typeBindings, objSchema, rel.params[3].implicits, rel.params[3].expr)
+					var reduceWrapper = eachSubsetOptimization.makeSynchronousFunction(s, self, reducePes, typeBindings, objSchema, rel.params[3].implicits, rel.params[3].expr)
 				}
 			}catch(e){
 				throw e
@@ -266,6 +266,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 	var handle = {
 		name: 'map-single-sync-optimization (' + elements.name + ')',
 		attach: function(listener, editId){
+			_.assertFunction(listener.del)
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
 				var value = state[key]
@@ -299,15 +300,19 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 	var objTypeCode = objSchema.code
 	_.assertInt(objTypeCode)
 	
+	var boundKeyWrapper = keyWrapper(bindings, editId)
+	var boundValueWrapper = valueWrapper(bindings, editId)
+	
 	if(reduceWrapper){
 	
+		var boundReduceWrapper = reduceWrapper(bindings, editId)
 		
 		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 
 			function doReduce(a, b){
 				var reduceParams = [a,b]
-				var reduceResult = reduceWrapper(reduceBindingWrappers, propertyValueMap, reduceParams)
+				var reduceResult = boundReduceWrapper(reduceBindingWrappers, propertyValueMap, reduceParams)
 				return reduceResult
 				//console.log('*reduced: ' + v)
 			}
@@ -328,8 +333,8 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}
 
 			var macroParams = [id]
-			var keyResult = keyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
-			var valueResult = valueWrapper(valueBindingWrappers, propertyValueMap, macroParams)
+			var keyResult = boundKeyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
+			var valueResult = boundValueWrapper(valueBindingWrappers, propertyValueMap, macroParams)
 			
 			var oldKey = keyForId[id]
 			var oldValue
@@ -403,11 +408,11 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}			
 		})
 	}else{
-		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
+		var idSet = s.objectState.streamAllPropertyValuesForSetHistorically(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
 			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
 			var macroParams = [id]
-			var keyResult = keyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
-			var valueResult = valueWrapper(valueBindingWrappers, propertyValueMap, macroParams)
+			var keyResult = boundKeyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
+			var valueResult = boundValueWrapper(valueBindingWrappers, propertyValueMap, macroParams)
 		
 			if(keyForId[id] !== undefined && keyForId[id] !== keyResult && state[keyForId[id]] !== undefined){
 				var oldKey = keyForId[id]
@@ -455,7 +460,15 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			idSet.add(v, editId)
 		},
 		remove: function(v, editId){
+			//console.log('removing from idSet: ' + v)
 			idSet.remove(v, editId)
+			var key = keyForId[v]
+			if(key !== undefined){
+				delete keyForId[v]
+				delete state[key]
+				//console.log('emitting del: ' + key)
+				listeners.emitDel(key, editId)
+			}
 		},
 		objectChange: stub,
 		includeView: listeners.emitIncludeView.bind(listeners),//TODO may pass invalid inclusions through

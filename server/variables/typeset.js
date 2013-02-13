@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
@@ -24,7 +24,7 @@ schema.addFunction('typeset', {
 })
 
 function typeMaker(s, self, rel){
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	var typeName = rel.params[0].value
 	if(s.schema[typeName] === undefined) _.errout('cannot recognize type: ' + typeName)
 	var typeCode = s.schema[typeName].code
@@ -49,7 +49,7 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 
 	var listeners = listenerSet()
 	var idList
-	
+	//var creationEditIds
 	//s.log('creating new typeset-general: ' + typeCode)
 	
 	var handle = {
@@ -64,9 +64,16 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 			//s.log(new Error().stack)
 			if(idList){
 				//console.log('adding ids: ' + idList.length)
-				idList.forEach(function(id){
-					listener.add(id, editId)
-				})
+				if(s.isHistorical){
+					idList.forEach(function(v){
+						console.log('**adding id: ' + v.id + ' ' + v.editId)
+						listener.add(v.id, v.editId)//TODO what is the correct editId here?
+					})
+				}else{
+					idList.forEach(function(id){
+						listener.add(id, editId)
+					})
+				}
 			}
 		},
 		detach: function(listener, editId){
@@ -120,28 +127,39 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		idList.splice(idList.indexOf(id), 1)
 		listeners.emitRemove(id, editId)
 	}
-
-	s.objectState.getAllIdsOfType(typeCode, function(ids){
-		
-		idList = [].concat(ids)
-		//s.log('TYPE got all ids', ids)
-		//console.log('TYPE(' + typeCode + ') got all ids', ids)
-		
-		
-		s.getAllSubtypes(typeCode).forEach(function(objSchema){
-			//console.log('listening for new')
-			s.broadcaster.listenForNew(objSchema.code, listenCreated)
-			s.broadcaster.listenForDeleted(objSchema.code, listenDeleted)
-		})		
-		
-		var currentEditId = handle.oldest()
-
-		idList.forEach(function(id){
-			_.assert(!s.objectState.isDeleted(id))
-			listeners.emitAdd(id, currentEditId)
-		})
-	})
 	
+	if(s.isHistorical){
+		s.objectState.getHistoricalCreationsOfType(typeCode, function(vs){
+			idList = [].concat(vs)
+
+			s.broadcaster.listenForNew(typeCode, listenCreated)
+			s.broadcaster.listenForDeleted(typeCode, listenDeleted)
+		
+			var currentEditId = handle.oldest()//TODO?
+
+			idList.forEach(function(v){
+				_.assert(!s.objectState.isDeleted(v.id))
+				listeners.emitAdd(v.id, v.editId)//currentEditId)
+			})
+		})
+	}else{
+
+		s.objectState.getAllIdsOfType(typeCode, function(ids){
+		
+			idList = [].concat(ids)
+
+			s.broadcaster.listenForNew(typeCode, listenCreated)
+			s.broadcaster.listenForDeleted(typeCode, listenDeleted)
+		
+			var currentEditId = handle.oldest()
+
+			idList.forEach(function(id){
+				_.assert(!s.objectState.isDeleted(id))
+				listeners.emitAdd(id, currentEditId)
+			})
+		})
+	}
+		
 	return cache.store(key, handle)
 }
 

@@ -44,7 +44,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 	var snapPath = '/mnw/snapsjson/' + appName + '/';
 	
 	var schemaUrl;
-	local.serveJson(exports, appName, function(ccc){
+	local.serveJson(appName, function(ccc){
 		_.assertFunction(ccc);
 		schemaUrl = ccc(JSON.stringify(minnowClient.schema));
 		//console.log('serve json: ' + schemaUrl)
@@ -54,14 +54,14 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		//console.log('authenticating')
 		authenticator(req,res,next)
 	}
-	local.get(exports, '/mnw/schema/'+appName, aa, function(req, httpRes){
+	local.get('/mnw/schema/'+appName, aa, function(req, httpRes){
 		var url= 'http://'+req.headers.host+schemaUrl
 		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
 		
 		httpRes.redirect(url)
 	})
 	
-	local.get(exports, '/mnw/meta/'+appName+'/:syncId/:viewName/:params', authenticator, function(req, httpRes){
+	local.get('/mnw/meta/'+appName+'/:syncId/:viewName/:params', authenticator, function(req, httpRes){
 		var viewName = req.params.viewName
 		var syncId = parseInt(req.params.syncId)
 		var viewSchema = schema[viewName]
@@ -128,7 +128,7 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		}, params, req.userToken)
 	})
 	
-	local.get(exports, snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, function(req, res){
+	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, function(req, res){
 
 		var viewId = parseInt(req.params.viewId);
 		var viewName = schema._byCode[viewId].name

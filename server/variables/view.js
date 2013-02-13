@@ -1,6 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var _ = require('underscorem')
 
 var listenerSet = require('./../variable_listeners')
@@ -24,7 +24,7 @@ var editNames = editFp.names
 exports.make = function(s, self, callExpr, typeBindings){
 	_.assertFunction(s.log)
 	
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 
 	var localTypeBindings = {}
 
@@ -88,7 +88,7 @@ exports.makeTopLevel = function(s, variableGetter, callExpr){
 	ns.analytics = variables.makeAnalytics(callExpr,s.analytics)
 	s = ns
 	
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 
 	var viewObjectSchema = s.schema[callExpr.view];
 	_.assertDefined(viewObjectSchema)
@@ -227,6 +227,11 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						listener.objectChange(viewTypeCode, viewId, 
 							[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
 							editCodes.putExisting, edit, -1, editId)
+					},
+					del: function(key, editId){
+						listener.objectChange(viewTypeCode, viewId, 
+							[{op: editCodes.selectProperty, edit: {typeCode: relCode}}, {op: selectOpName, edit: {key: key}}], 
+							editCodes.delKey, {}, -1, editId)
 					},
 					objectChange: listener.objectChange.bind(listener),
 					includeView: listener.includeView.bind(listener),
@@ -401,7 +406,7 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], editCodes.addExisting, edit, -1, editId)
 					},
 					remove: function(value, editId){
-						//console.log('remove --- ' + editId)
+						//console.log('got object remove: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
 						_.assert(_.isString(value) || _.isInt(value))
 						if(editId){
 							//console.log('object change')

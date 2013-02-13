@@ -1,0 +1,296 @@
+/**/
+
+entry 31
+	creator contact 100
+	name string 1
+	hideHeader boolean 4
+	lockToParent boolean 5
+	
+node 32 entry
+	
+field 30 entry
+
+nest 48 node
+	elements list:entry 2 //mostly but not exclusively inline?
+	isBase boolean 3
+
+collection 34 field nest
+	allowed set:node 11
+	disallowed set:node 12
+	children list:node 13
+
+slider 55 field
+	minValue int 11
+	maxValue int 12
+	step int 13
+	v int 14
+
+snippets 57 field
+	inclusionMode string 10
+		
+quotes 35 field
+	multiline boolean 11
+	many int 14
+	
+related 36 field
+	filter string 11
+	allowed set:node 12
+	disallowed set:node 13
+
+history 42 nest field
+	allowed set:node 12
+	disallowed set:node 13
+	many int 14
+
+header 38 nest field
+
+text 39 nest field
+	placeholder string 11
+	text string 12
+
+checkOption 52
+	name string 1
+	state boolean 2
+	
+checklist 51 nest field
+	options list:checkOption 16
+
+radio 58 nest field
+	options list:checkOption 16
+
+tags 59 nest field
+	options list:checkOption 16
+
+contacts 53 nest field
+
+sidebar 45 nest
+	quoteForm quote 10 fork
+	bookmarkForm webpage 11 fork
+	snippetForm snippet 12 fork
+	contextMenu list:nest 13
+	
+quote 44 nest
+	url string 10
+	text string 16
+	prefix string 17
+	postfix string 18
+	originalUrlTitle string 11
+	originalOffset int 12
+	removed boolean 19
+	
+contact 50 nest
+	userId int 10
+	displayName string 116
+
+contactsByName(u user) 162
+	contactsByName map(u.data.contacts, {~.displayName}, {~}) 1
+	existingContacts map(*contact, {~.displayName}, {~}) 3
+	user u 2
+	
+contactByName(n string) 163
+	contact one(subset(*contact, {eq(~.displayName, n)})) 1
+
+userSet 25 nest
+	administrators list:contact 13
+	groups list:group 14
+	users list:contact 15
+	noInitialPassword boolean 18
+	lastUsersUploaded long 6
+	lastGroupsUploaded long 7
+
+group 12 nest
+	members list:contact 13
+	doNotDisplayChatContacts boolean 14
+	settings settings 54
+	genericPrompts list:string 56
+	roles list:role 57
+	userSet userSet 15
+	sidebars list:sidebar 17
+
+
+tab 29
+	lastQuoteFocused quote 14	
+	url string 10
+	focusedOn int 11
+	
+webpage 20 nest
+	url string 10
+	title string 13
+	lastOpened long 14
+	snippets list:snippet 16
+	
+snippet 56 nest
+	domId string 11
+	text string 12
+	classes list:string 13
+	offset int 14
+	parentPage webpage 20
+	
+getBookmarkFor(user user, url string){
+	one(subset(*webpage, {and(eq(user.contact,~.creator),eq(url,~.url))}))
+}
+bookmarkFor(user user, url string) 149
+	bookmark getBookmarkFor(user, url) 1
+
+getContact(user user){
+	user.contact
+}
+
+userContact(user user) 166
+	contact getContact(user) 1
+
+isExpanded(p node, n node, u user){
+	switch(isOfType(n, 'field'),
+		case(true, not(mapValue(u.data.expansionToggles, concat(p.uid,'|',n.uid)))),//field expansion defaults to true
+		default(
+			switch(isOfType(n,'node'),
+				case(true, mapValue(u.data.expansionToggles, concat(p.uid,'|',n.uid))),//non-field expansion defaults to false
+				default(false)//if it's not a node, it has no expansion state anyway
+			)
+		)
+	)
+}
+
+userBookmarks(u user){
+	subset(*webpage, {eq(~.creator,u.contact)})
+}
+
+userQuotesForPage(u user, url string){
+	subset(*quote, {and(not(~.removed),eq(~.creator,u.contact),eq(~.url,url))})
+}
+computeHistory(h history, u user){
+	keysByValues(topByValues(either(h.many,20),map(userBookmarks(u),{~},{add(0,~.lastOpened)})))
+}
+computeQuotes(ss webpage, q quotes, u user){
+	keysByValues(topByValues(either(q.many,20),map(userQuotesForPage(u,ss.url),{~},{~.originalOffset})))
+}
+computeContacts(c contacts, u user){
+	u.data.contacts
+}
+
+computeSpecialChildren(source node, f entry, u user){
+	switch(type(f),
+		case('history', computeHistory(history:f, u)),
+		case('quotes', computeQuotes(webpage:source, quotes:f, u)),
+		case('header', list()),
+		case('collection', collection:f.children),
+		case('contacts', computeContacts(contacts:f, u)),
+		default(list())
+	)
+}
+
+
+bookmarkForm(u user){
+	u.data.sidebar.bookmarkForm
+}
+
+computeElements(f node, u user){
+	switch(isOfType(f, 'nest'),
+		case(false,list()),
+		default(
+			switch(type(f),
+				case('webpage',preforked(nest:f,bookmarkForm(u))),
+				case('snippet',preforked(nest:f,u.data.sidebar.snippetForm)),
+				default(
+					nest:f
+				)
+			).elements
+		)
+	)
+}
+mapChildren(source node, u user){
+	switch(isOfType(source, 'nest'),
+		case(false, nil),
+		default(
+			multimap(
+			computeElements(nest:source, u),
+			{~.id}, 
+			{computeSpecialChildren(source,~,u)}
+			)
+		)
+	)
+}
+
+childrenMap(source node, u user) 161
+	children mapChildren(source,u) 1
+
+getOtherExpandedChildren(source node, f entry, u user){
+	subset(union(computeElements(f, u),computeSpecialChildren(source,f,u)),{isExpanded(f,~,u)})
+}
+
+getExpandedChildrenRecursively(source node, f node,u user){	
+	traverse(source, f, {getOtherExpandedChildren(~1,~2,u)}, 10)
+}
+
+getAllExpanded(u user){
+	getExpandedChildrenOfRoot(u, u.data.sidebar)
+}
+
+getExpandedChildrenOfRoot(u user, root node){
+	union(
+		list(root),
+		getExpandedChildrenRecursively(root,root,u)
+	)
+}
+
+userSidebar(u user) 167
+	hasSidebar in(userGroups(u).sidebars,u.data.sidebarForm) 1
+	candidateSidebarForm one(userGroups(u).sidebars) 2
+	userData u.data 3
+
+someUserQuoteOverlaps(url string, user user, offset int){
+	any(each(userQuotesForPage(user,url),{
+		and(greaterThanOrEqual(offset, ~.originalOffset), // offset >= ~.originalOffset - beginning of quote is before or same as offset
+			greaterThan(add(~.originalOffset, length(~.text)), offset) //end of quote comes later than offset
+		)
+	}))
+}
+snippetQuoteStateForUser(s snippet, user user, url string){
+	eachReduce(range(s.offset, add(s.offset, length(s.text))), {
+		switch(someUserQuoteOverlaps(url, user, ~),
+			case(true, 1),
+			default(0)
+		)
+	}, {add(~1,~2)})
+}
+
+snippetState(s snippet, coverage int){
+	switch(eq(either(coverage,0),0),
+		case(true,'none'),
+		default(
+			switch(greaterThan(length(s.text), coverage),
+				case(true,'partial'),
+				default('full')
+			)
+		)
+	)
+}
+computeSnippetStates(user user, tabUrl string){
+	map(getBookmarkFor(user, tabUrl).snippets, {~}, {
+		snippetState(~, snippetQuoteStateForUser(~, user, tabUrl))
+	})
+}
+
+//a bookmark object for the given URL will already have been created by the time this view is requested
+overlayPage(user user, session userSession, tab tab) 160
+	userId user.id 1
+	username user.contact.displayName 2
+	contact user.contact 4
+
+	url tab.url 10
+	
+	sidebar user.data.sidebar 211
+	
+	root user.data.sidebar 212
+	
+	userData user.data 25
+	children map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)}) 13
+	session session 16
+		
+	contacts user.data.contacts 230
+	//tab tab 21
+	sourceQuery session.searchQuery 23
+	groups userGroups(user) 24
+	
+	snippetStates computeSnippetStates(user, tab.url) 26
+

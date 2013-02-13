@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var Cache = require('./../variable_cache')
+//var Cache = require('./../variable_cache')
 var listenerSet = require('./../variable_listeners')
 var schema = require('./../../shared/schema')
 
@@ -37,6 +37,8 @@ function propertyType(rel, ch){
 		if(propertyName === 'id'){
 			return {type: 'primitive', primitive: 'int'}
 		}else if(propertyName === 'uid'){
+			return {type: 'primitive', primitive: 'string'}
+		}else if(propertyName === 'uuid'){
 			return {type: 'primitive', primitive: 'string'}
 		}else if(propertyName === 'creationSession'){
 			return {type: 'primitive', primitive: 'int'}
@@ -140,7 +142,7 @@ function viewPropertyMaker(s, self, rel, typeBindings){
 	var property = objSchema.properties[rel.params[0].value]
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	
 //	_.errout('TODO')
 
@@ -248,6 +250,50 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 			return fixedPrimitive.make(s)(v, editId)
 		}
 		return f
+	}else if(rel.params[0].value === 'uuid'){
+		var f = function(bindings, editId){
+			var context = contextGetter(bindings, editId)
+			//if(!context.getTopParent) _.errout('no getTopParent: ' + context.name)
+			//_.assertFunction(context.getTopParent)
+			//console.log('context: ' + JSON.stringify(Object.keys(context)))
+			s.analytics.cachePut()
+			
+			var listeners = listenerSet()
+			var value
+			context.attach({
+				set: function(v, oldV, editId){
+					value = s.objectState.getUuid(v)//isTopLevelObject(v)?v+'':context.getTopParent(v)+':'+v
+					listeners.emitSet(value, value, editId)
+				},
+				includeView: function(){
+					_.errout('TODO')
+				},
+				removeView: function(){
+					_.errout('TODO')
+				}
+			}, editId)
+			var handle = {
+				name: 'object-property-handle?',
+				attach: function(listener, editId){
+					listeners.add(listener)
+					if(value !== undefined) listener.set(value, undefined, editId)
+				},
+				detach: function(listener, editId){
+					listeners.remove(listener)
+					if(editId){
+						listener.set(undefined, value, editId)
+					}
+				},
+				oldest: context.oldest,
+				key: context.key
+				
+			}
+			return handle
+		}
+		f.wrapAsSet = function(v, editId){
+			return fixedPrimitive.make(s)(v, editId)
+		}
+		return f
 	}
 	
 	if(rel.params[0].value === 'creationSession'){
@@ -307,7 +353,7 @@ function objectPropertyMaker(s, self, rel, typeBindings){
 
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 
 	var isObjectValue
 	
@@ -362,7 +408,7 @@ function mapValuesPropertyMaker(s, self, rel, typeBindings){
 
 	var propertyCode = property.code
 	//_.assertInt(propertyCode)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 
 	var isObjectProperty = false
 	if(property.type.value.type === 'object'){
@@ -587,7 +633,7 @@ function objectSetPropertyMaker(s, self, rel, typeBindings){
 	var property = objSchema.properties[rel.params[0].value]
 	var propertyCode = property.code
 	_.assertInt(propertyCode)
-	var cache = new Cache(s.analytics)
+	var cache = s.makeCache()//new Cache(s.analytics)
 	var c;
 	
 	var isObjectProperty

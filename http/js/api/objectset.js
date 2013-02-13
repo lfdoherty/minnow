@@ -28,6 +28,35 @@ function ObjectSetHandle(typeSchema, obj, part, parent){
 	}
 }
 
+ObjectSetHandle.prototype._forceRemove = function(id, editId){
+	//_.errout('TODO')
+	var res = this.get(id);
+	var index = this.obj.indexOf(res)
+	if(index === -1){
+		console.log('WARNING: ignored invalid forceRemove: ' + id + ' ' + editId)
+		return
+	}
+	this.obj.splice(index, 1)
+	
+	this.emit(undefined, 'remove', res, editId)
+}
+ObjectSetHandle.prototype._forceAdd = function(res, editId){
+	//_.errout('TODO')
+	var already = this.get(res.id());
+	if(already){
+		console.log('WARNING: ignored invalid forceAdd: ' + res.id + ' ' + editId)
+		return
+	}
+	
+	/*var index = this.obj.indexOf(res)
+	if(index === -1){
+		return
+	}*/
+	this.obj.push(res)//splice(index, 1)
+	
+	this.emit(undefined, 'add', res, editId)
+}
+
 ObjectSetHandle.prototype.count = function(){return this.obj.length;}
 ObjectSetHandle.prototype.size = ObjectSetHandle.prototype.count
 
@@ -171,12 +200,13 @@ ObjectSetHandle.prototype.add = function(objHandle){
 
 ObjectSetHandle.prototype.addNew = function(typeName, json){
 
-	if(arguments.length === 1){
+	//if(arguments.length === 1){
 		if(_.isObject(typeName)){
+			//cb = json
 			json = typeName
 			typeName = undefined
 		}
-	}
+	//}
 	json = json || {}
 	
 	var type = u.getOnlyPossibleType(this, typeName);	

@@ -271,6 +271,10 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 				if(prop.indexOf(e.edit.id) === -1){
 					prop.push(e.edit.id)
 				}
+			}else if(op === editCodes.unshiftExisting || op === editCodes.unshiftedNew){
+				if(prop.indexOf(e.edit.id) === -1){
+					prop.unshift(e.edit.id)
+				}
 			}else if(op === editCodes.addAfter || op === editCodes.addedNewAfter){
 				if(prop.indexOf(e.edit.id) === -1){
 					var beforeId = editPath[editPath.length-1].edit.id
@@ -374,6 +378,11 @@ function makePropertyStream(broadcaster, path, edits, editId, cb, continueListen
 			}else if(op === editCodes.addExisting || op === editCodes.addedNew){
 				if(prop.indexOf(edit.id) === -1){
 					prop.push(edit.id)
+					cb(prop, editId)
+				}
+			}else if(op === editCodes.unshiftExisting || op === editCodes.unshiftedNew){
+				if(prop.indexOf(edit.id) === -1){
+					prop.unshift(edit.id)
 					cb(prop, editId)
 				}
 			}else if(op === editCodes.addAfter || op === editCodes.addedNewAfter){
@@ -544,7 +553,7 @@ function makePropertyTypesStream(ol, broadcaster, path, edits, editId, cb, conti
 				_.errout('TODO: ' + op)
 			}
 		}else if(editFp.isAddCode[op]){//op.indexOf('add') === 0){
-			if(op === editCodes.addExisting){
+			if(op === editCodes.addExisting || op === editCodes.unshiftExisting){
 				prop[e.edit.id] = ol.getObjectType(e.edit.id)
 			}else if(op === editCodes.addedNew){
 				prop[e.edit.id] = e.edit.typeCode
@@ -680,6 +689,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 		},
 		isTopLevelObject: function(id){
 			return ol.isTopLevelObject(id)
+		},
+		getUuid: function(id){
+			return ol.getUuid(id)
 		},
 		isFork: function(id){
 			return ol.isFork(id)
@@ -880,7 +892,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 				ol.getAllIncludingForked(id, function(res){
 			
 					--outstandingEditCount
-				
+					
 					computeMap(id, res, undefined, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)
 					
 					if(forkers[id]){
@@ -895,6 +907,8 @@ exports.make = function(schema, ap, broadcaster, ol){
 			function eventListener(typeCode, id, path, op, edit, syncId, editId){
 				
 				//console.log('op: ' + op)
+				//console.log('event listener: ' + typeCode + ' ' + id + ' ' + editNames[op])
+				
 				if(op === editCodes.destroy){
 					destroyedCb(id, editId)
 					return//TODO?
@@ -904,10 +918,13 @@ exports.make = function(schema, ap, broadcaster, ol){
 			}
 			var hasStartedBroadcastListening = false
 			
+			//console.log('getAllObjectsOfTypeIncludingForked: ' + objTypeCode)
 			ol.getAllObjectsOfTypeIncludingForked(objTypeCode, function(id, res){
+				//console.log('all: ' + id)
+				//console.log('res: ' + JSON.stringify(res))
 				computeMap(id, res, attachmentEditId, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)				
 			}, function(){
-				//console.log('got all objects of type')
+				//console.log('got all objects of type: ' + objTypeCode)
 				if(dead) return
 				
 				liveCb(true)
@@ -921,6 +938,181 @@ exports.make = function(schema, ap, broadcaster, ol){
 					broadcaster.output.stopListeningByType(objTypeCode, eventListener)
 				}
 			}
+		},
+		streamAllPropertyValuesHistorically: function(objTypeCode, propertyCodes, attachmentEditId, cb, liveCb, destroyedCb){
+			///_.errout('TODO')
+			_.assertFunction(destroyedCb)
+			
+			var outstandingEditCount = 0
+			var isListening = false
+			var dead = false
+			
+			var isPc = {}
+			for(var i=0;i<propertyCodes.length;++i){
+				isPc[propertyCodes[i]] = true
+			}			
+			
+			var objSchema = schema._byCode[objTypeCode]
+			
+			var forkers = {}//TODO remove old forkers when reforks happen...?
+			function reforkInterceptor(id, map, resultId){
+				if(map.forked){
+					if(forkers[map.forked] === undefined) forkers[map.forked] = []
+					forkers[map.forked].push(updateSelf.bind(undefined, id))
+				}
+				cb(id, map, resultId)
+			}
+			function updateSelf(id, editId){
+				++outstandingEditCount
+
+				if(outstandingEditCount === 1){
+					liveCb(false, editId)
+				}//TODO include the get in this block?
+			
+				ol.getAllIncludingForked(id, function(res){
+			
+					--outstandingEditCount
+					
+					computeAllHistoricalMaps(id, res, undefined, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)
+					
+					if(forkers[id]){
+						forkers[id].forEach(function(fff){
+							fff(editId)
+						})
+					}
+					
+					liveCb(true)
+				})
+			}
+			function eventListener(typeCode, id, path, op, edit, syncId, editId){
+				
+				//console.log('op: ' + op)
+				//console.log('event listener: ' + typeCode + ' ' + id + ' ' + editNames[op])
+				
+				if(op === editCodes.destroy){
+					destroyedCb(id, editId)
+					return//TODO?
+				}
+				
+				updateSelf(id, editId)
+			}
+			var hasStartedBroadcastListening = false
+			
+			//console.log('getAllObjectsOfTypeIncludingForked: ' + objTypeCode)
+			ol.getAllObjectsOfTypeIncludingForked(objTypeCode, function(id, res){
+				//console.log('all: ' + id)
+				//console.log('res: ' + JSON.stringify(res))
+				computeAllHistoricalMaps(id, res, attachmentEditId, reforkInterceptor, destroyedCb, ol, objSchema, propertyCodes, isPc)				
+			}, function(){
+				//console.log('got all objects of type: ' + objTypeCode)
+				if(dead) return
+				
+				liveCb(true)
+				hasStartedBroadcastListening = true			
+				broadcaster.output.listenByType(objTypeCode, eventListener)
+			})
+			
+			return function stopListening(){
+				dead = true
+				if(hasStartedBroadcastListening){
+					broadcaster.output.stopListeningByType(objTypeCode, eventListener)
+				}
+			}
+		},
+		streamAllPropertyValuesForSetHistorically: function(objTypeCode, propertyCodes, attachmentEditId, cb, liveCb, destroyedCb){
+
+			_.assertFunction(destroyedCb)
+			
+			var outstandingEditCount = 0
+			var isListening = false
+
+			var isPc = {}
+			for(var i=0;i<propertyCodes.length;++i){
+				isPc[propertyCodes[i]] = true
+			}			
+			
+			var objSchema = schema._byCode[objTypeCode]
+
+			var ids = {}
+			
+			function eventListener(typeCode, id, path, op, edit, syncId, editId){
+			
+				if(!ids[id]) return
+				
+				if(op === editCodes.destroy){
+					destroyedCb(id, editId)
+					return//TODO?
+				}
+
+				++outstandingEditCount
+
+				if(outstandingEditCount === 1){
+					liveCb(false, editId)
+				}
+			
+				ol.getAllIncludingForked(id, function(res){
+			
+					--outstandingEditCount
+
+					if(ids[id]){
+						computeAllHistoricalMaps(id, res, undefined, function(id, map, resultEditId){
+							//console.log('editIdes: ' + editId + ' ' + resultEditId)
+							cb(id, map, resultEditId > editId?resultEditId:editId)//TODO is this right?
+						}, destroyedCb, ol, objSchema, propertyCodes, isPc)
+					}
+					
+					if(outstandingEditCount === 0){
+						liveCb(true)
+					}
+				})
+			}
+
+			broadcaster.output.listenByType(objTypeCode, eventListener)
+			
+			liveCb(true)
+			
+			var adding = {}
+			
+			var setListener = {
+				add: function(id, editId){
+					++outstandingEditCount
+					if(outstandingEditCount === 1){
+						liveCb(false, editId)
+					}
+					adding[id] = true
+					process.nextTick(function(){//wait a bit so edits can happen, to avoid unnecessary thrashing of property states (especially during the initial make transactoin)
+						ol.getAllIncludingForked(id, function(res){
+							if(!adding[id]) return
+							adding[id] = false
+							ids[id] = true
+							--outstandingEditCount
+							if(ids[id]){
+								computeAllHistoricalMaps(id, res, editId, function(id, map, resultEditId){
+									//console.log('here('+resultEditId+','+editId+'): ' + JSON.stringify(res))
+									cb(id, map, resultEditId > editId?resultEditId:editId)//TODO is this right?
+								}, destroyedCb, ol, objSchema, propertyCodes, isPc)
+							}
+							if(outstandingEditCount === 0){
+								//adding = undefined
+								liveCb(true)
+							}
+						})
+					})
+				},
+				remove: function(id, editId){
+					if(adding[id]){
+						--outstandingEditCount
+						if(outstandingEditCount === 0){
+							//adding = undefined
+							liveCb(true)
+						}
+						adding[id] = false
+					}
+					delete ids[id]
+				}
+			}
+			
+			return setListener
 		},
 		streamAllPropertyValuesForSet: function(objTypeCode, propertyCodes, attachmentEditId, cb, liveCb, destroyedCb){
 
@@ -991,6 +1183,7 @@ exports.make = function(schema, ap, broadcaster, ol){
 							--outstandingEditCount
 							if(ids[id]){
 								computeMap(id, res, editId, function(id, map, resultEditId){
+									console.log('here('+resultEditId+','+editId+'): ' + JSON.stringify(res))
 									cb(id, map, resultEditId > editId?resultEditId:editId)//TODO is this right?
 								}, destroyedCb, ol, objSchema, propertyCodes, isPc)
 							}
@@ -1047,6 +1240,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 		getAllIdsOfType: function(typeCode, cb){
 			ol.getAllIdsOfType(typeCode, cb)
 		},
+		getHistoricalCreationsOfType: function(typeCode, cb){
+			ol.getHistoricalCreationsOfType(typeCode, cb)
+		},
 		getAllObjects: function(typeCode, cb){
 			ol.getAllOfType(typeCode, cb)
 		},
@@ -1073,13 +1269,28 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 	if(propertyCodes.indexOf(-1) !== -1) _.errout('TODO')
 	
 	_.assert(res[1].op === editCodes.made || res[1].op === editCodes.madeFork)
-	
+
+	for(var i=0;i<propertyCodes.length;++i){
+		var pc = propertyCodes[i]
+		if(map[pc] === undefined){
+			var t = objSchema.propertiesByCode[pc].type
+			if(t.type === 'set' || t.type === 'list'){
+				map[pc] = []
+			}
+		}
+	}
+		
 	for(var i=0;i<res.length;++i){
 		var e = res[i]
 		//var ignorable = pu.update(e)
 		var op = e.op
 		
-		if(op === editCodes.selectProperty){
+		if(op === editCodes.initializeUuid){
+			if(isPc[-3]){//propertyCodes.indexOf(-3) !== -1){
+				console.log('mapped uuid: ' + e.edit.uuid)
+				map[-3] = e.edit.uuid
+			}
+		}else if(op === editCodes.selectProperty){
 			if(depth === 0 && isPc[e.edit.typeCode]){
 				pc = e.edit.typeCode
 				isInPc = true
@@ -1150,12 +1361,17 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 					map[pc] = e.edit.id
 				}
 			}else if(op === editCodes.addExisting){
-				if(map[pc] === undefined) map[pc] = []
+				//if(map[pc] === undefined) map[pc] = []
 				if(!ol.isDeleted(e.edit.id)){
 					map[pc].push(e.edit.id)
 				}
+			}else if(op === editCodes.unshiftExisting){
+				//if(map[pc] === undefined) map[pc] = []
+				if(!ol.isDeleted(e.edit.id)){
+					map[pc].unshift(e.edit.id)
+				}
 			}else if(op === editCodes.addInt){
-				if(map[pc] === undefined) map[pc] = []
+				//if(map[pc] === undefined) map[pc] = []
 				map[pc].push(e.edit.value)
 			}else if(op === editCodes.removeInt){
 				var list = map[pc]
@@ -1170,56 +1386,30 @@ function computeMap(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, p
 			}
 		}
 	}
-	for(var i=0;i<propertyCodes.length;++i){
-		var pc = propertyCodes[i]
-		if(map[pc] === undefined){
-			var t = objSchema.propertiesByCode[pc].type
-			if(t.type === 'set' || t.type === 'list'){
-				map[pc] = []
-			}
-		}
-	}
+
 	//console.log('computed map: ' + JSON.stringify(map))
 	var resultEditId = res.length > 0 ? res[res.length-1].editId : -1
 	if(attachmentEditId) resultEditId = attachmentEditId
 	cb(id, map, resultEditId)
 }
 
-/*
-function computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc){
-	var pu = pathsplicer.make()
+function computeAllHistoricalMaps(id, res, attachmentEditId, cb, destroyedCb, ol, objSchema, propertyCodes, isPc){
+	_.assertLength(arguments, 9)
+	
+	console.log('computing all historical maps: ' + JSON.stringify(res))
+	
+	_.assertObject(isPc)
+	//var pu = pathsplicer.make()
 	var map = {}
 
-	//_.assert(!ol.isDeleted(id))
+	var depth = 0
+	var isInPc = false
+	var pc
 	
-	for(var i=0;i<res.length;++i){
-		var e = res[i]
-		var ignorable = pu.update(e)
+	if(propertyCodes.indexOf(-1) !== -1) _.errout('TODO')
+	
+	_.assert(res[1].op === editCodes.made || res[1].op === editCodes.madeFork)
 
-		
-		if(!ignorable && pu.getPath().length === 1){
-			var pc = pu.getPath()[0].edit.typeCode
-			if(!isPc[pc]) continue
-			if(e.op === 'setInt' || e.op === 'setString' || e.op === 'setBoolean'){
-				map[pc] = e.edit.value
-			}else if(e.op === 'setObject'){
-				if(!ol.isDeleted(e.edit.id)){
-					map[pc] = e.edit.id
-				}
-			}else if(e.op === 'addInt'){
-				if(map[pc] === undefined) map[pc] = []
-				map[pc].push(e.edit.value)
-			}else if(e.op === 'removeInt'){
-				var list = map[pc]
-				list.splice(list.indexOf(e.edit.value), 1)
-			}else if(e.op === 'destroy'){
-				console.log('destroyed included: ' + id)
-				destroyedCb(id, e.editId)
-			}else{
-				_.errout('TODO: ' + JSON.stringify(e))
-			}
-		}
-	}
 	for(var i=0;i<propertyCodes.length;++i){
 		var pc = propertyCodes[i]
 		if(map[pc] === undefined){
@@ -1228,8 +1418,127 @@ function computeMap(id, res, cb, destroyedCb, ol, objSchema, propertyCodes, isPc
 				map[pc] = []
 			}
 		}
+	}	
+	
+	for(var i=0;i<res.length;++i){
+		var e = res[i]
+		//var ignorable = pu.update(e)
+		var op = e.op
+		
+		if(op === editCodes.initializeUuid){
+			if(isPc[-3]){//propertyCodes.indexOf(-3) !== -1){
+				console.log('mapped uuid: ' + e.edit.uuid)
+				map[-3] = e.edit.uuid
+				cb(id, map, e.editId)
+			}
+		}else if(op === editCodes.selectProperty){
+			if(depth === 0 && isPc[e.edit.typeCode]){
+				pc = e.edit.typeCode
+				isInPc = true
+			}else{
+				isInPc = false
+			}
+			++depth
+			continue	
+		}else if(op === editCodes.reselectProperty){
+			if(depth === 1 && isPc[e.edit.typeCode]){
+				pc = e.edit.typeCode
+				isInPc = true
+			}else{
+				isInPc = false
+			}
+			continue	
+		}else if(op === editCodes.ascend1){
+			--depth
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend){
+			depth -= e.edit.many
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend2){
+			depth -= 2
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend3){
+			depth -= 3
+			isInPc = false
+			continue	
+		}else if(op === editCodes.ascend4){
+			depth -= 4
+			isInPc = false
+			continue	
+		}else if(op === 'ascend5'){
+			depth -= 5
+			isInPc = false
+			continue	
+		}else if(op === editCodes.selectObject){
+			++depth
+			continue
+		}else if(op === editCodes.reselectObject){
+			continue
+		}else if(editFp.isKeySelectCode[op]){//op === 'selectStringKey' || op === 'selectLongKey' || op === 'selectIntKey' || op === 'selectBooleanKey' || op==='selectObjectKey'){
+			++depth
+			continue
+		}else if(editFp.isKeyReselectCode[op]){//op === 'reselectStringKey' || op === 'reselectLongKey' || op === 'reselectIntKey' || op === 'reselectBooleanKey' || op === 'reselectObjectKey'){
+			continue
+		}else if(op === editCodes.setSyncId){
+			continue
+		}else if(op === editCodes.madeFork){
+			depth = 0
+			isInPc = false
+			map.forked = e.edit.sourceId
+			cb(id, map, e.editId)
+		}else if(op === editCodes.refork){
+			//_.errout('TODO')
+			map.forked = e.edit.sourceId
+//			console.log('reforked: ' + JSON.stringify(res))
+		}
+		
+		if(isInPc){
+			if(editFp.isPrimitiveSetCode[op]){//op === 'setInt' || op === 'setString' || op === 'setBoolean'){
+				if(map[pc] !== e.edit.value){
+					map[pc] = e.edit.value
+					cb(id, map, e.editId)
+				}
+			}else if(op === editCodes.setObject){
+				if(!ol.isDeleted(e.edit.id)){
+					map[pc] = e.edit.id
+					cb(id, map, e.editId)
+				}
+			}else if(op === editCodes.addExisting){
+				//if(map[pc] === undefined) map[pc] = []
+				if(!ol.isDeleted(e.edit.id)){
+					map[pc].push(e.edit.id)
+					cb(id, map, e.editId)
+				}
+			}else if(op === editCodes.unshiftExisting){
+				//if(map[pc] === undefined) map[pc] = []
+				if(!ol.isDeleted(e.edit.id)){
+					map[pc].unshift(e.edit.id)
+					cb(id, map, e.editId)
+				}
+			}else if(op === editCodes.addInt){
+				//if(map[pc] === undefined) map[pc] = []
+				map[pc].push(e.edit.value)
+				cb(id, map, e.editId)
+			}else if(op === editCodes.removeInt){
+				var list = map[pc]
+				list.splice(list.indexOf(e.edit.value), 1)
+				cb(id, map, e.editId)
+			}else if(op === editCodes.destroy){
+				console.log('destroyed included: ' + id)
+				destroyedCb(id, e.editId)
+			}else if(op === editCodes.madeFork){
+				//TODO?
+			}else{
+				_.errout('TODO: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			}
+		}
 	}
-	//console.log(JSON.stringify(map))
-	cb(id, map, res.length > 0 ? res[res.length-1].editId : -1)
+	
+	//console.log('computed map: ' + JSON.stringify(map))
+	var resultEditId = res.length > 0 ? res[res.length-1].editId : -1
+	if(attachmentEditId) resultEditId = attachmentEditId
+	cb(id, map, resultEditId)
 }
-*/
