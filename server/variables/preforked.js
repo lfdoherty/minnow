@@ -47,6 +47,8 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 	var objValue = objGetter(bindings, editId)
 	var preforkedValue = forkedGetter(bindings, editId)
 	
+	//if(!_.isFunction(preforkedValue.streamProperty)) _.errout('missing streamProperty: ' + preforkedValue.name)
+	
 	var key = objValue.key+preforkedValue.key
 	if(cache.has(key)){
 		return cache.get(key)
@@ -64,7 +66,8 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 	
 	var objValueListener = {
 		set: function(v, oldV, editId){
-			value = v
+			//value = v
+			value = {top: v, inner: v, stream: streamProperty}
 			listeners.emitSet(value, oldV, editId)
 		},
 		includeView: listeners.emitIncludeView.bind(listeners),
@@ -82,21 +85,49 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 	preforkedValue.attach(preforkedValueListener,editId)
 	
 	function descend(path, editId, cb){
-		//_.errout('TODO')
+		_.errout('TODO REMOVEME')
 		//console.log(pfValue + ' ' + JSON.stringify(path))
 		var current
 		
 		//TODO adjust as pfValue changes
 		preforkedValue.descend([{op: editCodes.selectObject, edit: {id: pfValue}}].concat(path.slice(1)), editId, function(prop, editId){
-			//console.log('got descent ' + prop)
 			current = prop
 			cb(prop, editId)
 		})
 		
 		return objValue.descend(path, editId, function(prop, editId){
-			//console.log('got descent* ' + prop)
+			console.log('got descent* ' + prop)
 			if(prop !== current && prop !== undefined) cb(prop, editId)
 		})
+	}
+	
+	function streamProperty(id, propertyCode, editId, cb){
+		//_.errout('TODO REMOVEME')
+		//console.log(pfValue + ' ' + JSON.stringify(path))
+		//console.log('streamProperty through prefork ' + id + ' ' + propertyCode)
+		var current
+
+		console.log('got preforked stream property call ' + JSON.stringify(id))
+		
+		_.assertEqual(id, value)
+		
+		//TODO adjust as pfValue changes
+		//preforkedValue.descend([{op: editCodes.selectObject, edit: {id: pfValue}}].concat(path.slice(1)), editId, function(prop, editId){
+		;(pfValue.id||s.objectState.streamProperty)(pfValue, propertyCode, editId, function(prop, editId){
+			current = prop
+			console.log('preforked got prop: ' + JSON.stringify(prop))
+			cb(prop, editId)
+		})
+		
+		;(id.stream!==streamProperty&&id.stream?id.stream:s.objectState.streamProperty)(id, propertyCode, editId, function(prop, editId){
+			console.log('preforked got prop2: ' + JSON.stringify(prop))
+			if(prop !== current && prop !== undefined) cb(prop, editId)
+		})
+		console.log('!preforked')
+		/*return objValue.descend(path, editId, function(prop, editId){
+			//console.log('got descent* ' + prop)
+			if(prop !== current && prop !== undefined) cb(prop, editId)
+		})*/
 	}
 	
 	var handle = {
@@ -115,6 +146,12 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 		},
 		oldest: oldest,
 		key: key,
+		/*getForked: function(id){
+			if(id === value){
+				return pfValue
+			}
+		},*/
+		//streamProperty: streamProperty,
 		descend: descend,
 		getTopParent: function(id){
 			return value

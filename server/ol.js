@@ -110,6 +110,7 @@ function Ol(schema){
 	this.destroyed = {}
 	this.lastEditId = {}
 	this.uuid = {}
+	this.innerParentIndex = {}
 	
 	this.schema = schema
 	
@@ -244,6 +245,23 @@ Ol.prototype._destroy = function(id){
 	//console.log('id destroyed: ' + id)
 	this.destroyed[id] = true
 }
+Ol.prototype.getPathTo = function(id, cb){
+	//_.errout('TODO')
+	/*var path = []
+	var curId = id
+	while(!this.isTopLevelObject(curId)){
+		var up = this.innerParentIndex[curId]
+		path = path.concat(up.path)
+		curId = up.parentId
+	}
+	return path*/
+
+	if(this.isTopLevelObject(id)){
+		cb([])
+	}else{
+		cb(this.innerParentIndex[id])
+	}
+}
 Ol.prototype._getForeignIds = function(id, editId, cb){
 	
 	var local = this
@@ -368,31 +386,145 @@ Ol.prototype.getIncludingForked = function(id, startEditId, endEditId, cb){//TOD
 	})
 }
 
+function selectInside(edits, innerId){
+	var inside = false
+	var depth = 0
+	var depthAtInside
+	var insideNested = false
+	var result = []
+	console.log('selectInside(' + JSON.stringify(innerId) + '): ' + JSON.stringify(edits))
+	for(var i=0;i<edits.length;++i){
+		var e = edits[i]
+		var op = e.op
+		if(op === editCodes.selectObject || op === editCodes.reselectObject){
+			if(op === editCodes.selectObject) ++depth
+			var objId = e.edit.id
+			if(objId === innerId){
+				inside = true
+				depthAtInside = depth
+			}else if(inside){
+				insideNested = true
+			}
+		}else if(op === editCodes.selectProperty){
+			if(insideNested){
+				insideNested = false
+			}
+			++depth
+		}else if(fp.isKeySelectCode[op]){
+			++depth
+		}else if(op === editCodes.ascend1){
+			depth -= 1
+			if(inside && depth < depthAtInside) inside = false
+		}else if(op === editCodes.ascend2){
+			depth -= 2
+			if(inside && depth < depthAtInside){
+				inside = false
+				if(depth + 2 > depthAtInside){
+					result.push({op: editCodes.ascend1, edit: {}})
+				}
+			}
+		}else if(op === editCodes.ascend3){
+			depth -= 3
+			if(inside && depth < depthAtInside){
+				inside = false
+				if(depth + 3 > depthAtInside){
+					result.push({op: editCodes[ascend+((depth+3)-depthAtInside)], edit: {}})
+				}
+			}
+		}else if(op === editCodes.ascend4){
+			depth -= 4
+			if(inside && depth < depthAtInside){
+				inside = false
+				if(depth + 4 > depthAtInside){
+					result.push({op: editCodes[ascend+((depth+4)-depthAtInside)], edit: {}})
+				}
+			}
+		}else if(op === editCodes.ascend5){
+			depth -= 5
+			if(inside && depth < depthAtInside){
+				inside = false
+				if(depth + 5 > depthAtInside){
+					result.push({op: editCodes[ascend+((depth+5)-depthAtInside)], edit: {}})
+				}
+			}
+		}else if(op === editCodes.ascend){
+			depth -= e.edit.many
+			if(inside && depth < depthAtInside){
+				inside = false
+				if(depth + e.edit.many > depthAtInside){
+					result.push({op: editCodes.ascend, edit: {many: (depth+e.edit.many - depthAtInside)}})
+				}
+			}
+		}
+		//if(inside && depth < insideDepth) inside = false
+		
+		if(inside && (depth > depthAtInside && (depth <= depthAtInside+2 || insideNested))){
+			console.log('*'+inside + ' ' + insideNested + ' ' + depth + ' ' + depthAtInside + ' ' + JSON.stringify(e))
+			result.push(e)
+		}else{
+			console.log('@'+inside + ' ' + insideNested + ' ' + depth + ' ' + depthAtInside + ' ' + JSON.stringify(e))
+		}
+	}
+	console.log(JSON.stringify(result))
+	return result
+}
+
 Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertLength(arguments, 4)
 	_.assertInt(startEditId)
 	_.assertInt(endEditId)
-	_.assertInt(id)
 	
-	++this.stats.get
+	if(!_.isInt(id)){
+		console.log('id: ' + JSON.stringify(id))
+		_.assertInt(id.top)
 	
-	try{
-		var edits = this.olc.get(id)
-	}catch(e){
-		var typeCode = this.objectTypeCodes[id]
-		console.log('failed on type: ' + this.schema._byCode[typeCode].name)
-		throw e
-	}
-	var actual = []
-
-	for(var i=0;i<edits.length;++i){
-		var e = edits[i]
-		_.assertInt(e.editId)
-		if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
-			actual.push(e)
+		++this.stats.get
+	
+		try{
+			var edits = this.olc.get(id.top)
+		}catch(e){
+			var typeCode = this.objectTypeCodes[id.top]
+			console.log('failed on top type: ' + this.schema._byCode[typeCode].name)
+			throw e
 		}
+		var actual = []
+
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			_.assertInt(e.editId)
+			if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+				actual.push(e)
+			}
+		}
+		if(id.top !== id.inner){
+			cb(selectInside(actual, id.inner))
+		}else{
+			cb(actual)
+		}
+	}else{
+		_.assertInt(id)
+		
+		++this.stats.get
+	
+		try{
+			var edits = this.olc.get(id)
+		}catch(e){
+			var typeCode = this.objectTypeCodes[id]
+			console.log('failed on type: ' + this.schema._byCode[typeCode].name)
+			throw e
+		}
+		console.log('computing actual(' + startEditId + ',' + endEditId + ') from: ' + JSON.stringify(edits))
+		var actual = []
+
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			_.assertInt(e.editId)
+			if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+				actual.push(e)
+			}
+		}
+		cb(actual)
 	}
-	cb(actual)	
 }
 
 Ol.prototype.isTopLevelObject = function(id){
@@ -484,7 +616,9 @@ Ol.prototype.getLastVersion = function(id, cb){
 		cb(version)
 	})
 }
-Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
+
+//note that 'path' is only required for edits that are not path updates
+Ol.prototype.persist = function(id, op, edit, syncId, timestamp, path){
 	_.assertNumber(timestamp)
 	_.assertInt(op)
 	
@@ -520,6 +654,10 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 
 	this.timestamps[res.editId]  = timestamp
 
+	var local = this
+	function indexParent(resId){
+		local.innerParentIndex[resId] = [{op: editCodes.selectObject, edit: {id: id}}].concat(path)		
+	}
 	if(op === editCodes.initializeUuid){
 		this.uuid[res.id] = edit.uuid
 	}else if(op === editCodes.addNew){
@@ -528,6 +666,9 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		//this.innerParentIndex[res.id] = [{op: editCodes.selectObject, edit: {id: id}}].concat(path)		
+		indexParent(res.id)
 	//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
 	}else if(op === editCodes.unshiftNew){
 		op = editCodes.unshiftedNew
@@ -535,6 +676,8 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		indexParent(res.id)
 	//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
 	}else if(op === editCodes.addNewAt){
 		op = editCodes.addedNewAt
@@ -542,24 +685,32 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode, index: edit.index}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		indexParent(res.id)
 	}else if(op === editCodes.addNewAfter){
 		op = editCodes.addedNewAfter
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {id: res.id, typeCode: edit.typeCode}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		indexParent(res.id)
 	}else if(op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
 		op = editCodes.replacedNew
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {typeCode: edit.typeCode, newId: res.id, oldId: edit.id}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		indexParent(res.id)
 	}else if(op === editCodes.setToNew){
 		op = editCodes.wasSetToNew
 		++this.idCounter
 		res.id = this.idCounter
 		edit = {typeCode: edit.typeCode, id: res.id}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		indexParent(res.id)
 	}else if(op === editCodes.putNew){
 		op = editCodes.didPutNew
 		++this.idCounter
@@ -567,10 +718,13 @@ Ol.prototype.persist = function(id, op, edit, syncId, timestamp){
 		_.assert(edit.typeCode > 0)
 		edit = {typeCode: edit.typeCode, id: res.id}
 		this.objectTypeCodes[res.id] = edit.typeCode
+
+		indexParent(res.id)
 	}else if(op === editCodes.destroy){
 		//_.errout('TODO')
 		this._destroy(id)
 	}
+	
 	res.edit = edit
 	res.op = op
 
@@ -629,7 +783,7 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 		}
 	})
 }
-Ol.prototype.getObjectMetadata = function(id, cb){
+Ol.prototype.getObjectMetadata = function(id){
 	/*if(this.destroyed[id]){
 		_.errout('id already destroyed: ' + id)
 	}*/
@@ -644,9 +798,9 @@ Ol.prototype.getObjectMetadata = function(id, cb){
 
 Ol.prototype.getObjectType = function(id){
 	_.assertLength(arguments, 1)
-
-	var tc = this.objectTypeCodes[id]
-	if(tc === undefined) _.errout('unknown id: ' + id)
+	
+	var tc = this.objectTypeCodes[id.inner||id]
+	if(tc === undefined) _.errout('unknown id: ' + JSON.stringify(id))
 	return tc
 }
 Ol.prototype.getLatestVersionId = function(){

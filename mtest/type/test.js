@@ -35,7 +35,7 @@ exports.innerTypeSwitch = function(config, done){
 			client.view('subs', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.va.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					var json = c.va.toJson()
 					if(json.length === 2 && json.indexOf('Bill') !== -1 && json.indexOf('anon') !== -1){
 						done()

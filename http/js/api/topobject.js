@@ -623,10 +623,10 @@ TopObjectHandle.prototype.id = function(){
 	return this.objectId;
 }
 TopObjectHandle.prototype.getTopId = TopObjectHandle.prototype.id
-TopObjectHandle.prototype.uid = function(){
+/*TopObjectHandle.prototype.uid = function(){
 	if(this.objectId < 0) throw new Error('cannot get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the id becomes available.')
 	return ''+this.objectId;
-}
+}*/
 TopObjectHandle.prototype._internalId = function(){
 	return this.objectId;
 }
@@ -823,7 +823,7 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 		}else{
 			return
 		}
-		console.log('reified edit: ' + JSON.stringify(e))
+		//console.log('reified edit: ' + JSON.stringify(e))
 
 		/*
 			e.edit.id = realId

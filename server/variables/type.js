@@ -35,6 +35,7 @@ function fixedType(s, element, cache){
 	var key = 'ft'+type
 	if(cache.has(key)) return cache.get(key)
 
+	//console.log('typeName: ' + typeName)
 	
 	var handle = {
 		name: 'type[fixed]',

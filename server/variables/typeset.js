@@ -96,16 +96,18 @@ function svgGeneralType(s, cache, typeCode, bindings, editId){
 		},
 		key: key,
 		isType: true,
-		descend: function(path, editId, cb, continueListening){
+		/*descend: function(path, editId, cb, continueListening){
 			_.assertFunction(cb)
 			//_.assertInt(path[0])
 			//_.assertInt(path[1])
 			//console.log('path: ' + JSON.stringify(path))
+			_.errout('TODO REMOVEME')
 			_.assertArray(path)
 			if(!s.objectState.isTopLevelObject(path[0].edit.id)) return false
-			s.objectState.streamProperty(path, editId, cb, continueListening)
+			//s.objectState.streamProperty(path, editId, cb, continueListening)
 			return true
-		},
+		},*/
+		streamProperty: s.objectState.streamProperty,
 		destroy: function(){
 			s.getAllSubtypes(typeCode).forEach(function(objSchema){
 				//console.log('listening for new')

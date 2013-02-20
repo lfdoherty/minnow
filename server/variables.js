@@ -336,13 +336,14 @@ exports.makeBindingsForViewGetter = function(s, viewSchema){
 	
 	var topLevel = {
 		name: 'top-level',
-		descend: function(path, editId, cb){
+		/*descend: function(path, editId, cb){
 			//console.log('descending: ' + JSON.stringify(path))
 			_.assert(s.objectState.isTopLevelObject(path[0].edit.id))
 			
 			s.objectState.streamProperty(path, editId, cb)
 			return true
-		},
+		},*/
+		streamProperty: s.objectState.streamProperty,
 		getTopParent: function(id){
 			//_.assert(s.objectState.isTopLevelObject(id))
 			if(!s.objectState.isTopLevelObject(id)) _.errout('not a top-level object, translation failure: ' + id)

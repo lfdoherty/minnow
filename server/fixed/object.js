@@ -10,11 +10,12 @@ exports.make = function(s){
 
 function sfgObject(s, id, editId, context){
 	_.assertLength(arguments, 4)
-	if(!_.isInt(id)) _.errout('invalid id: ' + id)
-	_.assertInt(id)
+	//if(!_.isInt(id)) _.errout('invalid id: ' + id)
+	//_.assertInt(id)
 	_.assertDefined(context)
 	_.assertString(context.name)
-	_.assertFunction(context.descend)
+	//if(!_.isFunction(context.streamProperty)) _.errout('missing streamProperty: ' + context.name)
+	//_.assertFunction(context.streamProperty)
 
 	var key = id+''
 	
@@ -52,14 +53,15 @@ function sfgObject(s, id, editId, context){
 			_.assertEqual(idToWrap, id)
 			return handle
 		},
-		descend: function(path, editId, cb){
+		/*descend: function(path, editId, cb){
 			//console.log('&descend: ' + context.descend + ' ' + context.name)
 			if(path[0].edit.id !== id){
 				console.log('WARNING: tried to descend fixed object from different path')
 				return false
 			}
 			return context.descend(path, editId, cb)
-		},
+		},*/
+		//streamProperty: context.streamProperty,
 		getTopParent: function(id){
 			if(!context.getTopParent) _.errout('missing getTopParent: ' + context.name)
 			if(s.objectState.isTopLevelObject(id)) return id

@@ -450,6 +450,7 @@ function svgMapValueMultiple(s, cache, keyParser, hasObjectValues, contextGetter
 				//throw new Error('TODO')
 				Object.keys(state).forEach(function(key){
 					key = keyParser(key)
+					console.log('looking for key: ' + key + ' ' + JSON.stringify(state))
 					var value = state[key]
 					for(var i=0;i<value.length;++i){
 						listener.putRemove(key, value[i], editId)

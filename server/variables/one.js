@@ -95,7 +95,8 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 		},
 		oldest: elements.oldest,
 		key: key,
-		descend: elements.descend,
+		//descend: elements.descend,
+		streamProperty: elements.streamProperty,
 		destroy: function(){
 			elements.detach(elementsListener)
 			listeners.destroyed()

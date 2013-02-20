@@ -245,7 +245,7 @@ ObjectHandle.prototype.getPath = function(){
 }
 ObjectHandle.prototype._typeCode = function(){return this.typeSchema.code;}
 ObjectHandle.prototype.type = function(){return this.typeSchema.name;}
-ObjectHandle.prototype.id = function(){
+ObjectHandle.prototype.innerId = function(){
 	_.assertPrimitive(this.objectId);
 	_.assertDefined(this.objectId);
 	return this.objectId;
@@ -253,7 +253,7 @@ ObjectHandle.prototype.id = function(){
 ObjectHandle.prototype._internalId = function(){
 	return this.objectId;
 }
-ObjectHandle.prototype.uid = function(){
+ObjectHandle.prototype.id = function(){
 	_.assertPrimitive(this.objectId);
 	_.assertDefined(this.objectId);
 	return this.parent.getTopId() + ':' + this.objectId;

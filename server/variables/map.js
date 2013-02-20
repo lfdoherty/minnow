@@ -10,12 +10,26 @@ var _ = require('underscorem')
 function makeKeyParser(kt){
 	var keyParser;
 	if(kt.type === 'object'){
-		keyParser = function(key){return parseInt(key);}
+		keyParser = function(key){
+			console.log('parsing key: ' + key)
+			var ci = key.indexOf(':')
+			if(ci === -1){
+				return parseInt(key);
+			}else{
+				return {top: parseInt(key.substr(0,ci)), inner: parseInt(key.substr(ci+1))}
+			}
+		}
 	}else if(kt.type === 'primitive'){
 		if(kt.primitive === 'int'){
-			keyParser = function(key){return parseInt(key);}
+			keyParser = function(key){
+				console.log('int')
+				return parseInt(key);
+			}
 		}else if(kt.primitive === 'string'){
-			keyParser = function(key){return key;}
+			keyParser = function(key){
+				console.log('string')
+				return key;
+			}
 		}else if(kt.primitive === 'long'){
 			keyParser = function(key){return Number(key);}
 		}else{
@@ -413,7 +427,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 				
 				function keyListener(value, oldValue, editId){
 					kv.key = value	
-					console.log('key: ' + value + ' ' + editId)
+					//console.log('key: ' + value + ' ' + editId)
 					if(value === undefined){
 						//console.log('got undefined value , old: ' + oldValue)
 						if(oldValue !== undefined){
@@ -441,7 +455,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					kv.value = value
 					//console.log('map value: ' + value + ' ' + editId)
 					//s.log('map value: ' + kv.key + '->'+value)
-					console.log('map value: ' + kv.key + ' -> ' + value)
+					//console.log('map value: ' + kv.key + ' -> ' + value)
 					if(kv.key !== undefined){
 						state[kv.key] = kv.value
 						//s.log('emitting put')

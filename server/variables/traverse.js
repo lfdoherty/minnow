@@ -196,7 +196,7 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 		
 		var resultListener = {
 			add: function(v, editId){
-				_.assertPrimitive(v)
+				//_.assertPrimitive(v)
 				value.push(v)
 				
 				//console.log('added value: ' + v + ' ' + JSON.stringify(count))
@@ -336,10 +336,11 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				}
 			},
 			listener: resultListener,
-			descend: function(path, editId, cb){
+			/*descend: function(path, editId, cb){
 				//_.errout('TODO');
 				return attachedTo.descend(path, editId, cb)
-			},
+			},*/
+			streamProperty: attachedTo.streamProperty,
 			getTopParent: function(id){
 				return attachedTo.getTopParent(id)
 			},
@@ -679,10 +680,11 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 					}
 				},
 				listener: resultListener,
-				descend: function(path, editId, cb){
+				/*descend: function(path, editId, cb){
 					//_.errout('TODO');
 					attachedTo.descend(path, editId, cb)
-				},
+				},*/
+				streamProperty: attachedTo.streamProperty,
 				key: '*'+attachedTo.key,
 				oldest: attachedTo.oldest,
 				depthChange: depthChange/*,

@@ -94,6 +94,8 @@ function makeConstantSwitch(s, cache, primGetter, cases, defaultCase, bindings, 
 		theCase = defaultCase.getter(bindings, editId)
 	}
 	
+	//console.log('making constant switch: ' + theCase.key)
+	
 	if(!theCase) _.errout('no cases match, no default case defined, TODO?')
 	
 	theCase.name += ' [fixed-switch]'

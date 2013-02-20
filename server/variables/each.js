@@ -338,7 +338,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			//s.log('key: ' + elements.key + ' ' + v + ' ' + editId)
 			//console.log('attach: ' + elements.attach)
 			//console.log('add')
-			//console.log('adding each id: ' + v)
+			console.log('adding each id: ' + JSON.stringify(v))
 			var ss = newBindings[implicits[0]] = contextGetter.wrapAsSet(v, editId, elements)
 			if(ss.isType) throw new Error('is type')
 			var newSet = concreteGetter(newBindings, editId)
@@ -362,11 +362,13 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 	}
 	elements.attach(elementsListener, editId)
 	
-	function descend(path, editId, cb){
+	/*function descend(path, editId, cb){
 		//call the correct newSet's descend method based on the root object of the path
 		var id = path[0].edit.id
 		_.assertInt(id)
-
+		
+		_.errout('TODO REMOVEME')
+		
 		var ps = producingSet[id]
 		if(ps === undefined){
 			//console.log('known ids: ' + JSON.stringify(Object.keys(allSets)))
@@ -375,7 +377,7 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 			//_.errout('error, tried to descend into unknown object path: ' + JSON.stringify(path))
 		}
 		return ps.descend(path, editId, cb)
-	}
+	}*/
 	
 	var handle = {
 		name: 'each-single',
@@ -394,7 +396,15 @@ function svgEachSingle(s, implicits, cache, exprGetter, contextGetter, isView, b
 				values.forEach(function(v){listener.remove(v, editId)})
 			}
 		},
-		descend: descend,
+		//descend: descend,
+		streamProperty: function(id, pc, editId, cb, continueListening){
+			var ps = producingSet[id]
+			if(ps){
+				ps.streamProperty(id, pc, editId, cb, continueListening)
+			}else{
+				elements.streamProperty(id, pc, editId, cb, continueListening)
+			}
+		},//elements.streamProperty,
 		getTopParent: function(id){
 			var ps = producingSet[id]
 			if(ps === undefined){

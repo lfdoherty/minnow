@@ -153,7 +153,11 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 					if(value === undefined){
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], editCodes.clearObject, {}, -1, editId)
 					}else{
-						_.assertInt(value)
+						//_.assertInt(value)
+						if(!_.isInt(value)){
+							_.assertEqual(value.top, value.inner)
+							value = value.top
+						}
 						var edit = {id: value}
 						//log('view translating set id to setObject')
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], editCodes.setObject, edit, -1, editId)
@@ -399,9 +403,13 @@ function makeAttachFunction(s, viewTypeCode, relFunc, relSchema, relCode){
 					add: function(value, editId){
 						//console.log('got object add: ' + JSON.stringify([viewTypeCode, viewId, relCode, value, editId]))
 						//if(viewId === 0) process.exit(0)
-						_.assert(_.isString(value) || _.isInt(value))
-						_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id
-						if(_.isInt(value)) _.assert(value >= 0)
+						//_.assert(_.isString(value) || _.isInt(value))
+						//_.assert(_.isInt(value) || value.indexOf(':') !== -1)//must be id
+						//if(_.isInt(value)) _.assert(value >= 0)
+						if(value.top){
+							_.assertEqual(value.top, value.inner)
+							value = value.top
+						}
 						var edit = {id: value}
 						listener.objectChange(viewTypeCode, viewId, [{op: editCodes.selectProperty, edit: {typeCode: relCode}}], editCodes.addExisting, edit, -1, editId)
 					},

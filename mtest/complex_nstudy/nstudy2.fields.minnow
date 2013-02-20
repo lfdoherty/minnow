@@ -141,10 +141,10 @@ userContact(user user) 166
 
 isExpanded(p node, n node, u user){
 	switch(isOfType(n, 'field'),
-		case(true, not(mapValue(u.data.expansionToggles, concat(p.uid,'|',n.uid)))),//field expansion defaults to true
+		case(true, not(mapValue(u.data.expansionToggles, concat(p.id,'|',n.id)))),//field expansion defaults to true
 		default(
 			switch(isOfType(n,'node'),
-				case(true, mapValue(u.data.expansionToggles, concat(p.uid,'|',n.uid))),//non-field expansion defaults to false
+				case(true, mapValue(u.data.expansionToggles, concat(p.id,'|',n.id))),//non-field expansion defaults to false
 				default(false)//if it's not a node, it has no expansion state anyway
 			)
 		)

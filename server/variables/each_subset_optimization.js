@@ -504,13 +504,14 @@ function makeF(s, rel, objTypeCode, propertyCodes, wrapper, makeBindingWrappers,
 			},
 			oldest: oldest,
 			key: key,
-			descend: function(path, editId, cb, continueListening){//same as typeset
+			/*descend: function(path, editId, cb, continueListening){//same as typeset
 				if(s.objectState.isTopLevelObject(path[0].edit.id)){
 					s.objectState.streamProperty(path, editId, cb, continueListening)
 					return true
 				}
 				return false
-			},
+			},*/
+			streamProperty: s.objectState.streamProperty,
 			destroy: function(){
 				listeners.destroyed()
 				stopFunction()

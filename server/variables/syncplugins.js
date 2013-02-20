@@ -22,15 +22,15 @@ function wrapParam(v, schemaType, s){
 	function addDescend(handle, t){
 		_.assertDefined(t)
 		
-		if(!_.isFunction(t.descend)) _.errout('needs descend: ' + t.name)
+		//if(!_.isFunction(t.descend)) _.errout('needs descend: ' + t.name)
 		
-		handle.descend = function(path, editId, cb, continueListening){
+		/*handle.descend = function(path, editId, cb, continueListening){
 			_.assertFunction(cb)
 			//console.log('*descending: ' + t.descend)
 			var worked = t.descend(path, editId, cb, continueListening)
 			if(!_.isBoolean(worked)) _.errout('did not provide a boolean: ' + t.name)
 			return worked
-		}
+		}*/
 		
 		if(t.getTopParent){
 			handle.getTopParent = function(id){
@@ -731,12 +731,12 @@ function svgSyncPlugin(s, cache, paramSets, plugin, makeOutputHandle, descendabl
 		key += ps.key+','
 		_.assertDefined(ps)
 		params.push(ps)
-		if(descendableParams[i]){
+		/*if(descendableParams[i]){
 			if(ps.descend === undefined) _.errout('should be descendable, but missing descend: ' 
 				+ ps.name + ' ' + JSON.stringify(paramSets[i].schemaType))
 			_.assertFunction(ps.descend)
 			paramsForDescent.push(ps)
-		}
+		}*/
 	}
 	
 	if(cache.has(key)){

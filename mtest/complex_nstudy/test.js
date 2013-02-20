@@ -231,6 +231,8 @@ exports.checkQuote = function(config, done){
 							
 							_.assert(v.sidebar.elements.count() > 0)
 							
+							console.log('were: ' + JSON.stringify(childMap.toJson()))
+							
 							var historyField = v.sidebar.elements.at(0)
 							var set = childMap.get(historyField.id())
 							
@@ -241,7 +243,7 @@ exports.checkQuote = function(config, done){
 								localWebpage.setForked(v.sidebar.bookmarkForm)
 							})
 
-							v.userData.expansionToggles.put(historyField.uid()+'|'+localWebpage.uid(), true)
+							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
 							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
@@ -254,7 +256,10 @@ exports.checkQuote = function(config, done){
 									_.assertObject(childObj)
 									var childMap = childObj.children
 									var quotesField = localWebpage.elements.at(2)
-									//console.log('quotesField id: ' + quotesField.id())
+									console.log('quotesField id: ' + quotesField.id())
+									console.log('historyField id: ' + historyField.id())
+									console.log(childMap.toJson())
+									console.log(localWebpage.id() + ' ' + JSON.stringify(v.children.toJson(), null, 2))
 									var set = childMap.get(quotesField.id())
 									//console.log('set: ' + set)
 									
@@ -308,7 +313,7 @@ exports.checkQuoteRemoval = function(config, done){
 								localWebpage.setForked(v.sidebar.bookmarkForm)
 							})
 
-							v.userData.expansionToggles.put(historyField.uid()+'|'+localWebpage.uid(), true)
+							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
 							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
@@ -383,7 +388,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 								localWebpage.setForked(v.sidebar.bookmarkForm)
 							})
 
-							v.userData.expansionToggles.put(historyField.uid()+'|'+localWebpage.uid(), true)
+							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
 							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 

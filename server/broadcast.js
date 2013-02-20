@@ -10,6 +10,8 @@ TODO: broadcast syncIds of edits
 
 var log = require('quicklog').make('minnow/broadcast')
 
+var editCodes = require('./tcp_shared').editFp.codes
+
 function lazyObj(obj, prop){
 	if(obj[prop] === undefined) return obj[prop] = {};
 	return obj[prop];
@@ -205,8 +207,33 @@ exports.make = function(schema){
 			//cb(typeCode, id, path, edit)
 			listenByObject: function(id, listener){
 				_.assertLength(arguments, 2)
-				var list = lazyArray(byObject, id)
-				list.push(listener);
+				if(_.isInt(id)){
+					var list = lazyArray(byObject, id)
+					list.push(listener);
+				}else{
+					//TODO later rework the way edit updates come in the first place - this is a temporary bridge
+					
+					//_.errout('TODO')
+					var list = lazyArray(byObject, id.top)
+					var innerId = id
+					list.push(function(typeCode, id, editPath, op, edit, syncId, editId){
+						var found
+						//console.log('filtering(' + JSON.stringify(innerId) + '): ' + JSON.stringify(arguments))
+						for(var i=0;i<editPath.length;++i){
+							var e = editPath[i]
+							if(e.op === editCodes.selectObject || e.op === editCodes.reselectObject){
+								if(e.edit.id === innerId.inner){
+									found = i
+									break;
+								}
+							}
+						}
+						//console.log('found: ' + found)
+						if(found !== undefined && editPath.length > found+1){
+							listener(typeCode, id, editPath.slice(found+1), op, edit, syncId, editId)
+						}
+					});
+				}
 				//console.log('byObject: ' + list.length)
 				//console.log(new Error().stack)
 			},

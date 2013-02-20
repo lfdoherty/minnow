@@ -4,7 +4,10 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){if(f()){clearInterval(ci)}}}
+function poll(f){var ci=setInterval(wf,0);function wf(){
+	try{if(f()){clearInterval(ci)}}
+	catch(e){clearInterval(ci);throw e;}
+}}
 
 exports.count = function(config, done){
 	minnow.makeServer(config, function(){
@@ -84,8 +87,8 @@ exports.idProperty = function(config, done){
 			client.view('idtest', function(err, c){
 			
 				poll(function(){
-					//console.log('size: ' + c.t.size())
-					if(c.v.value() === 1){
+					//console.log(c.v.value())
+					if(c.v.value() == 1){
 						done()
 						return true
 					}
@@ -96,7 +99,6 @@ exports.idProperty = function(config, done){
 						v.make('entity')
 					})
 				})
-				
 			})
 		})
 	})
@@ -581,6 +583,7 @@ exports.objectSubsetProperty = function(config, done){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
 					}*/
+					//console.log(c+'')
 					if(c.ages.size() === 3){
 						var ages = c.ages.toJson()
 						ages.sort()

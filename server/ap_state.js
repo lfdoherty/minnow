@@ -136,6 +136,7 @@ function make(schema, ol){
 
 		//log(n.editId, id, op, e, syncId)
 
+		//TODO stop doing this here? - who cares if the path has been changed?
 		broadcaster.input.objectUpdated(typeCode, id, op, e, syncId, n.editId)	
 	}
 	var currentId
@@ -226,7 +227,7 @@ function make(schema, ol){
 				
 		_.assertInt(id)
 		//console.log(editNames[op])
-		var n = ol.persist(id, op, edit, syncId, timestamp)
+		var n = ol.persist(id, op, edit, syncId, timestamp, path)
 		var newId = n.id//may be undefined if not applicable for the edit type
 		var editId = n.editId
 		var realOp = n.op

@@ -39,6 +39,7 @@ function fixedIsOfType(s, obj, typeName, cache){
 	
 	var isType = type === desiredType || (type.superTypes && type.superTypes[desiredType.name])//typeCode === desiredTypeCode
 
+	console.log(obj.getObjectId() + ' isOfType(' + desiredType.name + ')' + isType)
 	var key = 'ft'+isType
 	if(cache.has(key)) return cache.get(key)
 
@@ -156,7 +157,7 @@ function svgGeneral(s, cache, typeNameGetter, objGetter, bindings, editId){
 	obj.attach({
 		set: function(v, oldV, editId){
 			if(v !== undefined){
-				_.assertInt(v)
+				_.assert(_.isInt(v) || _.isInt(v.inner))
 			}
 			objId = v
 			recomputeResult()
