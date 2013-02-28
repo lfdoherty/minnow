@@ -5,6 +5,7 @@
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
 var viewInclude = require('./../viewinclude')
+var bubble = require('./bubble')
 
 var _ = require('underscorem')
 
@@ -56,6 +57,69 @@ schema.addFunction('each', {
 	callSyntax: 'each(collection,macro)'
 })
 
+var bubbleImpl = {
+	key: function(params){
+		return params[0].key + ':' + params[1].key
+	},
+	name: 'general-each',
+	macros: true,
+	macroParamTypes: function(i, paramTypes){
+		_.assertEqual(i, 1)
+		console.log(JSON.stringify(paramTypes, null, 2))
+		return [paramTypes[0].members]
+	},
+	/*update: {
+		0: {
+			addBefore: function(v, s){
+				
+			},
+			add: function(result, s){
+				s.counts.increment(result)
+			},
+			removeBefore: function(v, s){
+				
+			},
+			remove: function(result, s){
+				s.counts.decrement(result)
+			}
+		}
+	},*/
+	prepare: function(s, params, z){
+		var inputSet = params[0]
+		var macro = params[1]
+		inputSet.each(function(v){
+			macro.prepare(v)
+		})
+	},
+	compute: function(s, params, z){
+		
+		_.assertLength(params, 2)
+
+		var inputSet = params[0]
+		var macro = params[1]
+		
+		s.counts = z.countMap(true)
+		
+		inputSet.each(function(v){
+			var res = macro.result(v)
+			//_.assertPrimitive(res)
+			if(_.isArray(res)){
+				//_.errout('TODO')
+				res.forEach(function(resV){
+					console.log(v + ' resV ' + resV)
+					s.counts.increment(resV)
+				})
+			}else if(res !== undefined){
+			
+				console.log(v + ' res ' + res)
+				s.counts.increment(res)
+			}
+		})
+
+		return s.counts.values
+	}
+}
+
 function eachMaker(s, self, rel, typeBindings){
 
 	//console.log('##### making each: ' + JSON.stringify(rel))
@@ -71,8 +135,7 @@ function eachMaker(s, self, rel, typeBindings){
 	s.outputType = rel//.params[1].schemaType
 	if(rel.params[1].type === 'macro' || rel.params[1].type === 'partial-application' || rel.params[1].type === 'param'){
 	
-		var res;
-		
+
 		res = eachSubsetOptimization.make(s, self, rel, typeBindings)
 		if(res !== undefined) return res
 		
@@ -91,6 +154,17 @@ function eachMaker(s, self, rel, typeBindings){
 		_.assertFunction(exprGetter.wrapAsSet)
 		//console.log(JSON.stringify(rel.params[0]))
 		_.assertFunction(contextGetter.wrapAsSet)
+
+		var res
+		
+		/*rel.params[1].manyImplicits = 1
+		res = bubble.wrap(bubbleImpl, s, cache, [contextGetter, exprGetter], [rel.params[0], rel.params[1]], rel)
+		res.schemaType = rel.schemaType
+		res.wrappers = exprGetter.wrappers
+		res.wrapAsSet = function(v, editId, context){
+			return exprGetter.wrapAsSet(v, editId, context)
+		}
+		return res*/
 	
 		var t = rel.params[1].schemaType
 		if(t.type === 'set' || t.type === 'list'){
@@ -118,11 +192,7 @@ function eachMaker(s, self, rel, typeBindings){
 			}
 		}
 		return res
-	}/*else if(rel.params[1].type === 'view'){
-		var gm = s.globalMacros[rel.params[1].view]
-		_.assertObject(gm)
-		_.errout('TODO gm')
-	}*/else{
+	}else{
 		_.errout('TODO: ' + JSON.stringify(rel))//TODO this is probably just a syntax error
 	}
 }
@@ -178,6 +248,7 @@ function svgEachMultiple(s, implicits, cache, exprExprGetter, contextExprGetter,
 		},
 		objectChange: function(typeCode, id, path, op, edit, syncId, editId){
 			//console.log('each passing on objectChange to ' + listeners.many())
+			_.errout('TODO?')
 			var e = [typeCode, id, path, op, edit, syncId, editId]
 			cachedObjectChanges.push(e)
 			listeners.emitObjectChange(typeCode, id, path, op, edit, syncId, editId)

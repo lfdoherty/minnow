@@ -124,12 +124,27 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
-			persistEdit: function(id, op, path, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
+			/*selectObject: function(id, objId){
+				objectState.selectCurrentObject(id, objId)
+			},
+			selectSubObject: function(id){
+				_.errout('TODO')
+			},
+			selectProperty: function(id){
+				_.errout('TODO')
+			},
+			selectIntKey: function(id){
+				_.errout('TODO')
+			},
+			selectStringKey: function(id){
+				_.errout('TODO')
+			},*/
+			persistEdit: function(op, state, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
-				_.assertInt(id)
+				//_.assertInt(id)
 				_.assertInt(op)				
-				_.assertArray(path)
+				//_.assertArray(path)
 				_.assertInt(syncId);
 				//_.assertFunction(cb)
 				
@@ -137,7 +152,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//console.log('adding edit: ', JSON.stringify([id, path, op, edit, syncId]))
 				
 				if(op === editCodes.make || op === editCodes.makeFork){
-					var id = objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId)
+					var id = objectState.addEdit(op, state, edit, syncId, computeTemporaryId)
 					/*if(op === editCodes.makeFork){
 						listenerCbs[syncId].seq.subscribeToObject(edit.sourceId)
 					}*/
@@ -150,7 +165,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					}
 					return id
 				}else{
-					objectState.addEdit(id, op, path, edit, syncId, computeTemporaryId, reifyCb);
+					objectState.addEdit(op, state, edit, syncId, computeTemporaryId, reifyCb);
 				}
 			},
 			updatePath: function(id, path, syncId){
@@ -187,7 +202,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				
 				var currentSyncId
 				var currentResponseId
-				var curPath = []
+				var curState = {}
 				function sendEditUpdate(up){
 					if(up.syncId === undefined) _.errout('no syncId: ' + JSON.stringify(up))
 					//_.assertInt(up.syncId)
@@ -202,7 +217,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						if(currentResponseId !== up.id){
 							if(_.isString(up.id)){
 								listenerCb(editCodes.selectTopViewObject, {id: up.id}, up.editId)					
-								curPath = []
+								curState = {}
 							}else{
 								listenerCb(editCodes.selectTopObject, {id: up.id},  up.editId)					
 								//curPath = []
@@ -212,14 +227,14 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						
 						if(_.isString(up.id)){
 		
-							_.assertArray(up.path)
-							var newPath = [].concat(up.path)
-							//console.log('editing to match: ' + JSON.stringify(curPath) + ' ' + JSON.stringify(newPath))
-							pathmerger.editToMatch(curPath, newPath, function(op, edit){
+							_.assertObject(up.state)
+							var newState = up.state//[].concat(up.path)
+							//console.log('editing to match: ' + JSON.stringify(curState) + ' -> ' + JSON.stringify(newState))
+							pathmerger.editToMatch(curState, newState, function(op, edit){
 
 								listenerCb(op, edit, up.editId)					
 							})
-							curPath = newPath
+							curState = newState
 						}
 					}
 					listenerCb(up.op, up.edit, up.editId)					
@@ -259,11 +274,11 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					_.assertFunction(cb)
 					_.assert(id >= 0)
 					if(alreadySent[id]){
-						//console.log('already sent: ' + id)
+						console.log('already sent: ' + id)
 						cb()
 						return;
 					}else{
-						//console.log('including: ' + id)
+						console.log('including: ' + id)
 						_.assert(objectState.isTopLevelObject(id))
 						//log(syncId + ' including object: ' + id + ' editId: ' + editId)
 						//TODO buffer for streaming all the edits for the object and any objects it depends on
@@ -280,19 +295,9 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 							}, function(){
 							
-								/*if(objectState.isFork(id)){
-									console.log('getting fork: ' + objectState.getForked(id))
-									includeObjectCb(objectState.getForked(id), function(){
-										console.log('got fork')
-										cb()
-										pointer.got = true
-										advanceSentBuffer()
-									})
-								}else{*/
-									cb()
-									pointer.got = true
-									advanceSentBuffer()
-								//}
+								cb()
+								pointer.got = true
+								advanceSentBuffer()
 							})
 						})
 					}				
@@ -307,13 +312,21 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					//console.log(JSON.stringify(e))
 
 					//console.log(new Error().stack)
-					if(e.path){//TODO is this really necessary here?  shouldn't it be redundant?
+					/*if(e.path){//TODO is this really necessary here?  shouldn't it be redundant?
 						e.path.forEach(function(ep){
-							if(ep.op === editCodes.selectObjectKey || e.op === editCodes.reselectObjectKey){
+							if(ep.op === editCodes.selectObjectKey){// || e.op === editCodes.reselectObjectKey){
 								//console.log("selecting object key")
 								includeObjectCb(ep.edit.key, function(){//TODO also listen?
 								})
 							}
+						})
+					}*/
+					if(e.state && e.state.key){
+						_.assertInt(e.state.keyOp)
+					}
+					
+					if(e.state && e.state.key && e.state.keyIsObject){
+						includeObjectCb(e.state.key, function(){//TODO also listen?
 						})
 					}
 							
@@ -331,7 +344,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 				listenerCbs[syncId] = listenerCbWrapper
 
-				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, sendViewObjectCb, syncId)
+				var getViewGetter = viewState.provideViewGetter()
+				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, sendViewObjectCb, getViewGetter, syncId)
 				listenerCbWrapper.seq = seq
 				
 				/*objectSubscribers[syncId] = function(id){

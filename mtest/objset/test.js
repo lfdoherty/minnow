@@ -80,6 +80,7 @@ exports.removeTemporariedInternalObject = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1 && c.s.data.toJson()[0].v === 'it'){
 						done()
 						return true

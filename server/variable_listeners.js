@@ -13,8 +13,8 @@ function VariableListeners(){
 
 VariableListeners.prototype.add = function(listener){
 	_.assertObject(listener)
-	_.assertFunction(listener.includeView)
-	_.assertFunction(listener.removeView)
+	//_.assertFunction(listener.includeView)
+	//_.assertFunction(listener.removeView)
 	_.assertNot(this.isDestroyed)
 	
 	_.assert(this.listeners.indexOf(listener) === -1)
@@ -136,6 +136,7 @@ VariableListeners.prototype.emitPutRemove = function(key, value, editId){
 		listener.putRemove(key, value, editId)
 	}
 }
+/*
 VariableListeners.prototype.emitDel = function(key, editId){
 	_.assertLength(arguments, 2)
 	_.assertInt(editId)
@@ -145,7 +146,7 @@ VariableListeners.prototype.emitDel = function(key, editId){
 		var listener = this.listeners[i]
 		listener.del(key, editId)
 	}
-}
+}*/
 VariableListeners.prototype.emitObjectChange = function(typeCode, id, path, op, edit, syncId, editId){
 	_.assertLength(arguments, 7)
 	_.assert(this instanceof VariableListeners)

@@ -87,7 +87,8 @@ function primitiveCast(value, type){
 
 //var jsonConverters = {}
 
-function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
+function convertJsonToEdits(dbSchema, type, json, makeTemporaryId, topTemporaryId){
+	_.assertInt(topTemporaryId)
 	if(dbSchema.jsonConverters === undefined){
 		dbSchema.jsonConverters = {}
 	}
@@ -96,7 +97,7 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){
 		converter = dbSchema.jsonConverters[type] = generateJsonConverter(dbSchema, type)
 	}
 	//console.log(JSON.stringify(json))
-	return converter(json, makeTemporaryId)
+	return converter(json, makeTemporaryId, topTemporaryId)
 }
 
 function generatePropertyConverter(p, dbSchema){
@@ -117,7 +118,7 @@ function generatePropertyConverter(p, dbSchema){
 	}else if(p.type.type === 'map'){
 		
 		var select = editCodes[mapSelect[p.type.key]]
-		var reselect = editCodes[mapReselect[p.type.key]]
+		//var reselect = editCodes[mapReselect[p.type.key]]
 		var putOp = editCodes[mapPut[p.type.key]]
 		var keyType = p.type.key
 		converter = function(pv, makeTemporaryId, edits){
@@ -129,7 +130,7 @@ function generatePropertyConverter(p, dbSchema){
 					if(value != undefined){
 						edits.push({op: next, edit: {key: primitiveCast(key,keyType)}})
 						edits.push({op: putOp, edit: {value: value}})
-						next = reselect
+						//next = reselect
 					}
 				});
 				edits.push({op: editCodes.ascend1, edit: {}})
@@ -176,7 +177,8 @@ function generatePropertyConverter(p, dbSchema){
 				});
 			}
 		}else{
-			converter = function(pv, makeTemporaryId, edits){
+			converter = function(pv, makeTemporaryId, edits, parentId){
+				_.assertInt(parentId)
 				pv.forEach(function(value){
 					if(_.isInt(value) || _.isInt(value.objectId)){
 						edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
@@ -187,8 +189,12 @@ function generatePropertyConverter(p, dbSchema){
 						var objSchema = dbSchema[value.type]
 						if(objSchema === undefined) _.errout('cannot find type: ' + value.type)
 						var temporary = makeTemporaryId();
+
+						edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+						edits.push({op: editCodes.selectProperty, edit: {typeCode: p.code}})
+
 						edits.push({op: editCodes.addNew, edit: {typeCode: objSchema.code, temporary: temporary}})
-						var moreEdits = convertJsonToEdits(dbSchema, value.type, value, makeTemporaryId)
+						var moreEdits = convertJsonToEdits(dbSchema, value.type, value, makeTemporaryId, temporary)
 
 						if(moreEdits.length > 0){
 							edits.push({op: editCodes.selectObject, edit: {id: temporary}})
@@ -198,7 +204,8 @@ function generatePropertyConverter(p, dbSchema){
 							moreEdits.forEach(function(e){
 								edits.push(e)
 							})
-							edits.push({op: editCodes.ascend1, edit: {}})
+							//edits.push({op: editCodes.ascend1, edit: {}})
+							edits.push({op: editCodes.selectObject, edit: {id: parentId}})
 						}
 					}
 				});
@@ -255,7 +262,7 @@ function generateJsonConverter(dbSchema, type){
 		propertyConverters.push(generatePropertyConverter(allProperties[j], dbSchema))
 	}
 	
-	function converter(json, makeTemporaryId){
+	function converter(json, makeTemporaryId, topTemporaryId){
 		_.assertDefined(json)
 		
 		Object.keys(json).forEach(function(attr){
@@ -271,16 +278,16 @@ function generateJsonConverter(dbSchema, type){
 			var pc = propertyConverters[i]
 			var pv = json[pc.propertyName]
 			if(pv != undefined){
-				if(edits.length === 0){
+				//if(edits.length === 0){
 					edits.push({op: editCodes.selectProperty, edit: {typeCode: pc.code}})
-				}else{
-					edits.push({op: editCodes.reselectProperty, edit: {typeCode: pc.code}})
-				}
-				pc(pv, makeTemporaryId, edits)
+				//}else{
+				//	edits.push({op: editCodes.reselectProperty, edit: {typeCode: pc.code}})
+				//}
+				pc(pv, makeTemporaryId, edits, topTemporaryId)
 			}
 		}
 		
-		if(edits.length > 0) edits.push({op: editCodes.ascend1, edit: {}})
+		//if(edits.length > 0) edits.push({op: editCodes.ascend1, edit: {}})
 
 		if(t.superTypes && t.superTypes.uuided){
 			edits.unshift({op: editCodes.initializeUuid, edit: {uuid: random.uid()}})

@@ -54,6 +54,9 @@ PrimitiveListHandle.prototype.toJson = function(){
 	//})
 	return res
 }
+
+PrimitiveListHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 PrimitiveListHandle.prototype.count = function(){return this.obj.length;}
 PrimitiveListHandle.prototype.size = PrimitiveListHandle.prototype.count
 
@@ -149,8 +152,8 @@ PrimitiveListHandle.prototype.each = function(cb, endCb){
 	this.obj.forEach(cb)
 	if(endCb) endCb();
 }
-PrimitiveListHandle.prototype.changeListener = function(op, edit, syncId, editId){
-	_.assertLength(arguments, 4);
+PrimitiveListHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
+	_.assertLength(arguments, 6);
 
 	if(this.latestVersionId < editId) this.latestVersionId = editId
 		

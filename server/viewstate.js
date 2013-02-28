@@ -215,6 +215,20 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 	}
 	
 	var handle = {
+		provideViewGetter: function(){
+			return function(typeCode){
+				var vg = viewGettersByTypeCode[typeCode]
+				return function(params, editId){
+					_.assertString(params)
+					_.assertInt(editId)
+					console.log('parsing params: ' + params)
+					var parsedParams = JSON.parse(params)
+					var bindings = vg.binder(parsedParams, editId)
+					viewVariable = vg.getter(params, bindings, editId)
+					return viewVariable
+				}
+			}
+		},
 		beginView: function(e, seq, readyPacketCb){
 			_.assertLength(arguments, 3)
 
@@ -292,7 +306,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				if(snId === -1) snId = curEditId-1
 				_.assert(snId === -1 || prevSnId <= snId)
 
-				viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, prevSnId, snId, _.assureOnce(function(snap){
+				viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, prevSnId, snId, handle.provideViewGetter(), _.assureOnce(function(snap){
 					_.assertBuffer(snap)
 					list[index] = snap;
 					cdl();
@@ -315,7 +329,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			}
 			
 			var viewVariable = vg.getter(JSON.stringify(params), bindings, snapshotId)//TODO is snapshotId the right editId here?
-			viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, previousSnapshotId, snapshotId, cb)
+			viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, previousSnapshotId, snapshotId, handle.provideViewGetter(), cb)
 		}
 	}
 	return handle;

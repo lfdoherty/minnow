@@ -12,7 +12,7 @@ exports.make = function(s, value){
 
 function sfgPrimitive(s, value){
 	//s.log('value: ' + JSON.stringify(value))
-	var key = value+''
+	var key = JSON.stringify(value)
 	
 	var listeners = listenerSet()
 	

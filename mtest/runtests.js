@@ -14,6 +14,8 @@ var start = Date.now()
 var minnow = require('./../client/client')
 var minnowXhr = require('./../http/js/minnow_xhr')
 
+require('./../http/js/api/topobject').prototype.errorOnWarn = true
+
 /*
 var count = 0
 var old = console.log
@@ -25,8 +27,8 @@ console.log = function(msg){
 	}
 	++count
 	old(msg)
-}*/
-
+}
+*/
 
 var oldMakeClient = minnow.makeClient
 var oldMakeServer = minnow.makeServer

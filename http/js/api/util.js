@@ -104,7 +104,16 @@ exports.getPrimitiveCollectionAssertion = function(collectionType, typeSchema){
 	else _.errout('TODO: ' + typeSchema.type.members.primitive)
 }
 
-exports.primitiveChangeListener = function changeListener(op, edit, syncId, editId){
+exports.immediatePropertyFunction = function(){
+	if(this.parent.put){
+		return this.parent.part
+	}else{
+		_.assertInt(this.part)
+		return this.part
+	}
+}
+
+exports.primitiveChangeListener = function changeListener(subObj, key, op, edit, syncId, editId){
 
 	/*if(syncId === this.getEditingId()){
 		console.log('same sync, ignoring')
@@ -115,13 +124,14 @@ exports.primitiveChangeListener = function changeListener(op, edit, syncId, edit
 		if(this.edits === undefined) this.edits = []
 		this.edits.push({op: op, edit: edit, syncId: syncId, editId: editId})
 	}*/
+	_.assertInt(op)
 	
 	if(lookup.isSetCode[op]){//op.indexOf('set') === 0){
 		this.obj = edit.value;
 		//console.log('primitive value set to: ' + this.obj)
 		this.emit(edit, 'set', edit.value, editId)
 	}else{
-		_.errout('-TODO implement op: ' + op + ' ' + JSON.stringify(edit));
+		_.errout('-TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(lookup.isSetCode));
 	}
 	
 	this._wasEdited = true
@@ -165,9 +175,17 @@ function wrapCollection(local, arr){
 exports.wrapCollection = wrapCollection
 
 function adjustPathToPrimitiveSelf(){
-	var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
+	/*var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
 	if(remaining.length > 0){
 		_.errout('logic error, cannot have descended into primitive: ' + JSON.stringify(remaining))
+	}*/
+	this.adjustTopObjectToOwn()
+	this.adjustCurrentObject(this.getImmediateObject())
+	if(this.parent.put){
+		this.adjustCurrentProperty(this.parent.part)
+		this.adjustCurrentKey(this.part, this.parent.keyOp)
+	}else{
+		this.adjustCurrentProperty(this.part[0]||this.part)
 	}
 }
 exports.adjustPathToPrimitiveSelf = adjustPathToPrimitiveSelf

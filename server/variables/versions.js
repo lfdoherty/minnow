@@ -100,7 +100,7 @@ function svgObject(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	function broadcastListener(typeCode, id, editPath, op, edit, syncId, editId){
+	function broadcastListener(state, op, edit, syncId, editId){
 		_.assertInt(editId)
 		if(isPathOp(op)) return
 		
@@ -219,7 +219,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		return oldestEditId
 	}
 	
-	function editListener(typeCode, id, editPath, op, edit, syncId, editId){
+	function editListener(state, op, edit, syncId, editId){
 		if(isPathOp(op)) return
 		
 		if(versionCounts[editId] === undefined){

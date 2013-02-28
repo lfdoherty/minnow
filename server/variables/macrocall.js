@@ -124,6 +124,7 @@ function svgMacroCall(s, computeKey, mGetter, bindings, editId){
 		Object.keys(allBindings).forEach(function(key){
 			var b = allBindings[key]
 			//console.log('key: ' + key)
+			//console.log(JSON.stringify(Object.keys(b)))
 			_.assertDefined(b)
 			_.assertString(b.name)
 		})

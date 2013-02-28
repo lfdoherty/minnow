@@ -115,11 +115,9 @@ function make(schema, ol){
 
 		if(op === editCodes.selectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === editCodes.reselectObject){
+		}else if(op === editCodes.selectSubObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.selectObjectKey){
-			if(e.key < 0) e.key = translateTemporary(e.key, syncId)
-		}else if(op === editCodes.reselectObjectKey){
 			if(e.key < 0) e.key = translateTemporary(e.key, syncId)
 		}
 
@@ -132,7 +130,7 @@ function make(schema, ol){
 		
 		ap[editNames[op]](e)
 
-		var n = ol.persist(id, op, e, syncId, timestamp)
+		var n = ol.persist(op, e, syncId, timestamp, {top: id, topTypeCode: typeCode})
 
 		//log(n.editId, id, op, e, syncId)
 
@@ -142,19 +140,30 @@ function make(schema, ol){
 	var currentId
 	var currentSyncId
 	
-	function persistEdit(typeCode, id, path, op, edit, syncId, computeTemporary, timestamp, reifyCb){
+	function persistEdit(state, op, edit, syncId, computeTemporary, timestamp, reifyCb){
 		//_.assertLength(arguments, 8);
 				
-		_.assertInt(typeCode)
+		//_.assertInt(typeCode)
 		_.assertInt(syncId);
-		_.assertArray(path)
+		_.assertObject(state)
 		_.assertFunction(computeTemporary)
 		_.assertNumber(timestamp)
-		_.assertInt(id)
+		//_.assertInt(id)
+
+		if(op !== editCodes.make && op !== editCodes.makeFork){
+			_.assertInt(state.topTypeCode)
+			_.assertInt(state.objTypeCode)
+		}	
 		
+		state = {
+			topTypeCode: state.topTypeCode, objTypeCode: state.objTypeCode, 
+			top: state.top, object: state.object, 
+			property: state.property, sub: state.sub, 
+			key: state.key, keyOp: state.keyOp}//_.extend({}, state)	
+		//state.topId = id
 		//_.assertFunction(cb)
 		
-		//console.log('persisting: ' + JSON.stringify([typeCode, id, path, editNames[op], edit]))
+		//console.log('persisting: ' + JSON.stringify([state, editNames[op], edit]))
 		
 		_.assertInt(op)
 		
@@ -204,20 +213,21 @@ function make(schema, ol){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}else if(op === editCodes.selectObject){
+		}/*else if(op === editCodes.selectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 			_.assert(e.id > 0)
-		}else if(op === editCodes.reselectObject){
+		}else if(op === editCodes.selectSubObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 			_.assert(e.id > 0)
-		}
-
-		if((op !== editCodes.make && op !== editCodes.makeFork) && id < -1){//note that -1 is not a valid temporary id - that is reserved
+		}*/
+		
+		if((op !== editCodes.make && op !== editCodes.makeFork) && state.top < -1){//note that -1 is not a valid temporary id - that is reserved
 			//_.assertInt(id)
-			var newId = translateTemporary(id, syncId);
+			var newId = translateTemporary(top, syncId);
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
-			id = newId;
-			_.assertInt(id)
+			//id = newId;
+			//_.assertInt(id)
+			state.top = newId
 		}
 		
 		if(currentSyncId !== syncId){
@@ -225,9 +235,10 @@ function make(schema, ol){
 			currentSyncId = syncId
 		}
 				
-		_.assertInt(id)
+		//_.assertInt(id)
 		//console.log(editNames[op])
-		var n = ol.persist(id, op, edit, syncId, timestamp, path)
+		
+		var n = ol.persist(op, edit, syncId, timestamp, state)
 		var newId = n.id//may be undefined if not applicable for the edit type
 		var editId = n.editId
 		var realOp = n.op
@@ -235,11 +246,11 @@ function make(schema, ol){
 
 		if(op === editCodes.make || op === editCodes.makeFork){
 			currentId = newId
-		}else if(currentId !== id && id !== -1){
-			ap.selectTopObject({id: id})
+		}else if(currentId !== state.top && state.top !== -1){
+			ap.selectTopObject({id: state.top})
 			//console.log('wrote selectTopObject(' + id + ')')
 			//log('wrote selectTopObject(' + id + ')')
-			currentId = id
+			currentId = state.top
 		}
 		
 		if(op === editCodes.putNew){
@@ -268,8 +279,8 @@ function make(schema, ol){
 		if(op === editCodes.make || op === editCodes.makeFork){
 
 			var temporary = computeTemporary()
-			//_.assertInt(temporary)
-			//_.assertInt(newId)
+			_.assertInt(temporary)
+			_.assertInt(newId)
 			mapTemporary(temporary, newId, syncId)
 			
 			//_.assert(newId >= 0)
@@ -284,14 +295,20 @@ function make(schema, ol){
 		}
 		
 		if(op === editCodes.destroy){
-			broadcaster.input.objectDeleted(typeCode, id, editId)
+			broadcaster.input.objectDeleted(state.topTypeCode, state.top, editId)
+			return
 		}
 
+		//console.log(editNames[op] + ' ' + JSON.stringify(state))
 		//_.assertInt(id);
-	
-		broadcaster.input.objectUpdated(e.typeCode, id, realOp, realEdit, syncId, editId)	
+		_.assertInt(state.object)
+		if(op !== editCodes.revert && op !== editCodes.refork){
+			_.assertInt(state.property)
+		}
+		
+		broadcaster.input.objectUpdated(state.topTypeCode, state.top, realOp, realEdit, syncId, editId)	
 
-		broadcaster.input.objectChanged(typeCode, id, path, realOp, realEdit, syncId, editId)	
+		broadcaster.input.objectChanged(state, realOp, realEdit, syncId, editId)	
 	}		
 	var externalHandle = {
 		setBroadcaster: function(b){

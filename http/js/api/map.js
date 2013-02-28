@@ -7,6 +7,7 @@ var api = require('./../sync_api')
 
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
+var editNames = lookup.names
 
 function MapHandle(typeSchema, obj, part, parent){
 	this.part = part;
@@ -45,6 +46,8 @@ MapHandle.prototype.types = function(){
 	var objectSchema = fullSchema[this.schema.type.value.object];
 	return u.recursivelyGetLeafTypes(objectSchema, fullSchema);
 }
+
+MapHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 
 MapHandle.prototype.keys = function(){
 	if(this.obj === undefined) return [];
@@ -118,7 +121,7 @@ MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
 	//this.log('adjust map path ' + key)
 	//console.log('adjust map path ' + key)
 	_.assertDefined(key)
-	var remainingCurrentPath = this.parent.adjustPath(this.part)
+	/*var remainingCurrentPath = this.parent.adjustPath(this.part)
 	if(remainingCurrentPath.length === 0){
 		//this.log('zero')
 		//console.log('zero')
@@ -143,7 +146,12 @@ MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
 	}else{
 		//this.log('same')
 		return remainingCurrentPath.slice(1)
-	}
+	}*/
+	
+	this.adjustTopObjectToOwn()
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.part)
+	this.adjustCurrentKey(key, this.keyOp)
 }
 
 MapHandle.prototype.adjustPath = function adjustMapPath(key){
@@ -405,24 +413,13 @@ MapHandle.prototype.toJson = function(){
 	return result;
 }
 var stub = function(){}
-MapHandle.prototype.changeListener = function(op, edit, syncId){
+MapHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
 
 	//console.log('changeListener: ' + JSON.stringify([op, edit, syncId]))
 
 	if(syncId === this.getEditingId()){
 		return stub;//TODO deal with local/global priority
 	}
-
-	_.errout('-TODO implement op: ' + JSON.stringify(edit));
-}
-MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, editId){
-	_.assertInt(editId)
-	
-	if(syncId === this.getEditingId()){
-		return stub;//TODO deal with local/global priority
-	}
-	
-	//console.log('elevated: ' + JSON.stringify([key, op, edit, syncId, editId]))
 
 	if(op === editCodes.putAddExisting){
 		//_.errout('TODO')
@@ -441,11 +438,14 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 		}else{
 		}
 	}else if(lookup.isPutAddCode[op]){//op.indexOf('putAdd') === 0){
+		_.assertDefined(key)
 		if(this.obj[key] === undefined) this.obj[key] = []
 		this.obj[key].push(edit.value)
 		//this.log('key: ' + key)
+		//console.log('PUT ADD')
 		return this.emit(edit, 'put-add', key, edit.value, editId)
 	}else if(op === editCodes.putRemoveExisting){
+		_.assertDefined(key)
 		var list = this.obj[key]
 		if(list){
 			list.splice(list.indexOf(edit.id), 1)//.push(edit.value)
@@ -462,6 +462,7 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 			this.emit(edit, 'put-remove', key, edit.id, editId)
 		}
 	}else if(lookup.isPutRemoveCode[op]){//op.indexOf('putRemove') === 0){
+		_.assertDefined(key)
 		//if(this.obj[key] === undefined) this.obj[key] = []
 		var list = this.obj[key]
 		if(list){
@@ -547,6 +548,19 @@ MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, edi
 	}else{
 		_.errout('-TODO implement op: ' + JSON.stringify(edit));
 	}
+	//_.errout('-TODO implement op ' + editNames[op] + ': ' + JSON.stringify(edit));
 }
+/*
+MapHandle.prototype.changeListenerElevated = function(key, op, edit, syncId, editId){
+	_.assertInt(editId)
+	
+	if(syncId === this.getEditingId()){
+		return stub;//TODO deal with local/global priority
+	}
+	
+	//console.log('elevated: ' + JSON.stringify([key, op, edit, syncId, editId]))
+
+	
+}*/
 
 module.exports = MapHandle

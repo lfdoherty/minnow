@@ -21,7 +21,7 @@ exports.hasTopVersions = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.e.versions()))
+					console.log(JSON.stringify(c.e.versions()))
 					if(c.has('e') && c.e.versions().length === 4){
 						done()
 						return true
@@ -112,7 +112,7 @@ exports.versionPrimitive = function(config, done){
 				var hasReverted = false
 				
 				poll(function(){
-					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.text.versions()))
+					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
 					if(c.has('e') && c.e.text.versions().length === 4){
 						done()
 						return true
@@ -193,8 +193,9 @@ exports.revertPrimitiveDouble = function(config, done){
 						c.e.description.revert(c.e.description.versions()[1])
 						//console.log('reverted')
 					}
-					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.description.versions()))
+					if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.description.versions()))
 					if(hasReverted && c.e.text.versions().length === 5 && c.e.description.versions().length === 4){
+						//console.log('versions: ' + JSON.stringify(c.e.description.versions()))
 						_.assertEqual(c.e.text.value(), 'test2')
 						_.assertEqual(c.e.description.value(), 'desc1')
 						done()
@@ -227,7 +228,7 @@ exports.versionMapValue = function(config, done){
 				
 				poll(function(){
 					//if(c.has('e')) console.log('*versions: ' + JSON.stringify(c.e.versions()))
-					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.values.get('kb').versions()))
+					if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.values.get('kb').versions()))
 					if(c.has('e') && c.e.versions().length === 5 && c.e.values.get('kb').versions().length === 3){
 						//var kb = e.values.get('kb')
 						//var versions = kb.versions()

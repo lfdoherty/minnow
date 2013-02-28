@@ -23,6 +23,8 @@ function PrimitiveSetHandle(typeSchema, obj, part, parent){
 	}
 }
 
+PrimitiveSetHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 PrimitiveSetHandle.prototype.count = function(){
 	_.assertLength(arguments, 0);
 	return this.obj.length;
@@ -67,6 +69,7 @@ PrimitiveSetHandle.prototype.add = function(value){
 	var e = {value: value}
 	var ts = typeSuffix[this.schema.type.members.primitive]
 	_.assertString(ts)
+	this.adjustCurrentProperty(this.schema.code)
 	this.saveEdit(editCodes['add'+ts], e);
 		
 	this.emit(e, 'add', value)//()
@@ -86,8 +89,8 @@ PrimitiveSetHandle.prototype.remove = function(value){
 	this.emit(e, 'remove', value)//()
 }
 
-PrimitiveSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
-	_.assertLength(arguments, 4);
+PrimitiveSetHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
+	_.assertLength(arguments, 6);
 	_.assertInt(op)
 
 	//console.log('primitive set handle changeListener')

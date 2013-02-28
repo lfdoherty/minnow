@@ -15,6 +15,8 @@ function TimestampHandle(typeSchema, obj, part, parent){
 	}
 }
 
+TimestampHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 TimestampHandle.prototype.changeListener = u.primitiveChangeListener;
 
 TimestampHandle.prototype.set = function(v){

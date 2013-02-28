@@ -236,6 +236,8 @@ exports.checkQuote = function(config, done){
 							var historyField = v.sidebar.elements.at(0)
 							var set = childMap.get(historyField.id())
 							
+							_.assert(set)
+							
 							var localWebpage
 							set.each(function(nv){localWebpage = nv;})
 							

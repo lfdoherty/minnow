@@ -10,7 +10,7 @@ var log = require('quicklog').make('minnow/pathmerger')
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
-
+/*
 function editsAreDifferent(op, a, b){
 	if(editFp.isKeySelectCode[op]){//op === 'selectStringKey' || op === 'selectObjectKey' || op === 'selectIntKey' || op === 'reselectStringKey') {
 		return a.key !== b.key
@@ -24,12 +24,7 @@ function editsAreDifferent(op, a, b){
 function differentPathEdits(a, b){
 	if(a.op === b.op) return editsAreDifferent(a.op, a.edit, b.edit)//false
 
-	/*if( (editFp.isKeySelectCode[a.op] && editFp.isKeyReselectCode[b.op]) || 
-		(editFp.isKeyReselectCode[a.op] && editFp.isKeySelectCode[b.op]) ||
-		(a.op === editCodes.selectProperty && b.op === editCodes.reselectProperty) ||
-		(a.op === editCodes.reselectProperty && b.op === editCodes.selectProperty)){
-		return false
-	}*/
+
 	if(editFp.flipType[a.op] === b.op) return editsAreDifferent(a.op, a.edit, b.edit)//false
 	return true
 	//if(opsDifferent && b.op.substr(0,2) === 're') opsDifferent = b.op.substr(2) !== a.op
@@ -88,7 +83,6 @@ function editToMatch(curPath, newPath, cb){
 	}
 }
 
-exports.editToMatch = editToMatch
 
 //saveAp is for saving path-changing edits,
 //otherwise we use callAp
@@ -186,6 +180,54 @@ function make(schema, ol, saveAp, callAp, forgetTemporaryAp, translateTemporary)
 	}
 	
 	return take
+}*/
+
+function editToMatch(c, n, cb){
+	_.assertObject(c)
+	_.assertObject(n)
+	_.assertInt(n.property)
+	if(n.object && c.object !== n.object){
+		c.object = n.object
+		cb(editCodes.selectObject, {id: n.object})
+	}
+	if(n.sub && c.sub !== n.sub){
+		c.sub = n.sub
+		if(_.isInt(n.sub)){
+			cb(editCodes.selectSubObject, {id: n.sub})
+		}else{
+			cb(editCodes.selectSubViewObject, {id: n.sub})
+		}
+	}
+	if(n.property !== c.property){
+		c.property = n.property
+		cb(editCodes.selectProperty, {typeCode: n.property})
+	}
+	if(n.key !== c.key){
+		if(n.key === undefined) return
+		//console.log('emitting key: ' + n.key)
+		_.assertInt(n.keyOp)
+		c.key = n.key
+		c.keyOp = n.keyOp
+		cb(n.keyOp, {key: n.key})
+	}
+}
+
+exports.editToMatch = editToMatch
+
+function make(){
+	return {
+		selectCurrentObject: function(id, objId){
+			_.errout('TODO: get current object, saveAp the new one if it is changing')
+		}/*,
+		forgetTemporary = function(real, temporary, syncId){
+			var m = olMap[real]
+			if(m){
+				m.push({type: editCodes.forgetTemporary, real: real, temporary: temporary, syncId: syncId})
+			}else{
+				forgetTemporaryAp(real, temporary, syncId)
+		}*/
+	
+	}
 }
 
 exports.make = make

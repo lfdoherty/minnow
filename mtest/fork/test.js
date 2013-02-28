@@ -38,7 +38,7 @@ exports.forkChangedAfter = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
+					//if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
 						return true

@@ -120,7 +120,10 @@ function svgFilter(s, cache, inputGetter, passedGetter, bindings, editId){
 		oldest: oldest,
 		key: key,
 		//descend: inputValue.descend,
-		getTopParent: inputValue.getTopParent,
+		//getTopParent: inputValue.getTopParent,
+		get: function(){
+			return value
+		},
 		destroy: function(){
 			handle.attach = handle.detach = handle.oldest = handle.destroy = function(){_.errout('destroyed');}
 			

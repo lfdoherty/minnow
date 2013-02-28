@@ -239,7 +239,7 @@ function wrapParam(v, schemaType, s){
 					cachedValues[key] = value
 					listeners.emitChanged(editId)
 				},
-				del: function(key, editId){
+				remove: function(key, editId){
 					delete cachedValues[key]
 					listeners.emitChanged(editId)
 				},
@@ -358,8 +358,9 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 				name: 'syncplugin-primitive',
 				update: function(result, editId){
 					if(last !== result){
-						listeners.emitSet(result, last, editId)
+						var oldLast = last
 						last = result
+						listeners.emitSet(result, oldLast, editId)
 					}
 				},
 				attach: function(listener, editId){
@@ -374,12 +375,16 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 						listener.set(undefined, last, editId)
 					}
 				},
+				get: function(){
+					return last
+				},
 				oldest: oldest,
-				key: Math.random()
+				key: Math.random()				
 			}
 		}
 		f.wrapAsSet = function(v, editId){
 			//_.errout('TODO')
+			_.assertInt(editId)
 			return fixedPrimitive.make(s)(v, {}, editId);
 		}
 		return f
@@ -413,6 +418,9 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 					if(editId && objId !== undefined){
 						listener.set(undefined, objId, editId)
 					}
+				},
+				get: function(){
+					return objId
 				},
 				oldest: oldest,
 				key: Math.random()
@@ -486,6 +494,9 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 							listener.remove(list[i], editId)
 						}
 					}
+				},
+				get: function(){
+					return [].concat(list)
 				},
 				oldest: oldest,
 				key: Math.random()
@@ -566,6 +577,9 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 						}
 					}
 				},
+				get: function(){
+					return [].concat(list)
+				},
 				oldest: oldest,
 				key: Math.random()
 			}
@@ -615,7 +629,7 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 							var value = map[key]
 							if(result[key] === undefined){
 								key = keyParser(key)
-								listeners.emitDel(key, editId)
+								listeners.emitRemove(key, editId)
 							}
 						})
 						
@@ -638,9 +652,12 @@ function setupOutputHandler(schemaType, s, makeDescend, paramTypes){
 							Object.keys(map).forEach(function(key){
 								//var value = map[key]
 								key = keyParser(key)
-								listener.del(key, editId)
+								listener.remove(key, editId)
 							})
 						}
+					},
+					get: function(){
+						return _.extend({}, map)
 					},
 					oldest: oldest,
 					key: Math.random()

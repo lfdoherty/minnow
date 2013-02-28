@@ -11,6 +11,7 @@ TODO: broadcast syncIds of edits
 var log = require('quicklog').make('minnow/broadcast')
 
 var editCodes = require('./tcp_shared').editFp.codes
+var editNames = require('./tcp_shared').editFp.names
 
 function lazyObj(obj, prop){
 	if(obj[prop] === undefined) return obj[prop] = {};
@@ -78,52 +79,70 @@ exports.make = function(schema){
 		}
 
 	}
-	function notifyChanged(typeCode, id, path, op, edit, syncId, editId){
-		_.assertLength(arguments, 7);
-		_.assertArray(path);
+	function notifyChanged(state, op, edit, syncId, editId){
+		_.assertLength(arguments, 5);
+		_.assertObject(state);
 		_.assertInt(syncId);
 		_.assertInt(editId);
 
-		//console.log('notify: ' + typeCode + ' ' + id)
 		//_.assertInt(subjTypeCode);
 		//_.assertInt(subjId);
-
-		typeAndSuperTypes[typeCode].forEach(function(tc){
+		
+		//var topId = id
+		//var objId = state.object || topId
+		//var ns = _.extend({}, state)
+		//ns.top = id
+		//ns.topTypeCode = typeCode
+		//typeCode = 
+		_.assertInt(state.objTypeCode)
+		_.assertInt(state.object)
+		if(op !== editCodes.revert && op !== editCodes.refork){
+			_.assertInt(state.property)
+		}
+		
+		typeAndSuperTypes[state.objTypeCode].forEach(function(tc){
 			var t = byType[tc];
 			//console.log(schema._byCode[typeCode].name + ' ' + schema._byCode[tc].name)
-			notifyByType(t, typeCode, id, path, op, edit, syncId, editId)
+			notifyByType(t, /*typeCode, id,*/ state, op, edit, syncId, editId)
 		})
 		
+		var idKey = state.top
+		if(state.top !== state.object) idKey += ':'+state.object
+		
+		//console.log('notify(' + idKey + '): ' + JSON.stringify(state) + ' ' + editNames[op] + ' ' + JSON.stringify(edit))
+
 		var ob = byObject
-		var obj = ob[id];
+		var obj = ob[idKey];
 		if(obj !== undefined){
+			//console.log('found listeners: ' + obj.length)
 			for(var i=0;i<obj.length;++i){
 				var listener = obj[i];
-				listener(typeCode, id, path, op, edit, syncId, editId);
+				//console.log('listener: ' + listener)
+				listener(/*typeCode, id,*/ state, op, edit, syncId, editId);
 			}
 		}
 		
 		for(var i=0;i<bySet.length;++i){
 			var bh = bySet[i]
-			if(bh.has(id)){
-				bh.listener(typeCode, id, path, op, edit, syncId, editId)
+			if(bh.has(idKey)){
+				bh.listener(/*typeCode, id,*/ state, op, edit, syncId, editId)
 			}
 		}
 	}
 	
 	//note that the object referred to will always be the most local normalized object (and the path will be relative to that.)
-	function objectChanged(typeCode, id, path, op, edit, syncId, editId){
-		_.assertLength(arguments, 7);
+	function objectChanged(state, op, edit, syncId, editId){
+		_.assertLength(arguments, 5);
 		var already = {}
-		internalObjectChanged(typeCode, id, path, op, edit, syncId, editId, already)
+		internalObjectChanged(state, op, edit, syncId, editId, already)
 	}
-	function internalObjectChanged(typeCode, id, path, op, edit, syncId, editId, already){
-		_.assertLength(arguments, 8);
+	function internalObjectChanged(state, op, edit, syncId, editId, already){
+		_.assertLength(arguments, 6);
 		_.assertInt(editId);
 		_.assertInt(syncId);
 		_.assertInt(op)
 				
-		notifyChanged(typeCode, id, path, op, edit, syncId, editId);
+		notifyChanged(state, op, edit, syncId, editId);
 	}
 	
 	var setListenerIdCounter = 1
@@ -134,6 +153,7 @@ exports.make = function(schema){
 			objectUpdated: function(typeCode, id, op, edit, syncId, editId){
 				var ob = updateByObject
 				var obj = ob[id];
+				//console.log('objectUpdated: ' + id)
 				if(obj !== undefined){
 					for(var i=0;i<obj.length;++i){
 						var listener = obj[i];
@@ -147,19 +167,22 @@ exports.make = function(schema){
 					}
 				}
 			},
-			objectChanged: function(typeCode, id, path, op, edit, syncId, editId){
-				_.assertLength(arguments, 7);
+			objectChanged: function(state, op, edit, syncId, editId){
+				_.assertLength(arguments, 5);
 				_.assertInt(syncId);
 				_.assertInt(editId);
 				_.assertInt(op)
-				_.assertInt(typeCode)
-				_.assert(id > 0)
+				_.assert(state.top > 0)
+				_.assertObject(state)
+				_.assertInt(state.topTypeCode)
+				_.assertInt(state.objTypeCode)
+				
 				
 				for(var i=0;i<all.length;++i){
 					var listener = all[i]
-					listener(typeCode, id, path, op, edit, syncId, editId);
+					listener(state, op, edit, syncId, editId);
 				}
-				objectChanged(typeCode, id, path, op, edit, syncId, editId);
+				objectChanged(state, op, edit, syncId, editId);
 			},
 			objectDeleted: function(typeCode, id, editId){
 
@@ -207,14 +230,16 @@ exports.make = function(schema){
 			//cb(typeCode, id, path, edit)
 			listenByObject: function(id, listener){
 				_.assertLength(arguments, 2)
-				if(_.isInt(id)){
+
+				//console.log('listening by object: ' + id)
+
+				//if(_.isInt(id)){
 					var list = lazyArray(byObject, id)
 					list.push(listener);
-				}else{
+				/*}else{
 					//TODO later rework the way edit updates come in the first place - this is a temporary bridge
-					
 					//_.errout('TODO')
-					var list = lazyArray(byObject, id.top)
+					var list = lazyArray(byObject, id+'')
 					var innerId = id
 					list.push(function(typeCode, id, editPath, op, edit, syncId, editId){
 						var found
@@ -233,7 +258,7 @@ exports.make = function(schema){
 							listener(typeCode, id, editPath.slice(found+1), op, edit, syncId, editId)
 						}
 					});
-				}
+				}*/
 				//console.log('byObject: ' + list.length)
 				//console.log(new Error().stack)
 			},

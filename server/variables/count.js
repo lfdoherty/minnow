@@ -5,6 +5,7 @@ var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
 var _ = require('underscorem')
+var bubble = require('./bubble')
 
 function longType(rel, computeType){return {type: 'primitive', primitive: 'long'};}
 
@@ -17,6 +18,7 @@ schema.addFunction('count', {
 	maxParams: 1,
 	callSyntax: 'count(collection)'
 })
+
 
 /*
 TODO: could the principle of delaying and merging multiple sets implemented here be generalized and wrapped 
@@ -40,9 +42,37 @@ function countMaker(s, self, rel, typeBindings){
 		return svgTypeCount.bind(undefined, s, cache, typeCode)
 	}else{
 		var elementsGetter = self(elementsExpr, typeBindings)
-		return svgGeneralCount.bind(undefined, s, cache, elementsGetter, rel)
+		//return svgGeneralCount.bind(undefined, s, cache, elementsGetter, rel)
+		return bubble.wrap(bubbleImpl, s, cache, [elementsGetter], [elementsExpr], rel)
 	}
 }
+
+
+var bubbleImpl = {
+	key: function(params){
+		return params[0].key
+	},
+	name: 'general-count',
+	update: {
+		0: {
+			add: function(v, s){
+				s.count.increment()
+			},
+			remove: function(v, s){
+				s.count.decrement()
+			}
+		}
+	},
+	compute: function(s, params, z){
+		_.assertLength(params, 1)
+
+		s.count = z.integer(0)
+		s.count.set(params[0].count())
+
+		return s.count
+	}
+}
+
 
 function svgGeneralCount(s, cache, elementsExprGetter, rel, bindings, editId){
 

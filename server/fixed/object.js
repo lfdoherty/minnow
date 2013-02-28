@@ -10,6 +10,9 @@ exports.make = function(s){
 
 function sfgObject(s, id, editId, context){
 	_.assertLength(arguments, 4)
+	if(!_.isInt(id) && !id.inner && id.indexOf(':') === -1){
+		_.errout('invalid id: ' + id)
+	}
 	//if(!_.isInt(id)) _.errout('invalid id: ' + id)
 	//_.assertInt(id)
 	_.assertDefined(context)
@@ -21,13 +24,15 @@ function sfgObject(s, id, editId, context){
 	
 	var listeners = listenerSet()
 
+	s.objectState.validateId(id)
+	
 	//console.log('context: ' + context.name)
-	if(context.name === 'top-level'){
+	/*if(context.name === 'top-level'){
 		if(!s.objectState.isTopLevelObject(id)){
 			_.errout('top-level id is not a top-level object: ' + id)
 		}
 		//_.assert(s.objectState.isTopLevelObject(id))
-	}
+	}*/
 	
 	var handle = {
 		name: 'object-fixed (' + context.name + ')',
@@ -62,11 +67,11 @@ function sfgObject(s, id, editId, context){
 			return context.descend(path, editId, cb)
 		},*/
 		//streamProperty: context.streamProperty,
-		getTopParent: function(id){
+		/*getTopParent: function(id){
 			if(!context.getTopParent) _.errout('missing getTopParent: ' + context.name)
 			if(s.objectState.isTopLevelObject(id)) return id
 			return context.getTopParent(id)
-		},
+		},*/
 		getObjectId: function(){
 			return id
 		},

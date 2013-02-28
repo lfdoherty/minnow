@@ -1,5 +1,6 @@
 
 var listenerSet = require('./../variable_listeners')
+var _ = require('underscorem')
 
 exports.make = function(s, value){
 	var f;
@@ -14,6 +15,8 @@ exports.make = function(s, value){
 
 function sfgSet(s, values, bindings, editId){
 	//s.log('value: ' + JSON.stringify(value))
+	_.assertArray(values)
+	
 	var key = JSON.stringify(values)+''
 	
 	var listeners = listenerSet()

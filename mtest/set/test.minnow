@@ -9,4 +9,6 @@ general() 100
 	s one(*entity) 1
 	
 contained() 101
-	all *container.contained.data 1
+	all *container.contained.data 111
+
+empty() 202

@@ -185,7 +185,7 @@ function makeClient(host, port, clientCb){
 		}
 	}
 	
-	wrapper.make = function(type, json, forget, cb){
+	wrapper.make = function(type, json, forget, cb, temporary){
 		//_.assertLength(arguments, 4)
 		_.assert(arguments.length >= 4)
 		_.assertString(type)
@@ -193,7 +193,7 @@ function makeClient(host, port, clientCb){
 			cb = json
 			json = {}
 		}*/
-		return doMake(type, json, forget, cb)
+		return doMake(type, json, forget, cb, temporary)
 	}
 	
 	wrapper.makeFork = function(obj, cb, temporary){
@@ -254,9 +254,11 @@ function makeClient(host, port, clientCb){
 		return api.makeTemporaryId()
 	}
 	
-	function doMake(type, json, forget, cb){
+	function doMake(type, json, forget, cb, temp){
+		//_.errout('TODO')
 		var st = dbSchema[type];
-		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, makeTemporary)
+		//var temp = makeTemporary()
+		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, makeTemporary, temp)
 		
 		var dsh = cc.getDefaultSyncHandle()
 		var requestId = dsh.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length}, listeningSyncId)
@@ -265,10 +267,11 @@ function makeClient(host, port, clientCb){
 			_.assertFunction(cb)
 			//console.log('setting cb: ' + requestId)
 			
-			makeCbsWaiting[requestId] = {temporary: -1, cb: cb}
+			makeCbsWaiting[requestId] = {temporary: temp, cb: cb}
 		}
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
+			_.assertInt(e.op)
 			dsh.persistEdit(e.op, e.edit, listeningSyncId);
 		}
 		if(forget){

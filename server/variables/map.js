@@ -362,9 +362,9 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 					if(oldValue !== undefined){
 						var arr = multiState[oldValue]
 						arr.splice(arr.indexOf(kv), 1)
-						listeners.emitDelete(oldValue, editId)
+						listeners.emitRemove(oldValue, editId)
 					}
-					//s.log('map key: ' + value)
+					//console.log('############## map key: ' + value)
 					kv.key = value	
 					if(kv.value !== undefined){				
 						var oldValue = kv.value
@@ -414,7 +414,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 		elementListener = {
 			add: function(v, editId){
 
-				//console.log('map add: ' + v)
+				console.log('++++++++++++ map add: ' + v)
 				
 				var newBindingsKey = copyBindings(bindings)
 				var newBindingsValue = copyBindings(bindings)
@@ -435,7 +435,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 							if(oldKvValue !== undefined){
 								delete state[oldValue]
 								//console.log('emitting del')
-								listeners.emitDel(oldValue, editId)
+								listeners.emitRemove(oldValue, editId)
 							}
 						}
 						//console.log('map key, value undefined: ' + value)
@@ -465,7 +465,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 							_.assertPrimitive(kv.value)
 							listeners.emitPut(kv.key, kv.value, oldValue, editId)
 						}else if(oldValue !== undefined){
-							listeners.emitDel(kv.key, editId)
+							listeners.emitRemove(kv.key, editId)
 						}
 					}
 				}
@@ -623,7 +623,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 					if(oldValue !== undefined){
 						var arr = multiState[oldValue]
 						arr.splice(arr.indexOf(kv), 1)
-						listeners.emitDelete(oldValue, editId)
+						listeners.emitRemove(oldValue, editId)
 					}
 					//s.log('map key: ' + value)
 					kv.key = value	
@@ -672,7 +672,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 		elements.attach({
 			add: function(v, editId){
 
-				//console.log('map add: ' + v)
+				console.log('==========  map add: ' + v)
 				
 				var newBindingsKey = copyBindings(bindings)
 				var newBindingsValue = copyBindings(bindings)
@@ -690,7 +690,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 							var oldKvValue = state[oldValue]
 							delete state[oldValue]
 							if(oldKvValue.length > 0){
-								listeners.emitDel(oldValue, editId)
+								listeners.emitRemove(oldValue, editId)
 							}
 						}
 						//console.log('map key, value undefined: ' + value)
@@ -758,6 +758,8 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 		name: 'map-single-value-multiple (' + elements.name+')',
 		attach: function(listener, editId){
 			listeners.add(listener)
+			_.assertFunction(listener.remove)
+			_.assert(!_.isFunction(listener.del))
 			Object.keys(state).forEach(function(key){
 				var value = state[key]
 				if(value !== undefined){
@@ -984,6 +986,8 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 	var handle = {
 		name: 'map-key-multiple',
 		attach: function(listener, editId){
+			_.assertFunction(listener.remove)
+			_.assert(!_.isFunction(listener.del))
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
 				var value = state[key]

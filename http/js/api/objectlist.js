@@ -44,6 +44,8 @@ ObjectListHandle.prototype.prepare = stub
 
 ObjectListHandle.prototype.adjustPath = u.adjustObjectCollectionPath
 
+ObjectListHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 ObjectListHandle.prototype.toJson = function(already){
 	var result = [];
 	for(var i=0;i<this.obj.length;++i){
@@ -83,7 +85,10 @@ ObjectListHandle.prototype.remove = function(objHandle){
 
 		var e = {}
 
-		this.adjustInto(id)
+		//this.adjustInto(id)
+		this.adjustCurrentProperty(this.schema.code)
+		this.adjustCurrentSubObject(id)
+		this.adjustCurrentObject(this.getImmediateObject())
 		//console.log('persisting remove')
 		this.persistEdit(editCodes.remove, e)
 
@@ -172,75 +177,12 @@ ObjectListHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
 }
 
 //ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
-ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit, syncId, editId){
-	if(op === editCodes.remove){
-		var res = this.get(descendId);
-		var index = this.obj.indexOf(res)
-		if(index === -1){
-			//console.log('ignoring redundant remove: ' + edit.id);
-		}else{
-			this.obj.splice(index, 1);
+/*ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit, syncId, editId){
+	
+}*/
 
-			res.prepare()
-			return this.emit(edit, 'remove', res)
-		}
-	}else if(op === editCodes.addAfter){
-		var objHandle = this.getObjectApi(edit.id)
-		if(objHandle === undefined){
-			_.errout('cannot find added object: ' + edit.id)
-		}
-		
-		if(this.obj.indexOf(objHandle) !== -1){
-			//console.log('ignoring redundant add: ' + edit.id)
-			return
-		}
-		
-		var beforeHandle = this.get(descendId);
-		if(beforeHandle === undefined){
-			//console.log('cannot find before(' + descendId+'), falling back to append-add')
-			this.obj.push(objHandle)
-			objHandle.prepare()
-	
-			this.emit(edit, 'add', objHandle)
-		}else{
-			var index = this.obj.indexOf(beforeHandle)
-			this.obj.splice(index+1, 0, objHandle)
-			objHandle.prepare()
-			beforeHandle.prepare()
-	
-			this.emit(edit, 'addAfter', objHandle, beforeHandle)
-		}
-	}else if(op === editCodes.addedNewAfter){
-		if(edit.temporary !== 0){
-			var temporary = edit.temporary
-			var objHandle = this.wrapObject(temporary, edit.typeCode, [], this)
-			this.saveTemporaryForLookup(temporary, objHandle, this)
-		}else{
-			var objHandle = this.wrapObject(edit.id, edit.typeCode, [], this)
-		}
-		
-		var beforeHandle = this.get(descendId);
-		if(beforeHandle === undefined){
-			//console.log('cannot find before(' + descendId+'), falling back to append-add')
-			this.obj.push(objHandle)
-			objHandle.prepare()
-	
-			this.emit(edit, 'add', objHandle)
-		}else{
-			var index = this.obj.indexOf(beforeHandle)
-			this.obj.splice(index+1, 0, objHandle)
-			objHandle.prepare()
-			beforeHandle.prepare()
-	
-			this.emit(edit, 'addAfter', objHandle, beforeHandle)
-		}
-	}else{
-		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
-	}
-}
-
-ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
-	_.assertLength(arguments, 4);
+ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
+	_.assertLength(arguments, 6);
 
 	var local = this;
 	
@@ -325,7 +267,7 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		var objHandle = this.get(removeId);
 	
 		_.assertObject(objHandle);
-
+		
 		var res = this.wrapObject(edit.newId, edit.typeCode, [], this)
 		doListReplace(this, objHandle, res);
 		res.prepare()
@@ -386,6 +328,67 @@ ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		_.errout('&TODO implement op: ' + JSON.stringify(edit));
 	}else if(op === editCodes.set){
 		_.errout('*TODO implement op: ' + JSON.stringify(edit));
+	}if(op === editCodes.remove){
+		var res = this.get(descendId);
+		var index = this.obj.indexOf(res)
+		if(index === -1){
+			//console.log('ignoring redundant remove: ' + edit.id);
+		}else{
+			this.obj.splice(index, 1);
+
+			res.prepare()
+			return this.emit(edit, 'remove', res)
+		}
+	}else if(op === editCodes.addAfter){
+		var objHandle = this.getObjectApi(edit.id)
+		if(objHandle === undefined){
+			_.errout('cannot find added object: ' + edit.id)
+		}
+		
+		if(this.obj.indexOf(objHandle) !== -1){
+			//console.log('ignoring redundant add: ' + edit.id)
+			return
+		}
+		
+		var beforeHandle = this.get(descendId);
+		if(beforeHandle === undefined){
+			//console.log('cannot find before(' + descendId+'), falling back to append-add')
+			this.obj.push(objHandle)
+			objHandle.prepare()
+	
+			this.emit(edit, 'add', objHandle)
+		}else{
+			var index = this.obj.indexOf(beforeHandle)
+			this.obj.splice(index+1, 0, objHandle)
+			objHandle.prepare()
+			beforeHandle.prepare()
+	
+			this.emit(edit, 'addAfter', objHandle, beforeHandle)
+		}
+	}else if(op === editCodes.addedNewAfter){
+		if(edit.temporary !== 0){
+			var temporary = edit.temporary
+			var objHandle = this.wrapObject(temporary, edit.typeCode, [], this)
+			this.saveTemporaryForLookup(temporary, objHandle, this)
+		}else{
+			var objHandle = this.wrapObject(edit.id, edit.typeCode, [], this)
+		}
+		
+		var beforeHandle = this.get(descendId);
+		if(beforeHandle === undefined){
+			//console.log('cannot find before(' + descendId+'), falling back to append-add')
+			this.obj.push(objHandle)
+			objHandle.prepare()
+	
+			this.emit(edit, 'add', objHandle)
+		}else{
+			var index = this.obj.indexOf(beforeHandle)
+			this.obj.splice(index+1, 0, objHandle)
+			objHandle.prepare()
+			beforeHandle.prepare()
+	
+			this.emit(edit, 'addAfter', objHandle, beforeHandle)
+		}
 	}else{
 		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}

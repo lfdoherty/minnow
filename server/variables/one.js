@@ -50,7 +50,7 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 	var elementsListener = {
 		add: function(v, editId){
 			all.push(v)
-			//console.log('one got add: ' + value)
+			console.log('one got add: ' + value)
 			if(value === undefined){
 				value = v
 				//console.log('one emitted set')
@@ -82,6 +82,7 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 			listeners.add(listener)
 			_.assertInt(editId)
 			if(value !== undefined){
+				console.log('one setting on attach: ' + value)
 				listener.set(value, undefined, editId)
 			}
 		},
@@ -96,6 +97,9 @@ function svgGeneralOne(s, cache, elementsExprGetter, bindings, editId){
 		oldest: elements.oldest,
 		key: key,
 		//descend: elements.descend,
+		get: function(){
+			return value
+		},
 		streamProperty: elements.streamProperty,
 		destroy: function(){
 			elements.detach(elementsListener)

@@ -12,7 +12,7 @@ function makeWrapper(check, set){
 				client.view('general', function(err, c){
 			
 					poll(function(){
-						//console.log(c.has('v') + ' ' + (c.v.intValue.value() === 20))
+						//console.log(c.has('v') + ' ')// + (c.v.intValue.value() === 20))
 						if(c.has('v') && check(c)){	
 							//console.log('doin')
 							done()
@@ -35,7 +35,7 @@ function makeWrapper(check, set){
 }
 
 exports.setInt = makeWrapper(
-	function(c){return c.v.intValue.value() === 20}, 
+	function(c){console.log(JSON.stringify(c.toJson()));return c.v.intValue.value() === 20}, 
 	function(obj){obj.intValue.set(20)})
 	
 exports.setLong = makeWrapper(

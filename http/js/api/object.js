@@ -12,7 +12,7 @@ var editCodes = lookup.codes
 var editNames = lookup.names
 
 function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty){
-	_.assertFunction(parent.adjustPath)
+	//_.assertFunction(parent.adjustPath)
 	
 	_.assert(objId !== 0)
 	_.assertNot(objId !== -1 && parent.isView())
@@ -54,6 +54,9 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 
 ObjectHandle.prototype.types = u.genericObjectTypes
 
+ObjectHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
+/*
 ObjectHandle.prototype.adjustPath = function(source){
 	_.assertFunction(this.parent.adjustPath)
 
@@ -102,7 +105,8 @@ ObjectHandle.prototype.adjustPath = function(source){
 			return remainingCurrentPath.slice(2)
 		}
 	}
-}
+}*/
+
 /*
 ObjectHandle.prototype.adjustPathSelf = function(objId){
 	_.assertFunction(this.parent.adjustPath)
@@ -250,6 +254,9 @@ ObjectHandle.prototype.innerId = function(){
 	_.assertDefined(this.objectId);
 	return this.objectId;
 }
+ObjectHandle.prototype.getImmediateObject = function(){
+	return this.objectId
+}
 ObjectHandle.prototype._internalId = function(){
 	return this.objectId;
 }
@@ -329,13 +336,17 @@ ObjectHandle.prototype.isa = function(name){
 }
 
 ObjectHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
+	if(!this.objectApiCache) return
 	var n = this.objectApiCache[oldKey]
 	delete this.objectApiCache[oldKey]
 	this.objectApiCache[newKey] = n
 }
 
-ObjectHandle.prototype.changeListener = function(op, edit, syncId){
-	//this.log('%%%' + JSON.stringify(path) + ' ' + this.typeSchema.name);
+ObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncId){
+	_.assertInt(op)
+	_.assertObject(edit)
+	
+	console.log('%%%' + editNames[op] + ' ' + JSON.stringify(edit));
 	//var ps = this.typeSchema.propertiesByCode[path[0]];
 	//_.assertObject(ps);
 	
@@ -351,10 +362,13 @@ ObjectHandle.prototype.changeListener = function(op, edit, syncId){
 		}
 
 		var type = this.getFullSchema()._byCode[edit.typeCode]
-		var temporary = edit.temporary
+		var temporary = edit.id || edit.temporary
+		_.assertInt(temporary)
 		var n = new ObjectHandle(type, [], temporary, [temporary], this);
-		if(this.objectApiCache === undefined) this.objectApiCache = {}
-		this.objectApiCache[temporary] = n;
+		
+		var top = this.getTopParent()
+		if(top.objectApiCache === undefined) top.objectApiCache = {}
+		top.objectApiCache[temporary] = n;
 		
 		if(op === editCodes.setToNew){
 			this.saveTemporaryForLookup(temporary, n, this)
@@ -541,7 +555,10 @@ ObjectHandle.prototype.clearProperty = function(propertyName){
 	
 	this[propertyName] = undefined
 	
-	this.adjustPath(pt.code)
+	//this.adjustPath(pt.code)
+	this.adjustTopObjectToOwn()
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(pt.code)
 	this.persistEdit(editCodes.clearProperty, {})
 	
 	this.emit({}, 'clearProperty', propertyName)
@@ -559,13 +576,17 @@ ObjectHandle.prototype.setPropertyToNew = function(propertyName, typeName, json)
 	json = json || {}
 	var type = u.getOnlyPossibleObjectPropertyType(this, pt, typeName);
 	
-	var remaining = this.adjustPath(pt.code)
+	//var remaining = this.adjustPath(pt.code)
+	
+	this.adjustTopObjectToOwn()
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(pt.code)
 
 	//console.log('setting to new: ' + this.parent.prepared)
-	this.saveEdit(editCodes.setToNew, {typeCode: type.code})
+	this.persistEdit(editCodes.setToNew, {typeCode: type.code})
 
 	var temporary = this.makeTemporaryId();
-	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this));
+	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this), temporary);
 
 	if(edits.length > 0){
 		//this.adjustPath(temporary)
@@ -574,7 +595,7 @@ ObjectHandle.prototype.setPropertyToNew = function(propertyName, typeName, json)
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
 		}
-		this.saveEdit(editCodes.ascend1, {})
+		//this.saveEdit(editCodes.ascend1, {})
 	}
 	
 	//_.assert(this.part[0] > 0)
@@ -649,7 +670,11 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 		
 		var e = {id: n._internalId(), typeCode: newValue.typeSchema.code}
 		
-		this.adjustPath(pt.code)
+		//this.adjustPath(pt.code)
+		//this.adjust
+		this.adjustTopObjectToOwn()
+		this.adjustCurrentObject(this.getImmediateObject())
+		this.adjustCurrentProperty(pt.code)//this.getImmediateProperty())
 		this.persistEdit(editCodes.setObject, e)
 		
 		this.emit(e, 'setProperty', propertyName, n)//()

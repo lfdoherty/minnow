@@ -109,6 +109,7 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		}
 	}
 	function recomputeForked(id, newAll, editId){
+		//console.log('recomputing forked: ' + id)
 		var old = m[id]
 		var newMap = {}
 		for(var i=0;i<newAll.length;++i){
@@ -125,10 +126,11 @@ function svgObjectCollection(s, cache, elementGetter, bindings, editId){
 		})
 		m[id] = newMap
 	}
-	function editListener(typeCode, id, editPath, op, edit, syncId, editId){
+	function editListener(state, op, edit, syncId, editId){
 		if(op === editCodes.refork){
-			var newAll = s.objectState.getAllForked(id)
-			recomputeForked(id, newAll, editId)
+			_.assertEqual(state.top, state.object)
+			var newAll = s.objectState.getAllForked(state.top)
+			recomputeForked(state.object, newAll, editId)
 		}
 	}
 	var elementsListener = {

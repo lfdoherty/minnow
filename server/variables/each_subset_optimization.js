@@ -472,6 +472,7 @@ function makeF(s, rel, objTypeCode, propertyCodes, wrapper, makeBindingWrappers,
 			name: 'each-subset-optimization',
 			attach: function(listener, editId){
 				_.assertInt(editId)
+				_.assertFunction(listener.add)
 				listeners.add(listener)
 				/*for(var i=0;i<ids.length;++i){
 					var id = ids[i]

@@ -46,7 +46,8 @@ exports.wrappedFromObjectSet = function(config, done){
 
 					minnow.makeClient(config.port, function(client){
 						client.view('specific', [n], function(err, c){
-						
+							if(err) throw err
+							
 							n.entities.add(obj)
 	
 							poll(function(){

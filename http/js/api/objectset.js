@@ -57,6 +57,8 @@ ObjectSetHandle.prototype._forceAdd = function(res, editId){
 	this.emit(undefined, 'add', res, editId)
 }
 
+ObjectSetHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 ObjectSetHandle.prototype.count = function(){return this.obj.length;}
 ObjectSetHandle.prototype.size = ObjectSetHandle.prototype.count
 
@@ -96,7 +98,7 @@ ObjectSetHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
 }
 
 ObjectSetHandle.prototype.adjustPath = u.adjustObjectCollectionPath
-
+/*
 ObjectSetHandle.prototype.changeListenerElevated = function(descendId, op, edit, syncId, editId){
 	if(op === editCodes.remove){
 		var res = this.get(descendId);
@@ -114,14 +116,16 @@ ObjectSetHandle.prototype.changeListenerElevated = function(descendId, op, edit,
 		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}
 }
-
+*/
 ObjectSetHandle.prototype.remove = ObjectListHandle.prototype.remove
 ObjectSetHandle.prototype.adjustInto = ObjectListHandle.prototype.adjustInto
 
 function stub(){}
-ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
-	_.assertLength(arguments, 4);
+ObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
+	_.assertLength(arguments, 6);
 	_.assertInt(op)
+	
+	//console.log("GOT OP: " + editNames[op])
 	
 	if(op === editCodes.addExisting){
 		var addedObj = this.getObjectApi(edit.id)
@@ -143,16 +147,29 @@ ObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
 		this.obj.push(res)
 		res.prepare()
 		return this.emit(edit, 'add', res, editId)
-	}else if(op === editCodes.remove){
+	}/*else if(op === editCodes.remove){
 
-		var removedObj = u.findObj(this.obj, edit.id)
+		var removedObj = u.findObj(this.obj, subObj)
 		var i = this.obj.indexOf(removedObj)
 		_.assert(i >= 0)
 		this.obj.splice(i, 1);
 		//this.log('new length: ' + this.obj.length)
 		return this.emit(edit, 'remove', removedObj, editId)		
+	}*/if(op === editCodes.remove){
+		_.assertInt(subObj)
+		var res = this.get(subObj);
+		var index = this.obj.indexOf(res)
+		if(index === -1){
+			console.log('ignoring redundant remove: ' + subObj);
+		}else{
+			this.obj.splice(index, 1);
+
+			res.prepare()
+			console.log('removed: ' + res)
+			return this.emit(edit, 'remove', res)
+		}
 	}else{
-		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
+		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}
 }
 
@@ -211,6 +228,7 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);	
 	
+	//this.adjustCurrentProperty(this.schema.code)
 	this.saveEdit(editCodes.addNew, {typeCode: type.code})
 
 	var n = this._makeAndSaveNew(json, type)

@@ -225,7 +225,7 @@ exports.nestedExternalValues = function(config, done){
 			client.view('containerValuesView', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 2){
 						done()
 						return true
@@ -260,7 +260,7 @@ exports.mapPart = function(config, done){
 			client.view('stringForContained', ['test'], function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.names.size() === 1 && c.names.toJson()[0] === 'billy'){
 						done()
 						return true

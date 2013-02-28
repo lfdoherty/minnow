@@ -9,6 +9,12 @@ entity 1
 idtest() 119
 	v one(*entity).id 1
 	
+emap() 1256
+	c count(map(*entity,{~.age},{~})) 1
+	
+emapWithAge() 1257
+	c count(map(subset(*entity,{greaterThan(25, ~.age)}),{~.age},{~})) 1
+	
 general() 100
 	c count(*entity) 1
 	t *entity 2
@@ -61,10 +67,11 @@ majorityFilter(ageConfig ageConfiguration){subset(*entity, {greaterThan(add(1,~.
 pairedFilterTest(ac ageConfiguration) 111
 	adults majorityFilter(ac) 1
 
+/*
 crazyHandler(first *){add(first.age,~)}
 crazyPartialMacroTest() 112
 	crazy each(*entity, {each(~.numbers, crazyHandler<~>)}) 1
-	
+	*/
 sameNameMacro(otherName string, name string){eq(name, otherName)}
 nameCollisionTest(name string) 113
 	named each(*entity, {filter(~,sameNameMacro(name, ~.name))}) 1

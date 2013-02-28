@@ -29,6 +29,11 @@ madeViewObject 33
 	id string 1
 	typeCode int 2
 
+selectSubObject 54//for selecting objects in collections for e.g. removal
+	id int 1
+selectSubViewObject 55
+	id string 1
+
 setSyncId 50
 	syncId int 1
 selectObject 51
@@ -37,12 +42,7 @@ selectViewObject 52
 	id string 1
 selectProperty 53
 	typeCode int 1
-reselectObject 54
-	id int 1
-reselectViewObject 55
-	id string 1
-reselectProperty 56
-	typeCode int 1
+
 	
 selectStringKey 65
 	key string 1
@@ -55,43 +55,15 @@ selectLongKey 67
 selectBooleanKey 68
 	key boolean 1
 
-reselectStringKey 88
-	key string 1
-reselectIntKey 89
-	key int 1
-reselectObjectKey 120
-	key int 1
-reselectLongKey 90
-	key long 1
-reselectBooleanKey 91
-	key boolean 1
-/*
-delStringKey 119
-	key string 1
-delIntKey 120
-	key int 1
-delLongKey 121
-	key long 1
-delBooleanKey 122
-	key boolean 1
-delObjectKey 123
-	key int 1*/
-
 delKey 119
 
 //TODO should this be a 'destination set'?  how do we optimize large-multicast scenarios?
 setDestinationSyncId 70 //used for multiplexed server->client streams (where proxying is occuring.)
 	syncId int 1
 
-ascend 57
-	many int 1
 reset 58//equivalent to ascend <depth>, sets the pointer back to the root of the object
 //these are more optimal special cases
-ascend1 59
-ascend2 60
-ascend3 61
-ascend4 62
-ascend5 63
+
 
 //switches the current top object, without disturbing the path of the object it left or the new one
 selectTopObject 64
@@ -236,7 +208,7 @@ removeLong 83
 removeBoolean 84
 	value boolean 1
 removeViewObject 109
-	id string 1
+//	id string 1
 
 replaceExternalNew 16
 	id int 2 //id being replaced

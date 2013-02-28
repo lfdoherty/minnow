@@ -28,7 +28,7 @@ exports.index = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(err, v){
+					otherClient.view('empty', function(err, v){
 
 						v.make('entity', {name: 'jim', tags: ['young', 'tall']})
 						v.make('entity', {name: 'mary', tags: ['old', 'tall']})

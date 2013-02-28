@@ -12,6 +12,9 @@ function RealHandle(typeSchema, obj, part, parent){
 		this.set = u.viewReadonlyFunction
 	}
 }
+
+RealHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 RealHandle.prototype.value = function(){
 	return this.obj;
 }

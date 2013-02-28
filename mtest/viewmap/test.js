@@ -112,10 +112,11 @@ exports.topByValuesWithDel = function(config, done){
 				var expected = JSON.stringify([19, 22, 28])
 				poll(function(){
 					if(c.threeOldest.size() === 3){
-						//console.log(JSON.stringify(c.threeOldest.toJson()))
+						//console.log(JSON.stringify(c.toJson()))
 						var data = c.threeOldest.toJson()
 						var ages = _.map(Object.keys(data), function(key){return data[key];})
 						ages.sort()
+						//console.log('ages: ' + JSON.stringify(ages))
 						if(JSON.stringify(ages) === expected){
 							done()
 							return true

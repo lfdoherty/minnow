@@ -27,6 +27,7 @@ function BooleanHandle(typeSchema, obj, part, parent){
 BooleanHandle.prototype.value = function(){
 	return this.obj;
 }
+BooleanHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 BooleanHandle.prototype.changeListener = u.primitiveChangeListener;
 BooleanHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 BooleanHandle.prototype.set = function(v){

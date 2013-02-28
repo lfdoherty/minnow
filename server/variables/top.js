@@ -88,7 +88,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 					bottomHeap.add(kv)
 					delete top[kv.key]
 					if(oldMany !== undefined){
-						listeners.emitDel(kv.key, editId)
+						listeners.emitRemove(kv.key, editId)
 					}
 				}
 			}
@@ -113,7 +113,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 			listeners.add(listener)
 			//console.log(JSON.stringify(Object.keys(listener)))
 			_.assertFunction(listener.put)
-			_.assertFunction(listener.del)
+			_.assertFunction(listener.remove)
 			_.assertInt(editId)
 			topHeap.forEach(function(kv){
 				//console.log(uid+' attach putting: ' + kv.key + ' -> ' + kv.value)
@@ -204,7 +204,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 
 						removeFromTop(key)
 						//console.log('top emitting del: ' + editId)
-						listeners.emitDel(key,editId)
+						listeners.emitRemove(key,editId)
 						//console.log('full, del: ' + rkv.key)
 
 						topHeap.add(b)
@@ -249,7 +249,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 						topHeap.add(kv)
 						_.assert(topHeap.size() <= manyValue)
 						listeners.emitPut(kv.key, kv.value, undefined, editId)
-						listeners.emitDel(rkv.key, editId)
+						listeners.emitRemove(rkv.key, editId)
 						bottomHeap.add(rkv)							
 						//s.log('replaced ' + t.value + ' ' + rkv.value)
 					}else{
@@ -269,7 +269,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				}
 			}
 		},
-		del: function(key, editId){
+		remove: function(key, editId){
 		
 			//s.log(uid+' top got del: ' + key)
 			//console.log(uid+' top got del: ' + key)
@@ -309,7 +309,7 @@ function svgTopByValues(s, cache, manyGetter, elementsGetter, bindings, editId){
 				//console.log(before + ' -- ' + after)
 				//console.log(variableKey)
 				//console.log(uid+ ' top emitted del: ' + kv.key)
-				listeners.emitDel(kv.key, editId)
+				listeners.emitRemove(kv.key, editId)
 			}
 		},
 		objectChange: listeners.emitObjectChange.bind(listeners),//Unfortunately, there's no easy way to optimize this

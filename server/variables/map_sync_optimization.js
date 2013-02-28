@@ -266,7 +266,8 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 	var handle = {
 		name: 'map-single-sync-optimization (' + elements.name + ')',
 		attach: function(listener, editId){
-			_.assertFunction(listener.del)
+			_.assertFunction(listener.remove)
+			_.assert(!_.isFunction(listener.del))
 			listeners.add(listener)
 			Object.keys(state).forEach(function(key){
 				var value = state[key]
@@ -408,11 +409,18 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 			}			
 		})
 	}else{
-		var idSet = s.objectState.streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
-			//console.log('got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
+		var streamAllPropertyValuesForSet = s.objectState.streamAllPropertyValuesForSet
+		if(s.isHistorical){
+			streamAllPropertyValuesForSet = s.objectState.streamAllPropertyValuesForSetHistorically
+		}
+		var idSet = streamAllPropertyValuesForSet(objTypeCode, propertyCodes, editId, function(id, propertyValueMap, editId){
+			
 			var macroParams = [id]
 			var keyResult = boundKeyWrapper(keyBindingWrappers, propertyValueMap, macroParams)
 			var valueResult = boundValueWrapper(valueBindingWrappers, propertyValueMap, macroParams)
+
+			console.log('*got property values: ' + id + ' ' + JSON.stringify(propertyValueMap) + ' ' + editId)
+			console.log(keyResult + ' -> ' + valueResult)
 		
 			if(keyForId[id] !== undefined && keyForId[id] !== keyResult && state[keyForId[id]] !== undefined){
 				var oldKey = keyForId[id]
@@ -423,6 +431,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 				if(valueResult !== undefined){
 					var oldValue = state[keyResult]
 					state[keyResult] = valueResult
+					console.log('emit put: ' + keyResult + ' -> ' + valueResult)
 					listeners.emitPut(keyResult, valueResult, state[keyResult], editId)
 				}else{
 					if(keyForId[id]){
@@ -456,7 +465,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 		
 	elementsListener = {
 		add: function(v, editId){
-			//console.log('added: ' + v + ' ' + editId)
+			//console.log('>>>>>>>>>>>>>>>>>>>>>>> added: ' + v + ' ' + editId)
 			idSet.add(v, editId)
 		},
 		remove: function(v, editId){
@@ -467,7 +476,7 @@ function svgMapSingle(s, cache, keyParser, rel, hasObjectValues, contextGetter, 
 				delete keyForId[v]
 				delete state[key]
 				//console.log('emitting del: ' + key)
-				listeners.emitDel(key, editId)
+				listeners.emitRemove(key, editId)
 			}
 		},
 		objectChange: stub,

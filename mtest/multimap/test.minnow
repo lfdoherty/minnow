@@ -7,3 +7,5 @@ general() 100
 	index multimap(*entity,{~.tags},{~.name}) 1
 	reverseIndex multimap(*entity,{~.name},{~.tags}) 2
 	//s one(*entity) 1
+	
+empty() 101

@@ -20,6 +20,7 @@ LongHandle.prototype.value = function(){
 	//console.log('returning value: ' + this.obj)
 	return this.obj;
 }
+LongHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 LongHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 LongHandle.prototype.set = function(v){
 	

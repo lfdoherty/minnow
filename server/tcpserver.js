@@ -486,8 +486,12 @@ function createTcpServer(appSchema, port, s, readyCb){
 				e.edit = fp.readersByCode[op](r)
 				var syncId = e.syncId
 				
-				var pu = conn.pathFromClientFor[syncId]
 				
+				var pu = conn.pathFromClientFor[syncId]
+
+				//console.log('^^^^ ' + editNames[op] + ' ' + JSON.stringify(e))
+				
+
 				if(op === editCodes.selectTopObject){
 					if(conn.currentIdFor[syncId] === e.edit.id){
 						console.log('WARNING: redundant selectTopObject edit?')//I'm not sure if this is really the case
@@ -510,13 +514,14 @@ function createTcpServer(appSchema, port, s, readyCb){
 				var currentId = conn.currentIdFor[syncId]
 
 				if(pu === undefined){
-					pu = conn.pathFromClientFor[syncId] = pathsplicer.make([])
+					pu = conn.pathFromClientFor[syncId] = pathsplicer.make()//[])
 				}
+
 				
 				var wasPathUpdate = pu.update(e)
 				if(wasPathUpdate){
 					_.assert(currentId > 0)
-					s.updatePath(currentId, pu.getPath(), syncId)
+					//s.updatePath(currentId, pu.getPath(), syncId)
 					return
 				}
 				
@@ -528,7 +533,14 @@ function createTcpServer(appSchema, port, s, readyCb){
 
 					if(pu) pu.reset()
 					
-					var id = s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg)
+					var state = pu.getAll()
+					//state.top = currentId
+							
+					console.log('make - persisting with state: ' + JSON.stringify(state))
+					var id = s.persistEdit(op, state, e.edit, syncId, tg)
+
+					pu.setTop(id)
+					pu.setObject(id)
 					
 					_.assertInt(id)
 
@@ -542,11 +554,17 @@ function createTcpServer(appSchema, port, s, readyCb){
 					}
 				}else{
 					if(currentId === undefined){
-						log.err('current id is not defined, cannot save edit: ', [ op, pu.getPath(), e.edit, syncId])
+						log.err('current id is not defined, cannot save edit: ', [ op, pu.getAll(), e.edit, syncId])
 						c.destroy()
 					}else{
 						try{
-							s.persistEdit(currentId, op, pu.getPath(), e.edit, syncId, tg, reifyCb)
+							var state = pu.getAll()
+							//state.top = currentId
+							//_.assertInt(state.top)
+							state.top = currentId
+							if(!state.object) state.object = state.top
+							console.log('persisting with state: ' + JSON.stringify(state))
+							s.persistEdit(op, state, e.edit, syncId, tg, reifyCb)
 						}catch(e){
 							//if there's an error during persistence, do not permit reconnection (the edit stream is likely invalid)
 							//TODO handle async as well

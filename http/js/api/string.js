@@ -32,6 +32,9 @@ function StringHandle(typeSchema, obj, part, parent){
 		this.set = u.viewReadonlyFunction
 	}
 }
+
+StringHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 StringHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 StringHandle.prototype.set = function(str){
 	

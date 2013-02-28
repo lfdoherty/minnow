@@ -191,8 +191,36 @@ function persistEdit(op, edit){
 	return this.parent.persistEdit(op, edit)
 }
 
+function getImmediateObject(){
+	return this.parent.getImmediateObject()
+}
+function getImmediateProperty(){
+	return this.parent.getImmediateObject()
+}
+function getImmediateKey(){
+	if(this.parent.put){
+		return this.part
+	}else{
+		return this.parent.getImmediateKey()
+	}
+}
+function adjustCurrentObject(id){
+	this.parent.adjustCurrentObject(id)
+}
+function adjustCurrentSubObject(id){
+	this.parent.adjustCurrentSubObject(id)
+}
+function adjustCurrentProperty(typeCode){
+	this.parent.adjustCurrentProperty(typeCode)
+}
+function adjustCurrentKey(key, keyOp){
+	this.parent.adjustCurrentKey(key, keyOp)
+}
+function adjustTopObjectToOwn(){
+	this.parent.adjustTopObjectToOwn()
+}
 function adjustPathToSelf(){
-	var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
+	/*var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
 	//console.log('adjusted path to self: ' + JSON.stringify(remaining))
 	if(remaining.length > 0){
 		if(remaining.length === 1){
@@ -208,7 +236,10 @@ function adjustPathToSelf(){
 		}else{
 			this.persistEdit(editCodes.ascend, {many: remaining.length})
 		}
-	}
+	}*/
+	this.adjustTopObjectToOwn()
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.getImmediateProperty())
 }
 function saveEdit(op, edit){
 	this.adjustPathToSelf()
@@ -219,15 +250,17 @@ function makeTemporaryId(){
 	return this.parent.makeTemporaryId()
 }
 
-function _makeAndSaveNew(json, type){
+function _makeAndSaveNew(json, type, source){
 
-	var temporary = this.makeTemporaryId();
+	/*var temporary = this.makeTemporaryId();
 	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this));
 
 	if(edits.length > 0){
 		//this.adjustPath(temporary)
-		this.parent.adjustPath(this.part)
-		this.persistEdit(editCodes.selectObject, {id: temporary})
+		//this.parent.adjustPath(this.part)
+		this.adjustCurrentProperty(this.part)
+		this.adjustCurrentObject(temporary)
+		//this.persistEdit(editCodes.selectObject, {id: temporary})
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
@@ -237,13 +270,15 @@ function _makeAndSaveNew(json, type){
 	var n = new ObjectHandle(type, edits, temporary, [temporary], this);
 	if(this.objectApiCache === undefined) this.objectApiCache = {}
 	this.objectApiCache[temporary] = n;
+	
 	this.saveTemporaryForLookup(temporary, n, this)
 	
 	//console.log('made and saved new: '+ temporary)
 	
 	n.prepare()
 	
-	return n
+	return n*/
+	return this.parent._makeAndSaveNew(json, type, source||this)
 }
 
 SyncApi.prototype.saveTemporaryForLookup = function(temporary, n, local){
@@ -272,7 +307,7 @@ function getTopParent(){
 
 
 function versions(){
-	var versions =  this.parent._getVersions([].concat(this.part))
+	var versions =  this.parent._getVersions(this)
 	//if(versions.length === 0 || versions[0] > -1) versions.unshift(-1)
 	return versions
 }
@@ -283,9 +318,9 @@ function revert(editId){
 	//_.errout('TODO')
 }
 
-function _getVersions(path){
-	var fp = [this.part].concat(path)//_.isArray(this.part) ? path.concthis.part[0] : this.part
-	return this.parent._getVersions(fp)
+function _getVersions(source){
+	//var fp = [this.part].concat(path)//_.isArray(this.part) ? path.concthis.part[0] : this.part
+	return this.parent._getVersions(source)
 }
 /*
 function getVersionTimestamps(versions, cb){
@@ -364,6 +399,18 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.reifyParentEdits === undefined) classPrototype.reifyParentEdits = reifyParentEdits
 	if(classPrototype.getTopParent === undefined) classPrototype.getTopParent = getTopParent
 	if(classPrototype.getHistoricalKey === undefined) classPrototype.getHistoricalKey = getHistoricalKey
+
+
+	if(classPrototype.adjustCurrentProperty === undefined) classPrototype.adjustCurrentProperty = adjustCurrentProperty
+	if(classPrototype.adjustCurrentObject === undefined) classPrototype.adjustCurrentObject = adjustCurrentObject
+	if(classPrototype.adjustCurrentSubObject === undefined) classPrototype.adjustCurrentSubObject = adjustCurrentSubObject
+	if(classPrototype.adjustCurrentKey === undefined) classPrototype.adjustCurrentKey = adjustCurrentKey
+	
+	if(classPrototype.getImmediateObject === undefined) classPrototype.getImmediateObject = getImmediateObject
+	if(classPrototype.getImmediateProperty === undefined) classPrototype.getImmediateProperty = getImmediateProperty
+	if(classPrototype.getImmediateKey === undefined) classPrototype.getImmediateKey = getImmediateKey
+	
+	if(classPrototype.adjustTopObjectToOwn === undefined) classPrototype.adjustTopObjectToOwn = adjustTopObjectToOwn
 }
 
 
@@ -533,12 +580,12 @@ SyncApi.prototype.hasView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
-	//console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
+	console.log(this.getEditingId() + ' working: ' + id)// + ' ' + JSON.stringify(edits))
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
 		//console.log(obj.edits)
-		if(obj.edits.length > 0 && obj.edits[0].editId === -2){
+		/*if(obj.edits.length > 0 && obj.edits[0].editId === -2){
 			if(obj.edits.length === edits.length-2){
 				return
 			}else{
@@ -547,15 +594,15 @@ SyncApi.prototype.objectListener = function(id, edits){
 		}else{
 			edits = edits.slice(obj.edits.length)
 			//_.assert(obj.edits.length === 0)//TODO?
-		}
-		if(obj.pathEdits === undefined) obj.pathEdits = []//TODO?
+		}*/
+		//if(obj.pathEdits === undefined) obj.pathEdits = []//TODO?
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			if(e.op === editCodes.setSyncId){
 				curSyncId = e.edit.syncId
 			}else{
 				//console.log('e; ' + JSON.stringify(e))
-				obj.changeListener(e.op, e.edit, curSyncId, e.editId)
+				obj.changeListener(undefined, undefined, e.op, e.edit, curSyncId, e.editId)
 			}
 		}
 		return
@@ -569,7 +616,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 		if(this.objectApiCache[id].prepared){
 			_.errout('already prepared object being overwritten: ' + id)
 		}
-		console.log('WARNING: redundant update?: ' + id)
+		//console.log('WARNING: redundant update?: ' + id)
 		return
 	}
 	_.assertUndefined(this.objectApiCache[id])
@@ -602,6 +649,54 @@ SyncApi.prototype.addSnapshot = function(snap, historicalKey){
 	})
 }
 
+SyncApi.prototype.resetTopObjectInputState = function(){
+	if(this.currentObjectId !== undefined){
+		var handle = this.objectApiCache[this.currentObjectId]
+		 if(handle){
+			//handle.currentPath = undefined
+			handle._resetInputState()
+			//console.log('reset object state: ' + handle.id())
+			//console.log('reset path: '+ this.currentObjectId)
+		}else{
+			//console.log('no handle: ' + this.currentObjectId)
+		}
+	}
+}
+
+SyncApi.prototype.resetTopObjectOutputState = function(){
+	if(this.currentObjectId !== undefined){
+		var handle = this.objectApiCache[this.currentObjectId]
+		 if(handle){
+			//handle.currentPath = undefined
+			handle._resetOutputState()
+			//console.log('reset object state: ' + handle.id())
+			//console.log('reset path: '+ this.currentObjectId)
+		}else{
+			//console.log('no handle: ' + this.currentObjectId)
+		}
+	}
+}
+
+SyncApi.prototype.adjustTopObjectTo = function(id){
+	if(this.currentObjectId !== id){
+		
+		this.resetTopObjectOutputState()
+
+		//console.log('&&&&& selecting top object: ' + id + ' <- ' + this.currentObjectId)
+		
+		this.currentObjectId = id
+		
+		this.resetTopObjectOutputState()
+
+		//_.assert(this.objectApiCache[this.currentObjectId] === undefined)
+		//console.log('current path: ' + JSON.stringify(this.objectApiCache[this.currentObjectId].currentPath))
+
+		_.assert(id !== 0)
+		_.assertInt(id)
+		this.sh.persistEdit(editCodes.selectTopObject, {id: id})
+	}
+}
+
 SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
@@ -612,18 +707,20 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	}
 
 	if(this.currentObjectId !== id){
-		
-		if(this.currentObjectId !== undefined){
+		_.errout('TODO: adjust better')
+		/*if(this.currentObjectId !== undefined){
 			var handle = this.objectApiCache[this.currentObjectId]
 			 if(handle){
-				handle.currentPath = undefined
+				//handle.currentPath = undefined
+				handle._resetState()
+				console.log('reset object state')
 				//console.log('reset path: '+ this.currentObjectId)
 			}else{
 				//console.log('no handle: ' + this.currentObjectId)
 			}
 		}
 
-		//console.log('selecting top object: ' + id + ' ' + op + ' ' + this.currentObjectId)
+		console.log('&&&&& selecting top object: ' + id + ' ' + op + ' ' + this.currentObjectId)
 		
 		this.currentObjectId = id
 
@@ -632,7 +729,7 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 
 		_.assert(id !== 0)
 		_.assertInt(id)
-		this.sh.persistEdit(editCodes.selectTopObject, {id: id})
+		this.sh.persistEdit(editCodes.selectTopObject, {id: id})*/
 	}
 	this.sh.persistEdit(op, edit)
 }
@@ -662,6 +759,8 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertInt(op);
 	_.assertInt(editId);
 
+	//console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
+
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
 	}
@@ -676,7 +775,6 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	}
 
 	//this.log.info(this.uid+' SyncApi changeListener: ' + op + ' ', arguments)
-	//console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
 
 	//var hereKey = op+editId+JSON.stringify(edit)
 	//if(this.lastKey === hereKey){
@@ -747,7 +845,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 			_.errout('current top object parent is wrong: ' + this.currentTopObject.parent)
 		}
 		_.assertEqual(this.currentTopObject.parent, this)
-		this.currentTopObject.changeListener(op, edit, this.currentSyncId, editId)
+		this.currentTopObject.changeListener(undefined, undefined, op, edit, this.currentSyncId, editId)
 	}
 }
 function getFullSchema(){
@@ -795,6 +893,8 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	var temporary = this.makeTemporaryId()
 	
 	var edits = this.sh.make(typeName, obj, forget, cb, temporary)
+	
+	edits = [{op: editCodes.made, edit: {typeCode: this.schema[typeName].code, temporary: temporary}, editId: -2}].concat(edits)
 
 	var oldHandle = this.objectApiCache[this.currentObjectId]
 	if(oldHandle){
@@ -820,6 +920,7 @@ SyncApi.prototype._rewriteObjectApiCache = function(oldKey, newKey){
 	this.objectApiCache[newKey] = n
 }
 
+
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
 	//this.log('reifying id ' + temporaryId + ' -> ' + realId)
@@ -835,6 +936,12 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	if(this.objectApiCache[oldCacheKey]){
 		var objApi = this.objectApiCache[newCacheKey] = this.objectApiCache[oldCacheKey];
 		//delete this.objectApiCache[oldCacheKey];
+		if(objApi.currentObject === objApi.objectId){
+			objApi.currentObject = realId
+		}
+		if(objApi.inputObject === objApi.objectId){
+			objApi.inputObject = realId
+		}
 		objApi.objectId = realId;
 		objApi.emit({}, 'reify', realId, temporaryId)//()
 		//console.log('reified specific object')
@@ -854,6 +961,12 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 			console.log(new Error().stack)
 		}
 	}
+	
+	var local = this
+	Object.keys(this.objectApiCache).forEach(function(key){//TODO optimize
+		var n = local.objectApiCache[key]
+		n.reifyParentEdits(temporaryId, realId)
+	})
 	/*
 	if(this.objectCreationCallbacks && this.objectCreationCallbacks[temporaryId]){
 		var cbb = this.objectCreationCallbacks[temporaryId]
@@ -993,7 +1106,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 	return n
 }
 SyncApi.prototype.wrapObject = function(id, typeCode, part, sourceParent){
-	_.assertLength(arguments, 4);
+	/*_.assertLength(arguments, 4);
 	_.assertInt(id)
 	_.assertInt(typeCode)
 	_.assertFunction(sourceParent.adjustPath)
@@ -1001,7 +1114,8 @@ SyncApi.prototype.wrapObject = function(id, typeCode, part, sourceParent){
 	var t = this.schema._byCode[typeCode];
 	//console.log('typeCode: ' + typeCode)
 	_.assertDefined(t)
-	return new ObjectHandle(t, [], id, part, sourceParent);
+	return new ObjectHandle(t, [], id, part, sourceParent);*/
+	_.errout('TOO FAR')
 }
 SyncApi.prototype.getEditingId = function(){
 	_.assertInt(this.editingId);

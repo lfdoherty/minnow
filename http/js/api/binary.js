@@ -18,6 +18,9 @@ function BinaryHandle(typeSchema, obj, part, parent){
 	
 	this.obj = obj;
 }
+
+BinaryHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
+
 BinaryHandle.prototype.value = function(){
 	return this.obj;
 }

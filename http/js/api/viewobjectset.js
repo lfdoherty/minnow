@@ -34,6 +34,10 @@ function ViewObjectSetHandle(typeSchema, obj, part, parent){
 	}
 }
 
+ViewObjectSetHandle.prototype.getImmediateProperty = function(){
+	_.errout('logic error?')
+}
+
 ViewObjectSetHandle.prototype.count = function(){return this.obj.length;}
 ViewObjectSetHandle.prototype.size = ObjectSetHandle.prototype.count
 
@@ -71,27 +75,34 @@ ViewObjectSetHandle.prototype.changeListenerElevated = ObjectSetHandle.prototype
 
 //TODO detect when set should have seen an add edit from addNewFromJson's make, and check that it actually did happen
 //if it doesn't that's a client error
-ViewObjectSetHandle.prototype.changeListener = function(op, edit, syncId, editId){
+ViewObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
 	_.assertInt(op)
-	//console.log(JSON.stringify([op, edit, syncId, editId]))
+	//console.log('ERERER: ' + JSON.stringify([op, edit, syncId, editId]))
 	if(op === editCodes.addExistingViewObject || op === editCodes.addExisting){
 		//_.assertString(edit.id)
 		var addedObjHandle = this.getObjectApi(edit.id);
 		if(addedObjHandle === undefined){
-			console.log.warn('object not found, may have been del\'ed: ' + edit.id)
+			console.log('object not found, may have been del\'ed: ' + edit.id)
 		}else{
 			//console.log('added object: ' + edit.id)
 			this.obj.push(addedObjHandle)
 			addedObjHandle.prepare()
 			
 			addedObjHandle.on('del', this.delListener)
+			//console.log('added: ' + addedObjHandle.type())
 			return this.emit(edit, 'add', addedObjHandle)
 		}
 	}else if(op === editCodes.removeViewObject || op === editCodes.remove){//TODO why do we need to support remove here?
 	//	_.assertString(edit.id)
 		//console.log('REMOVING')
 		//try{
-		var objHandle = this.getObjectApi(edit.id);
+		//_.assertDefined(subObj)//?
+		//_.errout('subObj: ' + subObj)
+		//console.log('R: ' + (op === editCodes.removeViewObject))
+		if(op === editCodes.remove) _.assertInt(subObj)
+		if(op === editCodes.removeViewObject) _.assertString(subObj)
+		
+		var objHandle = this.getObjectApi(subObj);
 		if(objHandle === undefined){
 			this.log.warn('object not found, may have been del\'ed: ' + edit.id)
 			return
