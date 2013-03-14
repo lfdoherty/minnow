@@ -62,7 +62,7 @@ exports.wrapped = function(config, done){
 					otherClient.view('general', function(err, v){
 						var obj = c.make('entity', {v: 'test'})
 						_.assertDefined(obj)
-						v.s.add(obj)
+						//v.s.add(obj)
 					})
 				})
 				
@@ -74,7 +74,7 @@ exports.wrapped = function(config, done){
 exports.wrappedRemoval = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(otherClient){
-			otherClient.view('general', function(err, v){
+			otherClient.view('empty', function(err, v){
 				var obj = v.make('entity', {v: 'test'})
 				var cont = v.make('container', {members: [obj]}, function(){
 				
@@ -83,7 +83,10 @@ exports.wrappedRemoval = function(config, done){
 			
 							var had = false
 							poll(function(){
-								console.log(had + ' ' + JSON.stringify(c.toJson()))
+								//console.log('$$$$ ' + had + ' ' + JSON.stringify(c.toJson()))
+								if(c.has('c')){
+									//console.log('rand: ' + c.c.rand)
+								}
 								if(c.has('c') && c.c.members.count() === 1){
 									had = true
 								}else if(had && c.has('c') && c.c.members.count() === 0){

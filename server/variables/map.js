@@ -90,8 +90,137 @@ schema.addFunction('map', {
 	implementation: mapMaker,
 	minParams: 3,
 	maxParams: 4,
-	callSyntax: 'map(collection,key-macro,value-macro[,reduce-macro])'
+	callSyntax: 'map(collection,key-macro,value-macro[,reduce-macro])',
+	computeAsync: function(z, cb, input, keyMacro, valueMacro, reduceMacro){
+		if(reduceMacro){
+			reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro)
+		}else{
+			noReduceComputeAsync(z, cb, input, keyMacro, valueMacro)
+		}
+	}
 })
+
+function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
+	var state = {}
+	_.assertArray(input)
+	
+	console.log('reducing map')
+	
+	var combinationsToDo = 0
+	var cdl = _.latch(input.length*2, function(){
+
+		var nc = _.latch(combinationsToDo, function(){
+			var ss = {}
+			Object.keys(state).forEach(function(key){
+				//console.log('kkkk: ' + key)
+				ss[key] = state[key][0]
+			})
+			console.log('lkjeoirueroeu***: ' + JSON.stringify(ss))
+			var ncb = cb
+			cb = undefined
+			ncb(ss)
+		})
+		
+		//console.log('combinations: ' + combinationsToDo)
+		
+		Object.keys(state).forEach(function(key){
+			var values = state[key]
+			
+			//console.log('##lkjeoirueroeu: ' + JSON.stringify(state))
+			//_.assertDefined(cb)
+			function doReduce(){
+				reduceMacro.get(values[0], values[1], function(combinedValue){
+					//console.log('reduced ' + values[0] + ',' + values[1] + ': ' + combinedValue)
+					values.shift()
+					values[0] = combinedValue
+					nc()
+					if(values.length > 1){
+						process.nextTick(doReduce)
+					}					
+				})
+			}
+			if(values.length > 1){
+				doReduce()
+			}
+		})
+	})
+	input.forEach(function(v){
+		var gotKey = false
+		var gotValue = false
+		var theKey
+		var theValue
+		keyMacro.get(v, function(key){	
+			_.assertDefined(key)			
+			if(state[key] === undefined){
+				state[key] = []
+			}
+			if(gotValue){
+				if(state[key].length > 0) ++combinationsToDo
+				state[key].push(theValue)
+			}else{
+				theKey = key
+				gotKey = true
+			}
+			cdl()
+		})
+		valueMacro.get(v, function(value){
+			_.assertDefined(value)			
+			if(gotKey){
+				if(state[theKey] === undefined){
+					state[theKey] = []
+				}
+				if(state[theKey].length > 0) ++combinationsToDo
+				state[theKey].push(value)
+			}else{
+				theValue = value
+				gotValue = true
+			}
+			cdl()
+		})
+	})
+}
+
+function noReduceComputeAsync(z, cb, input, keyMacro, valueMacro){
+	var state = {}
+	_.assertArray(input)
+	var cdl = _.latch(input.length, function(){
+		cb(state)
+	})
+	input.forEach(function(v){
+		var gotKey = false
+		var gotValue = false
+		var theKey
+		var theValue
+		keyMacro.get(v, function(key){
+			_.assertDefined(key)
+			if(gotValue){
+				if(theValue !== undefined) state[key] = theValue
+				cdl()
+			}else{
+				theKey = key
+				gotKey = true
+			}
+		})
+		valueMacro.get(v, function(value){
+			//_.assertDefined(value)
+			/*if(value === undefined){
+				gotValue = true
+				if(gotKey){
+					cdl()
+				}
+				return
+			}*/
+			
+			if(gotKey){
+				if(value !== undefined) state[theKey] = value
+				cdl()
+			}else{
+				theValue = value
+				gotValue = true
+			}
+		})
+	})
+}
 
 
 

@@ -47,7 +47,63 @@ schema.addFunction('traverse', {
 	implementation: traverseMaker,
 	minParams: 3,
 	maxParams: -1,
-	callSyntax: 'traverse(params...,macro,maxDepth)'
+	callSyntax: 'traverse(params...,macro,maxDepth)',
+	computeAsync: function(z, cb){
+		var args = Array.prototype.slice.call(arguments, 2)
+		var maxDepth = args[args.length-1]
+		var macro = args[args.length-2]
+		var rest = args.slice(0, args.length-2)
+		
+		if(!_.isInt(maxDepth)){
+			cb([])
+			return
+		}
+		
+		//console.log('computing traverse: ' + JSON.stringify([rest, maxDepth]))
+		
+		var results = []
+		var has = {}
+		function addResult(result){
+			if(result === undefined) return
+			if(has[result]) return
+			has[result] = true
+			results.push(result)
+		}
+		
+		descend(rest, 1, function(){
+			//console.log('traverse result: ' + JSON.stringify([rest, maxDepth]) + ' ' + JSON.stringify(results))
+			cb(results)
+		})
+		
+		function descend(params, depth,cb){
+			if(depth >= maxDepth){
+				cb()
+				return
+			}
+			process.nextTick(function(){
+				macro.getArray(params, function(result){
+					if(_.isArray(result)){
+						if(result.length === 0){
+							cb()
+							return
+						}
+						var cdl = _.latch(result.length, cb)
+						result.forEach(function(r){
+							addResult(r)
+							var newParams = params.slice(1)
+							newParams.push(r)
+							descend(newParams, depth+1, cdl)
+						})
+					}else{
+						addResult(result)
+						var newParams = params.slice(1)
+						newParams.push(result)
+						descend(newParams, depth+1, cb)
+					}
+				})
+			})
+		}
+	}
 })
 
 function traverseMaker(s, self, rel, typeBindings){

@@ -58,12 +58,12 @@ OlReaders.prototype.setSyncId = function(e){
 OlReaders.prototype.selectTopObject = function(e,timestamp){
 	_.assertInt(e.id)
 	this.state.top = e.id
-	this.ol.persist(editCodes.selectTopObject, e, this.currentSyncId, timestamp, this.state)
+	//this.ol.persist(editCodes.selectTopObject, e, this.currentSyncId, timestamp, this.state)
 }
 OlReaders.prototype.selectObject = function(e,timestamp){
 	_.assertInt(e.id)
 	this.state.object = e.id
-	//this.ol.persist(editCodes.selectTopObject, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectObject, e, this.currentSyncId, timestamp, this.state)
 }
 OlReaders.prototype.selectSubObject = function(e,timestamp){
 	_.assertInt(e.id)
@@ -109,6 +109,7 @@ OlReaders.prototype.selectTopViewObject = function(e){
 }
 
 OlReaders.prototype.syntheticEdit = function(){
+	this.syncIdsByEditId[this.lastVersionId] = -5
 	++this.lastVersionId
 }
 OlReaders.prototype.destroy = function(){
@@ -159,6 +160,8 @@ function Ol(schema){
 	this.destroyed = {}
 	this.lastEditId = {}
 	this.uuid = {}
+	this.syncIdsByEditId = {}
+	
 	this.innerParentIndex = {}
 	
 	this.schema = schema
@@ -196,16 +199,19 @@ function Ol(schema){
 	})
 }
 
+Ol.prototype.getSyncIdFor = function(editId){
+	return this.syncIdsByEditId[editId]
+}
 Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	++this.stats.make
 		
 	++this.idCounter;
 	var editId = this.readers.lastVersionId
+	this.syncIdsByEditId[editId] = syncId
 	this.timestamps[editId]  = timestamp
 
 	++this.readers.lastVersionId
-	
 	//log('wrote object ', this.idCounter)
 	
 	var id = this.idCounter
@@ -226,7 +232,7 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	this.objectTypeCodes[this.idCounter] = edit.typeCode
 	this.lastEditId[this.idCounter] = editId
 	
-	//console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name)
+	//console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name + ' ' + editId)
 	return {id: this.idCounter, editId: editId}
 }
 
@@ -256,6 +262,7 @@ Ol.prototype._makeFork = function make(edit, timestamp, syncId){
 	++this.idCounter;
 	var editId = this.readers.lastVersionId
 	this.timestamps[editId]  = timestamp
+	this.syncIdsByEditId[editId] = syncId
 
 	++this.readers.lastVersionId
 	
@@ -306,10 +313,16 @@ Ol.prototype.getPathTo = function(id, cb){
 	}
 }*/
 Ol.prototype._getForeignIds = function(id, editId, cb){
+	if(editId === -1){
+		cb([])
+		return
+	}
+	if(_.isObject(id)) id = id.top
+	_.assertInt(id)
 	
 	var local = this
-	
 	this.get(id, -1, editId, function(edits){
+		//console.log('getting foreign ids: ' + id + ' ' + editId + ' ' + JSON.stringify(edits))
 		var de = edits//deserializeEdits(edits)
 		var ids = []
 		var has = {}
@@ -337,7 +350,7 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 					has[id] = true
 					//console.log('**id: ' + id)
 				}
-			}else if(e.op === editCodes.selectObjectKey || e.op === editCodes.reselectObjectKey){
+			}else if(e.op === editCodes.selectObjectKey /*|| e.op === editCodes.reselectObjectKey*/){
 				var id = e.edit.key
 				if(!has[id] && local.isTopLevelObject(id)){
 					ids.push(id)
@@ -431,84 +444,32 @@ Ol.prototype.getIncludingForked = function(id, startEditId, endEditId, cb){//TOD
 
 function selectInside(edits, innerId){
 	var inside = false
-	var depth = 0
-	var depthAtInside
+	//var depth = 0
+	//var depthAtInside
 	var insideNested = false
 	var result = []
-	console.log('selectInside(' + JSON.stringify(innerId) + '): ' + JSON.stringify(edits))
+	//console.log('selectInside(' + JSON.stringify(innerId) + '): ' + JSON.stringify(edits))
+	//_.errout('TODO upgrade to modern state-based paths')
 	for(var i=0;i<edits.length;++i){
 		var e = edits[i]
 		var op = e.op
-		if(op === editCodes.selectObject || op === editCodes.reselectObject){
-			if(op === editCodes.selectObject) ++depth
+		if(op === editCodes.selectObject){
 			var objId = e.edit.id
 			if(objId === innerId){
 				inside = true
-				depthAtInside = depth
-			}else if(inside){
-				insideNested = true
 			}
 		}else if(op === editCodes.selectProperty){
-			if(insideNested){
-				insideNested = false
-			}
-			++depth
 		}else if(fp.isKeySelectCode[op]){
-			++depth
-		}else if(op === editCodes.ascend1){
-			depth -= 1
-			if(inside && depth < depthAtInside) inside = false
-		}else if(op === editCodes.ascend2){
-			depth -= 2
-			if(inside && depth < depthAtInside){
-				inside = false
-				if(depth + 2 > depthAtInside){
-					result.push({op: editCodes.ascend1, edit: {}})
-				}
-			}
-		}else if(op === editCodes.ascend3){
-			depth -= 3
-			if(inside && depth < depthAtInside){
-				inside = false
-				if(depth + 3 > depthAtInside){
-					result.push({op: editCodes[ascend+((depth+3)-depthAtInside)], edit: {}})
-				}
-			}
-		}else if(op === editCodes.ascend4){
-			depth -= 4
-			if(inside && depth < depthAtInside){
-				inside = false
-				if(depth + 4 > depthAtInside){
-					result.push({op: editCodes[ascend+((depth+4)-depthAtInside)], edit: {}})
-				}
-			}
-		}else if(op === editCodes.ascend5){
-			depth -= 5
-			if(inside && depth < depthAtInside){
-				inside = false
-				if(depth + 5 > depthAtInside){
-					result.push({op: editCodes[ascend+((depth+5)-depthAtInside)], edit: {}})
-				}
-			}
-		}else if(op === editCodes.ascend){
-			depth -= e.edit.many
-			if(inside && depth < depthAtInside){
-				inside = false
-				if(depth + e.edit.many > depthAtInside){
-					result.push({op: editCodes.ascend, edit: {many: (depth+e.edit.many - depthAtInside)}})
-				}
-			}
 		}
-		//if(inside && depth < insideDepth) inside = false
 		
-		if(inside && (depth > depthAtInside && (depth <= depthAtInside+2 || insideNested))){
-			console.log('*'+inside + ' ' + insideNested + ' ' + depth + ' ' + depthAtInside + ' ' + JSON.stringify(e))
+		if(inside){
+			//console.log('*'+inside + ' ' + JSON.stringify(e))
 			result.push(e)
 		}else{
-			console.log('@'+inside + ' ' + insideNested + ' ' + depth + ' ' + depthAtInside + ' ' + JSON.stringify(e))
+			//console.log('@'+inside + ' ' + JSON.stringify(e))
 		}
 	}
-	console.log(JSON.stringify(result))
+	//console.log(JSON.stringify(result))
 	return result
 }
 
@@ -571,7 +532,7 @@ Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 			}
 		}
 		//console.log('actual: ' + JSON.stringify(actual))
-		console.log('returning(' + startEditId+', '+endEditId + ') actual of(' + id + '): ' + JSON.stringify(actual))
+		//console.log('returning(' + startEditId+', '+endEditId + ') actual of(' + id + '): ' + JSON.stringify(actual))
 		cb(actual)
 	}
 }
@@ -590,6 +551,7 @@ Ol.prototype.isTopLevelObject = function(id){
 
 Ol.prototype.syntheticEditId = function(){
 	var editId = this.readers.lastVersionId
+	this.syncIdsByEditId[editId] = -5
 	++this.readers.lastVersionId
 	return editId
 }
@@ -707,13 +669,15 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, state){
 		_.assert(syncId > 0)
 		this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
 		this.objectCurrentSyncId[id] = syncId
+		this.syncIdsByEditId[this.readers.lastVersionId] = syncId
 		++this.readers.lastVersionId
 	}
 
 	var res = {editId: this.readers.lastVersionId}
+	this.syncIdsByEditId[res.editId] = syncId
 	++this.readers.lastVersionId
 
-	console.log('PERSISTING(' + id + ') PERSISTING(' + res.editId + '): ' + editNames[op] + ' ' + JSON.stringify(arguments))
+	//console.log('PERSISTING(' + id + ') PERSISTING(' + res.editId + '): ' + editNames[op] + ' ' + JSON.stringify(arguments))
 
 	this.timestamps[res.editId]  = timestamp
 
@@ -819,6 +783,7 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 
 	var sourceRes
 	var gCdl = _.latch(2, function(){
+		console.log('sending sourceRes: ' + id + ' ' + sourceRes.length)
 		if(sourceRes) cb(id, sourceRes)
 		endCb()
 	})
@@ -890,6 +855,56 @@ Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 	if(cb) cb(res)
 	return res
 }
+
+Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
+
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.idsByType[tc] || [];
+		var editIds = this.creationEditIdsByType[tc]
+		for(var i=0;i<ids.length;++i){
+			var id = ids[i]
+			if(!this.destroyed[id]){
+				var editId = editIds[i]
+				if(editId > startEditId && editId <= endEditId){
+					res.push({id: id, editId: editId})
+				}
+			}
+		}
+	}
+	cb(res)
+	//return res	
+}
+
+Ol.prototype.getSubsetThatChangesBetween = function(ids, startEditId, endEditId, cb){
+	var subset = []
+	var local = this
+	var rem = 1
+	ids.forEach(function(id){
+		_.assertInt(id)
+		var last = local.lastEditId[id]
+		if(last < startEditId) return
+		++rem
+		local.getVersions(id, function(versions){
+			var changed = false
+			for(var j=0;j<versions.length;++j){
+				var v = versions[j]
+				if(v > startEditId && v <= endEditId){
+					changed = true
+					break
+				}
+			}
+			subset.push(id)
+			--rem
+			if(rem === 0) cb(subset)
+		})
+	})
+	--rem
+	if(rem === 0) cb(subset)	
+}
+
 Ol.prototype.getAllIdsOfType = function(typeCode, cb){
 	
 	var res = []

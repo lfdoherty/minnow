@@ -20,7 +20,36 @@ schema.addFunction('versions', {
 	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'versions(object/s)'
+	callSyntax: 'versions(object/s)',
+	computeAsync: function(z, cb, input){
+		if(input === undefined){
+			cb([])
+			return
+		}
+		
+		if(_.isArray(input)){
+	
+			var results = []
+			var has = {}
+			var cdl = _.latch(input.length, function(){
+				cb(results)
+			})
+			input.forEach(function(id){
+				z.objectState.getVersions(id, function(vs){
+					vs.forEach(function(v){
+						if(has[v]) return
+						has[v] = true
+						results.push(v)
+					})
+					cdl()
+				})
+			})
+		}else{
+			z.objectState.getVersions(input, function(vs){
+				cb(vs)
+			})
+		}
+	}
 })
 
 function maker(s, self, rel, typeBindings){

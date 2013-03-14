@@ -1,5 +1,6 @@
 
 var minnow = require('./../../client/client')//this is the minnow include
+var _ = require('underscorem')
 
 function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
 
@@ -32,6 +33,9 @@ exports.updateMadeObject = function(config, done){
 
 					minnow.makeClient(config.port, function(otherClient){
 						otherClient.view('specific', [e1], function(err, v){
+							_.assert(v.has('e'))
+							console.log(JSON.stringify(v.e.toJson()))
+							_.assert(v.e.has('ref'))
 							v.e.ref.name.set('ted')
 						})
 					})

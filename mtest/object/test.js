@@ -54,6 +54,8 @@ exports.prepareWasSetToNew = function(config, done){
 						c.view('specific', [id], function(err, handle){
 							if(handle.object.has('e')){
 								done()
+							}else{
+								console.log(JSON.stringify(handle.toJson()))
 							}
 						})
 					})

@@ -29,3 +29,20 @@ exports.compute = function(paramValues){
 	log('in ' + JSON.stringify(a) + ' ' + JSON.stringify(b) + ' -> ' + found)
 	return found
 }
+
+exports.computeAsync = function(z, cb, set, value){
+	var found = false
+	set.forEach(function(av){
+		found = found || (av === value)
+	})
+	cb(found)
+}
+
+
+exports.computeSync = function(z, set, value){
+	var found = false
+	set.forEach(function(av){
+		found = found || (av === value)
+	})
+	return found
+}

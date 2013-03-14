@@ -829,19 +829,22 @@ ObjectHandle.prototype.toJson = function toJson(already){
 	})
 	subAlready[this.objectId] = true
 	
-	//console.log(JSON.stringify(Object.keys(local)))
-	Object.keys(this.typeSchema.properties).forEach(function propertyToJson(name){
-		var p = local.typeSchema.properties[name];
-		//if(local.hasProperty(p.name)){
-		if(local[p.name] !== undefined){
-			if(typeof(local[p.name].toJson) !== 'function'){
-				console.log('ERROR: '+p.name+'.toJson not a function')
-				console.log(local[p.name])
-				_.errout(JSON.stringify(local[p.name]))
+	//_.assertObject(this.typeSchema)
+	if(this.typeSchema.properties !== undefined){
+		//console.log(JSON.stringify(Object.keys(local)))
+		Object.keys(this.typeSchema.properties).forEach(function propertyToJson(name){
+			var p = local.typeSchema.properties[name];
+			//if(local.hasProperty(p.name)){
+			if(local[p.name] !== undefined){
+				if(typeof(local[p.name].toJson) !== 'function'){
+					console.log('ERROR: '+p.name+'.toJson not a function')
+					console.log(local[p.name])
+					_.errout(JSON.stringify(local[p.name]))
+				}
+				obj[p.name] = local[p.name].toJson(subAlready)//local.property(p.name).toJson(subAlready)
 			}
-			obj[p.name] = local[p.name].toJson(subAlready)//local.property(p.name).toJson(subAlready)
-		}
-	})
+		})
+	}
 	obj.id = this.objectId
 
 	obj.type = this.typeSchema.name;

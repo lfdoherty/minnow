@@ -3,7 +3,10 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+function poll(f){var ci=setInterval(wf,0);function wf(){
+	try{if(f()){clearInterval(ci)}}
+	catch(e){clearInterval(ci);throw e;}
+}}
 
 exports.update = function(config, done){
 	minnow.makeServer(config, function(){
@@ -37,8 +40,8 @@ exports.topByValues = function(config, done){
 
 				var expected = JSON.stringify([21, 22, 28])
 				poll(function(){
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.threeOldest.size() === 3){
-						//console.log(JSON.stringify(c.threeOldest.toJson()))
 						var data = c.threeOldest.toJson()
 						var ages = _.map(Object.keys(data), function(key){return data[key];})
 						ages.sort()
@@ -74,6 +77,7 @@ exports.mapReduce = function(config, done){
 
 				var expected = {a: 37, b: 50, c: 21}
 				poll(function(){
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.oldestWithKey.size() === 3){
 						//console.log(JSON.stringify(c.oldestWithKey.toJson()))
 						var data = c.oldestWithKey.toJson()
@@ -244,6 +248,7 @@ exports.mapMerge = function(config, done){
 
 				poll(function(){
 					//console.log('many: ' + c.byKeys.count() + ' ' + JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.byKeys.count() === 4){
 						done()
 						return true

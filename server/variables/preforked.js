@@ -70,6 +70,7 @@ function svgPreforked(s, cache, objGetter, forkedGetter, bindings, editId){
 		set: function(v, oldV, editId){
 			//value = v
 			value = {top: v, inner: v, stream: streamProperty}
+			_.errout('TODO this should never be called anymore')
 			if(!pfValue){
 				waitingForPreforked = true
 				oldWaiting = oldV

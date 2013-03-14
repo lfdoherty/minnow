@@ -3,7 +3,10 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+function poll(f){var ci=setInterval(wf,0);function wf(){
+	try{if(f()){clearInterval(ci)}}
+	catch(e){clearInterval(ci);throw e;}
+}}
 
 exports.put = function(config, done){
 	minnow.makeServer(config, function(){
@@ -192,7 +195,7 @@ exports.nestedInnerValues = function(config, done){
 			client.view('containerValuesView', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 2){
 						done()
 						return true
@@ -276,6 +279,7 @@ exports.mapPart = function(config, done){
 						var cont = v.make('container')
 						cont.members.put('test2', obj2)
 						cont.members.put('test', obj)
+						console.log('finished writing')
 					})
 				})
 				

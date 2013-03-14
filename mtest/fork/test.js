@@ -38,7 +38,7 @@ exports.forkChangedAfter = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
+					if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
 						return true
@@ -52,7 +52,9 @@ exports.forkChangedAfter = function(config, done){
 						n.reallyAFork.set(true)
 						setTimeout(function(){
 							ev.name.set('original')
+							//_.assertEqual(n.name.value(),'original')
 						},100)
+						
 					})
 				})
 				
@@ -60,7 +62,37 @@ exports.forkChangedAfter = function(config, done){
 		})
 	})
 }
+exports.forkChangedImmediately = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+			
+				/*poll(function(){
+					if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
+					if(c.has('e') && c.e.name.value() === 'original'){
+						done()
+						return true
+					}
+				})*/
 
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var ev = v.make('entity')
+						var n = ev.fork()
+						n.reallyAFork.set(true)
+						//setTimeout(function(){
+							ev.name.set('original')
+							_.assertEqual(n.name.value(),'original')
+							done()
+						//},100)
+						
+					})
+				})
+				
+			})
+		})
+	})
+}
 exports.forkQuery = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -303,7 +335,7 @@ exports.preforkedQuery = function(config, done){
 			client.view('forkQueryPreforked', function(err, c){
 			
 				poll(function(){
-					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
+					//console.log(c.has('e') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() !== 'purpled' && c.e.reallyAFork.value()){
 						done()
 						return true

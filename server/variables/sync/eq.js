@@ -19,3 +19,10 @@ exports.compute = function(paramValues){
 	log('eq: ' + JSON.stringify(paramValues) + ' ' + (paramValues[0] === paramValues[1]))
 	return paramValues[0] === paramValues[1]
 }
+
+exports.computeAsync = function(z, cb, a, b){
+	cb(a === b)
+}
+exports.computeSync = function(z, a, b){
+	return a === b
+}

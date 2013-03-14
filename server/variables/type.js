@@ -15,7 +15,16 @@ schema.addFunction('type', {
 	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'type(object)'
+	callSyntax: 'type(object)',
+	computeAsync: function(z, cb, id){
+		if(id === undefined){
+			cb(undefined)
+			return
+		}
+		var typeCode = z.objectState.getObjectType(id)
+		//console.log('type of ' + id + ' is ' + z.schema._byCode[typeCode].name)
+		cb(z.schema._byCode[typeCode].name)
+	}
 })
 
 function stub(){}

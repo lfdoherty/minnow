@@ -85,7 +85,11 @@ ViewObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, s
 			console.log('object not found, may have been del\'ed: ' + edit.id)
 		}else{
 			//console.log('added object: ' + edit.id)
+			if(this.obj.indexOf(addedObjHandle) !== -1){
+				_.errout('duplicate add: ' + JSON.stringify(addedObjHandle.toJson()))
+			}
 			this.obj.push(addedObjHandle)
+			this.rand = Math.random()
 			addedObjHandle.prepare()
 			
 			addedObjHandle.on('del', this.delListener)

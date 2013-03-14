@@ -530,7 +530,9 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			maxParams: plugin.maxParams,
 			callSyntax: plugin.syntax,
 			descender: plugin.descender,
-			nullsOk: plugin.nullsOk
+			nullsOk: plugin.nullsOk,
+			computeAsync: plugin.computeAsync,
+			computeSync: plugin.computeSync
 		}
 	})
 
@@ -774,7 +776,7 @@ function parseViewExpr(expr){
 			typeName = expr.substring(expr.indexOf('*')+1, typeNameEndIndex);
 			expr = expr.substr(typeNameEndIndex);
 			
-			path.push({type: 'view', view: 'typeset', params: [{type: 'value', value: typeName}]});
+			path.push({type: 'view', view: 'typeset', params: [{type: 'value', value: typeName, schemaType: {type: 'primitive', primitive: 'string'}}]});
 			
 		}else if(fc === '.'){
 			var end = expr.indexOf('[');
@@ -785,7 +787,7 @@ function parseViewExpr(expr){
 			if(doti !== -1 && doti < end) end = doti;
 			var dotc = expr.indexOf('{');
 			if(dotc !== -1 && dotc < end) end = dotc;
-			path.push({type: 'view', view: 'property', params: [{type: 'value', value: expr.substring(1, end)}]});
+			path.push({type: 'view', view: 'property', params: [{type: 'value', value: expr.substring(1, end), schemaType: {type: 'primitive', primitive: 'string'}}]});
 			expr = expr.substr(end);
 		}else if(expr === 'nil'){
 			path.push({type: 'nil'})
@@ -896,7 +898,7 @@ function parseViewExpr(expr){
 					path.push({type: 'view', view: 'cast', params: [strExpr, pve]})
 					break;
 				}*/else if(expr === 'false' || expr === 'true'){
-					path.push({type: 'value', value: expr === 'true'})
+					path.push({type: 'value', value: expr === 'true', schemaType: {type: 'primitive', primitive: 'boolean'}})
 					break;
 				}else{
 					checkAlphanumericOnly(expr, 'parameter name must contain only alphanumeric characters, or be & or $ (' + expr + ')');
@@ -983,6 +985,7 @@ function computeMacroType(schema, computeType, viewMap, macroParam, bindingTypes
 		valueType = computeType(macroParam.expr, nbt, macroParam.implicits)
 		_.assertDefined(valueType)
 		macroParam.schemaType = valueType
+		macroParam.manyImplicits = Object.keys(newBindingTypes).length
 	}else if(macroParam.type === 'view'){
 		if(builtinFunctions[macroParam.view] !== undefined){
 			var def = builtinFunctions[macroParam.view]

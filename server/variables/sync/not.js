@@ -13,7 +13,16 @@ var log = require('quicklog').make('minnow/not')
 
 exports.compute = function(paramValues){
 	
-	log('not(' + paramValues[0]+')')
+	//log('not(' + paramValues[0]+')')
 	
 	return !paramValues[0]
+}
+
+exports.computeAsync = function(z, cb, v){
+	//console.log('not ' + v + ' -> ' + !v)
+	cb(!v)
+}
+
+exports.computeSync = function(z, v){
+	return !v
 }

@@ -268,7 +268,7 @@ exports.getKeyOperator = function(schema){
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
 	return editCodes['select' + ts + 'Key']
 }
-exports.getKeyReOperator = function(schema){
+/*exports.getKeyReOperator = function(schema){
 	if(schema.type.key.type === 'primitive'){
 		var ts = typeSuffix[schema.type.key.primitive]
 	}else{
@@ -276,7 +276,7 @@ exports.getKeyReOperator = function(schema){
 	}
 	if(ts === undefined) _.errout('TODO: ' + JSON.stringify(schema))
 	return editCodes['reselect' + ts + 'Key']
-}
+}*/
 exports.makeKeyTypeChecker = function(schema){
 	if(schema.type.key.type === 'primitive'){
 		//var ts = typeSuffix[schema.type.key.primitive]

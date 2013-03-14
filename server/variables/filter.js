@@ -17,7 +17,15 @@ schema.addFunction('filter', {
 	implementation: filterMaker,
 	minParams: 2,
 	maxParams: 2,
-	callSyntax: 'filter(any,boolean)'
+	callSyntax: 'filter(any,boolean)',
+	computeAsync: function(z, cb, v, state){
+		//console.log('filter ' + v + ' ' + state)
+		if(state) cb(v)
+		else cb(undefined)//?
+	},
+	computeSync: function(z, v, state){
+		return state?v:undefined
+	}
 })
 
 function filterMaker(s, self, rel, typeBindings){

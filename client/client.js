@@ -79,7 +79,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 			}
 		
 			//var snapshot = mergeSnapshots(snapshots);
-			log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
+			console.log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
 
 			//TODO: cache/reuse sync apis?
 			//TODO: they would need to have different syncIds though...
@@ -110,6 +110,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 				syncId: syncId
 			}
 			if(historicalKey) req.historicalKey = historicalKey
+			console.log('beginning view')
 			beginView(req, readyCb);
 
 		});
@@ -347,7 +348,7 @@ function makeClient(host, port, clientCb){
 				//}
 			})
 		},function(type, params, historicalKey){
-			//console.log(require('util').inspect(params))
+			console.log(require('util').inspect(params))
 			var key = type + JSON.stringify(params) + ':'+historicalKey
 			//console.log(uid + ' view key (' + key + ')')
 			return key

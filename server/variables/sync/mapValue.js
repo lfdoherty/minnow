@@ -32,6 +32,28 @@ exports.compute = function(paramValues){
 	var a = paramValues[0]
 	var b = paramValues[1]
 	
-	log('mapValue('+JSON.stringify(a)+','+b+') -> ' + a[b])
+	//log('mapValue('+JSON.stringify(a)+','+b+') -> ' + a[b])
 	return a[b]
+}
+
+exports.computeAsync = function(z, cb, map, key){
+	if(map === undefined){
+		//console.log('map undefined')
+		cb(undefined)
+	}else{
+		//console.log('map ' + key + ' -> ' + map[key])
+		//console.log('full map: ' + JSON.stringify(map))
+		cb(map[key])
+	}
+}
+
+exports.computeSync = function(z, map, key){
+	if(map === undefined){
+		//console.log('map undefined')
+		return undefined
+	}else{
+		//console.log('map ' + key + ' -> ' + map[key])
+		//console.log('full map: ' + JSON.stringify(map))
+		return map[key]
+	}
 }

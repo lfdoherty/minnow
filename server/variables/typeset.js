@@ -20,7 +20,20 @@ schema.addFunction('typeset', {
 	implementation: typeMaker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'typeset(typename)'
+	callSyntax: 'typeset(typename)',
+	computeAsync: function(z, cb, typeName){
+		//console.log('typeName: ' + JSON.stringify(typeName))
+		if(typeName === undefined){
+			cb([])
+			return
+		}
+		_.assertString(typeName)
+		var typeCode = z.schema[typeName].code
+		_.assertInt(z.editId)
+		z.objectState.getAllIdsOfTypeAt(typeCode, z.editId, function(ids){
+			cb(ids)
+		})
+	}
 })
 
 function typeMaker(s, self, rel){

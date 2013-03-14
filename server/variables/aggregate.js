@@ -15,7 +15,25 @@ schema.addFunction('max', {
 	implementation: aggregateMaker.bind(undefined, maxFunction),
 	minParams: 1,
 	maxParams: -1,
-	callSyntax: 'max(number|collection:number,...)'
+	callSyntax: 'max(number|collection:number,...)',
+	computeAsync: function(z, cb){
+		var rest = Array.prototype.slice.call(arguments, 2)
+		//var cb = arguments[arguments.length-1]
+		//var rest = Array.prototype.slice.call(arguments, 1, arguments.length-1)
+		
+		var max
+		rest.forEach(function(ns){
+			if(_.isArray(ns)){
+				ns.forEach(function(v){
+					if(max === undefined || max < v) max = v
+				})
+			}else{
+				if(max === undefined || max < ns) max = ns
+			}
+		})
+		//console.log('max: ' + max + ' ' + JSON.stringify(rest))
+		cb(max)
+	}
 })
 
 schema.addFunction('min', {
@@ -23,7 +41,22 @@ schema.addFunction('min', {
 	implementation: aggregateMaker.bind(undefined, minFunction),
 	minParams: 1,
 	maxParams: -1,
-	callSyntax: 'min(number|collection:number,...)'
+	callSyntax: 'min(number|collection:number,...)',
+	computeAsync: function(z, cb){
+		var rest = Array.prototype.slice.call(arguments, 2)
+		
+		var min
+		rest.forEach(function(ns){
+			if(_.isArray(ns)){
+				ns.forEach(function(v){
+					if(min === undefined || min > v) min = v
+				})
+			}else{
+				if(min === undefined || min > ns) min = ns
+			}
+		})
+		cb(min)
+	}
 })
 
 //note that these are backwards since we're using a MinHeap

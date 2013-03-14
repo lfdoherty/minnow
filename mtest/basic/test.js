@@ -96,12 +96,15 @@ exports.fastPersist = function(config, done){
 		minnow.makeClient(config.port, function(c){
 			c.view('general', [], function(err, handle){
 				handle.make('entity', {name: 'test name'})
+				console.log('closing')
 				c.close(function(){
+					console.log('client closed')
 					s.close(function(){
-						//console.log('persist test reloading server')
+						console.log('persist test reloading server')
 						minnow.makeServer(config, function(s){
 							minnow.makeClient(config.port, function(c){
 								c.view('general', [], function(err, handle){
+									if(err) throw err
 									if(handle.objects.size() !== 1) throw new Error('persistence failure: ' + handle.objects.size())
 									done()
 								})

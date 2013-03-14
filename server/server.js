@@ -6,7 +6,7 @@ var _ = require('underscorem');
 
 //var viewstate = require('./vs');
 var viewStateModule = require('./viewstate')
-var viewSequencer = require('./view_sequencer')
+var newViewSequencer = require('./new_view_sequencer')
 
 var fs = require('fs')
 var path = require('path')
@@ -92,6 +92,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 	
 		var viewState = viewStateModule.make(schema, globalMacros, broadcaster, objectState);
 
+		var viewSequencer = newViewSequencer.make(schema, objectState, broadcaster)
+
 		//TODO the ap should initialize the sync handle counter to avoid using the same one multiple times
 		//var syncHandleCounter = 1;
 	
@@ -100,6 +102,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 		var listenerCbs = {}
 		
 		var objectSubscribers = {}
+		
+		var ended = false
 		
 		var handle = {
 			serverInstanceUid: function(){return serverUid;},
@@ -205,7 +209,11 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				var curState = {}
 				function sendEditUpdate(up){
 					if(up.syncId === undefined) _.errout('no syncId: ' + JSON.stringify(up))
+					if(up.editId === undefined) _.errout('no editId: ' + JSON.stringify(up))
 					//_.assertInt(up.syncId)
+					
+					//console.log('sync sending edit update: ' + JSON.stringify(up))
+					
 					if(currentSyncId !== up.syncId){
 						currentSyncId = up.syncId
 						listenerCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
@@ -226,7 +234,9 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						currentResponseId = up.id
 						
 						if(_.isString(up.id)){
-		
+							
+							if(up.state === undefined) _.errout('no up.state: ' + JSON.stringify(up))
+							
 							_.assertObject(up.state)
 							var newState = up.state//[].concat(up.path)
 							//console.log('editing to match: ' + JSON.stringify(curState) + ' -> ' + JSON.stringify(newState))
@@ -259,7 +269,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 							return;
 						}else{
 							if(!(e.id === -1 || alreadySent[e.id] || _.isString(e.id))){
-								_.errout('should have already send object we have edit for: ' + e.id)
+								_.errout('should have already send object we have edit for: ' + e.id + ' ' + JSON.stringify(e))
 							}
 							//log('sending edit: ', e)
 							//console.log('sending edit: ' + JSON.stringify(e))
@@ -274,11 +284,11 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					_.assertFunction(cb)
 					_.assert(id >= 0)
 					if(alreadySent[id]){
-						console.log('already sent: ' + id)
+						//console.log('already sent: ' + id)
 						cb()
 						return;
 					}else{
-						console.log('including: ' + id)
+						//console.log('including: ' + id)
 						_.assert(objectState.isTopLevelObject(id))
 						//log(syncId + ' including object: ' + id + ' editId: ' + editId)
 						//TODO buffer for streaming all the edits for the object and any objects it depends on
@@ -286,19 +296,21 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						sentBuffer.push(pointer)
 						//_.assertInt(editId)
 						_.assertInt(id)
-						process.nextTick(function(){
+						//process.nextTick(function(){
+						//	if(ended) return
 						
-							objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
-							
-								_.assertBuffer(objEditsBuffer)
-								pointer.edits.push({id: objId, edits: objEditsBuffer})
+						//console.log('streaming versions: ' + id)
+						objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
+						
+							_.assertBuffer(objEditsBuffer)
+							//console.log('here: ' + objId)
+							pointer.edits.push({id: objId, edits: objEditsBuffer})
 
-							}, function(){
-							
-								cb()
-								pointer.got = true
-								advanceSentBuffer()
-							})
+						}, function(){
+						
+							cb()
+							pointer.got = true
+							advanceSentBuffer()
 						})
 					}				
 				}
@@ -307,9 +319,12 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				}
 				function listenerCbWrapper(e){
 					_.assertLength(arguments, 1);
+					
+					if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
+					
 					//_.assertInt(e.typeCode)
 					//log('e: ', e)
-					//console.log(JSON.stringify(e))
+					//console.log('sending edit: ' + JSON.stringify(e))
 
 					//console.log(new Error().stack)
 					/*if(e.path){//TODO is this really necessary here?  shouldn't it be redundant?
@@ -325,9 +340,21 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 						_.assertInt(e.state.keyOp)
 					}
 					
+					//console.log('got edit for object: ' + JSON.stringify(e))
+					
 					if(e.state && e.state.key && e.state.keyIsObject){
 						includeObjectCb(e.state.key, function(){//TODO also listen?
 						})
+					}
+					if(e.state && e.state.inner){
+						includeObjectCb(e.state.inner, function(){//TODO also listen?
+						})
+					}
+					if(e.state && e.state.sub){
+						if(_.isInt(e.state.sub)){
+							includeObjectCb(e.state.sub, function(){//TODO also listen?
+							})
+						}
 					}
 							
 					if(sentBuffer.length > 0){
@@ -344,8 +371,9 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 				listenerCbs[syncId] = listenerCbWrapper
 
-				var getViewGetter = viewState.provideViewGetter()
-				var seq = viewSequencer.make(schema, objectState, broadcaster, alreadyHasCb, includeObjectCb, listenerCbWrapper, sendViewObjectCb, getViewGetter, syncId)
+				//var getViewGetter = viewState.provideViewGetter()
+				console.log('making sequencer')
+				var seq = viewSequencer.makeStream(includeObjectCb, listenerCbWrapper, sendViewObjectCb, syncId)
 				listenerCbWrapper.seq = seq
 				
 				/*objectSubscribers[syncId] = function(id){
@@ -418,6 +446,8 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				_.each(listenerCbs, function(value){
 					value.seq.end()
 				})
+				console.log('SERVER ENDED')
+				ended = true
 			}
 		};
 		//console.log('cbing')

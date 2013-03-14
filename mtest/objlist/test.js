@@ -259,6 +259,7 @@ exports.add = function(config, done){
 			
 				poll(function(){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something else'){

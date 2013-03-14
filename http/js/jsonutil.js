@@ -87,8 +87,8 @@ function primitiveCast(value, type){
 
 //var jsonConverters = {}
 
-function convertJsonToEdits(dbSchema, type, json, makeTemporaryId, topTemporaryId){
-	_.assertInt(topTemporaryId)
+function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){//, topTemporaryId){
+	//_.assertInt(topTemporaryId)
 	if(dbSchema.jsonConverters === undefined){
 		dbSchema.jsonConverters = {}
 	}
@@ -97,7 +97,7 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId, topTemporaryI
 		converter = dbSchema.jsonConverters[type] = generateJsonConverter(dbSchema, type)
 	}
 	//console.log(JSON.stringify(json))
-	return converter(json, makeTemporaryId, topTemporaryId)
+	return converter(json, makeTemporaryId)
 }
 
 function generatePropertyConverter(p, dbSchema){
@@ -177,8 +177,8 @@ function generatePropertyConverter(p, dbSchema){
 				});
 			}
 		}else{
-			converter = function(pv, makeTemporaryId, edits, parentId){
-				_.assertInt(parentId)
+			converter = function(pv, makeTemporaryId, edits){
+				//_.assertInt(parentId)
 				pv.forEach(function(value){
 					if(_.isInt(value) || _.isInt(value.objectId)){
 						edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
@@ -190,7 +190,8 @@ function generatePropertyConverter(p, dbSchema){
 						if(objSchema === undefined) _.errout('cannot find type: ' + value.type)
 						var temporary = makeTemporaryId();
 
-						edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+						//edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+						edits.push({op: editCodes.clearObject, edit: {}})
 						edits.push({op: editCodes.selectProperty, edit: {typeCode: p.code}})
 
 						edits.push({op: editCodes.addNew, edit: {typeCode: objSchema.code, temporary: temporary}})
@@ -205,7 +206,8 @@ function generatePropertyConverter(p, dbSchema){
 								edits.push(e)
 							})
 							//edits.push({op: editCodes.ascend1, edit: {}})
-							edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+							//edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+							edits.push({op: editCodes.clearObject, edit: {}})
 						}
 					}
 				});

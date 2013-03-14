@@ -19,7 +19,7 @@ function MapHandle(typeSchema, obj, part, parent){
 	this.log = this.parent.log
 
 	this.keyOp = u.getKeyOperator(this.schema)
-	this.keyReOp = u.getKeyReOperator(this.schema)
+	//this.keyReOp = u.getKeyReOperator(this.schema)
 	this.checkKeyType = u.makeKeyTypeChecker(this.schema)
 	
 	if(this.schema.type.value.type === 'primitive'){

@@ -1,9 +1,13 @@
 /* 
 	Time to beat (N,K,T ms): (200000,10,21219)
+	
+	since QER:
+	(200*1000,10,23943)
 */
 
 var N = 200000
 var K = 10
+
 
 var minnow = require('./../../client/client')
 var u = require('./../util')

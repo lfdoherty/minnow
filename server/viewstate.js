@@ -2,7 +2,7 @@
 var _ = require('underscorem')
 
 var variables = require('./variables')
-var viewSequencer = require('./view_sequencer')
+var newViewSequencer = require('./new_view_sequencer')
 var variableView = require('./variables/view')
 
 var Cache = require('./variable_cache')
@@ -155,16 +155,19 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			var synthesizedViewCall = {type: 'view', view: viewSchema.name}
 		
 			//var variableGetter = variableView.makeTopLevel.bind(undefined, s, variables.variableGetter)//, setExpr)
-			var getter = variableView.makeTopLevel(s, variables.variableGetter, synthesizedViewCall)
+			//var getter = variableView.makeTopLevel(s, variables.variableGetter, synthesizedViewCall)
 			
 			//var historicalVariableGetter = variableView.makeTopLevel.bind(undefined, )//, setExpr)
 			//var historicalS = s//TODO need to adjust this on each call
+			
+			/*
 			var historicalS = {}
 			Object.keys(s).forEach(function(key){
 				historicalS[key] = s[key]
 			})
 			historicalS.isHistorical = true
 			var historicalGetter = variableView.makeTopLevel(historicalS, variables.variableGetter, synthesizedViewCall)
+			*/
 			
 			//unlike normal views, each historical view is created in its own context
 			//this is so that caches don't interfere, and most importantly so that we can modify
@@ -182,7 +185,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				return variableView.makeTopLevel(historicalS, variables.variableGetter, synthesizedViewCall)(paramStr, bindings, curEditId)
 			}*/
 
-			viewGettersByTypeCode[typeCodeStr] = {historicalGetter: historicalGetter, getter: getter, binder: bindingsMaker}
+			//viewGettersByTypeCode[typeCodeStr] = {historicalGetter: historicalGetter, getter: getter, binder: bindingsMaker}
 		}
 	})
 	
@@ -214,8 +217,10 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		return true
 	}
 	
+	var viewSequencer = newViewSequencer.make(schema, objectState, broadcaster)
+	
 	var handle = {
-		provideViewGetter: function(){
+		/*provideViewGetter: function(){
 			return function(typeCode){
 				var vg = viewGettersByTypeCode[typeCode]
 				return function(params, editId){
@@ -228,11 +233,11 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 					return viewVariable
 				}
 			}
-		},
+		},*/
 		beginView: function(e, seq, readyPacketCb){
 			_.assertLength(arguments, 3)
 
-			function readyCb(){
+			/*function readyCb(){
 				//log('GOT READY PACKET:', readyPacket)
 				readyPacketCb()
 				//readyPacket = undefined
@@ -261,7 +266,11 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			}else{
 				viewVariable = vg.getter(e.params, bindings, objectState.getCurrentEditId()-1)
 			}
-			seq.addView(e.typeCode, viewVariable, e.latestSnapshotVersionId, readyCb)
+			seq.addView(e.typeCode, viewVariable, e.latestSnapshotVersionId, readyCb)*/
+			
+			var viewId = e.typeCode + ':'+e.params
+			console.log('added view: ' + viewId + ' after ' +  e.latestSnapshotVersionId)
+			seq.addView(viewId, e.latestSnapshotVersionId, readyPacketCb)
 			
 		},
 		//TODO: implement halving algorithm
@@ -283,7 +292,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				return
 			}
 
-
+			/*
 			var vg = viewGettersByTypeCode[typeCode]
 			var bindings = vg.binder(params, snapshotIds[snapshotIds.length-1])
 			var curEditId = objectState.getCurrentEditId()-1
@@ -293,7 +302,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				viewVariable = vg.historicalGetter(JSON.stringify(params), bindings, curEditId)
 			}else{
 				viewVariable = vg.getter(JSON.stringify(params), bindings, curEditId)				
-			}
+			}*/
 
 			var list = [];
 
@@ -306,7 +315,17 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				if(snId === -1) snId = curEditId-1
 				_.assert(snId === -1 || prevSnId <= snId)
 
+				/*
 				viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, prevSnId, snId, handle.provideViewGetter(), _.assureOnce(function(snap){
+					_.assertBuffer(snap)
+					list[index] = snap;
+					cdl();
+				}));
+				*/
+				
+				var viewId = typeCode+':'+JSON.stringify(params)
+				viewSequencer.makeSnapshot(viewId, prevSnId, snId, _.assureOnce(function(snap){
+					console.log('got snap')
 					_.assertBuffer(snap)
 					list[index] = snap;
 					cdl();
@@ -316,8 +335,8 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, cb, errCb){
 			_.assertFunction(errCb)
 			
-			var vg = viewGettersByTypeCode[typeCode]
-			var bindings = vg.binder(params, snapshotId)
+			/*var vg = viewGettersByTypeCode[typeCode]
+			var bindings = vg.binder(params, snapshotId)*/
 			if(snapshotId === -1) {
 				snapshotId = objectState.getCurrentEditId()-1
 			}
@@ -328,8 +347,16 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				return
 			}
 			
-			var viewVariable = vg.getter(JSON.stringify(params), bindings, snapshotId)//TODO is snapshotId the right editId here?
-			viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, previousSnapshotId, snapshotId, handle.provideViewGetter(), cb)
+			var viewId = typeCode+':'+JSON.stringify(params)
+			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, _.assureOnce(function(snap){
+				console.log('got snap')
+				_.assertBuffer(snap)
+				//list[index] = snap;
+				//cdl();
+				cb(snap)
+			}));
+			//var viewVariable = vg.getter(JSON.stringify(params), bindings, snapshotId)//TODO is snapshotId the right editId here?
+			//viewSequencer.makeSnapshot(schema, objectState, typeCode, viewVariable, previousSnapshotId, snapshotId, handle.provideViewGetter(), cb)
 		}
 	}
 	return handle;

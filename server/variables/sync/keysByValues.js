@@ -17,9 +17,7 @@ exports.syntax = 'keysByValues(map)'
 
 var log = require('quicklog').make('keysByValues')
 
-exports.compute = function(paramValues){
-	
-	var m = paramValues[0]
+function compute(m){
 	var keys = Object.keys(m)
 	var kvs = []
 	keys.forEach(function(key){
@@ -36,4 +34,17 @@ exports.compute = function(paramValues){
 	//console.log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
 	
 	return resultKeys
+}
+
+exports.compute = function(paramValues){
+	
+	var m = paramValues[0]
+	return compute(m)
+}
+
+exports.computeAsync = function(z, cb, map){
+	cb(compute(map))
+}
+exports.computeSync = function(z, map){
+	return compute(map)
 }

@@ -348,6 +348,9 @@ function wasEdited(){
 function setLocalMode(v){
 	this.parent.setLocalMode(v)
 }
+function getLocalMode(){
+	return this.parent.getLocalMode()
+}
 
 function getTopId(){return this.parent.getTopId();}
 
@@ -394,6 +397,7 @@ function addCommonFunctions(classPrototype){
 	classPrototype.toString = toString
 
 	if(classPrototype.setLocalMode === undefined) classPrototype.setLocalMode = setLocalMode
+	if(classPrototype.getLocalMode === undefined) classPrototype.getLocalMode = getLocalMode
 
 	if(classPrototype.getTopId === undefined) classPrototype.getTopId = getTopId
 	if(classPrototype.reifyParentEdits === undefined) classPrototype.reifyParentEdits = reifyParentEdits
@@ -475,6 +479,9 @@ function SyncApi(schema, sh, logger){
 
 SyncApi.prototype.setLocalMode = function(v){
 	this.localMode = v
+}
+SyncApi.prototype.getLocalMode = function(){
+	return this.localMode
 }
 
 SyncApi.prototype.makeTemporaryId = function(){
@@ -580,7 +587,7 @@ SyncApi.prototype.hasView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
-	console.log(this.getEditingId() + ' working: ' + id)// + ' ' + JSON.stringify(edits))
+	//console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
@@ -608,15 +615,22 @@ SyncApi.prototype.objectListener = function(id, edits){
 		return
 		//_.errout('TODO:')
 	}
-	var typeCode = edits[1].edit.typeCode
-	var id = edits[1].edit.id
+	if(edits[0].op === editCodes.madeViewObject){
+		var typeCode = edits[0].edit.typeCode
+		var id = edits[0].edit.id
+	}else{
+		var typeCode = edits[1].edit.typeCode
+		var id = edits[1].edit.id
+	}
 	var t = this.schema._byCode[typeCode];
+	console.log('typeCode: ' + typeCode)
 	_.assertObject(t)
 	if(this.objectApiCache[id] !== undefined){
 		if(this.objectApiCache[id].prepared){
 			_.errout('already prepared object being overwritten: ' + id)
 		}
 		//console.log('WARNING: redundant update?: ' + id)
+		_.errout('HERE')
 		return
 	}
 	_.assertUndefined(this.objectApiCache[id])
@@ -700,7 +714,7 @@ SyncApi.prototype.adjustTopObjectTo = function(id){
 SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
-	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
+	console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
 	
 	if(this.localMode){
 		return
@@ -759,7 +773,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertInt(op);
 	_.assertInt(editId);
 
-	//console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' - ' + this.currentSyncId + ' - ' + editId)
+	console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
@@ -795,7 +809,8 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 		var t = local.schema._byCode[typeCode];
 		_.assertObject(t)
 		var n = new TopObjectHandle(local.schema, t, [], local, id);
-		_.assertUndefined(local.objectApiCache[id])
+		if(local.objectApiCache[id]) _.errout('already got view object being made: ' + id)
+		//_.assertUndefined(local.objectApiCache[id])
 		local.objectApiCache[id] = n;
 	}
 	
@@ -1071,7 +1086,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 
 	if(obj === undefined){
 
-		if(_.isString(idOrViewKey)){
+		/*if(_.isString(idOrViewKey)){
 			if(idOrViewKey === '') _.errout('cannot get the null view id')
 			var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
 			var t = this.schema._byCode[typeCode];
@@ -1079,7 +1094,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 			var n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
 			this.objectApiCache[idOrViewKey] = n;
 			return n
-		}
+		}*/
 
 		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
 		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
@@ -1088,7 +1103,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 		return
 	}
 
-	//console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
+	console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
 	
 	if(obj[0].op === editCodes.destroy){

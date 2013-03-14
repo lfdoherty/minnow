@@ -15,7 +15,7 @@ exports.count = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log('count: ' + c.c.value())
+					//console.log('count: ' + JSON.stringify(c.toJson()))
 					if(c.c.value() === 1){
 						done()
 						return true
@@ -164,7 +164,7 @@ exports.max = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log('oldest: ' + c.oldestAge.value())
+					//console.log('json: ' + JSON.stringify(c.toJson()))
 					if(c.oldestAge.value() === 22){
 						done()
 						return true
@@ -243,7 +243,7 @@ exports.countOfEachFiltered = function(config, done){
 			client.view('general', function(err, c){
 			
 				poll(function(){
-					//console.log('adults: ' + c.manyAdults.value())
+					console.log(JSON.stringify(c.toJson()))
 					_.assertEqual(c.manyAdults.value(), c.adults.toJson().length)
 					if(c.manyAdults.value() === 1 && c.adults.toJson()[0].age === 22){
 						done()
@@ -354,6 +354,7 @@ exports.mergeTest = function(config, done){
 			client.view('mergeTest', function(err, c){
 			
 				poll(function(){
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.allTags.has('big') && c.allTags.has('small') && c.allTags.has('important') && c.allTags.has('trivial')){
 						done()
 						return true
@@ -406,7 +407,7 @@ exports.viewMergeTestAllTags = function(config, done){
 			client.view('viewMergeTest', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.allTags.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					var desired = ['big', 'small', 'important', 'trivial']
 					var actual = _.map(c.allTags.toJson(), function(v){return v.tag})
 					if(actual.length === desired.length){
@@ -436,13 +437,14 @@ exports.singlePairedFilterTest = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('empty', function(err, c){
 				var cc = c.make('ageConfiguration', {ageOfMajority: 18}, function(){
+					console.log('getting view')
 					client.view('pairedFilterTest', [cc], function(err, pc){
 						var gotTeenager = false
 						var lostTeenager = false
 						poll(function(){
 							var json = pc.adults.toJson()
 							
-							//console.log(JSON.stringify(json))
+							//console.log(JSON.stringify(pc.toJson()))
 
 							if(_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
 								gotTeenager = true
@@ -590,7 +592,7 @@ exports.booleanSetTest = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(err, v){
+					otherClient.view('empty', function(err, v){
 						v.make('entity', {age: 22, name: 'brian'})
 						v.make('entity', {age: 13, name: 'sue'})
 					})
@@ -607,6 +609,7 @@ exports.stringUpdateTest = function(config, done){
 			client.view('stringUpdateTest', [], function(err, c){
 				var gotFirst
 				poll(function(){
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.name.value() === 'brian'){
 						gotFirst = true
 					}
@@ -617,7 +620,7 @@ exports.stringUpdateTest = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(err, v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity', {age: 22, name: 'brian'})
 						setTimeout(function(){
 							e.name.set('bill')

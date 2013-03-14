@@ -17,7 +17,20 @@ schema.addFunction('timestamps', {
 	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'timestamps(versions)'
+	callSyntax: 'timestamps(versions)',
+	computeAsync: function(z, cb, versions){
+		var result = {}
+		if(versions === undefined){
+			cb(result)
+			return
+		}
+		versions.forEach(function(v){
+			var ts = z.objectState.getVersionTimestamp(v)
+			result[v] = ts
+		})
+		//console.log('erkjewlrkjwerk: ' + JSON.stringify(result))
+		cb(result)
+	}
 })
 
 function maker(s, self, rel, typeBindings){

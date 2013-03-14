@@ -294,7 +294,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			if(closed[e.syncId]){
 				return
 			}
-			//console.log('tcpclient got response ready(' + e.syncId + '): ' + JSON.stringify(e))
+			//console.log('tcpclient got response ready(' + e.syncId + ')')//: ' + JSON.stringify(e))
 			var cb = syncReadyCallbacks[e.requestId];
 			delete syncReadyCallbacks[e.requestId]
 			_.assertFunction(cb);
@@ -302,16 +302,17 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		gotSnapshots: function(e){
 			var cb = getRequestCallback(e);
-			//console.log('tcpclient got response gotSnapshots: ' + JSON.stringify(e))
+			//console.log('tcpclient got response gotSnapshots')//: ' + JSON.stringify(e))
 			cb(e);
 		},
 		gotAllSnapshots: function(e){
 			var cb = getRequestCallback(e);
-			//console.log('tcpclient got response gotAllSnapshots: ' + JSON.stringify(e))
+			//console.log('tcpclient got response gotAllSnapshots')//: ' + JSON.stringify(e))
 			cb(undefined, e);
 		},
 		gotSnapshot: function(e){
 			var cb = getRequestCallback(e);
+			//console.log('tcpclient got response gotSnapshot')//: ' + JSON.stringify(e))
 			cb(undefined, e);
 		},
 		objectMade: function(e){
@@ -724,8 +725,21 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			w.flush()
 			wasClosedManually = true
 			clearInterval(flushIntervalHandle)
+			if(clientEnded){
+				cb()
+				return
+			}
+			console.log('calling client end')
+			var alreadyCbed = false
+			client.on('error', function(){
+				if(alreadyCbed) return
+				alreadyCbed = true
+				cb()
+			})
 			client.on('end', function(){
+				if(alreadyCbed) return
 				log('tcp client closed')
+				alreadyCbed = true
 				cb()
 			})
 			client.end()

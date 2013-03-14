@@ -3,7 +3,10 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+function poll(f){var ci=setInterval(wf,0);function wf(){
+	try{if(f()){clearInterval(ci)}}
+	catch(e){clearInterval(ci);throw e;}
+}}
 
 exports.inner = function(config, done){
 	minnow.makeServer(config, function(){
@@ -26,7 +29,7 @@ exports.inner = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
 						var n = c.make('entity', {v: 'test'})
-						var obj = n.setPropertyToNew('other', 'membrance', {v: 'test2', other: n})
+						var obj = n.setPropertyToNew('also', 'membrance', {v: 'test2', other: n})
 					})
 				})
 			})
@@ -46,17 +49,17 @@ exports.innerToggle = function(config, done){
 						var d;
 						c.s.each(function(dd){d = dd;})
 						//console.log(tog + ' ' + wasOff + ' ' + JSON.stringify(c.toJson()))
-						if(!d.has('other')) return
+						if(!d.has('also')) return
 						//console.log('here')
 						if(tog){
-							if(!d.other.flag.value()){
+							if(!d.also.flag.value()){
 								wasOff = true
 							}
 							if(!wasOff){
 								done()
 								return true
 							}
-						}else if(d.other.flag.value()){
+						}else if(d.also.flag.value()){
 							tog = true
 						}
 					}
@@ -65,7 +68,7 @@ exports.innerToggle = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('gen', function(err, v){
 						var n = c.make('entity', {v: 'test'})
-						var obj = n.setPropertyToNew('other', 'membrance', {v: 'test2', flag: true})
+						var obj = n.setPropertyToNew('also', 'membrance', {v: 'test2', flag: true})
 						
 						setTimeout(function(){
 							obj.flag.toggle()

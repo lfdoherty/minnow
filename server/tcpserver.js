@@ -248,6 +248,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 			var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
 		
 			function sendObject(syncId, ob){
+				if(!conn.w){//this means that the server has explicitly shut down this connection permanently (no possibility of reconnect)
+					_.errout('bad server shutdown: still receiving object updates')
+				}
 				_.assertBuffer(ob.edits)
 				ws('sending object: ' + ob.id)
 				//console.log('sending object: ' + ob.id)
@@ -324,7 +327,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 				lastAck: 0,
 				lastOutgoingAck: 0,
 				outgoingAckHistory: 0,
-				w: w
+				w: w,
+				openSyncIds: [syncId]
 			}
 		}
 		var conn
@@ -452,6 +456,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 			},
 			beginSync: function(e){
 				var syncId = s.makeSyncId()
+				conn.openSyncIds.push(syncId)
+				console.log('adding open syncId: ' + syncId)
 				var ne = {syncId: syncId}
 				var updater = conn.sendEditUpdate.bind(ne)
 				function objectUpdater(ob){
@@ -475,7 +481,13 @@ function createTcpServer(appSchema, port, s, readyCb){
 			endSync: function(e){
 				log('tcpserver got client request endSync: ', e)
 				//TODO
-				s.endSync(e.syncId)
+				var i = conn.openSyncIds.indexOf(e.syncId)
+				if(i !== -1){
+					conn.openSyncIds.splice(i, 1)
+					s.endSync(e.syncId)
+				}else{
+					console.log('WARNING: ended unknown or already ended syncId: ' + e.syncId)
+				}
 			},
 			persistEdit: function(e){
 
@@ -536,7 +548,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 					var state = pu.getAll()
 					//state.top = currentId
 							
-					console.log('make - persisting with state: ' + JSON.stringify(state))
+					//console.log('make - persisting with state: ' + JSON.stringify(state))
 					var id = s.persistEdit(op, state, e.edit, syncId, tg)
 
 					pu.setTop(id)
@@ -563,7 +575,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 							//_.assertInt(state.top)
 							state.top = currentId
 							if(!state.object) state.object = state.top
-							console.log('persisting with state: ' + JSON.stringify(state))
+						//	console.log('persisting with state: ' + JSON.stringify(state))
 							s.persistEdit(op, state, e.edit, syncId, tg, reifyCb)
 						}catch(e){
 							//if there's an error during persistence, do not permit reconnection (the edit stream is likely invalid)
@@ -661,8 +673,11 @@ function createTcpServer(appSchema, port, s, readyCb){
 		c.on('end', function(){
 			cleanupClient()
 			
-			console.log('server ending the connection stream')
+			console.log('server ending the connection stream: ' + JSON.stringify(conn.openSyncIds))
 			//console.log(new Error().stack)
+			
+			//TODO end all sync handles
+			permanentlyEndConnection()
 			
 			if(conn){
 				conn.w.end(undefined, true)
@@ -674,6 +689,12 @@ function createTcpServer(appSchema, port, s, readyCb){
 		c.on('connect', function(){
 			deser = fparse.makeReadStream(shared.clientRequests, reader, increaseAck)			
 		})
+		
+		function permanentlyEndConnection(){
+			conn.openSyncIds.forEach(function(syncId){
+				s.endSync(syncId)
+			})
+		}
 		
 		function startAck(deser, c){
 			//last = last || 0

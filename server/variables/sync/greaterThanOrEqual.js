@@ -17,3 +17,11 @@ exports.compute = function(paramValues){
 	//log(paramValues[0] + ' > ' + paramValues[1])
 	return paramValues[0] >= paramValues[1]
 }
+
+
+exports.computeSync = function(z, a, b){
+	_.assertNumber(a)
+	_.assertNumber(b)
+	
+	return a >= b
+}

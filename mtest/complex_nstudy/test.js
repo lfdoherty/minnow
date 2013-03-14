@@ -107,7 +107,7 @@ function setupSidebarForm(c, v, cb){
 }
 function setupUserStuff(c, v, cb){
 
-	var sidebarInstance = v.make('nest', {})
+	var sidebarInstance = v.make('sidebar', {})
 	var userData = v.make('userData', {sidebar: sidebarInstance})
 	var settings = v.make('settings')
 	var u = v.make('user', {email: 'test', data: userData, settings: settings}, function(){
@@ -145,6 +145,7 @@ function makeSidebar(c, user, cb){
 				candidateSidebar = v.candidateSidebarForm.fork()
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
+			//console.log('forked sidebar')
 			v.userData.setProperty('sidebarForm', v.candidateSidebarForm)
 			v.userData.setProperty('sidebar', candidateSidebar)
 			console.log('made sidebar')
@@ -227,6 +228,8 @@ exports.checkQuote = function(config, done){
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 							
+							console.log(JSON.stringify(v.children.toJson()))
+							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
 							_.assert(v.sidebar.elements.count() > 0)
@@ -236,6 +239,7 @@ exports.checkQuote = function(config, done){
 							var historyField = v.sidebar.elements.at(0)
 							var set = childMap.get(historyField.id())
 							
+							console.log('looking for: ' + historyField.id())
 							_.assert(set)
 							
 							var localWebpage
@@ -250,9 +254,9 @@ exports.checkQuote = function(config, done){
 							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								setTimeout(function(){//TODO REMOVE
-									//console.log('localWebpage: ' + localWebpage.id())
-									//console.log('children: ' + v.children)
-									//console.log('quote id: ' + quote.id())
+									console.log('localWebpage: ' + localWebpage.id())
+									console.log('children: ' + v.children)
+									console.log('quote id: ' + quote.id())
 							
 									var childObj = v.children.get(localWebpage.id())
 									_.assertObject(childObj)
@@ -265,10 +269,12 @@ exports.checkQuote = function(config, done){
 									var set = childMap.get(quotesField.id())
 									//console.log('set: ' + set)
 									
+									_.assertDefined(set)
+									
 									_.assert(set.count() === 1)
 									
 									done()
-								},300)
+								},600)
 								
 							})
 							//console.log('made quote')
@@ -338,11 +344,14 @@ exports.checkQuoteRemoval = function(config, done){
 									quote.removed.set(true)
 									
 									setTimeout(function(){
-										_.assert(set.count() === 0)
+										//TODO check that 'set' retrieved above has been invalidated as well
+										
+										var set = childMap.get(quotesField.id())
+										_.assert(set === undefined || set.count() === 0)
 										
 										done()
-									},900)
-								},300)
+									},1900)
+								},600)
 								
 							})
 							//console.log('made quote')

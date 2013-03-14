@@ -62,7 +62,42 @@ schema.addFunction('eachReduce', {
 	implementation: eachMaker,
 	minParams: 3,
 	maxParams: 3,
-	callSyntax: 'eachReduce(collection,macro,macro)'
+	callSyntax: 'eachReduce(collection,macro,macro)',
+	computeAsync: function(z, cb, input, macro, reduceMacro){
+		_.assertFunction(cb)
+		//_.errout('TODO')
+		
+		var results = []
+		var cdl = _.latch(input.length, function(){
+			
+			//console.log('each done')
+			//cb(macro.mergeResults(results))
+			function reduceMore(){
+				if(results.length === 0){
+					cb(undefined)
+					return
+				}else if(results.length === 1){
+					cb(results[0])
+					return
+				}
+				var first = results.shift()
+				var second = results[0]
+				reduceMacro.get(first,second, function(res){
+					results[0] = res
+					reduceMore()
+				})
+			}
+			reduceMore()
+		})
+		input.forEach(function(v){
+			macro.get(v, function(vs){
+				if(vs !== undefined){
+					results.push(vs)
+				}
+				cdl()
+			})
+		})
+	}
 })
 
 function eachMaker(s, self, rel, typeBindings){

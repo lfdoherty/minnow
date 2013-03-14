@@ -24,3 +24,12 @@ exports.compute = function(paramValues){
 	})
 	return res
 }
+
+exports.computeSync = function(z, input){
+	var res = false	
+	_.assertArray(input)
+	input.forEach(function(av){
+		res = res || av
+	})
+	return res
+}

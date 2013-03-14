@@ -16,6 +16,9 @@ exports.syntax = 'cast(typename,object)'
 exports.compute = function(paramValues){
 	return paramValues[1]
 }
+exports.computeAsync = function(z, cb, a, b){
+	cb(b)
+}
 
 exports.descender = function(paramTypes){
 	return function(paramValues){

@@ -19,4 +19,5 @@ containerWrapper(c container) 103
 	
 contained() 104
 	c containerWrapper(one(*container)) 1
-	
+
+empty() 105

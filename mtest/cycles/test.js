@@ -3,18 +3,10 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){
-	var ci=setInterval(wf,10);
-	//setTimeout(function(){
-	//	clearInterval(ci)
-	//}, 4000)
-	function wf(){
-		if(f()){
-			//console.log('HERE HERE HERE')
-			clearInterval(ci)
-		}
-	}
-}
+function poll(f){var ci=setInterval(wf,0);function wf(){
+	try{if(f()){clearInterval(ci)}}
+	catch(e){clearInterval(ci);throw e;}
+}}
 
 exports.simplest = function(config, done){
 	minnow.makeServer(config, function(){

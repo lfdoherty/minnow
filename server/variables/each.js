@@ -54,7 +54,36 @@ schema.addFunction('each', {
 	implementation: eachMaker,
 	minParams: 2,
 	maxParams: 2,
-	callSyntax: 'each(collection,macro)'
+	callSyntax: 'each(collection,macro)',
+	macros: {1: 1},
+	computeAsync: function(z, cb, input, macro){
+		_.assertFunction(cb)
+		
+		var results = []
+		var cdl = _.latch(input.length, function(){
+			//console.log('each done')
+			cb(macro.mergeResults(results))
+		})
+		var n = 0
+		var t = 0
+		input.forEach(function(v){
+			/*if(_.isObject(v)){	
+				if(!(v instanceof require('./../innerId').InnerId)){
+					_.errout('not an instance of inner id: ' + JSON.stringify(v))
+				}
+			}*/
+			//console.log('getting macro value: ' + v)
+			++n
+			macro.get(v, function(vs){
+				++t
+				if(vs !== undefined){
+					//console.log(v + ' -> ' + n + ' ' + t)
+					results.push(vs)
+				}
+				cdl()
+			})
+		})
+	}
 })
 
 var bubbleImpl = {

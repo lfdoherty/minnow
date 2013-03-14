@@ -98,7 +98,11 @@ wasSetToNew 32
 	id int 1
 	//temporary int 2
 	typeCode int 3
-	
+
+setToInner 44
+	top int 1
+	inner int 2
+
 setData 23
 	data binary 1
 

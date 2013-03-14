@@ -86,9 +86,9 @@ ObjectListHandle.prototype.remove = function(objHandle){
 		var e = {}
 
 		//this.adjustInto(id)
+		this.adjustCurrentObject(this.getImmediateObject())
 		this.adjustCurrentProperty(this.schema.code)
 		this.adjustCurrentSubObject(id)
-		this.adjustCurrentObject(this.getImmediateObject())
 		//console.log('persisting remove')
 		this.persistEdit(editCodes.remove, e)
 
@@ -281,9 +281,9 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		res.prepare()
 		return this.emit(edit, 'shift', res)
 	}else if(op === editCodes.remove){
-		_.errout('should be in elevated change listener!')
+		//_.errout('should be in elevated change listener!')
 
-		var res = this.get(edit.id);
+		var res = this.get(subObj);
 		var index = this.obj.indexOf(res)
 		if(index === -1){
 			console.log('ignoring redundant remove: ' + edit.id);
@@ -329,7 +329,7 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 	}else if(op === editCodes.set){
 		_.errout('*TODO implement op: ' + JSON.stringify(edit));
 	}if(op === editCodes.remove){
-		var res = this.get(descendId);
+		var res = this.get(subObj);
 		var index = this.obj.indexOf(res)
 		if(index === -1){
 			//console.log('ignoring redundant remove: ' + edit.id);
@@ -350,7 +350,7 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 			return
 		}
 		
-		var beforeHandle = this.get(descendId);
+		var beforeHandle = this.get(subObj);
 		if(beforeHandle === undefined){
 			//console.log('cannot find before(' + descendId+'), falling back to append-add')
 			this.obj.push(objHandle)
@@ -374,7 +374,7 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 			var objHandle = this.wrapObject(edit.id, edit.typeCode, [], this)
 		}
 		
-		var beforeHandle = this.get(descendId);
+		var beforeHandle = this.get(subObj);
 		if(beforeHandle === undefined){
 			//console.log('cannot find before(' + descendId+'), falling back to append-add')
 			this.obj.push(objHandle)
@@ -507,7 +507,10 @@ ObjectListHandle.prototype.addNewAfter = function(beforeHandle, typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);
 	
-	this.adjustInto(beforeHandle._internalId())
+	//this.adjustInto(beforeHandle._internalId())
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.schema.code)
+	this.adjustCurrentSubObject(beforeHandle._internalId())
 		
 	var e = {typeCode: type.code}
 	this.persistEdit(editCodes.addNewAfter, e)
@@ -532,7 +535,10 @@ ObjectListHandle.prototype.addAfter = function(beforeHandle, objHandle){
 		
 	var id = objHandle._internalId()
 	
-	this.adjustInto(beforeHandle._internalId())
+	//this.adjustInto(beforeHandle._internalId())
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.schema.code)
+	this.adjustCurrentSubObject(beforeHandle._internalId())
 		
 	var e = {id: id}
 	this.persistEdit(editCodes.addAfter, e)

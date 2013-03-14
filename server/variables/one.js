@@ -15,7 +15,11 @@ schema.addFunction('one', {
 	implementation: oneMaker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'one(collection)'
+	callSyntax: 'one(collection)',
+	computeAsync: function(z, cb, set){
+		if(set.length === 0) cb(undefined)
+		else cb(set[0])
+	}
 })
 
 

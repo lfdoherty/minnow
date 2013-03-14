@@ -16,3 +16,6 @@ exports.compute = function(paramValues){
 	log(paramValues[0])
 	return paramValues[0].length
 }
+exports.computeSync = function(z, str){
+	return str.length
+}

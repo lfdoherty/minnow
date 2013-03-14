@@ -21,7 +21,25 @@ schema.addFunction('topByValues', {
 	minParams: 2,
 	maxParams: 2,
 	callSyntax: 'topByValues(many, map)',
-	description: "Takes a map and produces a map with a most 'many' values, based on selecting the highest-valued key-value pairs.  The map's values must be primitive for comparison purposes."
+	description: "Takes a map and produces a map with a most 'many' values, based on selecting the highest-valued key-value pairs.  The map's values must be primitive for comparison purposes.",
+	computeAsync: function(z, cb, many, map){
+		var pairs = []
+		Object.keys(map).forEach(function(key){
+			pairs.push([key, map[key]])
+		})
+		pairs.sort(function(a,b){
+			return b[1] - a[1]
+		})
+		if(pairs.length > many){
+			pairs = pairs.slice(0, many)
+		}
+		var result = {}
+		pairs.forEach(function(p){
+			result[p[0]] = p[1]
+		})
+		//console.log('topByValues(' + many + ','+JSON.stringify(map)+') -> ' + JSON.stringify(result))
+		cb(result)
+	}
 })
 
 

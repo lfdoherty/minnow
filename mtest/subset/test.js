@@ -12,6 +12,8 @@ exports.complexRemoval = function(config, done){
 
 				var first = false			
 				poll(function(){
+					//console.log(JSON.stringify(c.toJson()))
+					
 					if(c.matches.size() === 2){
 						first = true
 					}else if(first && c.matches.size() === 1){

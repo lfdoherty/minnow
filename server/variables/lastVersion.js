@@ -21,7 +21,32 @@ schema.addFunction('lastVersion', {
 	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'lastVersion(object/s)'
+	callSyntax: 'lastVersion(object/s)',
+	computeAsync: function(z, cb, input){
+		if(input === undefined){
+			cb(undefined)
+			return
+		}
+		
+		if(_.isArray(input)){
+			var versions = []
+			var cdl = _.latch(input.length, function(){
+				cb(versions)
+			})
+			input.forEach(function(id){
+				z.objectState.getLastVersion(id, function(v){
+					if(versions.indexOf(v) === -1){
+						versions.push(v)
+					}
+					cdl()
+				})
+			})
+		}else{
+			z.objectState.getLastVersion(input, function(v){
+				cb(v)
+			})
+		}
+	}
 })
 
 function maker(s, self, rel, typeBindings){

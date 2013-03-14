@@ -9,6 +9,7 @@ var ObjectListHandle = require('./objectlist')
 
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
+var editNames = lookup.names
 
 module.exports = ObjectSetHandle
 
@@ -147,6 +148,18 @@ ObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 		this.obj.push(res)
 		res.prepare()
 		return this.emit(edit, 'add', res, editId)
+	}else if(op === editCodes.addNew){
+		//var id = edit.id//edit.obj.object.meta.id
+		var temporary = edit.temporary
+
+		//_.assertInt(id)
+		_.assertInt(edit.temporary)
+
+		var res = this.wrapObject(temporary, edit.typeCode, [], this)
+		if(res === undefined) _.errout('failed to wrap object: ' + temporary)
+		this.obj.push(res)
+		res.prepare()
+		return this.emit(edit, 'add', res, editId)
 	}/*else if(op === editCodes.remove){
 
 		var removedObj = u.findObj(this.obj, subObj)
@@ -229,9 +242,11 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 	var type = u.getOnlyPossibleType(this, typeName);	
 	
 	//this.adjustCurrentProperty(this.schema.code)
-	this.saveEdit(editCodes.addNew, {typeCode: type.code})
+	var edit = {typeCode: type.code}
+	this.saveEdit(editCodes.addNew, edit)
 
 	var n = this._makeAndSaveNew(json, type)
+	edit.temporary = n._internalId()
 	
 	if(n === undefined) _.errout('failed to addNew')
 		

@@ -9,7 +9,8 @@ entity 1
 displayName(e entity){
 	switch(e.category,
 		case('child', '<anonymized>'),
-		case('adult', e.name)
+		case('adult', e.name),
+		default('<error>')
 	)
 }
 

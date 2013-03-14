@@ -41,7 +41,53 @@ schema.addFunction('multimap', {
 	implementation: multimapMaker,
 	minParams: 3,
 	maxParams: 3,
-	callSyntax: 'multimap(collection,key-macro,value-macro)'
+	callSyntax: 'multimap(collection,key-macro,value-macro)',
+	computeAsync: function(z, cb, set, keyMacro, valueMacro){
+		var map = {}
+		var cdl = _.latch(set.length, function(){
+			//console.log('computed multimap ' + JSON.stringify(set) + ' ' + JSON.stringify(map))
+			cb(map)
+		})
+		function putAdd(key, value){
+			if(map[key] === undefined){
+				map[key] = []
+			}
+			if(map[key].indexOf(value) === -1){
+				map[key].push(value)
+			}
+		}
+		set.forEach(function(v){
+			keyMacro.get(v, function(key){
+				//_.assertPrimitive(key)
+				valueMacro.get(v, function(value){
+					//console.log('multimap ' + JSON.stringify(key) + ' ' + JSON.stringify(value))
+					if(_.isArray(value)){
+						if(_.isArray(key)){
+							key.forEach(function(k){
+								value.forEach(function(v){
+									putAdd(k, v)
+								})
+							})
+						}else{
+							value.forEach(function(v){
+								putAdd(key, v)
+							})
+						}
+					}else{
+						if(_.isArray(key)){
+							key.forEach(function(k){
+								putAdd(k, value)
+							})
+						}else{
+							putAdd(key, value)
+						}
+					}
+					cdl()
+				})
+				
+			})
+		})
+	}
 })
 
 function multimapMaker(s, self, rel, typeBindings){

@@ -21,7 +21,20 @@ schema.addFunction('allForked', {
 	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'allForked(object/s)'
+	callSyntax: 'allForked(object/s)',
+	computeAsync: function(z, cb, set){
+		var result = []
+		var has = {}
+		set.forEach(function(id){
+			var forkedIds = z.objectState.getAllForked(id)//TODO take editId into account, perhaps also moving this to a wrap impl
+			forkedIds.forEach(function(fid){
+				if(has[fid]) return
+				has[fid] = true
+				result.push(fid)
+			})
+		})
+		cb(result)
+	}
 })
 
 function maker(s, self, rel, typeBindings){

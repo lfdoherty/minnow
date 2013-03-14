@@ -16,7 +16,10 @@ schema.addFunction('default', {
 	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'NA'
+	callSyntax: 'NA',
+	computeAsync: function(){
+		_.errout('this should never happen')
+	}
 })
 
 

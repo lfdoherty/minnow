@@ -1,9 +1,12 @@
 
 entity 1
 	name string 1
+	friends set:entity 2
+	alias string 3
 	
 general() 100
 	e one(*entity) 1
+	all *entity 2
 
 empty() 101
 

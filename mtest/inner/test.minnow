@@ -1,6 +1,6 @@
 
 entity 1
-	other membrance 11
+	also membrance 11
 	v string 21
 	
 membrance 2
@@ -10,7 +10,7 @@ membrance 2
 	
 wrapper(entity entity) 101
 	wrappedValue entity.v 41
-	wrappedOtherValue entity.other.v 42
+	wrappedOtherValue entity.also.v 42
 
 general() 100
 	s each(*entity, {wrapper(~)}) 1

@@ -16,3 +16,10 @@ exports.nullsOk = true
 exports.compute = function(paramValues){
 	return paramValues[0] ? paramValues[0] : paramValues[1]
 }
+
+exports.computeAsync = function(z,cb,a,b){
+	cb(a?a:b)
+}
+exports.computeSync = function(z,a,b){
+	return a?a:b
+}

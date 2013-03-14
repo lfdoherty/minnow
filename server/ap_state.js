@@ -284,31 +284,31 @@ function make(schema, ol){
 			mapTemporary(temporary, newId, syncId)
 			
 			//_.assert(newId >= 0)
-			if(op === editCodes.make){
+			/*if(op === editCodes.make){
 				broadcaster.input.objectCreated(e.typeCode, newId, editId)
 			}else{
 				broadcaster.input.objectCreated(ol.getObjectType(e.sourceId), newId, editId)
-			}
+			}*/
 			
 			_.assertInt(newId)
 			return newId;
 		}
 		
 		if(op === editCodes.destroy){
-			broadcaster.input.objectDeleted(state.topTypeCode, state.top, editId)
+			//broadcaster.input.objectDeleted(state.topTypeCode, state.top, editId)
 			return
 		}
 
 		//console.log(editNames[op] + ' ' + JSON.stringify(state))
 		//_.assertInt(id);
 		_.assertInt(state.object)
-		if(op !== editCodes.revert && op !== editCodes.refork){
+		if(op !== editCodes.revert && op !== editCodes.refork && op !== editCodes.initializeUuid){
 			_.assertInt(state.property)
 		}
 		
-		broadcaster.input.objectUpdated(state.topTypeCode, state.top, realOp, realEdit, syncId, editId)	
+		//broadcaster.input.objectUpdated(state.topTypeCode, state.top, realOp, realEdit, syncId, editId)	
 
-		broadcaster.input.objectChanged(state, realOp, realEdit, syncId, editId)	
+		//broadcaster.input.objectChanged(state, realOp, realEdit, syncId, editId)	
 	}		
 	var externalHandle = {
 		setBroadcaster: function(b){

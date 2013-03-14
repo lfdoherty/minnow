@@ -204,6 +204,8 @@ function differentPaths(a,b){
 	}
 }
 
+var pvCache = {}
+
 function makeObjectPropertyTracker(id, pc){
 	//_.assert(path.length > 0)
 	
@@ -218,7 +220,8 @@ function makeObjectPropertyTracker(id, pc){
 	var lastPathOpWasKey;
 	
 	var inProperty = false
-	
+	var inObj = false
+	if(id.inner === undefined) inObj = true
 	var f = function(e){
 		var op = e.op
 		//console.log(depth + ' ' + JSON.stringify(e))
@@ -234,16 +237,24 @@ function makeObjectPropertyTracker(id, pc){
 		}else if(editFp.isKeyCode[op]){
 		}else if(op === editCodes.selectObject){
 			lastPathOpWasKey = false
+			inObj = e.edit.id === id 
+			if(id.inner) inObj = e.edit.id === id.inner
+			//console.log(inObj + ' ' + id)
+		}else if(op === editCodes.clearObject){
+			inObj = id.inner === undefined
 		}else if(op === editCodes.madeFork){
+			if(id.inner === undefined) inObj = true
 			inProperty = false
 			lastPathOpWasKey = false
+		}else if(op === editCodes.made){
+			//inObj = e.edit.id === id
 		}
 
 		//console.log(inProperty + ' ' + lastPathOpWasKey + ' ' + JSON.stringify(e))
 		
 		//if((depth === 2 || depth === 1) && inProperty) return true
 		//if(depth === 3 && inProperty && lastPathOpWasKey) return true
-		return inProperty
+		return inObj && inProperty
 	}
 	
 	f.matchesSubsequence = function(){
@@ -389,7 +400,367 @@ function hasInnerId(arr, id){
 	return false
 }
 
+function advanceStateAndReportChange(objId, prop, changeReport, e){
+	var op = e.op
+	var syncId
+	if(editFp.isSetCode[op]){
+		if(editFp.isPrimitiveSetCode[op]){
+			if(e.edit.value !== prop){
+				_.assertDefined(e.edit.value)
+				changeReport({type: 'set', value: e.edit.value, editId: e.editId, syncId: syncId})
+				prop = e.edit.value
+			}
+		}else if(op === editCodes.setExisting || op === editCodes.setObject){
+			if(e.edit.id !== prop){
+				if(e.edit.id === undefined){
+					changeReport({type: 'clear', editId: e.editId, syncId: syncId})
+				}else{
+					_.assertDefined(e.edit.id)
+					changeReport({type: 'set', value: e.edit.id, editId: e.editId, syncId: syncId})
+				}
+				prop = e.edit.id
+			}
+		}else if(op === editCodes.setSyncId){
+			syncId = e.edit.syncId
+			_.assertInt(syncId)
+		}else{
+			_.errout('TODO: ' + op)
+		}
+	}else if(op === editCodes.setSyncId){
+		syncId = e.edit.syncId
+		_.assertInt(syncId)
+	}else if(op === editCodes.wasSetToNew){
+		//_.errout('TODO')
+		prop = innerify(objId, e.edit.id)
+		changeReport({type: 'set', value: prop, editId: e.editId, syncId: syncId})
+	}else if(editFp.isAddCode[op]){
+		if(prop === undefined) prop = []
+		if(editFp.isPrimitiveAddCode[op]){
+			if(prop.indexOf(e.edit.value) === -1){
+				//console.log('added primitive: ' + e.edit.value)
+				changeReport({type: 'add', value: e.edit.value, editId: e.editId, syncId: syncId})
+				prop.push(e.edit.value)
+			}
+		}else if(op === editCodes.addExisting){
+			if(prop.indexOf(e.edit.id) === -1){
+				changeReport({type: 'add', value: e.edit.id, editId: e.editId, syncId: syncId})
+				prop.push(e.edit.id)
+			}
+		}else if(op === editCodes.addedNew){
+			var innerId = innerify(objId, e.edit.id)
+			if(!hasInnerId(prop, innerId)){
+				console.log('reporting change: ' + JSON.stringify({type: 'add', value: innerId, editId: e.editId, syncId: syncId}))
+				changeReport({type: 'add', value: innerId, editId: e.editId, syncId: syncId})
+				prop.push(innerId)
+			}
+		}else if(op === editCodes.unshiftExisting){
+			if(prop.indexOf(e.edit.id) === -1){
+				prop.unshift(e.edit.id)
+			}
+		}else if(op === editCodes.unshiftedNew){
+			var innerId = innerify(objId, e.edit.id)
+			if(!hasInnerId(prop, innerId)){//prop.indexOf(e.edit.id) === -1){
+				//prop.push(e.edit.id)
+				//prop.unshift(innerId)
+				changeReport({type: 'unshift', value: e.edit.id, editId: e.editId, syncId: syncId})
 
+			}
+		}else if(op === editCodes.addAfter){
+			if(prop.indexOf(e.edit.id) === -1){
+				var beforeId = editPath[editPath.length-1].edit.id
+				var beforeIndex = indexOfRawId(prop, beforeId)
+				if(beforeIndex === -1){
+					changeReport({type: 'add', value: e.edit.id, editId: e.editId, syncId: syncId})
+					prop.push(e.edit.id)
+				}else{
+					changeReport({type: 'addAt', index: beforeIndex+1, value: e.edit.id, editId: e.editId, syncId: syncId})
+					prop.splice(beforeIndex+1, 0, e.edit.id)
+				}
+			}
+		}else if(op === editCodes.addedNewAfter){
+			var innerId = innerify(objId, e.edit.id)
+			if(!hasInnerId(prop, innerId)){//prop.indexOf(e.edit.id) === -1){
+				var beforeId = editPath[editPath.length-1].edit.id
+				var beforeIndex = indexOfRawId(prop, beforeId)
+				if(beforeIndex === -1){
+					changeReport({type: 'add', value: innerId, editId: e.editId, syncId: syncId})
+					prop.push(innerId)
+				}else{
+					changeReport({type: 'addAt', index: beforeIndex+1, value: innerId, editId: e.editId, syncId: syncId})
+					prop.splice(beforeIndex+1, 0, innerId)
+				}
+			}else{
+				//TODO is this even possible?
+			}
+		}else{
+			_.errout('TODO: ' + JSON.stringify(e))
+		}
+	}else if(editFp.isRemoveCode[op]){
+		if(op === editCodes.remove){
+			_.errout('TODO')
+			
+			var id = editPath[editPath.length-1].edit.id
+			var i = indexOfRawId(prop, id)//prop.indexOf(id)
+			if(i !== -1){
+				c//onsole.log('removing object from property')
+				changeReport({type: 'remove', value: e.edit.id, editId: e.editId, syncId: syncId})
+				prop.splice(i, 1)
+			}else{
+				_.errout('TODO: ' + JSON.stringify([op, edit]))
+			}						
+		}else if(editFp.isPrimitiveRemoveCode[op]){
+			var i = prop.indexOf(e.edit.value)
+			if(i !== -1){
+				changeReport({type: 'remove', value: e.edit.value, editId: e.editId, syncId: syncId})
+				prop.splice(i, 1)
+			}else{
+				_.errout('TODO: ' + JSON.stringify([op, edit]))
+			}
+		}else{
+			_.errout('TODO: ' + op)
+		}
+	}else if(op === editCodes.didPutNew){
+		//_.errout('TODO: put')
+		if(prop === undefined) prop = {}
+		prop[lastKey] = innerify(objId, e.edit.id)
+		changeReport({type: 'put', key: lastKey, value: prop[lastKey], editId: e.editId, syncId: syncId})
+	}else if(editFp.isPutCode[op]){
+		//_.errout('TODO: put')
+		if(prop === undefined) prop = {}
+		if(op === editCodes.putExisting){
+			changeReport({type: 'put', key: lastKey, value: e.edit.id, editId: e.editId, syncId: syncId})
+			prop[lastKey] = (e.edit.id)
+		}else{
+			_.assertDefined(e.edit.value)
+			changeReport({type: 'put', key: lastKey, value: e.edit.value, editId: e.editId, syncId: syncId})
+			prop[lastKey] = e.edit.value
+			//_.errout('TODO: ' + op)
+		}
+	}else if(op === editCodes.refork){
+		_.errout('TODO')
+	}
+	return prop
+}
+function advanceState(objId, prop, e, state){
+	_.assertObject(state)
+	var op = e.op
+	
+	//var lastKey
+	
+	if(editFp.isSetCode[op]){
+		if(editFp.isPrimitiveSetCode[op]){
+			if(e.edit.value !== prop){
+				prop = e.edit.value
+			}
+		}else if(op === editCodes.setExisting || op === editCodes.setObject){
+			if(e.edit.id !== prop){
+				prop = e.edit.id
+			}
+		}else if(op === editCodes.setSyncId){
+		}else{
+			_.errout('TODO: ' + op)
+		}
+	}else if(op === editCodes.clearProperty){
+		//_.errout('TODO')
+		prop = undefined
+	}else if(op === editCodes.selectSubObject){
+		state.sub = e.edit.id
+	}else if(op === editCodes.wasSetToNew){
+		//_.errout('TODO')
+		prop = innerify(objId, e.edit.id)
+	}else if(editFp.isAddCode[op]){
+		if(prop === undefined) prop = []
+		if(editFp.isPrimitiveAddCode[op]){
+			if(prop.indexOf(e.edit.value) === -1){
+				//console.log('added primitive: ' + e.edit.value)
+				prop.push(e.edit.value)
+			}
+		}else if(op === editCodes.addExisting){
+			if(prop.indexOf(e.edit.id) === -1){
+				prop.push(e.edit.id)
+			}
+		}else if(op === editCodes.addedNew){
+			var innerId = innerify(objId.top||objId, e.edit.id)
+			if(!hasInnerId(prop, innerId)){//prop.indexOf(e.edit.id) === -1){
+				//prop.push(e.edit.id)
+				prop.push(innerId)
+			}
+		}else if(op === editCodes.unshiftExisting){
+			if(prop.indexOf(e.edit.id) === -1){
+				prop.unshift(e.edit.id)
+			}
+		}else if(op === editCodes.unshiftedNew){
+			var innerId = innerify(objId, e.edit.id)
+			if(!hasInnerId(prop, innerId)){//prop.indexOf(e.edit.id) === -1){
+				//prop.push(e.edit.id)
+				prop.unshift(innerId)
+			}
+		}else if(op === editCodes.addAfter){
+			if(prop.indexOf(e.edit.id) === -1){
+				var beforeId = state.sub//editPath[editPath.length-1].edit.id
+				var beforeIndex = indexOfRawId(prop, beforeId)
+				if(beforeIndex === -1){
+					prop.push(e.edit.id)
+				}else{
+					prop.splice(beforeIndex+1, 0, e.edit.id)
+				}
+			}
+		}else if(op === editCodes.addedNewAfter){
+			var innerId = innerify(objId, e.edit.id)
+			if(!hasInnerId(prop, innerId)){//prop.indexOf(e.edit.id) === -1){
+				var beforeId = state.sub//editPath[editPath.length-1].edit.id
+				var beforeIndex = indexOfRawId(prop, beforeId)
+				if(beforeIndex === -1){
+					prop.push(innerId)
+				}else{
+					prop.splice(beforeIndex+1, 0, innerId)
+				}
+			}else{
+				//TODO is this even possible?
+			}
+		}else{
+			_.errout('TODO: ' + JSON.stringify(e))
+		}
+	}else if(editFp.isRemoveCode[op]){
+		if(op === editCodes.remove){
+			//_.errout('TODO')
+			
+			var id = state.sub//editPath[editPath.length-1].edit.id
+			_.assertDefined(id)
+			
+			var i = indexOfRawId(prop, id)//prop.indexOf(id)
+			if(i !== -1){
+				//console.log('removing object from property')
+				prop.splice(i, 1)
+			}else{
+				//_.errout('TODO: ' + JSON.stringify([op, state]))
+				//just ignore
+			}						
+		}else if(editFp.isPrimitiveRemoveCode[op]){
+			var i = prop.indexOf(e.edit.value)
+			if(i !== -1){
+				prop.splice(i, 1)
+			}else{
+				_.errout('TODO: ' + JSON.stringify([op, edit]))
+			}
+		}else{
+			_.errout('TODO: ' + op)
+		}
+	}else if(op === editCodes.didPutNew){
+		//_.errout('TODO: put')
+		if(prop === undefined) prop = {}
+		prop[state.key] = innerify(objId, e.edit.id)
+	}else if(editFp.isPutCode[op]){
+		//_.errout('TODO: put')
+		if(prop === undefined) prop = {}
+		if(op === editCodes.putExisting){
+			prop[state.key] = (e.edit.id)
+		}else{
+			_.assertDefined(e.edit.value)
+			prop[state.key] = e.edit.value
+			//_.errout('TODO: ' + op)
+		}
+	}else if(op === editCodes.refork){
+		//_.errout('TODO')//TODO?
+	}
+	return prop
+}
+
+function getPropertyValueChangesDuring(objId, propertyCode, edits){
+	var prop;
+
+	//console.log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
+	//console.log('streamProperty got ' + edits.length + ' edits ' + editId + ' ' + objId + ' ' + propertyCode)
+	//console.log(objId + ' edits: ' + JSON.stringify(edits))
+	
+	var tracker = makeObjectPropertyTracker(objId, propertyCode)
+	
+	//console.log(JSON.stringify(edits))
+	
+	//console.log('!!!! objId: ' + JSON.stringify(objId) + ', ' + propertyCode + ' has stream override: ' + (!!objId.stream))
+	//console.log(new Error().stack)
+	
+	var lastKey
+	
+	var changes = []
+	function changeReport(change){
+		changes.push(change)
+	}
+	
+	edits.forEach(function(e){
+		
+		var op = e.op
+		var matching = tracker(e)
+
+		_.assertInt(op)
+		
+		//console.log(matching, ' <- ', propertyCode + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
+		if(editFp.isKeyCode[op]){
+			lastKey = e.edit.key
+		}
+
+		if(!matching){
+			//console.log('not matching(' + JSON.stringify(objId) + ', ' + propertyCode + '): ' + JSON.stringify(e))
+			return
+		}
+		
+		//console.log('op: ' + editNames[op] + ' ' + JSON.stringify(e))
+		
+		prop = advanceStateAndReportChange(objId, prop, changeReport, e)
+	})
+	//log('streaming ', path, ':', prop)
+	//console.log(' here streaming ' + JSON.stringify(prop))//, path, ':', prop)
+	//console.log(JSON.stringify(edits))
+	return changes
+}
+function getResultingPropertyValue(objId, propertyCode, edits, defaultValue){
+	var prop = defaultValue;
+
+	//console.log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
+	//console.log('streamProperty got ' + edits.length + ' edits ' + editId + ' ' + objId + ' ' + propertyCode)
+	//console.log(objId + ' edits: ' + JSON.stringify(edits))
+	
+	var tracker = makeObjectPropertyTracker(objId, propertyCode)
+	
+	//console.log(JSON.stringify(edits))
+	
+	//console.log('!!!! objId: ' + JSON.stringify(objId) + ', ' + propertyCode + ' has stream override: ' + (!!objId.stream))
+	//console.log(new Error().stack)
+	
+	//var lastKey
+	var state = {}
+	//edits.forEach(function(e){
+	for(var i=0;i<edits.length;++i){
+		var e = edits[i]
+		
+		var op = e.op
+		var matching = tracker(e)
+
+		_.assertInt(op)
+		
+		//console.log(matching, state, ' <- ', editNames[e.op] + ' ' + JSON.stringify(e.edit))
+		if(editFp.isKeyCode[op]){
+			//lastKey = e.edit.key
+			state.key = e.edit.key
+		}
+
+		if(!matching){
+			//console.log('not matching(' + JSON.stringify(objId) + ', ' + propertyCode + '): ' + JSON.stringify(e))
+			//return
+			continue
+		}
+		
+		//console.log('op: ' + editNames[op] + ' ' + JSON.stringify(e))
+		
+		prop = advanceState(objId, prop, e, state)
+		if(prop === undefined) prop = defaultValue
+	}
+	//})
+	//log('streaming ', path, ':', prop)
+	//console.log(' here streaming ' + JSON.stringify(prop))//, path, ':', prop)
+	//console.log(JSON.stringify(edits))
+	return prop
+}
 //note that the path must not descend into a top-level object for this function
 function makePropertyStream(broadcaster, objId, propertyCode, edits, editId, cb, continueListening, ol){
 
@@ -1021,8 +1392,12 @@ exports.make = function(schema, ap, broadcaster, ol){
 				var currentState = ol.getObjectMetadata(state.top)
 				//console.log(JSON.stringify(currentState) + ' -> ' + JSON.stringify(state))
 				if(state.object && state.object !== currentState.object){// && state.object !== state.top){
-					if(state.object === state.top && currentState.object === undefined){
+					if(state.object === state.top){
+						if(currentState.object !== undefined){
+							ap.saveEdit(handle.getObjectType(state.top), state.top, editCodes.clearObject, {}, syncId, Date.now())						
+						}
 					}else{
+						currentState.property = undefined
 						ap.saveEdit(handle.getObjectType(state.top), state.top, editCodes.selectObject, {id: state.object}, syncId, Date.now())
 					}
 				}
@@ -1134,6 +1509,130 @@ exports.make = function(schema, ap, broadcaster, ol){
 				makePropertyStream(broadcaster, realPath, edits, editId, cb, continueListening, ol)
 			})
 		},*/
+		getInclusionsDuring: function(id, lastEditId, endEditId, cb){//TODO getExclusionsDuring?
+			//_.assertInt(id)
+			if(_.isObject(id)) id = id.top
+			_.assertInt(id)
+			ol._getForeignIds(id, lastEditId-1, function(a){
+				ol._getForeignIds(id, endEditId, function(b){
+				//	console.log('during: ' + lastEditId+' ' + endEditId + ' ' + JSON.stringify([id,a,b]))
+					var has = {}
+					var res = []
+					a.forEach(function(id){
+						has[id] = true
+					})
+					b.forEach(function(id){
+						if(!has[id]){
+							res.push(id)
+						}
+					})
+					cb(res)
+				})
+			})
+		},
+		getInclusionsAt: function(id, editId, cb){
+			_.assertInt(id)
+			ol._getForeignIds(id, editId, cb)
+		},
+		getSyncIdFor: function(editId){
+			return ol.getSyncIdFor(editId)
+		},
+		getEditsBetween: function(id, lastEditId, endEditId, cb){
+			if(id.getChangesBetween) _.errout('TODO')
+			
+			ol.getIncludingForked(id, -1, -1, function(edits){
+				var res = []
+				//console.log(JSON.stringify(edits))
+				var syncId = -100
+				edits.forEach(function(e){
+					if(e.op === editCodes.setSyncId){
+						syncId = e.edit.syncId
+					}
+					if(e.editId > lastEditId && e.editId <= endEditId){
+						//_.assertInt(e.syncId)
+						e.syncId = syncId
+						res.push(e)
+					}
+				})
+				cb(res)
+			})
+		},
+		getPropertyChangesDuring: function(id, propertyCode, lastEditId, endEditId, cb){
+			_.assertDefined(id)
+			if(id.getPropertyChangesDuring) _.errout('TODO')
+
+			if(!_.isInt(id)) _.assertInt(id.top)
+			
+			ol.getIncludingForked(id, -1, -1, function(edits){
+				var actual = []
+				edits.forEach(function(e){
+					if(e.editId <= endEditId){
+						actual.push(e)
+					}
+				})
+				//console.log('getting property changes during ' + lastEditId + ',' + endEditId + ' with ' + JSON.stringify(actual))
+
+				var changes = getPropertyValueChangesDuring(id, propertyCode, actual)
+				var actualChanges = []
+				changes.forEach(function(c){
+					if(c.editId > lastEditId && c.editId <= endEditId){
+						actualChanges.push(c)
+					}
+				})
+
+				/*console.log('got during ' + id + '.' + propertyCode + ': ' + 
+					JSON.stringify(changes) + ' \n' + 
+					JSON.stringify(actualChanges) + ' \n' + 
+					JSON.stringify(actual) + ' \n' + 
+					JSON.stringify(edits))
+*/
+				cb(actualChanges)
+				//console.log('got including forks: ' + JSON.stringify(path) + ' -> ' + JSON.stringify(edits))
+				/*makePropertyStream(broadcaster, id, propertyCode, edits, editId, function(v, editId){
+				
+				}, false, ol)*/
+			})
+		},
+		getPropertyValueAt: function(id, propertyCode, editId, cb){
+			_.assertDefined(id)
+			if(id.getPropertyValueAt){
+				//console.log('using id.propertyValueAt: ' + id)
+				id.getPropertyValueAt(id, propertyCode, editId, cb)
+				return
+			}
+			
+			/*var pvcKey = id+':'+propertyCode+'_'+editId
+			if(pvCache[pvcKey]){
+				cb(pvCache[pvcKey])
+				return
+			}*/
+			
+			//if(editId === -1000) _.errout('bad editId -1000')
+			
+			var typeCode = ol.getObjectType(id.inner||id.top||id)//TODO optimize this stuff
+			var propertyType = schema._byCode[typeCode].propertiesByCode[propertyCode]
+			var defaultValue = undefined
+			if(propertyType === undefined) _.errout('cannot get non-existent property ' + id + ' ' + typeCode + '.' + propertyCode)
+			if(propertyType.type.type === 'set' || propertyType.type.type === 'list') defaultValue = []
+			else if(propertyType.type.type === 'map') defaultValue = {}
+			//console.log('type: ' + JSON.stringify(propertyType))
+			
+			ol.getIncludingForked(id, -1, -1, function(edits){
+				var actual = []
+				//edits.forEach(function(e){
+				for(var i=0;i<edits.length;++i){
+					var e = edits[i]
+					if(e.editId <= editId){
+						actual.push(e)
+					}
+				}
+				//console.log(id + '.' + propertyCode + ' getting property value at ' + editId + ' with ' + JSON.stringify(actual))
+				var pv = getResultingPropertyValue(id, propertyCode, actual, defaultValue)
+				//console.log('got ' + id + '.' + propertyCode + ': ' + JSON.stringify(pv))// + ' ' + JSON.stringify(actual) + ' full: ' + JSON.stringify(edits))
+				//pvCache[pvcKey] = pv
+				cb(pv)
+			})
+		},
 		streamProperty: function(id, propertyCode, editId, cb, continueListening){
 			_.assert(arguments.length >= 3)
 			_.assert(arguments.length <= 4)
@@ -1610,8 +2109,30 @@ exports.make = function(schema, ap, broadcaster, ol){
 		getAllIdsOfType: function(typeCode, cb){
 			ol.getAllIdsOfType(typeCode, cb)
 		},
+		getAllIdsOfTypeAt: function(typeCode, editId, cb){
+			ol.getHistoricalCreationsOfType(typeCode, function(vs){
+				var res = []
+				for(var i=0;i<vs.length;++i){
+					var v = vs[i]
+					//_.assert(v.editId > 0)
+					if(v.editId <= editId){
+						res.push(v.id)
+					}
+				}
+				//console.log(JSON.stringify(vs) + ' ' + editId + ' ' + JSON.stringify(res))
+				cb(res)
+			})
+		},
 		getHistoricalCreationsOfType: function(typeCode, cb){
 			ol.getHistoricalCreationsOfType(typeCode, cb)
+		},
+		getAllObjectCreationsOfType: function(typeCode, cb, doneCb){
+			ol.getHistoricalCreationsOfType(typeCode, function(vs){
+				vs.forEach(function(v){
+					cb(v.id, v.editId)
+				})
+				doneCb()
+			})
 		},
 		getAllObjects: function(typeCode, cb){
 			ol.getAllOfType(typeCode, cb)
@@ -1619,6 +2140,12 @@ exports.make = function(schema, ap, broadcaster, ol){
 		getObjectType: function(id){
 			_.assertLength(arguments, 1)
 			return ol.getObjectType(id)
+		},
+		getSubsetThatChangesBetween: function(ids, startEditId, endEditId, cb){
+			ol.getSubsetThatChangesBetween(ids, startEditId, endEditId, cb)
+		},
+		getCreationsOfTypeBetween: function(typeCode, startEditId, endEditId, cb){
+			ol.getCreationsOfTypeBetween(typeCode, startEditId, endEditId, cb)
 		}
 	};
 	

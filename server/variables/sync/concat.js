@@ -31,14 +31,20 @@ var log = require('quicklog').make('minnow/concat')
 
 exports.compute = function(paramValues){
 
-	log(JSON.stringify(paramValues))
+	//console.log('paramValues: ' + JSON.stringify(paramValues))
 	
 	if(_.isArray(paramValues[0])){
 		var v = []
 		for(var i=0;i<paramValues.length;++i){
 			v = v.concat(paramValues[i])
 		}
-		return v
+		//console.log('v: ' + JSON.stringify(v))
+		//return v
+		var str = ''
+		for(var i=0;i<v.length;++i){
+			str += v[i]
+		}
+		return str
 	}else{
 	
 		var str = ''
@@ -48,3 +54,14 @@ exports.compute = function(paramValues){
 		return str
 	}
 }
+
+exports.computeAsync = function(z, cb){
+	var args = Array.prototype.slice.call(arguments, 2)
+	cb(exports.compute(args))
+}
+exports.computeSync = function(z){
+	var args = Array.prototype.slice.call(arguments, 1)
+	return exports.compute(args)
+	
+}
+

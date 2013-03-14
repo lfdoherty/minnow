@@ -116,8 +116,10 @@ exports.fibonacciTraverse = function(config, done){
 		minnow.makeClient(config.port, function(otherClient){
 			otherClient.view('fibonacci', [20], function(err, v){
 				if(err) throw err
-				console.log(JSON.stringify(v.v.toJson()))
-				if(JSON.stringify(v.v.toJson()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]'){
+				var arr = v.v.toJson()
+				arr.sort(function(a,b){return a - b;})
+				console.log(JSON.stringify(arr))
+				if(JSON.stringify(arr) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]'){
 					done()
 				}
 			})
@@ -263,7 +265,7 @@ exports.incrementTreeTraverse = function(config, done){
 			otherClient.view('incrementTree', function(err, v){
 				if(err) throw err
 			
-				//console.log('got result: ' + JSON.stringify(v.values.toJson()))
+				console.log('got result: ' + JSON.stringify(v.values.toJson()))
 				if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7,8,9]'){
 					done()
 				}
@@ -279,7 +281,7 @@ exports.incrementTreeShorterThenLonger = function(config, done){
 
 			otherClient.view('empty', function(err, ev){
 			
-				var control = ev.make('control',{v: 8}, function(){
+				var control = ev.make('control',{v: 9}, function(){
 
 					otherClient.view('incrementTreeProbe', [control], function(err, v){
 						if(err) throw err
@@ -287,11 +289,11 @@ exports.incrementTreeShorterThenLonger = function(config, done){
 						console.log('got result: ' + JSON.stringify(v.values.toJson()))
 						if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7,8,9]'){
 							console.log('shorter: ' + 6)
-							control.v.set(6)
+							control.v.set(7)
 							poll(function(){
 								console.log('now: ' + JSON.stringify(v.values.toJson()))
 								if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7]'){
-									control.v.set(10)
+									control.v.set(11)
 									console.log('longer')
 									poll(function(){
 										console.log('now: ' + JSON.stringify(v.values.toJson()))

@@ -24,3 +24,8 @@ exports.compute = function(paramValues){
 		}
 	}
 }
+
+exports.computeAsync = function(z, cb){
+	var args = Array.prototype.slice.call(arguments, 2)
+	cb(exports.compute(args))
+}
