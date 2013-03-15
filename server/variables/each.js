@@ -5,7 +5,7 @@
 var schema = require('./../../shared/schema')
 var listenerSet = require('./../variable_listeners')
 var viewInclude = require('./../viewinclude')
-var bubble = require('./bubble')
+//var bubble = require('./bubble')
 
 var _ = require('underscorem')
 

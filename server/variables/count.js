@@ -5,7 +5,7 @@ var listenerSet = require('./../variable_listeners')
 
 var schema = require('./../../shared/schema')
 var _ = require('underscorem')
-var bubble = require('./bubble')
+//var bubble = require('./bubble')
 
 function longType(rel, computeType){return {type: 'primitive', primitive: 'long'};}
 

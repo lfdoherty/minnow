@@ -10,6 +10,7 @@ var _ = require('underscorem');
 
 var util = require('util');
 
+var globalizeOptimization = require('./globalize').apply
 //builtin stuff
 
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
@@ -319,6 +320,8 @@ function computeBindingsUsed(expr){
 			Object.keys(used).forEach(function(u){all[u] = true;})
 		})
 		return all
+	}else if(expr.type === 'let'){
+		return _.extend({}, computeBindingsUsed(expr.expr), computeBindingsUsed(expr.rest))
 	}else{
 		_.errout('TODO: ' + JSON.stringify(expr))
 	}
@@ -1061,6 +1064,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		return rel.schemaType
 	}else if(rel.type === 'view'){
 	
+		if(rel.view == undefined) _.errout('missing view name: ' + JSON.stringify(rel))
 		_.assertString(rel.view)
 		
 		if(rel.view === 'cast'){
@@ -1176,6 +1180,13 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		else{
 			_.errout('TODO: ' + JSON.stringify(rel))
 		}
+	}else if(rel.type === 'let'){
+		rel.expr.schemaType = computeTypeWrapper(rel.expr, bindingTypes, implicits)
+		var newBindingTypes = _.extend({},bindingTypes)
+		newBindingTypes[rel.name] = rel.expr.schemaType
+		if(rel.rest.type === 'macro') _.errout('logic bug')
+		rel.schemaType = computeTypeWrapper(rel.rest, newBindingTypes, implicits)
+		return rel.schemaType
 	}else if(rel.type === 'macro'){//macro is the inline form (alternate types: global-macro, bound-macro)
 		_.errout('never happens')
 		//return rel.schemaType = computeType(rel.expr, v, schema, viewMap, bindingTypes)
@@ -1379,6 +1390,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	_.each(view.children, function(v){
 		try{
 			processView(v, v.tokens[0])
+			//globalizeOptimization(v)
 		}catch(e){
 			console.log(e.stack)
 			console.log('...while processing ' + v.tokens[0])
@@ -1388,6 +1400,8 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	
 	concretizeMacros(result)//inline all global macros and partial applications, converting them into 'macros'
 	
+	globalizeOptimization(result)
+
 	computeBindingsUsedByMacros(result)//we can deduplicate variables better if we know that a binding isn't actually used
 	
 	var vsStr = '';

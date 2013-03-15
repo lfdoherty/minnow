@@ -82,7 +82,7 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 		
 			context.getChangesBetween(bindings, -1, editId, function(state){
 				var all = []
-				var cdl = _.latch(state.length, 1000, function(){
+				var cdl = _.latch(state.length, function(){
 					all.sort(function(a,b){return a.editId - b.editId;})
 					var has = {}
 					var result = []
@@ -128,7 +128,7 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 		
 			context.getStateAt(bindings, editId, function(state){
 				var all = []
-				var cdl = _.latch(state.length, 1000, function(){
+				var cdl = _.latch(state.length, function(){
 					all.sort(function(a,b){return a.editId - b.editId;})
 					var has = {}
 					var result = []

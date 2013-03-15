@@ -261,7 +261,7 @@ function createRelHandle(objSchema, relMakers){
 				list.push(viewId)
 				has[viewId] = true
 			}
-			var cdl = _.latch(relMakers.length, 1000, function(){
+			var cdl = _.latch(relMakers.length, function(){
 				//console.log('*returning view inclusions between ' + lastEditId + ',' + endEditId+' ' + viewId + ': ' + JSON.stringify(list))
 				cb(list)
 			})
@@ -311,7 +311,7 @@ function createRelHandle(objSchema, relMakers){
 			}
 			var bindings = makeBindings(params,Math.max(lastEditId,0),viewId)
 			//console.log('getting changes between: ' + lastEditId + ', '+ endEditId)
-			var cdl = _.latch(relMakers.length, 1000, function(){
+			var cdl = _.latch(relMakers.length, function(){
 				//console.log('returning view snapshot: ' + JSON.stringify(edits))
 				edits.sort(function(a,b){return a.editId - b.editId;})
 				cb(edits)
@@ -681,7 +681,7 @@ exports.make = function(schema, objectState, broadcaster){
 					var copy = [].concat(addObjectTasks)
 					addObjectTasks = []
 					
-					var cdl = _.latch(copy.length, 1000, function(){
+					var cdl = _.latch(copy.length, function(){
 						//console.log('done adding ' + copy.length + ' objects')
 						maintain(endEditId)
 					})
@@ -693,7 +693,7 @@ exports.make = function(schema, objectState, broadcaster){
 					var copy = [].concat(addViewTasks)
 					addViewTasks = []
 					
-					var cdl = _.latch(copy.length, 1000, function(){maintain(endEditId)})
+					var cdl = _.latch(copy.length, function(){maintain(endEditId)})
 					copy.forEach(function(task){
 						addView(task.id, task.lastEditId, endEditId, function(){
 							task.cb()

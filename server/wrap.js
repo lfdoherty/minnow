@@ -807,6 +807,10 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				if(rp.view === 'default'){
 					defaultCase = recurse(rp.params[0])
 				}else{
+					if(rp.view !== 'case'){
+						//console.log(JSON.stringify())
+						_.errout('invalid non-case case: ' + JSON.stringify(rp))
+					}
 					_.assertEqual(rp.view, 'case')
 					var caseValue = rp.params[0]
 					var caseExpr = rp.params[1]
@@ -965,6 +969,24 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				cb(undefined);
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){cb([]);}
+		}
+	}else if(rel.type === 'let'){
+		var subHandle = recurse(rel.rest)
+		handle = {
+			name: 'let(' + subHandle.name + ')',
+			getStateAt: function(bindings, editId, cb){
+				var newBindings = _.extend({}, bindings)
+				newBindings[rel.name] = recurse(rel.expr)
+				console.log('in let')
+				subHandle.getStateAt(newBindings, editId, cb)
+			},
+			getChangesBetween: function(bindings, startEditId, endEditId, cb){
+				//_.errout('TODO')
+				var newBindings = _.extend({}, bindings)
+				newBindings[rel.name] = recurse(rel.expr)
+				console.log('in let')
+				subHandle.getChangesBetween(newBindings, startEditId, endEditId, cb)
+			}
 		}
 	}
 
