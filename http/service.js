@@ -94,6 +94,8 @@ function viewExprHash(e){
 		//console.log('e: ' + JSON.stringify(e))
 		_.assertObject(e.schemaType)
 		s += JSON.stringify(e.schemaType)
+	}else if(e.type === 'let'){
+		s += JSON.stringify(e.expr.schemaType)+':'+JSON.stringify(e.rest.schemaType)
 	}else{
 		_.errout('TODO: ' + JSON.stringify(e))
 	}
@@ -119,6 +121,45 @@ function schemaHash(schema){
 	})
 	return s
 }
+
+function makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb){
+	return function(err, e){
+		if(err){
+			console.log(err)
+			console.log(new Error().stack)
+			cb(err)
+			return
+		}
+
+		var snapshotIds = e.snapshotVersionIds.concat([-1]);
+		var lastVersionId = snapshotIds[snapshotIds.length-2]//e.lastVersionId;
+		//console.log(JSON.stringify(e))
+		_.assertInt(lastVersionId)
+
+		var key;
+
+		if(s.isView){
+			key = '';
+			if(params.length === 0) key = '-'
+			for(var i=0;i<params.length;++i){
+				if(i > 0) key += ';';
+				key += querystring.escape(params[i]);
+			}
+		}else{
+			key = params+'';
+		}
+	
+		var paths = [];
+		for(var i=0;i<snapshotIds.length;++i){
+			var id = snapshotIds[i];
+			var previousId = i > 0 ? snapshotIds[i-1] : -1;
+			paths.push(pathPrefix + id + '/' + previousId + '/' + key);
+		}
+	
+		cb(undefined, snapshotIds, paths, lastVersionId);
+	}
+}
+
 exports.make = function(schema, cc){
 
 	var sh = schemaHash(schema)
@@ -128,6 +169,21 @@ exports.make = function(schema, cc){
 		
 		makeSyncId: function(cb){
 			cc.makeSyncId(cb);
+		},
+		getViewFilesHistorical: function(viewName, params, historicalKey, cb){
+			_.assertLength(arguments, 4)
+			_.assertDefined(params)
+			
+			var s = schema[viewName];
+			if(s === undefined) _.errout('unknown view: ' + viewName)
+			
+			var viewCode = s.code;
+			
+			//log('getting snapshots: ' + JSON.stringify(params))
+			var getMsg = {typeCode: viewCode, params: JSON.stringify(params), historicalKey: historicalKey}
+			_.assert(getMsg.params != 'null')
+			var pathPrefix = serverStateUid + '/' + viewCode + '/' + historicalKey + '/'
+			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
 		},
 		//returns the paths for the snapshots for the view
 		getViewFiles: function(viewName, params, cb){
@@ -139,67 +195,52 @@ exports.make = function(schema, cc){
 			
 			var viewCode = s.code;
 			
-			log('getting snapshots: ' + JSON.stringify(params))
+			//log('getting snapshots: ' + JSON.stringify(params))
 			var getMsg = {typeCode: viewCode, params: JSON.stringify(params)}
 			_.assert(getMsg.params != 'null')
-			cc.getSnapshots(getMsg, _.once(function(err, e){
-				if(err){
-					console.log(err)
-					console.log(new Error().stack)
-					cb(err)
-					return
-				}
-
-				var snapshotIds = e.snapshotVersionIds.concat([-1]);
-				var lastVersionId = snapshotIds[snapshotIds.length-2]//e.lastVersionId;
-				//console.log(JSON.stringify(e))
-				_.assertInt(lastVersionId)
-
-				/*if(arguments.length === 0){
-					cb();
-				}else{*/
-					var key;
-
-					if(s.isView){
-						key = '';
-						if(params.length === 0) key = '-'
-						for(var i=0;i<params.length;++i){
-							if(i > 0) key += ';';
-							key += querystring.escape(params[i]);
-						}
-					}else{
-						key = params+'';
-					}
-				
-					var paths = [];
-					for(var i=0;i<snapshotIds.length;++i){
-						var id = snapshotIds[i];
-						var previousId = i > 0 ? snapshotIds[i-1] : -1;
-						paths.push(serverStateUid + '/' + viewCode + '/' + id + '/' + previousId + '/' + key);
-					}
-				
-					cb(undefined, snapshotIds, paths, lastVersionId);
-				//}
-			}));
+			var pathPrefix = serverStateUid + '/' + viewCode + '/'
+			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
 		},
 		
 		//returns the javascript string content of the view file
 		getViewFile: function(viewCode, snapshotId, previousId, paramsStr, cb){
+			_.assertLength(arguments, 5)
 
 			handle.getViewJson(viewCode, snapshotId, previousId, paramsStr, function(err, json){
 				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
 			})
 		},
+		getViewFileHistorical: function(viewCode, snapshotId, previousId, paramsStr, historicalKey, cb){
+			_.assertLength(arguments, 6)
+
+			handle.getViewJsonHistorical(viewCode, snapshotId, previousId, paramsStr, historicalKey, function(err, json){
+				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
+			})
+		},
 		getViewJson: function(viewCode, snapshotId, previousId, paramsStr, cb){
+			_.assertLength(arguments, 5)
 			var s = schema._byCode[viewCode];
 
 			var parsedParams = doParseParams(paramsStr, s)
-			//console.log('paramsStr: ' + paramsStr);
-			
-			//console.log('got blah: ' + JSON.stringify(params));
-
 			
 			var snapReq = {typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			cc.getSnapshot(snapReq, function(err, response){
+				if(err){
+					cb(err)
+				}else{
+					response.snap.id = snapshotId;
+					cb(undefined, response.snap)
+				}
+			});
+		},
+		getViewJsonHistorical: function(viewCode, snapshotId, previousId, paramsStr, historicalKey, cb){
+			_.assertLength(arguments, 6)
+			
+			var s = schema._byCode[viewCode];
+
+			var parsedParams = doParseParams(paramsStr, s)
+			
+			var snapReq = {historicalKey: historicalKey, typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
 			cc.getSnapshot(snapReq, function(err, response){
 				if(err){
 					cb(err)

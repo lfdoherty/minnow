@@ -16,7 +16,7 @@ var fparse = require('fparse')
 var pathsplicer = require('./pathsplicer')
 var pathmerger = require('./pathmerger')
 
-var serializeViewObject = require('./view_sequencer').serializeViewObject
+var serializeViewObject = require('./snapshot_serialization').serializeViewObject
 
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
@@ -90,8 +90,9 @@ var logCounter = 0
 
 var fp = shared.editFp
 	
+var connectionCount = 0
 function createTcpServer(appSchema, port, s, readyCb){
-	log('making tcp server')
+	//console.log('making tcp server')
 	var connections = []
 	
 	
@@ -132,11 +133,82 @@ function createTcpServer(appSchema, port, s, readyCb){
 		})
 	},1000)*/
 
-	var tcpServer = net.createServer(function(c){
-
-		if(isClosed){
-			_.errout('getting connection despite server being closed')
+	function addConnection(c){
+		++connectionCount
+		if(!connections){
+			console.log('WARNING: adding connection from destroyed server')
+			c.destroy()
+			return
 		}
+		connections.push(c)
+		console.log('connections: ' + connectionCount)
+	}
+	function removeConnection(c){
+		--connectionCount
+		if(!connections){
+			console.log('WARNING: removing connection from destroyed server')//: ' + new Error().stack)
+			c.destroy()
+			return
+		}
+		connections.splice(connections.indexOf(c), 1)
+		console.log('connections: ' + connectionCount)
+		c.destroy()
+	}
+	
+	var cf = makeClientFunc(s, appSchema, addConnection, removeConnection, liveConnections, getTemporaryGenerator, lastTemporaryId)
+	var tcpServer = net.createServer(cf);
+
+	tcpServer.on('close', function(){
+		console.log('TCP SERVER CLOSED')
+	})
+	var serverHandle = {
+		close: function(cb){
+			//console.log('minnow server manually closed tcp server')
+			isClosed = true
+			
+			var cdl = _.latch(2, function(){
+				//console.log('all closed')
+				cb()
+			})
+			tcpServer.on('close', function(){
+				//log('tcp server closed')
+				cdl()
+			})
+			//console.log('closing tcp server: ', tcpServer.connections)
+			
+			//console.log(JSON.stringify(Object.keys(liveConnections)))
+			//Object.keys(liveConnections).forEach(function(k){
+			//	liveConnections[k].destroy()
+			//})
+			liveConnections = undefined
+			
+			//apparently you cannot close a server until you've destroyed all its connections
+			//even if those connections were closed remotely???
+			connections.forEach(function(c){
+				c.destroy();
+				//_.assert(c.isDead)
+			})
+			connections = undefined
+			tcpServer.close()
+			s.close(function(){
+				//console.log('closed rest')
+				cdl()
+			})
+		}
+	}
+
+	tcpServer.listen(port, function(){
+		readyCb(serverHandle);
+		readyCb = undefined
+	});
+}
+
+function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConnections, getTemporaryGenerator, lastTemporaryId){
+	function clientFunc(c){
+
+		/*if(isClosed){
+			_.errout('getting connection despite server being closed')
+		}*/
 		
 		var isDead = false
 	
@@ -144,9 +216,10 @@ function createTcpServer(appSchema, port, s, readyCb){
 		
 		c.on('error', function(e){
 			console.log('tcp server error: ' + e + ' ' + require('util').inspect(e))
-			if((''+e) === 'Error: This socket is closed.'){
-				_.assert(isDead)
-			}
+			//if((''+e) === 'Error: This socket is closed.'){
+				//_.assert(isDead)
+			//	if(!isDe
+			//}
 			//_.assert(isDead)
 		})
 		
@@ -160,7 +233,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 	
 		log('tcp server got connection')
 		
-		connections.push(c)
+		//connections.push(c)
+		addConnection(c)
 		
 		//var w
 		var rrk = fparse.makeRs()
@@ -438,12 +512,18 @@ function createTcpServer(appSchema, port, s, readyCb){
 			originalConnection: function(){
 			
 				//console.log('got original connection')
+				
+				if(!liveConnections){
+					console.log('ERROR: tried to open connection to already closed server, how is this possible')
+					return
+				}
 
 				conn = setupConnection()
 
 				conn.deser = deser
 				
 				conn.randomHandle = randomHandle
+				randomHandle = undefined
 
 				connectionId = 'r'+Math.random()
 				conn.w.setup({serverInstanceUid: s.serverInstanceUid(), connectionId: connectionId});
@@ -513,6 +593,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 						_.assertInt(realId)
 						_.assert(realId > 0)
 						conn.currentIdFor[syncId] = realId
+						//console.log('set top to: ' + realId + ' <- ' + e.edit.id)
 						_.assert(conn.currentIdFor[syncId] > 0)
 					}else{
 						conn.currentIdFor[syncId] = e.edit.id
@@ -575,7 +656,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 							//_.assertInt(state.top)
 							state.top = currentId
 							if(!state.object) state.object = state.top
-						//	console.log('persisting with state: ' + JSON.stringify(state))
+							//console.log('persisting with state: ' + JSON.stringify(state))
 							s.persistEdit(op, state, e.edit, syncId, tg, reifyCb)
 						}catch(e){
 							//if there's an error during persistence, do not permit reconnection (the edit stream is likely invalid)
@@ -650,9 +731,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 		}
 		
 		function cleanupClient(){
-			console.log('client closed')
+			//console.log('client closed: ' + new Error().stack)
 			if(isDead){
-				console.log('already closed')
+				console.log('already closed: ' + new Error().stack)
 				return
 			}
 			c.isDead = true
@@ -660,12 +741,22 @@ function createTcpServer(appSchema, port, s, readyCb){
 			if(conn){
 				clearInterval(conn.flushHandle)
 			
-				clearInterval(conn.randomHandle)
+				clearTimeout(conn.randomHandle)
 				clearInterval(conn.ackHandle)
 				conn.randomHandle = undefined
+				conn.flushHandle = undefined
+				conn.ackHandle = undefined
 			}
+			if(randomHandle){
+				clearTimeout(randomHandle)
+			}
+			Object.keys(reader).forEach(function(rk){
+				reader[rk] = undefined
+			})
 
-			connections.splice(connections.indexOf(c), 1)
+			//connections.splice(connections.indexOf(c), 1)
+			removeConnection(c)
+			conn.w = undefined
 			deser = undefined
 		}
 		
@@ -676,19 +767,21 @@ function createTcpServer(appSchema, port, s, readyCb){
 			console.log('server ending the connection stream: ' + JSON.stringify(conn.openSyncIds))
 			//console.log(new Error().stack)
 			
-			//TODO end all sync handles
+			//end all sync handles
 			permanentlyEndConnection()
 			
-			if(conn){
+			if(conn && conn.w){
 				conn.w.end(undefined, true)
 				conn.w = undefined
 			}
+			conn = undefined
+			deser = undefined
 		});
 
 		var deser;
-		c.on('connect', function(){
-			deser = fparse.makeReadStream(shared.clientRequests, reader, increaseAck)			
-		})
+		//c.on('connect', function(){
+		deser = fparse.makeReadStream(shared.clientRequests, reader, increaseAck)			
+		//})
 		
 		function permanentlyEndConnection(){
 			conn.openSyncIds.forEach(function(syncId){
@@ -731,42 +824,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		
 		
 		//console.log('flushed setup')
-	});
-
-	tcpServer.on('close', function(){
-		//console.log('TCP SERVER CLOSED')
-	})
-	var serverHandle = {
-		close: function(cb){
-			//console.log('minnow server manually closed tcp server')
-			isClosed = true
-			
-			var cdl = _.latch(2, function(){
-				//log('all closed')
-				cb()
-			})
-			tcpServer.on('close', function(){
-				//log('tcp server closed')
-				cdl()
-			})
-			//console.log('closing tcp server: ', tcpServer.connections)
-			
-			//apparently you cannot close a server until you've destroyed all its connections
-			//even if those connections were closed remotely???
-			connections.forEach(function(c){
-				c.end();
-				//_.assert(c.isDead)
-			})
-			tcpServer.close()
-			s.close(function(){
-				//log('closed rest')
-				cdl()
-			})
-		}
 	}
-
-	tcpServer.listen(port, function(){
-		readyCb(serverHandle);
-	});
+	return clientFunc
 }
 exports.make = makeServer;

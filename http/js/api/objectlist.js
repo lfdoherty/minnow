@@ -563,10 +563,11 @@ ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);
 	
-	this.saveEdit(editCodes.addNewAt, {typeCode: type.code, index: index})
 
 	var n = this._makeAndSaveNew(json, type)
 	_.assertObject(n)
+
+	this.saveEdit(editCodes.addNewAt, {typeCode: type.code, index: index, temporary: n._internalId()})
 	
 	this.emit({}, 'add', n, index)
 	//this.obj.push(n)

@@ -1,10 +1,6 @@
 "use strict";
 
-var Cache = require('./../variable_cache')
-
 var schema = require('./../../shared/schema')
-var listenerSet = require('./../variable_listeners')
-var fixedPrimitive = require('./../fixed/primitive')
 
 var _ = require('underscorem')
 
@@ -18,7 +14,7 @@ function nowType(rel, ch){
 
 schema.addFunction('now', {
 	schemaType: nowType,
-	implementation: nowMaker,
+	//implementation: nowMaker,
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'now(refresh-macro)'
@@ -26,6 +22,7 @@ schema.addFunction('now', {
 
 function stub(){}
 
+/*
 function copyBindings(bindings){
 	var newBindings = Object.create(null)
 	Object.keys(bindings).forEach(function(key){
@@ -179,5 +176,5 @@ function svgNow(s, cache, delayGetter, delayKey, implicits, bindings, editId){
 	}
 	
 	return cache.store(key, handle)
-}
+}*/
 

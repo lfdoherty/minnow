@@ -38,6 +38,9 @@ exports.advance = function(config, done){
 		
 				c.historicalView('general', [], function(err, handle){
 					//_.assertObject(versionHandle)
+					if(err) throw err
+					
+					console.log('handle: ' + JSON.stringify(handle.toJson()))
 					
 					_.assert(handle.objects.count() === 0)
 					

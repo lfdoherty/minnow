@@ -623,7 +623,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 		var id = edits[1].edit.id
 	}
 	var t = this.schema._byCode[typeCode];
-	console.log('typeCode: ' + typeCode)
+	//console.log('typeCode: ' + typeCode)
 	_.assertObject(t)
 	if(this.objectApiCache[id] !== undefined){
 		if(this.objectApiCache[id].prepared){
@@ -697,7 +697,7 @@ SyncApi.prototype.adjustTopObjectTo = function(id){
 		this.resetTopObjectOutputState()
 
 		//console.log('&&&&& selecting top object: ' + id + ' <- ' + this.currentObjectId)
-		
+		//console.log(new Error().stack)
 		this.currentObjectId = id
 		
 		this.resetTopObjectOutputState()
@@ -714,7 +714,7 @@ SyncApi.prototype.adjustTopObjectTo = function(id){
 SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
-	console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
+	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
 	
 	if(this.localMode){
 		return
@@ -773,7 +773,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertInt(op);
 	_.assertInt(editId);
 
-	console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
+	//console.log('*** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
@@ -1103,7 +1103,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 		return
 	}
 
-	console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
+	//console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
 	
 	if(obj[0].op === editCodes.destroy){

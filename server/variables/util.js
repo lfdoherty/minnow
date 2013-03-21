@@ -1,3 +1,4 @@
+"use strict";
 
 /*
 TODO standardize edit names (e.g. remove, addExisting)

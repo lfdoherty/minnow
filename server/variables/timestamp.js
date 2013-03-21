@@ -1,11 +1,8 @@
+"use strict";
 
 var _ = require('underscorem')
 
-//var Cache = require('./../variable_cache')
-var listenerSet = require('./../variable_listeners')
-var fixedPrimitive = require('./../fixed/primitive')
 var schema = require('./../../shared/schema')
-
 
 function timestampType(rel){
 	return {type: 'primitive', primitive: 'long'}
@@ -13,7 +10,6 @@ function timestampType(rel){
 
 schema.addFunction('timestamp', {
 	schemaType: timestampType,
-	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'timestamp(version)',
@@ -26,89 +22,3 @@ schema.addFunction('timestamp', {
 	}
 })
 
-function maker(s, self, rel, typeBindings){
-	var elementGetter = self(rel.params[0], typeBindings)
-	
-	var cache = s.makeCache()//new Cache(s.analytics)
-
-	var f
-	if(rel.params[0].schemaType.primitive === 'int'){
-		f = svg.bind(undefined, s, cache, elementGetter)
-	}else{
-		_.errout('TODO?: ' + JSON.stringify(rel.params[0].schemaType))
-	}
-	
-	f.wrapAsSet = function(v, editId, context){return fixedPrimitive.make(s)(v, {}, editId);}
-	
-	return f
-}
-
-function svg(s, cache, elementGetter, bindings, editId){
-
-	//_.errout('TODO')
-
-	var element = elementGetter(bindings, editId)	
-	var key = element.key
-	if(cache.has(key)) return cache.get(key)
-	
-	var listeners = listenerSet()
-
-	var timestamp
-	var version
-	
-	var handle = {
-		name: 'timestamp',
-		attach: function(listener, editId){
-			listeners.add(listener)
-			_.assertInt(editId)
-			//for(var i=0;i<versions.length;++i){
-				//var v = versions[i]
-				//var t = timestamps[v]
-				//listener.put(v,t,undefined,editId)
-			//}
-			if(timestamp !== undefined){
-				listener.set(timestamp, undefined, editId)
-			}
-		},
-		detach: function(listener, editId){
-			listeners.remove(listener)
-			if(editId && timestamp){
-				/*for(var i=0;i<versions.length;++i){
-					var v = versions[i]
-					var t = timestamps[v]
-					listener.del(v,editId)
-				}*/
-				listener.set(undefined, timestamp, editId)
-			}
-		},
-		oldest: oldest,
-		key: key,
-		descend: function(){_.errout('INVALID: NOT AN OBJECT TYPE');},
-		destroy: function(){
-			handle.descend = handle.oldest = handle.attach = handle.detach = function(){_.errout('destroyed');}
-			element.detach(elementsListener)
-			listeners.destroyed()
-		}
-	}
-	
-	
-	var ongoingEditId;
-	function oldest(){
-		var oldestEditId = element.oldest()
-		if(ongoingEditId !== undefined && ongoingEditId < oldestEditId) oldestEditId = ongoingEditId
-		return oldestEditId
-	}
-	
-	var elementsListener = {
-		set: function(v, oldV, editId){
-			var ts = s.objectState.getVersionTimestamp(v)
-			timestamp = ts
-			version = v
-			listeners.emitSet(timestamp, undefined, editId)
-		},
-		includeView: listeners.emitIncludeView.bind(listeners),
-		removeView: listeners.emitRemoveView.bind(listeners)
-	}
-	element.attach(elementsListener, editId)
-	return cache.store(key, handle)
-}

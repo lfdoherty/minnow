@@ -17,5 +17,6 @@ exports.compute = function(paramValues){
 	return paramValues[0].length
 }
 exports.computeSync = function(z, str){
+	if(str === undefined) return -1
 	return str.length
 }

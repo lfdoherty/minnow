@@ -2,9 +2,6 @@
 
 var _ = require('underscorem')
 
-//var Cache = require('./../variable_cache')
-var listenerSet = require('./../variable_listeners')
-
 var schema = require('./../../shared/schema')
 var _ = require('underscorem')
 
@@ -13,7 +10,6 @@ function caseType(rel){
 }
 schema.addFunction('default', {
 	schemaType: caseType,
-	implementation: maker,
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'NA',
@@ -21,9 +17,4 @@ schema.addFunction('default', {
 		_.errout('this should never happen')
 	}
 })
-
-
-function maker(s, self, rel, typeBindings){
-	_.errout('this should never happen')
-}
 

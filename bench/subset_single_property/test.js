@@ -9,6 +9,7 @@ var N = 1*1000*100
 
 //since QE rebuild:
 //N=100K in 14240ms
+//N=1M in 184826ms
 
 try{
 var agent = require('webkit-devtools-agent');
@@ -71,6 +72,8 @@ function makePartially(v){
 function run(){
 	var start = Date.now()
 	
+	//setTimeout(function(){
+	
 	minnow.makeServer(u.config, function(){
 		console.log('made server')
 
@@ -82,5 +85,7 @@ function run(){
 			}))
 		})
 	})
+	
+	//},15000)
 }
 

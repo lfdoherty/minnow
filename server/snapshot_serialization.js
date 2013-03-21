@@ -115,3 +115,5 @@ function serializeViewObject(w, codes, writersByCode, list){
 		}	
 	}
 }
+
+exports.serializeViewObject = serializeViewObject

@@ -1,3 +1,4 @@
+"use strict";
 
 var _ = require('underscorem')
 
@@ -31,6 +32,7 @@ function makeGenericGetInclusionsDuring(handle, ws){
 	function genericGetInclusionsDuring(bindings, lastEditId, endEditId, cb){
 		handle.getChangesBetween(bindings, lastEditId, endEditId, function(edits){
 			var ids = ws.extractInclusions(edits)
+			console.log('extracted ' + JSON.stringify(ids)+' from: ' + JSON.stringify(edits))
 			cb(ids)
 		})
 	}
@@ -52,7 +54,64 @@ exports.makeUtilities = function(schemaType){
 		convertToChange: makeChangeConverter(schemaType),
 		convertToEdit: makeEditConverter(schemaType),
 		defaultState: makeDefaultState(schemaType),
-		validateState: makeStateValidator(schemaType)
+		validateState: makeStateValidator(schemaType),
+		makeVersions: makeVersionMaker(schemaType)
+	}
+}
+
+function makeVersionMaker(type){
+	if(type.type === 'object' || type.type === 'view' || type.type === 'primitive'){
+		return function(startState, changes){
+			var versions = []
+			for(var i=0;i<changes.length;++i){
+				var c = changes[i]
+				versions.push({state: c.value, editId: c.editId})
+			}
+			return versions
+		}
+	}else if(type.type === 'set' || type.type === 'list'){
+		return function(startState, changes){
+			var versions = []
+			var state = [].concat(startState)
+			for(var i=0;i<changes.length;++i){
+				var c = changes[i]
+				if(c.type === 'add'){
+					state.push(c.value)
+				}else if(c.type === 'remove'){
+					var i = state.indexOf(c.value)
+					if(i === -1) _.errout('change sequence error')
+					state.splice(i, 1)
+				}else{
+					_.errout('TODO: ' + JSON.stringify(c))
+				}
+				versions.push({state: [].concat(state), editId: c.editId})
+			}
+			return versions
+		}
+	}else if(type.type === 'map'){
+		return function(startState, changes){
+			var versions = []
+			var state = _.extend({}, startState)
+			
+			for(var i=0;i<changes.length;++i){
+				var c = changes[i]
+				if(c.type === 'put'){
+					state[c.state.key] = c.value
+				}else if(c.type === 'remove'){
+					state[c.value] = undefined
+				}else{
+					_.errout('TODO: ' + JSON.stringify(c))
+				}
+				versions.push({state: _.extend({}, state), editId: c.editId})
+			}
+			return versions
+		}
+	}else if(type.type === 'nil'){
+		return function(){
+			_.errout('cannot have versions of nil')
+		}
+	}else{
+		_.errout('TODO: ' + JSON.stringify(type))
 	}
 }
 
@@ -117,6 +176,7 @@ function makeDiffFinder(type){
 		}
 	}else if(type.type === 'map'){
 		if(type.value.type === 'set'){
+			var keyOp = getKeyOp(type.key)
 			return function(a, b){
 				//_.errout('TODO')
 				//console.log('states: ' + JSON.stringify([a,b]))
@@ -133,23 +193,24 @@ function makeDiffFinder(type){
 					}
 				})
 				Object.keys(b).forEach(function(bKeyStr){
+					_.assertDefined(bKeyStr)
 					if(a[bKeyStr] === undefined){
 						var values = b[bKeyStr]
 						_.assertArray(values)
 						values.forEach(function(v){
 							_.assertPrimitive(v)
 							_.assertDefined(v)
-							changes.push({type: 'putAdd', key: bKeyStr, value: v})
+							changes.push({type: 'putAdd', value: v, state: {key: bKeyStr, keyOp: keyOp}})
 						})
 					}else{
 						diffSets(a[bKeyStr], b[bKeyStr], function(added){
 							_.assertPrimitive(added)
 							_.assertDefined(added)
-							changes.push({type: 'putAdd', key: bKeyStr, value: added})
+							changes.push({type: 'putAdd', value: added, state: { key: bKeyStr, keyOp: keyOp}})
 						},function(removed){
 							//_.errout('TODO')
 							_.assertDefined(removed)
-							changes.push({type: 'putRemove', key: bKeyStr, value: removed})
+							changes.push({type: 'putRemove', value: removed, state: {key: bKeyStr, keyOp: keyOp}})
 						})
 					}
 				})
@@ -211,6 +272,21 @@ function makeDiffFinder(type){
 	_.errout('tODO: ' + JSON.stringify(type))
 }
 
+function getKeyOp(t){
+	if(t.type === 'primitive'){
+		if(t.primitive === 'string'){
+			return editCodes.selectStringKey
+		}else if(t.primitive === 'int'){
+			return editCodes.selectIntKey
+		}else{
+			_.errout('tODO: ' + JSON.stringify(type))
+		}
+	}else if(t.type === 'object'){
+		return editCodes.selectObjectKey
+	}else{
+		_.errout('tODO: ' + JSON.stringify(type))
+	}
+}
 function makeEditConverter(type){
 	
 	if(type.type === 'set' || type.type === 'list'){
@@ -291,20 +367,8 @@ function makeEditConverter(type){
 	}else if(type.type === 'map'){
 		var mt = type.value.type
 		
-		var keyOp
-		if(type.key.type === 'primitive'){
-			if(type.key.primitive === 'string'){
-				keyOp = editCodes.selectStringKey
-			}else if(type.key.primitive === 'int'){
-				keyOp = editCodes.selectIntKey
-			}else{
-				_.errout('tODO: ' + JSON.stringify(type))
-			}
-		}else if(type.key.type === 'object'){
-			keyOp = editCodes.selectObjectKey
-		}else{
-			_.errout('tODO: ' + JSON.stringify(type))
-		}
+		var keyOp = getKeyOp(type.key)
+		
 		
 		if(mt === 'object'){
 			return function(e){
@@ -365,7 +429,7 @@ function makeEditConverter(type){
 				}
 				//return {op: editCodes.addExistingViewObject, edit: {id: e.value}, syncId: -1, editId: e.editId}
 			}
-		}else if(mt === 'set'){
+		}else if(mt === 'set' || mt === 'list'){
 			var multiType = type.value.members.type
 			if(multiType === 'primitive'){
 				var pt = type.value.members.primitive
@@ -381,12 +445,13 @@ function makeEditConverter(type){
 						_.assertInt(e.editId)
 						//
 						if(e.type === 'putAdd'){
-							_.assertDefined(e.key)
+							_.assertDefined(e.state.key)
 							_.assertString(e.value)
-							return {op: editCodes.putAddString, edit: {value: e.value}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+							return {op: editCodes.putAddString, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 						}else if(e.type === 'putRemove'){
+							_.assertDefined(e.state.key)
 							_.assertString(e.value)
-							return {op: editCodes.putRemoveString, edit: {value: e.value}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+							return {op: editCodes.putRemoveString, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 						}else if(e.type === 'remove'){
 							_.assertDefined(e.key)
 							return {op: editCodes.delKey, edit: {}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
@@ -410,17 +475,23 @@ function makeEditConverter(type){
 			}else if(multiType === 'object'){
 				return function(c){
 					if(c.type === 'putAdd'){
-						return {op: editCodes.putAddExisting, edit: {id: c.value}, state: {key: c.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
+						_.assertDefined(c.state.key)
+						return {op: editCodes.putAddExisting, edit: {id: c.value}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
 					}else if(c.type === 'remove'){
 						return {op: editCodes.delKey, edit: {}, state: {key: c.value, keyOp: keyOp}, syncId: -1, editId: c.editId}
 					}else if(c.type === 'putRemove'){
-						return {op: editCodes.putRemoveExisting, edit: {id: c.value}, state: {key: c.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
+						_.assertDefined(c.state.key)
+						return {op: editCodes.putRemoveExisting, edit: {id: c.value}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
 					}else{
 						_.errout('TODO: ' + JSON.stringify(c))
 					}
 				}
 			}else{
 				_.errout('TODO: ' + JSON.stringify(type.value.members))
+			}
+		}else if(mt === 'map'){
+			return function(){
+				_.errout('cannot instantiate edits for a map whose values are also maps')
 			}
 		}
 	}else if(type.type === 'primitive'){
@@ -684,7 +755,7 @@ function makeInclusionsExtractor(type){
 				var has = {}
 				changes.forEach(function(c){
 					if(c.type === 'add'){
-						id = c.value
+						var id = c.value
 						if(has[id]) return
 						ids.push(id)						
 					}else if(c.type === 'remove'){
@@ -751,6 +822,7 @@ function makeInclusionsExtractor(type){
 				var ids = []
 				changes.forEach(function(c){
 					if(c.type === 'put'){
+						_.assertDefined(c.value)
 						if(ids.indexOf(c.value) === -1) ids.push(c.value)
 					}else if(c.type === 'remove'){
 					}else{
@@ -764,7 +836,8 @@ function makeInclusionsExtractor(type){
 				var ids = []
 				changes.forEach(function(c){
 					if(c.type === 'put'){
-						if(ids.indexOf(c.key) === -1) ids.push(c.key)
+						_.assertDefined(c.state.key)
+						if(ids.indexOf(c.state.key) === -1) ids.push(c.state.key)
 					}else{
 						_.errout('TODO: ' + JSON.stringify(c))
 					}
@@ -776,10 +849,12 @@ function makeInclusionsExtractor(type){
 				var ids = []
 				changes.forEach(function(c){
 					if(c.type === 'putAdd'){
+						_.assertDefined(c.value)
 						if(ids.indexOf(c.value) === -1) ids.push(c.value)
 					}else if(c.type === 'remove'){
 						//do nothing
 					}else if(c.type === 'putRemove'){
+						//do nothing
 					}else{
 						_.errout('TODO: ' + JSON.stringify(c))
 					}

@@ -49,11 +49,9 @@ function openUid(dataDir, cb){
 	})
 }
 
-exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */cb){
+exports.make = function(schema, globalMacros, dataDir, cb){
 	_.assertLength(arguments, 4);
 	
-	//schema.name = appName;
-
 	var serverUid;
 	
 	function makeDirIfNecessary(cb){
@@ -89,6 +87,7 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 	function load(ap, objectState, broadcaster, apClose, ol){
 		//console.log('loading...');
+		_.assertFunction(ol.close)
 	
 		var viewState = viewStateModule.make(schema, globalMacros, broadcaster, objectState);
 
@@ -101,21 +100,34 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 		
 		var listenerCbs = {}
 		
-		var objectSubscribers = {}
-		
 		var ended = false
 		
 		var handle = {
 			serverInstanceUid: function(){return serverUid;},
 
 			close: function(cb){
-				//m.close();
+				console.log('closing server...')
 				var cdl = _.latch(2, function(){
-					log('closed server')
+					//console.log('closed server')
 					cb()
 				})
-				apClose(function(){log('closed ap');cdl()})
-				ol.close(function(){log('closed ol');cdl()})
+				try{
+					_.each(listenerCbs, function(value){
+						value.seq.end()
+					})
+					apClose(function(){
+					console.log('closed ap');
+						cdl()
+					})
+					ol.close(function(){
+						console.log('closed ol');
+						cdl()
+					})
+				}catch(e){
+					console.log(e.stack)
+				}
+
+				
 			},
 		
 			beginView: function(e, readyCb){
@@ -128,21 +140,6 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
-			/*selectObject: function(id, objId){
-				objectState.selectCurrentObject(id, objId)
-			},
-			selectSubObject: function(id){
-				_.errout('TODO')
-			},
-			selectProperty: function(id){
-				_.errout('TODO')
-			},
-			selectIntKey: function(id){
-				_.errout('TODO')
-			},
-			selectStringKey: function(id){
-				_.errout('TODO')
-			},*/
 			persistEdit: function(op, state, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
@@ -151,21 +148,12 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				//_.assertArray(path)
 				_.assertInt(syncId);
 				//_.assertFunction(cb)
-				
-				//log.info('adding edit: ', [id, path, op, edit, syncId])
-				//console.log('adding edit: ', JSON.stringify([id, path, op, edit, syncId]))
-				
+
 				if(op === editCodes.make || op === editCodes.makeFork){
 					var id = objectState.addEdit(op, state, edit, syncId, computeTemporaryId)
-					/*if(op === editCodes.makeFork){
-						listenerCbs[syncId].seq.subscribeToObject(edit.sourceId)
-					}*/
+
 					if(!edit.forget){
-						//objectSubscribers[syncId](id)//, objectState.getCurrentEditId()-1)
-						//console.log('subscribing ' + syncId + ' ' + id)
 						listenerCbs[syncId].seq.subscribeToObject(id)
-					}else{
-						//console.log('forgetting: ' + edit.forget)
 					}
 					return id
 				}else{
@@ -322,20 +310,6 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 					
 					if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
 					
-					//_.assertInt(e.typeCode)
-					//log('e: ', e)
-					//console.log('sending edit: ' + JSON.stringify(e))
-
-					//console.log(new Error().stack)
-					/*if(e.path){//TODO is this really necessary here?  shouldn't it be redundant?
-						e.path.forEach(function(ep){
-							if(ep.op === editCodes.selectObjectKey){// || e.op === editCodes.reselectObjectKey){
-								//console.log("selecting object key")
-								includeObjectCb(ep.edit.key, function(){//TODO also listen?
-								})
-							}
-						})
-					}*/
 					if(e.state && e.state.key){
 						_.assertInt(e.state.keyOp)
 					}
@@ -371,14 +345,10 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 
 				listenerCbs[syncId] = listenerCbWrapper
 
-				//var getViewGetter = viewState.provideViewGetter()
-				console.log('making sequencer')
+				//console.log('making sequencer')
 				var seq = viewSequencer.makeStream(includeObjectCb, listenerCbWrapper, sendViewObjectCb, syncId)
 				listenerCbWrapper.seq = seq
-				
-				/*objectSubscribers[syncId] = function(id){
-					seq.subscribeToObject(id)
-				}*/
+
 				
 				return syncId
 			},
@@ -441,13 +411,6 @@ exports.make = function(schema, globalMacros, dataDir, /*synchronousPlugins, */c
 				}else{
 					_.errout('ERROR')
 				}			
-			},
-			end: function(){
-				_.each(listenerCbs, function(value){
-					value.seq.end()
-				})
-				console.log('SERVER ENDED')
-				ended = true
 			}
 		};
 		//console.log('cbing')

@@ -394,6 +394,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	var clientEnded = false
 	var clientClosed = false
 	
+	var draining = false
 	var backingWriter = fparse.makeReplayableWriteStream(shared.clientRequests, {
 		write: function(buf){
 			if(clientDestroyed || clientEnded || clientClosed){
@@ -402,7 +403,15 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				//once the reconnection client is available
 				return
 			}
-			client.write(buf);
+			var d = client.write(buf);
+			//console.log('wrote ' + d + ' ' + buf.length)
+			if(!d && !draining){
+				draining = true
+				client.once('drain', function(){
+					//console.log('drained*')
+					draining = false
+				})
+			}
 		},
 		end: function(){
 		}
@@ -410,16 +419,21 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	w = backingWriter.fs
 	//backingWriter.beginFrame()
-	w.flush = function(){
-		//if(backingWriter.hasWritten()){
-			//console.log('writing frame')
-			if(backingWriter.shouldWriteFrame()){
-				backingWriter.endFrame()
-				//backingWriter.beginFrame()
+	w.flush = function(cb){
+		if(backingWriter.shouldWriteFrame()){
+			backingWriter.endFrame()
+		}
+		if(cb){
+			if(draining){
+				console.log('draining: ' + draining)
+				client.once('drain',function(){
+					console.log('drained')
+					cb()
+				})
+			}else{
+				cb()
 			}
-		//}else{
-		//	console.log('nothing written')
-		//}
+		}
 	}	
 	
 	var increaseAckHandle
@@ -479,7 +493,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			clearInterval(flushIntervalHandle)
 			clearInterval(randomHandle)
 			clearInterval(increaseAckHandle)
-			throw e
+			//throw e
 		}
 	}
 	
@@ -496,23 +510,23 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		client.on('data', dataListener);
 
 		client.on('error', function(e) {
-			console.log('tcp client error: ' + e)
+			console.log('tcp client error: ' + e.stack)
 		})
 
 		client.on('close', function() {
 			clientClosed = true
 			clearInterval(flushIntervalHandle)
-			clearInterval(randomHandle)
+			clearTimeout(randomHandle)
 			clearInterval(increaseAckHandle)
-			if(!wasClosedManually){
+			console.log('got close event')
+			if(!clientEnded && !wasClosedManually){
 				tryReconnect()
 			}
 		})
 		client.on('end', function() {
-			log('client disconnected');
-			//doFlush()
+			console.log('client disconnected');
 			clearInterval(flushIntervalHandle)
-			clearInterval(randomHandle)
+			clearTimeout(randomHandle)
 			clearInterval(increaseAckHandle)
 			clientEnded = true
 		});
@@ -557,6 +571,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		client.on('error', function(){
 			console.log('reconnect failed')
 			console.log('TODO: retry, wait, etc')
+			handle.close()
 		})
 	}
 	
@@ -678,13 +693,13 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		getSnapshots: function(e, cb){
 			_.assertFunction(cb)
 			applyRequestId(e, function(res){
-				//console.log('res: ' + JSON.stringify(res))
 				res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
 				cb(undefined, res)
 			});
 			w.getSnapshots(e);
-			log('tcpclient: getSnapshots: ' + JSON.stringify(e))
+			//log('tcpclient: getSnapshots: ' + JSON.stringify(e))
 		},
+		
 		getAllSnapshots: function(e, cb){
 			_.assertFunction(cb)
 			//_.assertBuffer(e.snapshotVersionIds)
@@ -722,11 +737,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//log('tcpclient: getSnapshots')
 		},
 		close: function(cb){
-			w.flush()
+			console.log('closing client---')
 			wasClosedManually = true
 			clearInterval(flushIntervalHandle)
+			clearInterval(increaseAckHandle)
 			if(clientEnded){
-				cb()
+				if(cb) cb()
 				return
 			}
 			console.log('calling client end')
@@ -736,13 +752,20 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				alreadyCbed = true
 				cb()
 			})
-			client.on('end', function(){
-				if(alreadyCbed) return
-				log('tcp client closed')
-				alreadyCbed = true
-				cb()
+			console.log('ending client: ' + w.flush)
+			w.flush(function(){
+				client.on('close', function(){
+					if(alreadyCbed) return
+					console.log('tcp client closed')
+					alreadyCbed = true
+					w = undefined
+					
+					if(cb) cb()
+				})
+				console.log('really ended client')
+				client.end()
 			})
-			client.end()
+			
 		}
 	}
 

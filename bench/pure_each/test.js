@@ -1,8 +1,8 @@
 /* 
-	Time to beat (N,K,T ms): (500000,2,50712)
+	Time to beat (N,K,T ms): (500*1000,2,34695)
 */
 
-var N = 500000
+var N = 500*1000
 var K = 2
 
 var minnow = require('./../../client/client')
@@ -28,6 +28,7 @@ function run(){
 					if(c.many.value() === N){
 						clearInterval(h)
 						console.log('done: ' + (Date.now()-start))
+						console.log(JSON.stringify(c.toJson()))
 						process.exit(0)
 					}
 				},10)

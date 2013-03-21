@@ -1,3 +1,4 @@
+"use strict";
 
 //var MaxDesiredSegmentSize = 1024*1024;
 
@@ -142,6 +143,8 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 		}*/
 
 		log('done loading ' + deser.manyRead + ' commands in ' + (end-start) + 'ms');
+		
+		deser = undefined
 				
 		var handle = {}
 		

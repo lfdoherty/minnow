@@ -14,20 +14,15 @@ exports.apply = function(view){
 	})
 }
 
+var log = require('quicklog').make('minnow/globalize')
+
 function globalizeView(v, view){
-	var bindings = {}
-	v.params.forEach(function(p){
-		_.assertString(p.name)
-		bindings[p.name] = {type: 'param', name: p.name}
-	})
 	_.each(v.rels, function(rel, relName){
-		var newRel = v.rels[relName] = globalizeExpression(rel, bindings)
-		//console.log('old: ' + JSON.stringify(rel) + '\n new: ' + JSON.stringify(newRel))
-		//newRel.code = rel.code
+		var newRel = v.rels[relName] = globalizeExpression(rel)
 	})
 }
 
-function globalizeExpression(rel, bindings, extractCb){
+function globalizeExpression(rel, extractCb){
 	if(rel.type === 'view'){
 		var extractions = []
 		if(extractCb === undefined){
@@ -36,30 +31,29 @@ function globalizeExpression(rel, bindings, extractCb){
 			}
 		}
 		rel.params.forEach(function(p, i){
-			rel.params[i] = globalizeExpression(p, bindings, extractCb)
+			rel.params[i] = globalizeExpression(p, extractCb)
 		})
-		//var code = rel.code
-		extractions.forEach(function(ex){
-			//extractCb(ex)
-			//if(cur.type === 'macro') _.errout('bug')
+		extractions.reverse().forEach(function(ex){//TODO dedup?
  			rel = {type: 'let', expr: ex.expr, name: ex.uid, rest: rel, code: rel.code, schemaType: rel.schemaType}
-
 		})
 	}else if(rel.type === 'value' || rel.type === 'param' || rel.type === 'int' || rel.type === 'nil'){
 		//do nothing
 	}else if(rel.type === 'macro'){
 		rel.expr = globalizeExpression(rel.expr)
 
-		
-		rel.expr = extractGlobals(rel.expr, rel.implicits, function(expr){
+		var newBindingsUsed = _.extend({},rel.bindingsUsed)
+		rel.expr = extractGlobals(rel.expr, rel.implicits, function(expr, uid){
 			//_.errout('TODO: ' + JSON.stringify(expr))
-			var uid = 'extracted_'+Math.random()
+			uid = uid||'extracted_'+Math.random()
 			extractCb(expr, uid)
-			return {type: 'param', name: uid}
+			newBindingsUsed[uid] = true
+			return {type: 'param', name: uid, schemaType: expr.schemaType}
 		})
-		//var cur = rel
-		
-		//return cur
+		rel.bindingsUsed = newBindingsUsed
+	}else if(rel.type === 'let'){
+		//do nothing?
+		rel.expr = globalizeExpression(rel.expr, extractCb)
+		rel.rest = globalizeExpression(rel.rest, extractCb)
 	}else{
 		_.errout('TODO: ' + JSON.stringify(rel))
 	}
@@ -72,12 +66,15 @@ function extractGlobals(rel, implicits, cb){
 		if(rel.type === 'view'){
 			//console.log('view: ' + rel.view)
 			rel.params.forEach(function(p,i){
+				if(i === 0 && rel.view === 'property') return//don't process the property name!
 				rel.params[i] = extractGlobals(p, implicits, cb)
 			})
 			return rel
 		}else if(rel.type === 'let'){
+			log('cannot further globalize let, contains implicits: ' + JSON.stringify([rel.expr, implicits],null,2))
+			rel.rest = extractGlobals(rel.rest, implicits.concat([rel.name]), cb)
 			return rel
-		}else if(rel.type === 'value' || rel.type === 'int' || rel.type === 'param'){
+		}else if(rel.type === 'value' || rel.type === 'int' || rel.type === 'param' || rel.type === 'macro'){
 			//do nothing
 			return rel
 		}else{
@@ -86,10 +83,16 @@ function extractGlobals(rel, implicits, cb){
 	}else{
 		if(rel.type === 'value' || rel.type === 'int' || rel.type === 'param'){
 			//do nothing
+			//return rel
+			//return extractGlobals(rel, implicits, cb)
+			//console.log('rel: ' + JSON.stringify(rel))
+			
+			//return cb(rel)
 			return rel
 		}else if(rel.type === 'let'){
-			//TODO further extract let exprs if possible
-			return rel
+			log('further globalizing let: ' + JSON.stringify([rel.name,rel.expr], null, 2))
+			cb(rel.expr, rel.name)
+			return extractGlobals(rel.rest, implicits.concat(rel.name), cb)//TODO implicits.concat(rel.name) should be unnecessary?
 		}else if(rel.type === 'macro'){
 			//we cannot extract a macro independent of its parent view
 			return rel
@@ -121,7 +124,7 @@ function containsImplicits(rel, implicits){
 	}else if(rel.type === 'macro'){
 		return containsImplicits(rel.expr, implicits)
 	}else if(rel.type === 'let'){
-		return containsImplicits(rel.expr, implicits) || containsImplicits(rel.rest, implicits)
+		return containsImplicits(rel.expr, implicits)// || containsImplicits(rel.rest, implicits)
 	}else if(rel.type === 'value' || rel.type === 'int'){
 		return false
 	}else{

@@ -79,7 +79,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 			}
 		
 			//var snapshot = mergeSnapshots(snapshots);
-			console.log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
+			//console.log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
 
 			//TODO: cache/reuse sync apis?
 			//TODO: they would need to have different syncIds though...
@@ -88,12 +88,12 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 			function readyCb(e){
 				//_.assertInt(e.syncId);
 				//cb()//.getRoot());
-				log('ready!!!!!!!!!!!!!!!!!!!!!!!1')
+				//log('ready!!!!!!!!!!!!!!!!!!!!!!!1')
 				cb()
 			}
 			
 			snapshots.forEach(function(snapshot){
-				log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
+				//log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
 				//process.exit(0)
 				api.addSnapshot(snapshot, historicalKey)
 			})
@@ -110,7 +110,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 				syncId: syncId
 			}
 			if(historicalKey) req.historicalKey = historicalKey
-			console.log('beginning view')
+			//console.log('beginning view')
 			beginView(req, readyCb);
 
 		});
@@ -348,7 +348,7 @@ function makeClient(host, port, clientCb){
 				//}
 			})
 		},function(type, params, historicalKey){
-			console.log(require('util').inspect(params))
+			//console.log(require('util').inspect(params))
 			var key = type + JSON.stringify(params) + ':'+historicalKey
 			//console.log(uid + ' view key (' + key + ')')
 			return key
@@ -467,6 +467,7 @@ function makeClient(host, port, clientCb){
 				if(!forget){
 					_.assertDefined(res)
 				}
+				//console.log('here '+new Error().stack + ' ' + JSON.stringify(res))
 				return res
 			},
 			

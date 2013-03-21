@@ -72,7 +72,7 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id, forkedObject){
 	if(forkedObject){
 	
 		var fes = forkedObject._getEdits()
-		console.log('forkedObject: ' + JSON.stringify(fes))
+		//console.log('forkedObject: ' + JSON.stringify(fes))
 		//_.assert(fes.length >= 2)
 		/*if(fes.length >= 2 && fes[1].op === editCodes.made){
 			fes = [fes[0]].concat(fes.slice(2))
@@ -693,9 +693,9 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	realEdits.reverse()
 	
 	//console.log('prev edits: ' + JSON.stringify(this.edits))
-	realEdits.forEach(function(e, index){
-		console.log(index + ' ' + e.editId + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
-	})
+	//realEdits.forEach(function(e, index){
+	//	console.log(index + ' ' + e.editId + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
+	//})
 	
 	//apply edits
 	s.inputSyncId=-1

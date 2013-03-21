@@ -11,6 +11,8 @@ var _ = require('underscorem');
 var util = require('util');
 
 var globalizeOptimization = require('./globalize').apply
+var eachOptimization = require('./each_optimization').apply
+
 //builtin stuff
 
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
@@ -29,10 +31,15 @@ exports.addFunction = function(name, def){
 	var oldSchemaType = def.schemaType
 	def.schemaType = function(rel, ch){
 		var paramTypes = []
+		var canBeSync = true
 		rel.params.forEach(function(p){
+			//if(!p.schemaType) _.errout('missing schemaType: ' + JSON.stringify(p) + ' ' + JSON.stringify(rel))
 			paramTypes.push(p.schemaType)
+			if(!p.canBeSync) canBeSync = false
 		})
-		return {schemaType: oldSchemaType.bind(this)(rel,ch), paramTypes: paramTypes}
+		var st = oldSchemaType.bind(this)(rel,ch)
+		_.assertDefined(st)
+		return {schemaType: st, paramTypes: paramTypes, canBeSync: canBeSync}
 	}
 }
 var syncPlugins
@@ -55,7 +62,8 @@ exports.getImplementation = function(name){
 var log = require('quicklog').make('minnow/schema')
 
 function loadViews(schemaDirs, str, schema, synchronousPlugins, cb){
-
+	_.assertArray(schemaDirs)
+	
 	var view = myrtle.parse(str);
 	view = viewMinnowize(schemaDirs, view, schema, synchronousPlugins);
 	
@@ -512,12 +520,13 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 		if(plugin.maxParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
 		if(plugin.syntax === undefined) _.errout('plugin ' + pluginName + ' must define a "syntax" string describing its call syntax (for error-reporting purposes.)')
 		
-		
 		synchronousPlugins[pluginName] = {
 			isSynchronousPlugin: true,
 			schemaType: function(rel){
 				var paramTypes = []
+				var canBeSync = true
 				_.each(rel.params, function(p){
+					if(!p.canBeSync) canBeSync = false
 					paramTypes.push(p.schemaType)
 				})
 				//console.log('parsing plugin: ' + pluginName)
@@ -525,8 +534,8 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 				_.assertString(pt)
 				var res = keratin.parseType(pt)
 				_.assertObject(res)
-				//res.paramTypes = paramTypes
-				return {schemaType: res, paramTypes: paramTypes}
+				
+				return {schemaType: res, paramTypes: paramTypes, canBeSync: canBeSync}
 			},
 			implementation: plugin.compute,
 			minParams: plugin.minParams,
@@ -593,7 +602,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			}
 		});		
 
-		loadViews(schemaDir, str, schema, synchronousPlugins, function(globalMacros){
+		loadViews(schemaDirs, str, schema, synchronousPlugins, function(globalMacros){
 			var takenObjectTypeCodes = {}
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
@@ -764,7 +773,7 @@ function parseViewExpr(expr){
 
 		if(fc === "'"){
 			var str = expr.substring(1, expr.length-1);
-			path.push({type: 'value', value: str, schemaType: {type: 'primitive', primitive: 'string'}});
+			path.push({type: 'value', value: str, schemaType: {type: 'primitive', primitive: 'string'}, canBeSync: true});
 			break;
 		}else if(fc === '*'){
 			var filter;
@@ -864,7 +873,7 @@ function parseViewExpr(expr){
 		}else if(expr.indexOf(':') !== -1){
 			var typeName = expr.substr(0, expr.indexOf(':')).trim()
 			expr = expr.substr(expr.indexOf(':')+1)
-			var strExpr = {type: 'value', value: typeName, schemaType: {type: 'primitive', primitive: 'string'}}
+			var strExpr = {type: 'value', value: typeName, schemaType: {type: 'primitive', primitive: 'string'}, canBeSync: true}
 			var paramExpr = expr
 			if(paramExpr.indexOf('.') !== -1) paramExpr = paramExpr.substr(0, paramExpr.indexOf('.'))
 			//console.log('paramExpr: ' + paramExpr)
@@ -901,7 +910,7 @@ function parseViewExpr(expr){
 					path.push({type: 'view', view: 'cast', params: [strExpr, pve]})
 					break;
 				}*/else if(expr === 'false' || expr === 'true'){
-					path.push({type: 'value', value: expr === 'true', schemaType: {type: 'primitive', primitive: 'boolean'}})
+					path.push({type: 'value', value: expr === 'true', schemaType: {type: 'primitive', primitive: 'boolean'}, canBeSync: true})
 					break;
 				}else{
 					checkAlphanumericOnly(expr, 'parameter name must contain only alphanumeric characters, or be & or $ (' + expr + ')');
@@ -1262,7 +1271,12 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 	_.each(v.rels, function(rel, name){
 		var p = result.properties[name] = {};
 		p.name = name;
-		p.type = computeType(rel, v, schema, viewMap, bindingTypes, [], synchronousPlugins);
+		try{
+			p.type = computeType(rel, v, schema, viewMap, bindingTypes, [], synchronousPlugins);
+		}catch(e){
+			require('fs').createWriteStream('schema_error.log').write(JSON.stringify(rel, null, 2))
+			throw e
+		}
 		_.assertInt(rel.code);
 		p.code = rel.code;
 		p.tags = {};
@@ -1306,7 +1320,10 @@ function parseParams(paramsStr){
 function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	_.assertLength(arguments, 4);
 	_.assertObject(schema);
+	_.assertArray(schemaDirs)
 
+	//if(_.isString(schemaDirs)) schemaDirs = [schemaDirs]
+	//console.log(JSON.stringify(schemaDirs))
 	//console.log(new Error().stack)
 
 	var takenCodes = {};
@@ -1400,7 +1417,6 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	
 	concretizeMacros(result)//inline all global macros and partial applications, converting them into 'macros'
 	
-	globalizeOptimization(result)
 
 	computeBindingsUsedByMacros(result)//we can deduplicate variables better if we know that a binding isn't actually used
 	
@@ -1427,6 +1443,10 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	});
 	//console.log('wrote generated: ' + schemaDirs[0] + '/view.schema.generated')
 	fs.writeFile(schemaDirs[0] + '/view.schema.generated', vsStr, 'utf8');
+
+	globalizeOptimization(result)
+	eachOptimization(result)
+	globalizeOptimization(result)
 	
 	return result;
 }

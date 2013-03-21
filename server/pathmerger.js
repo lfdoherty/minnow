@@ -1,7 +1,6 @@
+"use strict";
 
 var _ = require('underscorem')
-
-//var tcpShared = require('./tcp_shared')
 
 function stub(){}
 
@@ -50,20 +49,3 @@ function editToMatch(c, n, cb){
 
 exports.editToMatch = editToMatch
 
-function make(){
-	return {
-		selectCurrentObject: function(id, objId){
-			_.errout('TODO: get current object, saveAp the new one if it is changing')
-		}/*,
-		forgetTemporary = function(real, temporary, syncId){
-			var m = olMap[real]
-			if(m){
-				m.push({type: editCodes.forgetTemporary, real: real, temporary: temporary, syncId: syncId})
-			}else{
-				forgetTemporaryAp(real, temporary, syncId)
-		}*/
-	
-	}
-}
-
-exports.make = make

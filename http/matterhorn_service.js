@@ -49,6 +49,7 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
 	var snapPath = '/mnw/snaps/' + appName + '/';
+	var snapPathHistorical = '/mnw/snaps_historical/' + appName + '/';
 	
 	var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))
 	Object.keys(simplifiedSchema).forEach(function(key){
@@ -67,10 +68,16 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	local.serveJavascript(exports, appName, generateSchemaUrl);
 	secureLocal.serveJavascript(exports, appName, generateSchemaUrl);
 	
-	//var bb = {};
-	
+	function generateSnapHistorical(req, res){
+		var historicalKey = req.params.historicalKey
+		generateSnapInner(req, res, function(viewId, snapshotId, previousId, paramStr, cb){
+			service.getViewFileHistorical(viewId, snapshotId, previousId, paramStr, historicalKey, cb)
+		})	
+	}
 	function generateSnap(req, res){
-
+		generateSnapInner(req, res, service.getViewFile)
+	}
+	function generateSnapInner(req, res, getViewFile){
 		var viewId = parseInt(req.params.viewId);
 		var viewSchema = schema._byCode[viewId]
 		var viewName = viewSchema.name
@@ -113,7 +120,7 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 					return;
 				}*/
 		
-				service.getViewFile(viewId, snapshotId, previousId, paramStr, function(err, jsStr){
+				getViewFile(viewId, snapshotId, previousId, paramStr, function(err, jsStr){
 				
 					if(err){
 						//console.log('err: ' + JSON.stringify(err))
@@ -140,12 +147,55 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	}
 	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
 	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
+	local.get(snapPathHistorical + ':serverUid/:viewId/:historicalKey/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
+	secureLocal.get(snapPathHistorical + ':serverUid/:viewId/:historicalKey/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
 
 	
 	//local.serveJavascriptFile(exports, 
 	//	__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
 	
 	return {
+		getViewTagsHistorical: function(viewName, params, vars, res, cb){
+			_.assertLength(arguments, 5);
+			
+			console.log('getting view tags historical')
+			
+			var viewSchema = minnowClient.schema[viewName]
+			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
+			var viewCode = viewSchema.code
+			var historicalKey = 'historical_'+Math.random()
+			service.getViewFilesHistorical(viewName, params, historicalKey, function(err, snapshotIds, paths, lastSeenVersionId){
+				
+				if(err){
+					console.log('view files error: ' + JSON.stringify(err))
+					res.send(500)
+					return
+				}
+				
+				var result = [];
+
+				console.log('got historical paths:  ' + JSON.stringify(paths))
+			
+				vars.snapshotIds = snapshotIds;
+				vars.lastId = lastSeenVersionId;
+				vars.baseTypeCode = viewCode;
+				vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
+				vars.applicationName = appName
+				vars.mainViewParams = params
+				vars.mainViewHistoricalKey = historicalKey
+				//vars.httpPort = local.getPort()
+				//vars.httpsPort = secureLocal.getSecurePort()
+				
+				for(var i=0;i<paths.length;++i){
+					var p = paths[i];
+					result.push(snapPathHistorical + p);
+				}
+			
+				result.push(schemaUrl);
+			
+				cb(vars, result);
+			});
+		},
 		getViewTags: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
 			

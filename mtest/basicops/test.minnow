@@ -65,7 +65,7 @@ ageConfiguration 3
 //majorityFilter(ageConfig ageConfiguration){each(*entity, {filter(~,greaterThan(add(1,~.age),ageConfig.ageOfMajority))})}
 majorityFilter(ageConfig ageConfiguration){subset(*entity, {greaterThan(add(1,~.age),ageConfig.ageOfMajority)})}
 pairedFilterTest(ac ageConfiguration) 111
-	adults majorityFilter(ac) 1
+	adults majorityFilter(ac) 1022
 
 /*
 crazyHandler(first *){add(first.age,~)}

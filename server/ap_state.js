@@ -21,12 +21,11 @@ var editNames = editFp.names
 var pathControlEdits = {}
 
 var pce = ['reset', 
-	'selectProperty', 'reselectProperty', 
-	'selectObject', 'reselectObject', 
+	'selectProperty',
+	'selectObject',
 	'selectIntKey', 'selectStringKey', 'selectLongKey', 'selectBooleanKey',
-	'reselectIntKey', 'reselectStringKey', 'reselectLongKey', 'reselectBooleanKey',
-	'selectObjectKey', 'reselectObjectKey',
-	'ascend', 'ascend1', 'ascend2', 'ascend3', 'ascend4', 'ascend5']
+	'selectObjectKey',
+	'selectSubObject']
 
 pce.forEach(function(v){
 		pathControlEdits[editCodes[v]] = true
@@ -213,13 +212,7 @@ function make(schema, ol){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}/*else if(op === editCodes.selectObject){
-			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-			_.assert(e.id > 0)
-		}else if(op === editCodes.selectSubObject){
-			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-			_.assert(e.id > 0)
-		}*/
+		}
 		
 		if((op !== editCodes.make && op !== editCodes.makeFork) && state.top < -1){//note that -1 is not a valid temporary id - that is reserved
 			//_.assertInt(id)

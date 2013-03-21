@@ -1,7 +1,10 @@
+"use strict";
 
 var _ = require('underscorem')
 
 var wu = require('./wraputil')
+
+var analytics = require('./analytics')
 
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
@@ -10,12 +13,18 @@ var editNames = editFp.names
 function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, context, ws){
 	var objSchema = s.schema[contextType.object]
 	var propertyCode = objSchema.properties[propertyName].code
+	
+	var nameStr = 'property-single(' + context.name+','+propertyName + ')'
+	
+	var a = analytics.make('property-single['+propertyName+']('+context.name+')', [context])
 	var handle = {
-		name: 'property-single',
+		name: nameStr,
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			context.getStateAt(bindings, editId, function(id){
 				if(id !== undefined){
 					s.objectState.getPropertyValueAt(id,propertyCode, editId, function(pv){
+						a.gotProperty(propertyName)
 						//console.log(id+'.'+propertyCode+' is ' + pv + ' at ' + editId)
 						cb(pv)
 					})
@@ -36,7 +45,9 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 						startEditId = changes[0].editId
 						_.assertDefined(id)
 						s.objectState.getPropertyValueAt(id, propertyCode, startEditId, function(pv){
+							a.gotProperty(propertyName)
 							s.objectState.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(changes){
+								a.gotPropertyChanges(propertyName)
 								if(changes.length > 0){
 
 									cb(changes)
@@ -67,6 +78,9 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 					})
 				})
 			})
+		},
+		getHistoricalChangesBetween: function(){
+			_.errout('TODO')
 		}
 	}
 	
@@ -76,8 +90,10 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 function wrapSetSingleProperty(s, propertyName, propertyType, contextType, context, ws){
 	var objSchema = s.schema[contextType.members.object]
 	var propertyCode = objSchema.properties[propertyName].code
+	var a = analytics.make('property-set['+propertyName+']('+context.name+')', [context])
 	var handle = {
 		name: 'property-set',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 		
 			context.getChangesBetween(bindings, -1, editId, function(state){
@@ -99,6 +115,7 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 					var id = e.value//e.edit.id
 					//console.log('getting property value: ' + id + '.' + propertyCode)
 					s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
+						a.gotProperty(propertyName)
 						_.assertPrimitive(propertyValue)
 						if(propertyValue !== undefined){
 							all.push(propertyValue)
@@ -111,6 +128,10 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 	}
 	if(propertyType.type === 'object' || propertyType.type === 'primitive' || propertyType.type === 'view'){
 		handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
+		
+		handle.getHistoricalChangesBetween = function(){
+			_.errout('TODO')
+		}
 	}else{
 		_.errout('TODO')
 	}
@@ -121,29 +142,38 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 function wrapSetSetProperty(s, propertyName, propertyType, contextType, context, ws){
 	var objSchema = s.schema[contextType.members.object]
 	var propertyCode = objSchema.properties[propertyName].code
+	var a = analytics.make('property-set-set['+propertyName+']('+context.name+')', [context])
 	var handle = {
 		name: 'property-set-set',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			if(!_.isFunction(context.getStateAt)) _.errout('missing getStateAt: ' + context.name)
 		
 			context.getStateAt(bindings, editId, function(state){
 				var all = []
+				var has = {}
+				var result = []
 				var cdl = _.latch(state.length, function(){
-					all.sort(function(a,b){return a.editId - b.editId;})
-					var has = {}
-					var result = []
-					all.forEach(function(value){
-						if(has[value]) return
-						has[value] = true
-						_.assertDefined(value)
-						result.push(value)
-					})
+					//all.sort(function(a,b){return a.editId - b.editId;})
+					//all.forEach(function(value){
+					//	_.assertDefined(value)
+					//	result.push(value)
+					//})
+					//console.log('result: ' + JSON.stringify(result))
 					cb(result)
 				})
 				state.forEach(function(id){
 					s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
 						_.assertArray(propertyValue)
-						all = all.concat(propertyValue)
+						a.gotProperty(propertyName)
+					//	console.log('got: ' + id + ' ' + JSON.stringify(propertyValue) + ' ' + propertyName)
+						for(var i=0;i<propertyValue.length;++i){
+							var value = propertyValue[i]
+							if(has[value]) continue
+							has[value] = true
+							result.push(value)
+						}
+						//all = all.concat(propertyValue)
 						cdl()
 					})
 				})
@@ -153,6 +183,10 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 
 	handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
 	
+	handle.getHistoricalChangesBetween = function(){
+		_.errout('TODO')
+	}
+	
 	return handle
 }
 
@@ -160,8 +194,11 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 function wrapSingleSetProperty(s, propertyName, propertyType, contextType, context, ws){
 	var objSchema = s.schema[contextType.object]
 	var propertyCode = objSchema.properties[propertyName].code
+	var nameStr = 'property-single-set['+propertyName+']('+context.name+')'
+	var a = analytics.make(nameStr, [context])
 	var handle = {
-		name: 'property-single-set',
+		name: nameStr,
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			if(!_.isFunction(context.getStateAt)) _.errout('missing getStateAt: ' + context.name)
 		
@@ -175,6 +212,7 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 				}
 
 				s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
+					a.gotProperty(propertyName)
 					//console.log(editId + ' got* property value ' + id + '.' + propertyCode+': ' + propertyValue)
 					_.assertArray(propertyValue)
 					cb(propertyValue)
@@ -189,6 +227,7 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 				if(id !== endId){
 					if(id === undefined){
 						s.objectState.getPropertyChangesDuring(endId, propertyCode, -1, endEditId, function(changes){
+							a.gotPropertyChanges(propertyName)
 							cb(changes)
 						})
 					}else{
@@ -199,6 +238,7 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 						cb([])
 					}else{
 						s.objectState.getPropertyChangesDuring(endId, propertyCode, startEditId, endEditId, function(changes){
+							a.gotPropertyChanges(propertyName)
 							cb(changes)
 						})
 					}
@@ -207,14 +247,20 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 		})
 	}
 
+	handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
+	}
+	
 	return handle
 }
 
 function wrapSingleMapProperty(s, propertyName, propertyType, contextType, context, ws){
 	var objSchema = s.schema[contextType.object]
 	var propertyCode = objSchema.properties[propertyName].code
+	var nameStr = 'property-single-map['+propertyName+']('+context.name+')'
+	var a = analytics.make(nameStr, [context])
 	var handle = {
-		name: 'property-single-map',
+		name: nameStr,
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			if(!_.isFunction(context.getStateAt)) _.errout('missing getStateAt: ' + context.name)
 		
@@ -226,6 +272,7 @@ function wrapSingleMapProperty(s, propertyName, propertyType, contextType, conte
 
 				s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
 					//console.log(editId + ' got property value ' + id + '.' + propertyCode+': ' + propertyValue)
+					a.gotProperty(propertyName)
 					_.assertObject(propertyValue)
 					cb(propertyValue)
 				})
@@ -237,6 +284,10 @@ function wrapSingleMapProperty(s, propertyName, propertyType, contextType, conte
 		_.errout('TODO')
 	}
 
+	handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
+		_.errout('TODO')
+	}
+	
 	return handle
 }
 
@@ -244,8 +295,10 @@ function wrapSingleMapProperty(s, propertyName, propertyType, contextType, conte
 function wrapSetMapProperty(s, propertyName, propertyType, contextType, context, ws){
 	var objSchema = s.schema[contextType.members.object]
 	var propertyCode = objSchema.properties[propertyName].code
+	var a = analytics.make('property-set-map['+propertyName+']('+context.name+')', [context])
 	var handle = {
 		name: 'property-set-map',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			if(!_.isFunction(context.getStateAt)) _.errout('missing getStateAt: ' + context.name)
 		
@@ -260,6 +313,7 @@ function wrapSetMapProperty(s, propertyName, propertyType, contextType, context,
 				})
 				state.forEach(function(id){
 					s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
+						a.gotProperty(propertyName)
 						//console.log(editId + ' got property value ' + id + '.' + propertyCode+': ' + propertyValue)
 						_.assertObject(propertyValue)
 						
@@ -273,9 +327,11 @@ function wrapSetMapProperty(s, propertyName, propertyType, contextType, context,
 		}
 	}
 
-	handle.getChangesBetween = makeGenericEditsBetween(handle, ws)/*function(bindings, startEditId, endEditId, cb){
+	handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
+	
+	handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
 		_.errout('TODO')
-	}*/
+	}
 
 	return handle
 }

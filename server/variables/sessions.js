@@ -1,9 +1,7 @@
+"use strict";
 
 var _ = require('underscorem')
 
-//var Cache = require('./../variable_cache')
-var listenerSet = require('./../variable_listeners')
-var fixedPrimitive = require('./../fixed/primitive')
 var schema = require('./../../shared/schema')
 
 
@@ -13,12 +11,12 @@ function sessionsType(rel){
 
 schema.addFunction('sessions', {
 	schemaType: sessionsType,
-	implementation: sessionsMaker,
+	//implementation: sessionsMaker,
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'sessions(object)'
 })
-
+/*
 function sessionsMaker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
@@ -127,4 +125,4 @@ function svgSessions(s, cache, elementGetter, bindings, editId){
 		removeView: stub
 	}, editId)
 	return cache.store(key, handle)
-}
+}*/

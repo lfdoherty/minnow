@@ -1,20 +1,12 @@
 "use strict";
 
-//var Cache = require('./../variable_cache')
-
 var schema = require('./../../shared/schema')
-var listenerSet = require('./../variable_listeners')
-var viewInclude = require('./../viewinclude')
-
-var fixedPrimitive = require('./../fixed/primitive')
-var fixedObject = require('./../fixed/object')
+//var viewInclude = require('./../viewinclude')
 
 
 var _ = require('underscorem')
 
 function stub(){}
-
-//var wrapParam = require('./syncplugins').wrapParam
 
 function traverseType(rel, ch){
 
@@ -44,7 +36,6 @@ function traverseType(rel, ch){
 }
 schema.addFunction('traverse', {
 	schemaType: traverseType,
-	implementation: traverseMaker,
 	minParams: 3,
 	maxParams: -1,
 	callSyntax: 'traverse(params...,macro,maxDepth)',
@@ -80,7 +71,7 @@ schema.addFunction('traverse', {
 				cb()
 				return
 			}
-			process.nextTick(function(){
+			setImmediate(function(){
 				macro.getArray(params, function(result){
 					if(_.isArray(result)){
 						if(result.length === 0){
@@ -105,7 +96,7 @@ schema.addFunction('traverse', {
 		}
 	}
 })
-
+/*
 function traverseMaker(s, self, rel, typeBindings){
 
 	var macroParam = rel.params[rel.params.length-2]
@@ -392,10 +383,7 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 				}
 			},
 			listener: resultListener,
-			/*descend: function(path, editId, cb){
-				//_.errout('TODO');
-				return attachedTo.descend(path, editId, cb)
-			},*/
+
 			streamProperty: attachedTo.streamProperty,
 			getTopParent: function(id){
 				return attachedTo.getTopParent(id)
@@ -423,10 +411,7 @@ function svgTraverseMultiple(s, implicits, cache, exprExprGetter, paramExprGette
 		}
 		
 		//console.log('extending: ' + prevKey + ' ' + ourDepth)
-		/*if(alreadyTraversed[prevKey]){
-			return//TODO something else? count?
-		}
-		alreadyTraversed[prevKey] = 1*/
+		
 		
 		//var m = 
 		var f = function(){
@@ -736,18 +721,11 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 					}
 				},
 				listener: resultListener,
-				/*descend: function(path, editId, cb){
-					//_.errout('TODO');
-					attachedTo.descend(path, editId, cb)
-				},*/
+
 				streamProperty: attachedTo.streamProperty,
 				key: '*'+attachedTo.key,
 				oldest: attachedTo.oldest,
-				depthChange: depthChange/*,
-				destroy: function(){
-					variable.oldest = variable.attach = variable.detach = function(){_.errout('destroyed');}
-					variables.splice(variables.indexOf(variable), 1)
-				}*/
+
 			}
 			variables.push(variable)
 		}
@@ -862,5 +840,5 @@ function svgTraverseSingle(s, implicits, cache, exprExprGetter, paramExprGetters
 	}
 		
 	return cache.store(key, handle)
-}
+}*/
 

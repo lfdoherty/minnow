@@ -1,7 +1,10 @@
+"use strict";
 
 var _ = require('underscorem')
 
 var schema = require('./../shared/schema')
+
+var analytics = require('./analytics')
 
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
@@ -24,15 +27,23 @@ var innerify = require('./innerId').innerify
 var InnerId = require('./innerId').InnerId
 var wrapProperty = require('./wrap_property').wrapProperty
 
-var subsetOptimization = require('./variables/subset_optimization')
+//var subsetOptimization = require('./variables/subset_optimization')
+var eachOptimization = require('./variables/each_optimization')
+var mapOptimization = require('./variables/map_optimization')
 
 function makeIdRel(s, context){
+	var a = analytics.make('property-id('+context.name+')', [context])
 	return {
-		name: 'property-id',
+		name: 'property-id('+context.name+')',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			context.getStateAt(bindings, editId, function(id){
 				cb([''+id])
 			})
+		},
+		isFullySync: context.isFullySync,
+		getStateSync: function(bindings){
+			return context.getStateSync(bindings)
 		},
 		getChangesBetween: function(bindings, startEditId, endEditId, cb){
 			context.getChangesBetween(bindings, startEditId, endEditId, function(changes){
@@ -51,14 +62,23 @@ function makeIdRel(s, context){
 }
 
 function makeUuidRel(s, context){
+	var a = analytics.make('property-uuid', [context])
 	return {
-		name: 'property-id',
+		name: 'property-uuid',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			context.getStateAt(bindings, editId, function(id){
-				cb([''+id])
+				if(id === undefined){
+					cb()
+				}else{
+					var uuid = s.objectState.getUuid(id)
+					//console.log('got uuid: ' + uuid)
+					cb(uuid)
+				}
 			})
 		},
 		getChangesBetween: function(bindings, startEditId, endEditId, cb){
+			//console.log('getting uuid changes')
 			context.getChangesBetween(bindings, startEditId, endEditId, function(changes){
 				if(changes.length > 0){
 					_.assertLength(changes, 1)
@@ -77,8 +97,10 @@ function makeUuidRel(s, context){
 	}
 }
 function makeValuesRel(s, context, propertyType, contextType){
+	var a = analytics.make('property-map-values', [context])
 	var handle = {
 		name: 'property-map-values',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			context.getStateAt(bindings, editId, function(map){
 				if(map === undefined){
@@ -111,6 +133,7 @@ function makeValuesRel(s, context, propertyType, contextType){
 function makeMerger(type){
 	if(type.type === 'set' || type.type === 'list'){
 		return function(res){
+			//console.log('merging: ' + JSON.stringify(res))
 			if(res.length === 0) return []
 			var total = res[0]
 			for(var i=1;i<res.length;++i){
@@ -131,6 +154,10 @@ function makeMerger(type){
 			}
 			//console.log(JSON.stringify(res) + ' -> ' + JSON.stringify(arr))
 			return arr
+		}
+	}else if(type.type === 'map'){
+		return function(res){
+			_.errout('TODO')
 		}
 	}else{
 		_.errout('TODO: ' + JSON.stringify(type))
@@ -164,7 +191,19 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		schema: s.schema,
 		objectState: s.objectState
 	}
-	
+
+	var isFullySync = true
+	var nameStr = 'general-operator-sync['+rel.view+']('
+	paramRels.forEach(function(pr, index){
+		if(!pr.isFullySync){
+			//console.log('not sync: ' + pr.name)
+			isFullySync = false
+		}
+		if(index>0) nameStr+=','
+		nameStr += pr.name
+	})
+	nameStr += ')'
+		
 	function makeParams(bindings, editId, cb){
 		
 		var rem = paramRels.length
@@ -195,8 +234,11 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		_.errout('TODO: ' + JSON.stringify(rel.schemaType))
 	}
 
+	var a = analytics.make(nameStr, paramRels)
+
 	var handle = {
-		name: 'general-operator-sync(' + impl.callSyntax + ')',
+		name: nameStr,
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			_.assertFunction(cb)
 			_.assertInt(editId)
@@ -207,29 +249,65 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 				return
 			}
 			
-			function computeResult(){
-				var zl = {schema: z.schema, objectState: z.objectState}//_.extend({}, z)
-				_.assertInt(editId)
-				zl.editId = editId
+			function computeResult(paramStates){
+				//var zl = {schema: z.schema, objectState: z.objectState}//_.extend({}, z)
+				//_.assertInt(editId)
+				///zl.editId = editId
 				
-				var cp = [zl].concat(paramStates)
+				var cp = [z].concat(paramStates)
 				
 				var result = impl.computeSync.apply(undefined, cp)
-				//console.log('computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId)
+				//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId)
+				//console.log(new Error().stack)
 				cb(result)
 			}
 			
-			var paramStates = []
-			
 			//console.log('making params')
-			makeParams(bindings, editId, function(states){
-				//console.log('got states: ' + JSON.stringify(states))
-				paramStates = states
-				computeResult()
-			})
+			makeParams(bindings, editId, computeResult)
 		},
 		
 	}
+
+	if(isFullySync){
+		//TODO create custom getStateSync with hardcoded binding mappings and a direct call
+		if(rel.params.length === 1){
+			var getter = paramRels[0].getStateSync
+			var computeSync = impl.computeSync
+			handle.getStateSync = function(bindingValues){
+				var res = computeSync(z, getter(bindingValues))
+				//console.log('computed1 sync state ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(res) + ' ' + impl.callSyntax)
+				return res
+			}
+		}else if(rel.params.length === 2){
+			var getterA = paramRels[0].getStateSync
+			var getterB = paramRels[1].getStateSync
+			var computeSync = impl.computeSync
+			handle.getStateSync = function(bindingValues){
+				var a = getterA(bindingValues)
+				var b = getterB(bindingValues)
+				var res = computeSync(z, a, b)
+				//console.log('computed2 sync state ' + JSON.stringify(bindingValues) + ' ' + a + ' ' + b +  ' -> ' + JSON.stringify(res) + ' ' + impl.callSyntax)
+				return res
+			}
+		}else{
+			handle.getStateSync = function(bindingValues){
+				var paramStates = []
+				for(var i=0;i<paramRels.length;++i){
+					paramStates[i] = paramRels[i].getStateSync(bindingValues)
+				}
+				var cp = [z].concat(paramStates)
+				var result = impl.computeSync.apply(undefined, cp)			
+				//console.log('computed sync state ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(result) + ' ' + impl.callSyntax)
+				return result
+			}
+		}
+	}else{
+		handle.getStateSync = function(bindingValues){
+			paramRels.forEach(function(pr){console.log('pr: ' + pr.name + ' ' + (!!pr.getStateSync))})
+			_.errout('sync operator has non-sync params: ' + JSON.stringify(rel))			
+		}
+	}
+	handle.isFullySync = isFullySync
 	
 	if(rel.schemaType.type === 'primitive' || rel.schemaType.type === 'object' || rel.schemaType.type === 'view'){
 		//_.errout('TODO')
@@ -248,6 +326,7 @@ function makeSetChangesBetween(handle, ws){
 		//console.log('here: ' + handle.name)
 		handle.getStateAt(bindings, startEditId, function(startState){
 			handle.getStateAt(bindings, endEditId, function(state){
+				//console.log('and here')
 				if(startState !== state){
 					cb([{type: 'set', value: state, editId: endEditId, syncId: -1}])
 				}else{
@@ -365,6 +444,82 @@ function makeSyncGenericGetChangesBetween(handle, ws, rel, recurse){
 	return syncGenericGetChangesBetween
 }
 
+function makeMacroWrapper1(pr, mergeResults){
+	var implicit = pr.implicits[0]
+	function MacroWrapper1(bindings, editId){
+		this.bindings = bindings
+		this.editId = editId
+	}
+	MacroWrapper1.prototype.get = function(av, cb){
+		var newBindings = shallowCopy(this.bindings)
+		//_.errout('TODO')
+		//var w = 
+		newBindings[implicit] = makeWrapper(av)
+		newBindings.__key = this.bindings.__key+'_'+av
+		pr.getStateAt(newBindings, this.editId, cb)
+	}
+	MacroWrapper1.prototype.mergeResults = mergeResults
+	MacroWrapper1.prototype.getArray = function(arr, cb){
+		_.assertLength(arr, 1)
+		var newBindings = shallowCopy(this.bindings)
+		newBindings[implicit] = makeWrapper(arr[0])
+		newBindings.__key = this.bindings.__key+'_'+arr[0]
+		pr.getStateAt(newBindings, this.editId, cb)
+	}
+	return MacroWrapper1
+}
+
+function makeWrapper(value){
+	//_.assertDefined(value)
+	return {
+		name: 'value',
+		getStateAt: function(bindings, editId, cb){
+			//console.log('getting state of value at ' + editId + ' ' + rel.value)
+			if(editId === -1){
+				cb(undefined)
+				return
+			}
+			cb(value)
+		},
+		getStateSync: function(bindingValues){
+			return value
+		},
+		getChangesBetween: function(bindings, startEditId, endEditId, cb){
+			if(startEditId === -1 && endEditId >= 0 && value !== undefined){
+				cb([{type: 'set', value: value, editId: 0}])
+			}else{
+				cb([])
+			}
+		}
+	}
+}
+function makeMacroWrapper2(pr, mergeResults){
+
+	var implicitA = pr.implicits[0]
+	var implicitB = pr.implicits[1]
+	
+	function MacroWrapper2(bindings, editId){
+		this.bindings = bindings
+		this.editId = editId
+	}
+	MacroWrapper2.prototype.get = function(av, bv, cb){
+		var newBindings = shallowCopy(this.bindings)
+		newBindings[implicitA] = makeWrapper(av)
+		newBindings[implicitB] = makeWrapper(bv)
+		newBindings.__key = this.bindings.__key+'_'+av+':'+bv
+		pr.getStateAt(newBindings, this.editId, cb)
+	}
+	MacroWrapper2.prototype.mergeResults = mergeResults
+	MacroWrapper2.prototype.getArray = function(arr, cb){
+		_.assertLength(arr, 2)
+		var newBindings = shallowCopy(this.bindings)
+		newBindings[implicitA] = makeWrapper(arr[0])
+		newBindings[implicitB] = makeWrapper(arr[1])
+		newBindings.__key = this.bindings.__key+'_'+arr[0]+':'+arr[1]
+		pr.getStateAt(newBindings, this.editId, cb)
+	}
+	return MacroWrapper2
+}
 function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 
 
@@ -382,81 +537,27 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 	
 	var cache = {}
 
-	setInterval(function(){
+	/*setInterval(function(){
 		cache = {}
-	}, 15*1000)
+	}, 15*1000)*/
 				//	console.log(new Error().stack)
 	
-	function makeWrapper(value){
-		//_.assertDefined(value)
-		return {
-			name: 'value',
-			getStateAt: function(bindings, editId, cb){
-				//console.log('getting state of value at ' + editId + ' ' + rel.value)
-				if(editId === -1){
-					cb(undefined)
-					return
-				}
-				cb(value)
-			},
-			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				if(startEditId === -1 && endEditId >= 0 && value !== undefined){
-					cb([{type: 'set', value: value, editId: 0}])
-				}else{
-					cb([])
-				}
-			}
-		}
-	}
+	
 	
 	var paramFuncs = []
+	var paramNamesStr = ''
 	paramRels.forEach(function(pr, index){
+		if(index>0) paramNamesStr += ','
+		paramNamesStr += pr.name
 		if(pr.isMacro){
 			var macroWrapper
 			var mergeResults = makeMerger(pr.schemaType)
 			if(pr.manyImplicits === 1){
-				function MacroWrapper1(bindings, editId){
-					this.bindings = bindings
-					this.editId = editId
-				}
-				MacroWrapper1.prototype.get = function(av, cb){
-					var newBindings = shallowCopy(this.bindings)
-					//var w = 
-					newBindings[pr.implicits[0]] = makeWrapper(av)
-					newBindings.__key = this.bindings.__key+'_'+av
-					pr.getStateAt(newBindings, this.editId, cb)
-				}
-				MacroWrapper1.prototype.mergeResults = mergeResults
-				MacroWrapper1.prototype.getArray = function(arr, cb){
-					_.assertLength(arr, 1)
-					var newBindings = shallowCopy(this.bindings)
-					newBindings[pr.implicits[0]] = makeWrapper(arr[0])
-					newBindings.__key = this.bindings.__key+'_'+arr[0]
-					pr.getStateAt(newBindings, this.editId, cb)
-				}
-				paramFuncs[index] = MacroWrapper1
+				
+				paramFuncs[index] = makeMacroWrapper1(pr, mergeResults)
 			}else if(pr.manyImplicits === 2){
-				function MacroWrapper2(bindings, editId){
-					this.bindings = bindings
-					this.editId = editId
-				}
-				MacroWrapper2.prototype.get = function(av, bv, cb){
-					var newBindings = shallowCopy(this.bindings)
-					newBindings[pr.implicits[0]] = makeWrapper(av)
-					newBindings[pr.implicits[1]] = makeWrapper(bv)
-					newBindings.__key = this.bindings.__key+'_'+av+':'+bv
-					pr.getStateAt(newBindings, this.editId, cb)
-				}
-				MacroWrapper2.prototype.mergeResults = mergeResults
-				MacroWrapper2.prototype.getArray = function(arr, cb){
-					_.assertLength(arr, 2)
-					var newBindings = shallowCopy(this.bindings)
-					newBindings[pr.implicits[0]] = makeWrapper(arr[0])
-					newBindings[pr.implicits[1]] = makeWrapper(arr[1])
-					newBindings.__key = this.bindings.__key+'_'+arr[0]+':'+arr[1]
-					pr.getStateAt(newBindings, this.editId, cb)
-				}
-				paramFuncs[index] = MacroWrapper2
+				
+				paramFuncs[index] = makeMacroWrapper2(pr, mergeResults)
 			}else{
 				_.errout('TODO')
 			}
@@ -464,6 +565,9 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 			//do nothing
 		}
 	})	
+	
+	var nameStr = 'general-operator[' + impl.callSyntax.substr(0,impl.callSyntax.indexOf('(')) + '](' + paramNamesStr + ')'
+	//console.log('made: ' + nameStr)
 	
 	function makeParams(bindings, editId, cb){
 		
@@ -496,8 +600,11 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		}
 	}
 	
+	var a = analytics.make('general-operator[' + impl.callSyntax.substr(0,impl.callSyntax.indexOf('(')) + ']', paramRels)
+	
 	var handle = {
-		name: 'general-operator(' + impl.callSyntax + ')',
+		name: nameStr,
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			_.assertFunction(cb)
 			_.assertInt(editId)
@@ -505,11 +612,11 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 			
 			var key = bindings.__key+':'+editId//JSON.stringify(bindings)+':'+editId
 			if(cache[key]){
-				console.log('already cached: ' + key + ' ' + JSON.stringify(cache[key]))
+				//console.log('already cached: ' + key + ' ' + JSON.stringify(cache[key]) + ' ' + nameStr)
 				cb(cache[key])
 				return
 			}
-			
+			//var ttt
 			function callback(result){
 				//clearTimeout(ttt)
 				/*if(cache[key]){
@@ -517,10 +624,12 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 						_.errout('different(' + editId+'): \n' + JSON.stringify(cache[key]) +'\n' + JSON.stringify(result) + '\n'+key +'\n'+impl.callSyntax)
 					}
 				}*/
-				cache[key] = result
-				//console.log('cached ' + key + ' ' + JSON.stringify(cache[key]) + ' ' + impl.callSyntax)
+				//console.log('here')
+				//cache[key] = result
+				//console.log('cached ' + key + ' ' + JSON.stringify(cache[key]) + ' ' + impl.callSyntax + ' ' + nameStr)
 				cb(result)
 			}
+			callback.name = callback+Math.random()
 			//var ttt
 			function computeResult(paramStates){
 				//console.log('DOOOOO: '+viewName + ' ' + paramStates.length)
@@ -536,7 +645,7 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 				
 				
 				
-				var cp = [z, _.assureOnce(callback)].concat(paramStates)
+				var cp = [z, callback].concat(paramStates)
 				//cp = cp.concat(paramStates)
 				if(!impl.computeAsync) _.errout('needs computeAsync: ' + viewName + ', got: ' + JSON.stringify(Object.keys(impl)))
 				
@@ -545,13 +654,30 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 			
 			makeParams(bindings, editId, computeResult)
 		},
-		
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			_.errout('TODO')
+		}
 	}
 	
 	if(rel.schemaType.type === 'primitive' || rel.schemaType.type === 'object' || rel.schemaType.type === 'view'){
 		handle.getChangesBetween = makeSetChangesBetween(handle, ws)
 	}else{
 		handle.getChangesBetween = makeGenericGetChangesBetween(handle, ws, rel)
+	}
+	
+	if(rel.schemaType.type === 'map'){
+		handle.getPartialStateAt = function(bindings, editId, keySet, cb){
+			handle.getStateAt(bindings, editId, function(state){
+				var partialState = {}
+				keySet.forEach(function(key){
+					var v = state[key]
+					if(v !== undefined){
+						partialState[key] = v
+					}
+				})
+				cb(partialState)
+			})
+		}
 	}
 
 	return handle
@@ -563,6 +689,7 @@ function makeGenericGetChangesBetween(handle, ws, rel){
 			//if(rel.schemaType.type === 'map') _.assertObject(startState)
 			handle.getStateAt(bindings, endEditId, function(state){
 				var changes = []
+				//console.log('state: ' + JSON.stringify(state))
 				var es = ws.diffFinder(startState, state)
 				for(var i=0;i<es.length;++i){
 					var e = es[i]
@@ -645,8 +772,15 @@ function makeSwitchRel(s, context, cases, defaultCase, ws, rel){
 			cdl()
 		})
 	}
+	
+	var aChildren = [context]
+	cases.forEach(function(c){aChildren.push(c.expr);aChildren.push(c.value);})
+	if(defaultCase) aChildren.push(defaultCase)
+	var a = analytics.make('switch', aChildren)
+	
 	var handle = {
 		name: 'switch',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			
 			getCurrentCase(bindings, editId, function(currentCase,cv,currentState){
@@ -675,7 +809,6 @@ function makePreforkedRel(s, obj, preforkedObj){
 			})
 			return result
 		}
-		//console.log('getting via preforked ' + id + '.' + propertyCode + ' ' + editId)
 		s.objectState.getPropertyValueAt(id.top, propertyCode, editId, function(pv){
 			if(pv && (!_.isArray(pv)) && (!_.isObject(pv) || pv instanceof InnerId)){
 				//console.log('got pv: ' + JSON.stringify(pv))
@@ -698,6 +831,7 @@ function makePreforkedRel(s, obj, preforkedObj){
 									//console.log('returning pf: ' + JSON.stringify(pfPv))
 									//_.errout('TODO: convert pf inner ids to have fork top id')
 									
+									//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(convertIds(pfPv)))
 									cb(convertIds(pfPv))
 									return
 								}else{
@@ -707,6 +841,7 @@ function makePreforkedRel(s, obj, preforkedObj){
 											result.push(v)
 										}
 									})
+									//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(result))
 									cb(result)
 									return
 								}
@@ -717,11 +852,13 @@ function makePreforkedRel(s, obj, preforkedObj){
 							//console.log('no pv')
 							//_.errout('TODO: convert pf inner ids to have fork top id')
 							if(_.isArray(pfPv)){
+								//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(pfPv))
 								cb(convertIds(pfPv))
 							}else{
 								if(pfPv instanceof InnerId){
 									pfPv = innerify(id, pfPv.inner)
 								}
+								//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(pfPv))
 								cb(pfPv)
 							}
 						}
@@ -731,8 +868,10 @@ function makePreforkedRel(s, obj, preforkedObj){
 		})
 	}
 	
+	var a = analytics.make('preforked', [obj])
 	return {
-		name: 'preforked',
+		name: 'preforked('+obj.name+')',
+		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			
 			var boundGetPropertyValueAt = getPropertyValueAt.bind(undefined, bindings)
@@ -756,6 +895,30 @@ function makePreforkedRel(s, obj, preforkedObj){
 	}
 }
 
+function makeContextWrappedWithCache(exprHandle){
+	function contextWrappedWithCache(){
+		var cachedState
+		var cachedEditId
+		return {
+			name: 'let-cache(' + exprHandle.name + ')',
+			getStateAt: function(bindings, editId, cb){
+				if(editId === cachedEditId){
+					cb(cachedState)
+					return
+				}
+				exprHandle.getStateAt(bindings, editId, function(state){
+					cachedEditId = editId
+					cachedState = state
+					cb(state)
+				})
+			},
+			getChangesBetween: function(bindings, startEditId, endEditId, cb){
+				exprHandle.getChangesBetween(bindings, startEditId, endEditId, cb)
+			}
+		}
+	}
+	return contextWrappedWithCache
+}
 function stub(){}
 
 exports.make = function(s, rel, recurse, getViewHandle){
@@ -822,6 +985,70 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			var obj = recurse(rel.params[0])
 			var preforkedObj = recurse(rel.params[1])
 			handle = makePreforkedRel(s, obj, preforkedObj)
+		}else if(rel.view === 'lastVersion'){
+			var context = recurse(rel.params[0])
+			var a = analytics.make('lastVersion', [context])
+			handle = {
+				name: 'lastVersion('+context.name+')',
+				analytics: a,
+				getStateAt: function(bindings, editId, cb){
+					context.getStateAt(bindings, editId, function(state){
+						if(_.isArray(state)) _.errout('cannot get lastVersion of multiple objects')
+					
+						if(state){
+							s.objectState.getLastVersionAt(state, editId, function(v){
+								cb(v)
+							})
+						}else{
+							cb(undefined)
+						}
+						
+					})
+				}
+			}
+			handle.getChangesBetween = makeGenericGetChangesBetween(handle, ws, rel)
+			
+		}else if(rel.view === 'versions'){
+			//_.errout('TODO')
+			var context = recurse(rel.params[0])
+			var a = analytics.make('versions', [context])
+			handle = {
+				name: 'versions('+context.name+')',
+				analytics: a,
+				getStateAt: function(bindings, editId, cb){
+					context.getStateAt(bindings, editId, function(state){
+						//console.log('getting versions of: ' + JSON.stringify(state))
+						if(_.isArray(state)){
+							var has = {}
+							var results = []
+							var cdl = _.latch(state.length, function(){
+								//console.log(JSON.stringify(state) + ' -> ' +JSON.stringify(results) + ' at ' + editId)
+								cb(results)
+							})
+							state.forEach(function(id){
+								s.objectState.getVersionsAt(id, editId, function(vs){
+									//console.log('got versions: ' + JSON.stringify(vs))
+									vs.forEach(function(v){
+										if(has[v]) return
+										has[v] = true
+										results.push(v)
+									})
+									cdl()
+								})
+							})
+						}else{
+							if(state){
+								s.objectState.getVersionsAt(state, editId, function(vs){
+									cb(vs)
+								})
+							}else{
+								cb()
+							}
+						}
+					})
+				}
+			}
+			handle.getChangesBetween = makeGenericGetChangesBetween(handle, ws, rel)
 		}else if(rel.view === 'typeset'){
 			//just a performance optimization really (might allow removal of z.editId)
 			
@@ -832,15 +1059,20 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			
 			var lastValue
 			var lastEditId
+
+			var nameStr = 'typeset-impl['+typeName+']'
+			var a = analytics.make(nameStr, [])
 			
 			handle = {
-				name: 'typeset-impl',
+				name: nameStr,
+				analytics: a,
 				getStateAt: function(bindings, editId, cb){
 					if(lastEditId === editId){
 						cb([].concat(lastValue))
 						return
 					}
 					s.objectState.getAllIdsOfTypeAt(typeCode, editId, function(ids){
+						a.gotTypeIds(typeCode)
 						//console.log('got typeset: ' + typeCode + ' ' + editId + ' ' + ids.length)
 						//console.log(new Error().stack)
 						lastValue = ids
@@ -850,20 +1082,30 @@ exports.make = function(s, rel, recurse, getViewHandle){
 					})
 				},
 				getChangesBetween: function(bindings, startEditId, endEditId, cb){
+					//console.log('here')
+					s.objectState.getIdsCreatedOfTypeBetween(typeCode, startEditId, endEditId, function(ids){
+						var changes = []
+						for(var i=0;i<ids.length;++i){
+							var id = ids[i]
+							changes.push({type: 'add', value: id, editId: endEditId, syncId: -1})
+						}
+						//console.log('got typeset changes: ' + startEditId + ' ' + endEditId + ' changes: ' + JSON.stringify(changes))
+						cb(changes)
+					})
+				},
+				getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
 					s.objectState.getCreationsOfTypeBetween(typeCode, startEditId, endEditId, function(creations){
 						var changes = []
 						for(var i=0;i<creations.length;++i){
 							var c = creations[i]
 							changes.push({type: 'add', value: c.id, editId: c.editId, syncId: -1})
 						}
-						//console.log(startEditId + ' ' + endEditId + ' changes: ' + JSON.stringify(changes))
+						//console.log('got typeset changes: ' + startEditId + ' ' + endEditId + ' changes: ' + JSON.stringify(changes))
 						cb(changes)
 					})
-					/*if(startEditId === -1){
-						cb([{type: 'set', value: rel.value, editId: 0}])
-					}else{
-						cb([])
-					}*/
+				},
+				getMayHaveChanged: function(bindings, startEditId, endEditId, cb){
+					s.objectState.getChangedDuringOfType(typeCode, startEditId, endEditId, cb)
 				}
 			}
 		}else{
@@ -871,26 +1113,38 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			if(s.schema[rel.view]){
 				return getViewHandle(rel.view, rel)
 			}
-			var impl = schema.getImplementation(rel.view)
-			_.assertDefined(impl)
-			var paramRels = []
-			for(var i=0;i<rel.params.length;++i){
-				var p = rel.params[i]
-				var pr = recurse(p)
-				//console.log(JSON.stringify(p))
-				_.assertObject(p.schemaType)
-				pr.schemaType = p.schemaType
-				paramRels.push(pr)
-			}
-			handle = makeOperatorRel(s, rel, paramRels, impl, rel.view, ws, recurse)
 			
-			/*if(rel.view === 'each' && rel.params[1].expr.view === 'filter'){
-			 	handle = subsetOptimization.make(s, rel, paramRels, impl, rel.view, ws, handle, recurse)
-			}*/
+			if(rel.view === 'each-optimization'){
+				handle = eachOptimization.make(s, rel, recurse, handle, ws)
+			}else{
+				var impl = schema.getImplementation(rel.view)
+				_.assertDefined(impl)
+				var paramRels = []
+				for(var i=0;i<rel.params.length;++i){
+					var p = rel.params[i]
+					var pr = recurse(p)
+					//console.log(JSON.stringify(p))
+					_.assertObject(p.schemaType)
+					pr.schemaType = p.schemaType
+					paramRels.push(pr)
+				}
+				handle = makeOperatorRel(s, rel, paramRels, impl, rel.view, ws, recurse)
+			
+				/*if(rel.view === 'each' && rel.params[1].expr.view === 'filter'){
+				 	handle = subsetOptimization.make(s, rel, paramRels, impl, rel.view, ws, handle, recurse)
+				}*/
+				if(rel.view === 'map'){
+					handle = mapOptimization.make(s, rel, recurse, handle, ws)
+					//console.log(JSON.stringify(rel))
+					//_.errout('TODO')
+				}
+			}
 		}
 	}else if(rel.type === 'value' || rel.type === 'int'){
+		var nameStr = 'value['+rel.value+']'
+		var a = analytics.make(nameStr, [])
 		handle = {
-			name: 'value',
+			name: nameStr,
 			getStateAt: function(bindings, editId, cb){
 				//console.log('getting state of value at ' + editId + ' ' + rel.value)
 				if(editId === -1){
@@ -900,21 +1154,30 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				_.assertDefined(rel.value)
 				cb(rel.value)
 			},
+			getStateSync: function(){
+				return rel.value
+			},
+			isFullySync: true,
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
 				if(startEditId === -1 && endEditId >= 0){
 					cb([{type: 'set', value: rel.value, editId: 0}])
 				}else{
 					cb([])
 				}
-			}
+			},
+			analytics: a
 		}
 	}else if(rel.type === 'macro'){
 		_.assertInt(rel.manyImplicits)
 		var inner = recurse(rel.expr)
 		if(!inner.getStateAt) _.errout('missing getStateAt: ' + inner.name + ' ' + inner.getChangesBetween)
 		//TODO REMOVEME?
+
+		var a = analytics.make('macro', [inner])
+
 		handle = {
-			name: 'macro',
+			name: 'macro['+inner.name+']',
+			analytics: a,
 			isMacro: true,
 			manyImplicits: rel.manyImplicits,
 			implicits: rel.implicits,
@@ -927,8 +1190,20 @@ exports.make = function(s, rel, recurse, getViewHandle){
 		}
 	}else if(rel.type === 'param'){
 		var paramName = rel.name
+		if(!rel.schemaType) _.errout('missing schemaType: ' + JSON.stringify(rel))
+		var isObject = rel.schemaType.type === 'object'
+		var nameStr = 'param['+(rel.schemaType.object||rel.schemaType.primitive||rel.schemaType.view)+':'+rel.name+']'
+		var a = analytics.make(nameStr, [])
+
 		handle = {
-			name: 'param',
+			name: nameStr,
+			getStateSync: function(bindingValues){
+				var b = bindingValues[paramName]
+				//if(isObject && b === undefined) _.errout('param missing: ' + JSON.stringify([paramName, bindingValues]))
+				//console.log(paramName + ' -> ' + JSON.stringify(b))
+				return b
+			},
+			isFullySync: true,
 			getStateAt: function(bindings, editId, cb){
 				if(editId >= 0){
 					var b = bindings[paramName]
@@ -959,34 +1234,65 @@ exports.make = function(s, rel, recurse, getViewHandle){
 					//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
 					cb([])
 				}
-			}
+			},
+			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+				/*if(startEditId > 0){
+					//console.log('startEditId greater ' + startEditId + ',' + endEditId)
+					cb([])
+				}else if(endEditId >= 0){*/
+					var b = bindings[paramName]
+					b.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+						/*if(v===undefined){
+							//console.log('no binding')
+							cb([])
+						}else{
+							cb([{type: 'set', value: v, editId: endEditId}])//, editId: bindings.__bindingTimes[paramName]}])
+						}*/
+						if(changes.length > 0){
+							_.errout('TODO: ' + JSON.stringify(changes))
+						}
+					})
+				/*}else{
+					//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
+					cb([])
+				}*/
+			},
+			analytics: a
 		}
 		
 	}else if(rel.type === 'nil'){
+		var a = analytics.make('nil', [])
 		handle = {
 			name: 'nil',
 			getStateAt: function(bindings, editId, cb){
 				cb(undefined);
 			},
-			getChangesBetween: function(bindings, startEditId, endEditId, cb){cb([]);}
+			getChangesBetween: function(bindings, startEditId, endEditId, cb){cb([]);},
+			analytics: a
 		}
 	}else if(rel.type === 'let'){
+		var exprHandle = recurse(rel.expr)
 		var subHandle = recurse(rel.rest)
+		
+		var contextWrappedWithCache = makeContextWrappedWithCache(exprHandle)
+		
+		var a = analytics.make('let:'+rel.name+'('+exprHandle.name+','+subHandle.name+')', [exprHandle, subHandle])
 		handle = {
 			name: 'let(' + subHandle.name + ')',
 			getStateAt: function(bindings, editId, cb){
 				var newBindings = _.extend({}, bindings)
-				newBindings[rel.name] = recurse(rel.expr)
-				console.log('in let')
+				newBindings[rel.name] = contextWrappedWithCache()//exprHandle//TODO wrap this in localized caching?
+				//console.log('in let')
 				subHandle.getStateAt(newBindings, editId, cb)
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
 				//_.errout('TODO')
 				var newBindings = _.extend({}, bindings)
-				newBindings[rel.name] = recurse(rel.expr)
-				console.log('in let')
+				newBindings[rel.name] = contextWrappedWithCache()//exprHandle
+				//console.log('in let')
 				subHandle.getChangesBetween(newBindings, startEditId, endEditId, cb)
-			}
+			},
+			analytics: a
 		}
 	}
 

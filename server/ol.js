@@ -373,7 +373,7 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 }
 
 Ol.prototype.close = function(cb){//TODO wait for writing to sync
-	cb()
+	this.olc.close(cb)
 }
 
 Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optimize away
@@ -614,26 +614,59 @@ Ol.prototype.getVersions = function(id, cb){
 				versions.push(version)
 			}
 		}
-		cb(versions)
+		cb(versions, id)
 	})
 }
-Ol.prototype.getLastVersion = function(id, cb){
-	this.get(id, -1, -1, function(edits){
+Ol.prototype.getVersionsAt = function(id, editId, cb){
+	this.get(id, -1, editId, function(edits){
+		var versions = []
+		var has = {}
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(isPathOp(e.op)) continue
+			var version = e.editId
+			if(has[version] === undefined){
+				has[version] = true
+				//console.log('adding version: ' + JSON.stringify(e))
+				versions.push(version)
+			}
+		}
+		cb(versions, id)
+	})
+}
+Ol.prototype.getLastVersion = function(id){//, cb){
+	return this.lastEditId[id]
+	/*this.get(id, -1, -1, function(edits){
 		var version
 		//var has = {}
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			if(isPathOp(e.op)) continue
-			/*var version = e.editId
-			if(has[version] === undefined){
-				has[version] = true
-				//console.log('adding version: ' + JSON.stringify(e))
-				versions.push(version)
-			}*/
+
 			version = e.editId
 		}
 		cb(version)
-	})
+	})*/
+	
+}
+
+Ol.prototype.getLastVersionAt = function(id, editId, cb){//, cb){
+	var last = this.lastEditId[id]
+	if(last < editId){
+		cb(last)
+	}else{
+		this.get(id, -1, editId, function(edits){
+			var version
+			//var has = {}
+			for(var i=0;i<edits.length;++i){
+				var e = edits[i]
+				if(isPathOp(e.op)) continue
+
+				version = e.editId
+			}
+			cb(version)
+		})
+	}
 }
 
 //note that 'path' is only required for edits that are not path updates
@@ -647,6 +680,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, state){
 	
 	if(op === editCodes.make){
 		_.assert(syncId > 0)
+		//console.log('MAKE ' + this.readers.lastVersionId)
 		return this._make(edit, timestamp, syncId)
 	}else if(op === editCodes.makeFork){
 		_.assert(syncId > 0)
@@ -686,7 +720,8 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, state){
 		local.innerParentIndex[resId] = state.top//[{op: editCodes.selectObject, edit: {id: id}}].concat(path)		
 	}*/
 	if(op === editCodes.initializeUuid){
-		this.uuid[res.id] = edit.uuid
+		//console.log('saved uuid ' + id + '->' + edit.uuid)
+		this.uuid[id] = edit.uuid
 	}else if(op === editCodes.addNew){
 		op = editCodes.addedNew
 		++this.idCounter
@@ -783,7 +818,7 @@ Ol.prototype.streamVersion = function(already, id, startEditId, endEditId, cb, e
 
 	var sourceRes
 	var gCdl = _.latch(2, function(){
-		console.log('sending sourceRes: ' + id + ' ' + sourceRes.length)
+		//console.log('sending sourceRes: ' + id + ' ' + sourceRes.length)
 		if(sourceRes) cb(id, sourceRes)
 		endCb()
 	})
@@ -837,6 +872,26 @@ Ol.prototype.getLatestVersionId = function(){
 Ol.prototype.getMany = function(typeCode){
 	return (this.idsByType[typeCode] || []).length
 }
+Ol.prototype.getAllIdsOfTypeAt = function(typeCode, endEditId, cb){
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.idsByType[tc] || [];
+		var editIds = this.creationEditIdsByType[tc]
+		for(var i=0;i<ids.length;++i){
+			var id = ids[i]
+			if(!this.destroyed[id]){
+				var editId = editIds[i]
+				if(editId <= endEditId){
+					res.push(id)
+				}
+			}
+		}
+	}
+	if(cb) cb(res)
+	return res
+}
 Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -854,6 +909,26 @@ Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 	}
 	if(cb) cb(res)
 	return res
+}
+
+Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.idsByType[tc] || [];
+		var editIds = this.creationEditIdsByType[tc]
+		for(var i=0;i<ids.length;++i){
+			var id = ids[i]
+			if(!this.destroyed[id]){
+				var editId = editIds[i]
+				if(editId > startEditId && editId <= endEditId){
+					res.push(id)
+				}
+			}
+		}
+	}
+	cb(res)
 }
 
 Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
@@ -878,16 +953,37 @@ Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEdit
 	//return res	
 }
 
+Ol.prototype.getChangedDuringOfType = function(typeCode, startEditId, endEditId, cb){
+	var ids = this.getAllIdsOfType(typeCode)
+	var remainingIds = []
+	var definite = []
+	for(var i=0;i<ids.length;++i){
+		var id = ids[i]
+		var lastVersion = this.getLastVersion(id)
+		if(lastVersion > startEditId){
+			if(lastVersion <= endEditId){
+				definite.push(id)
+			}else{
+				remainingIds.push(id)
+			}
+		}
+	}
+	this.getSubsetThatChangesBetween(remainingIds, startEditId, endEditId, function(ids){
+		cb(definite.concat(ids))
+	})
+}
 Ol.prototype.getSubsetThatChangesBetween = function(ids, startEditId, endEditId, cb){
 	var subset = []
 	var local = this
 	var rem = 1
-	ids.forEach(function(id){
+	//ids.forEach(function(id){
+	for(var i=0;i<ids.length;++i){
+		var id = ids[i]
 		_.assertInt(id)
 		var last = local.lastEditId[id]
 		if(last < startEditId) return
 		++rem
-		local.getVersions(id, function(versions){
+		local.getVersions(id, function(versions, id){
 			var changed = false
 			for(var j=0;j<versions.length;++j){
 				var v = versions[j]
@@ -900,7 +996,7 @@ Ol.prototype.getSubsetThatChangesBetween = function(ids, startEditId, endEditId,
 			--rem
 			if(rem === 0) cb(subset)
 		})
-	})
+	}
 	--rem
 	if(rem === 0) cb(subset)	
 }

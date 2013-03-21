@@ -16,6 +16,12 @@ var minnowXhr = require('./../http/js/minnow_xhr')
 
 require('./../http/js/api/topobject').prototype.errorOnWarn = true
 
+try{
+var agent = require('webkit-devtools-agent');
+}catch(e){
+	//throw e
+	console.log(e)
+}
 /*
 var count = 0
 var old = console.log
@@ -112,7 +118,7 @@ function cont(){
 					setTimeout(function(){
 						report()
 						process.exit()
-					},500)
+					},400)
 				})
 			//})
 		//})
@@ -129,7 +135,7 @@ function cont(){
 					//log('requiring: ' + file)
 					var t = require(dir+'/'+file)
 					each(t, function(test, name){
-						//log('got test')
+						//log('got test in ' + dir)
 						if(includedTest && includedTest !== name) return
 						
 						tests.push({name: name, test: test, dir: dir, dirName: path.basename(dir)})
@@ -143,6 +149,9 @@ function cont(){
 
 var portCounter = 2000
 
+var heapdump = require('heapdump');
+//heapdump.writeSnapshot();//just checking
+
 function moreCont(doneCb){	
 
 	var passedCount = 0;
@@ -152,6 +161,9 @@ function moreCont(doneCb){
 	//var dieCdl = _.latch(tests.length, function(){
 	function report(){
 		console.log('all tests finished: ' + passedCount + '/' + (failedCount+passedCount));
+		if(global.gc) global.gc()
+		heapdump.writeSnapshot();
+		
 		console.log('took ' + (Date.now()-start)+'ms.')
 		if(failedList.length > 0){
 			console.log('failed: ')
@@ -248,10 +260,6 @@ function moreCont(doneCb){
 			fail(ee)
 		}
 		
-		/*var timeoutHandle = setTimeout(function(){
-			fail(new Error('test timed out'))
-		}, 4000)*/
-		
 		var timeoutHandle
 		
 		function finish(){
@@ -282,6 +290,7 @@ function moreCont(doneCb){
 		
 		function doTest(){
 			try{
+				//console.log('schemaDir: ' + t.dir)
 				var config = {schemaDir: t.dir, dataDir: testDir, port: port}
 				//console.log('calling')
 				var realDelay = t.test(config, done)

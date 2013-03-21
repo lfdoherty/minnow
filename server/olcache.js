@@ -27,6 +27,13 @@ exports.make = function(){
 	var many = 0
 	var cacheHasFilled = false
 	
+	/*var readCache = {}//for reading objects
+	var readBinaryCache = {}
+	setInterval(function(){
+		readCache = {}
+		readBinaryCache = {}
+	},5000)*/
+	
 	function evict(newId){
 		//var oldestIndex = first
 		//if(oldestIndex === -1) oldestIndex = CACHE_SIZE-1
@@ -147,7 +154,8 @@ exports.make = function(){
 					return res
 				}
 			}else{
-				return ob.get(id)
+				//if(readCache[id]) return readCache[id]
+				return /*readCache[id] = */ob.get(id)
 			}
 		},
 		getBinary: function(id){
@@ -162,7 +170,8 @@ exports.make = function(){
 				ob.serializeEdits(edits, w)
 				return w.finish()
 			}else{
-				return ob.getBinary(id)//TODO cache?
+				//if(readBinaryCache[id]) return readBinaryCache[id]
+				return /*readBinaryCache[id] = */ob.getBinary(id)//TODO cache?
 			}
 		},
 		serializeBinaryRange: function(id, startEditId, endEditId, w){
@@ -227,6 +236,14 @@ exports.make = function(){
 		isTopLevelObject: function(id){
 			
 			return cache[id] || ob.isTopLevelObject(id)
+		},
+		close: function(cb){
+			cache = undefined
+			order = undefined
+			ob.close()
+			ob = undefined
+			console.log('closed olc')
+			if(cb) cb()
 		}
 	}
 	

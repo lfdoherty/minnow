@@ -93,7 +93,7 @@ PrimitiveSetHandle.prototype.changeListener = function(subObj, key, op, edit, sy
 	_.assertLength(arguments, 6);
 	_.assertInt(op)
 
-	console.log('primitive set handle changeListener: ' + JSON.stringify(arguments))
+	//console.log('primitive set handle changeListener: ' + JSON.stringify(arguments))
 
 	//if(path.length > 0) _.errout('invalid path, cannot descend into primitive set: ' + JSON.stringify(path))
 	

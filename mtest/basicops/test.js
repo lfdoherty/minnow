@@ -465,6 +465,7 @@ exports.singlePairedFilterTest = function(config, done){
 								var teenager = v.make('entity', {age: 17, name: 'teenager'})
 								teenager.age.set(18)
 								setTimeout(function(){
+									console.log('set to 19')
 									cc.ageOfMajority.set(19)
 								},200)
 							})
@@ -487,12 +488,14 @@ exports.pairedFilterTest = function(config, done){
 						var lostTeenager = false
 						poll(function(){
 							var json = pc.adults.toJson()
-							//console.log('@ ' + JSON.stringify(json))
+							//console.log('@ ' + JSON.stringify(pc.toJson()))
 							if(_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
+								//console.log('@ ' + JSON.stringify(pc.toJson()))
 								gotTeenager = true
 							}
 							if(gotTeenager){
 								if(!_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
+									//console.log('# ' + JSON.stringify(pc.toJson()))
 									lostTeenager = true
 								}
 							}
@@ -505,10 +508,11 @@ exports.pairedFilterTest = function(config, done){
 						minnow.makeClient(config.port, function(otherClient){
 							otherClient.view('empty', function(err, v){
 								var teenager = v.make('entity', {age: 17, name: 'teenager'})
-								v.make('entity', {age: 22})
+								var tt = v.make('entity', {age: 22})
 								v.make('entity', {age: 13})
 								setTimeout(function(){
 									teenager.age.set(18)
+									//console.log(JSON.stringify(tt.toJson()))
 									setTimeout(function(){
 										cc.ageOfMajority.set(19)
 									},500)

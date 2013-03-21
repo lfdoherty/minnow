@@ -20,8 +20,8 @@ exports.compute = function(paramValues){
 
 
 exports.computeSync = function(z, a, b){
-	_.assertNumber(a)
-	_.assertNumber(b)
-	
+	//_.assertNumber(a)
+	//_.assertNumber(b)
+	if(!_.isNumber(a) || !_.isNumber(b)) return false
 	return a >= b
 }

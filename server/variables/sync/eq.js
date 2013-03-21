@@ -16,7 +16,7 @@ exports.compute = function(paramValues){
 	/*if(paramValues[0] !== paramValues[1]){
 		console.log(new Error().stack)
 	}*/
-	log('eq: ' + JSON.stringify(paramValues) + ' ' + (paramValues[0] === paramValues[1]))
+	//log('eq: ' + JSON.stringify(paramValues) + ' ' + (paramValues[0] === paramValues[1]))
 	return paramValues[0] === paramValues[1]
 }
 
@@ -24,5 +24,6 @@ exports.computeAsync = function(z, cb, a, b){
 	cb(a === b)
 }
 exports.computeSync = function(z, a, b){
+	//console.log('eq: ' + a + ','+b+': ' + (a===b))
 	return a === b
 }

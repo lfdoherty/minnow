@@ -1,3 +1,4 @@
+"use strict";
 
 var _ = require('underscorem')
 
@@ -7,7 +8,7 @@ function InnerId(objId, id){
 }
 InnerId.prototype.toString = function(){
 	if(this.inner === undefined) return this.top
-	return this.top + ':' + this.inner
+	return this.top + '_' + this.inner
 }
 
 function innerify(objId, id){

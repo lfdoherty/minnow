@@ -221,6 +221,10 @@ exports.make = function(){
 		},
 		serializeEdits: function(edits, w){
 			serializeFrame(edits, w)
+		},
+		close: function(cb){
+			w = undefined
+			if(cb) cb()
 		}
 	}
 	return handle;

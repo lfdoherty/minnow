@@ -3,7 +3,7 @@
 //var Cache = require('./../variable_cache')
 
 var schema = require('./../../shared/schema')
-var listenerSet = require('./../variable_listeners')
+//var listenerSet = require('./../variable_listeners')
 
 var _ = require('underscorem')
 
@@ -42,7 +42,7 @@ function makeKeyParser(kt){
 }
 exports.makeKeyParser = makeKeyParser
 
-var mapSyncOptimization = require('./map_sync_optimization')
+//var mapSyncOptimization = require('./map_sync_optimization')
 
 function mapType(rel, ch){
 	var inputType = rel.params[0].schemaType//ch.computeType(rel.params[0], ch.bindingTypes)
@@ -87,7 +87,7 @@ exports.mapType = mapType
 
 schema.addFunction('map', {
 	schemaType: mapType,
-	implementation: mapMaker,
+	//implementation: mapMaker,
 	minParams: 3,
 	maxParams: 4,
 	callSyntax: 'map(collection,key-macro,value-macro[,reduce-macro])',
@@ -135,7 +135,7 @@ function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
 					values[0] = combinedValue
 					nc()
 					if(values.length > 1){
-						process.nextTick(doReduce)
+						process.setImmediate(doReduce)
 					}					
 				})
 			}
@@ -192,9 +192,9 @@ function noReduceComputeAsync(z, cb, input, keyMacro, valueMacro){
 		var theKey
 		var theValue
 		keyMacro.get(v, function(key){
-			_.assertDefined(key)
+			//_.assertDefined(key)
 			if(gotValue){
-				if(theValue !== undefined) state[key] = theValue
+				if(key !== undefined && theValue !== undefined) state[key] = theValue
 				cdl()
 			}else{
 				theKey = key
@@ -212,7 +212,7 @@ function noReduceComputeAsync(z, cb, input, keyMacro, valueMacro){
 			}*/
 			
 			if(gotKey){
-				if(value !== undefined) state[theKey] = value
+				if(theKey !== undefined && value !== undefined) state[theKey] = value
 				cdl()
 			}else{
 				theValue = value
@@ -223,7 +223,7 @@ function noReduceComputeAsync(z, cb, input, keyMacro, valueMacro){
 }
 
 
-
+/*
 function mapMaker(s, self, rel, typeBindings){
 
 	try{
@@ -303,85 +303,7 @@ function copyBindings(bindings){
 	})
 	return newBindings
 }
-/*
-function svgMapMultiple(s, cache, contextGetter, keyGetter, valueGetter, reduceGetter, keyImplicit, valueImplicit, reduceImplicitFirst, reduceImplicitSecond, bindings, editId){
 
-	_.errout('TODO')
-	var elements = contextGetter(bindings, editId)
-
-	var key = elements.key
-	if(cache.has(key)) return cache.get(key)
-	
-	var listeners = listenerSet()
-	
-	var allSets = {}
-	var counts = {}
-	var values = []
-	
-	resultSetListener = {
-		add: function(value, editId){
-			if(!counts[value]){
-				counts[value] = 1
-				listeners.emitAdd(value, editId)
-				values.push(value)
-			}else{
-				++counts[value]
-			}
-		},
-		remove: function(value, editId){
-			if(counts[value] === 1){
-				delete counts[value]
-				listener.emitRemove(value, editId)
-				values.splice(values.indexOf(value), 1)
-			}else{
-				--counts[value]
-			}
-		}
-	}
-	
-	function oldest(){
-		var oldestEditId = elements.oldest()
-		Object.keys(allSets).forEach(function(key){
-			var valueSet = allSets[key]
-			var old = valueSet.oldest()
-			if(old < oldestEditId) oldestEditId = old
-		})
-		return oldestEditId
-	}
-	
-	elements.attach({
-		add: function(v, editId){
-			var newBindingsKey = copyBindings(bindings)
-			var newBindingsValue = copyBindings(bindings)
-			newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = elements.wrapAsSet(v)
-			var newKeyVariable = keyGetter(newBindingsKey, editId)
-			var newValueVariable = valueGetter(newBindingsValue, editId)
-			//TODO if key already exists, apply
-			newKeyVariable.attach(resultSetListener, editId)
-			newValueVariable.attach(resultSetListener, editId)
-		},
-		remove: function(v, editId){
-			var removedSet = allSets[v]
-			removedSet.detach(resultSetListener, editId)
-		}
-	}, editId)
-	
-	var handle = {
-		attach: function(listener, editId){
-			listeners.add(listener)
-			values.forEach(function(v){listener.add(v, editId)})
-		},
-		detach: function(listener, editId){
-			listeners.remove(listener)
-			values.forEach(function(v){listener.remove(v, editId)})
-		},
-		oldest: oldest,
-		key: key
-	}
-		
-	return cache.store(key, handle)
-}
-*/
 function stub(){}
 
 function reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, state, reducedState, listeners, bindings, key, editId){
@@ -466,14 +388,7 @@ function svgMapSingle(s, cache, keyParser, hasObjectValues, contextGetter, keyGe
 		//if values are added during the operation, place them in a buffer and include them in the next iteration
 		//if values are removed, return their partner to the buffer and etc.
 
-		/*
-			The tricky part is that we need to set up a consistent tree so that updates can propagate, 
-			but at the same time elements will be added and removed, and ideally the tree will be balanced to minimize
-			the number of operations and their latency.
-			
-			Eventually, we'll want to have specialized implementations for cases where the reduce operator is a synchronous
-			function of only the values being reduced, in which case it should be implemented as a simple function call.
-		*/
+
 		var elementListener = {
 			add: function(v, editId){
 				
@@ -728,14 +643,7 @@ function svgMapKeySingleValueMultiple(s, cache, keyParser, hasObjectValues, cont
 		//if values are added during the operation, place them in a buffer and include them in the next iteration
 		//if values are removed, return their partner to the buffer and etc.
 
-		/*
-			The tricky part is that we need to set up a consistent tree so that updates can propagate, 
-			but at the same time elements will be added and removed, and ideally the tree will be balanced to minimize
-			the number of operations and their latency.
-			
-			Eventually, we'll want to have specialized implementations for cases where the reduce operator is a synchronous
-			function of only the values being reduced, in which case it should be implemented as a simple function call.
-		*/
+
 		elements.attach({
 			add: function(v, editId){
 				
@@ -950,14 +858,7 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 		//if values are added during the operation, place them in a buffer and include them in the next iteration
 		//if values are removed, return their partner to the buffer and etc.
 
-		/*
-			The tricky part is that we need to set up a consistent tree so that updates can propagate, 
-			but at the same time elements will be added and removed, and ideally the tree will be balanced to minimize
-			the number of operations and their latency.
-			
-			Eventually, we'll want to have specialized implementations for cases where the reduce operator is a synchronous
-			function of only the values being reduced, in which case it should be implemented as a simple function call.
-		*/
+
 		elements.attach({
 			add: function(v, editId){
 				
@@ -970,23 +871,7 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 				//s.log('map add: ' + v)
 				var kvs = []
 				var value
-				/*function keyListener(value, oldValue, editId){
-					if(oldValue !== undefined){
-						var arr = multiState[oldValue]
-						arr.splice(arr.indexOf(kv), 1)
-						listeners.emitDelete(oldValue, editId)
-					}
-					//s.log('map key: ' + value)
-					kv.key = value	
-					if(kv.value !== undefined){				
-						var oldValue = kv.value
-						if(multiState[kv.key] === undefined) multiState[kv.key] = []
-						multiState[kv.key].push(kv)
-						//listeners.emitPut(kv.key, kv.value, oldValue, editId)
-						//reduceState(kv.key)
-						reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, multiState, state, listeners, bindings, kv.key, editId)
-					}
-				}*/
+
 				function addKey(k, editId){
 					var kv = {key: k, value: value}
 					kvs.push(kv)
@@ -1007,21 +892,7 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 						reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, multiState, state, listeners, bindings, kv.key, editId)
 						//listeners.emitDel(k, value, editId)
 					}
-					/*if(oldValue !== undefined){
-						var arr = multiState[oldValue]
-						arr.splice(arr.indexOf(kv), 1)
-						listeners.emitDelete(oldValue, editId)
-					}
-					//s.log('map key: ' + value)
-					kv.key = value	
-					if(kv.value !== undefined){				
-						var oldValue = kv.value
-						if(multiState[kv.key] === undefined) multiState[kv.key] = []
-						multiState[kv.key].push(kv)
-						//listeners.emitPut(kv.key, kv.value, oldValue, editId)
-						//reduceState(kv.key)
-						reduceState(reduceImplicitFirst, reduceImplicitSecond, valueGetter, cReduceGetter, multiState, state, listeners, bindings, kv.key, editId)
-					}*/
+
 				}
 				function valueListener(v, oldValue, editId){
 					_.assertInt(editId)
@@ -1056,60 +927,7 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 		}, editId)
 	}else{
 		_.errout('TODO?')
-		/*elements.attach({
-			add: function(v, editId){
-				
-				var newBindingsKey = copyBindings(bindings)
-				var newBindingsValue = copyBindings(bindings)
-				newBindingsKey[keyImplicit] = newBindingsValue[valueImplicit] = contextGetter.wrapAsSet(v, editId)
-				var newKeyVariable = cKeyGetter(newBindingsKey, editId)
-				var newValueVariable = cValueGetter(newBindingsValue, editId)
-				
-				//s.log('map add: ' + v)
-				var kv = {}
-				
-				function keyListener(value, oldValue, editId){
-					if(oldValue !== undefined){
-						delete state[oldValue]
-						listeners.emitDelete(oldValue, editId)
-					}
-					//console.log('map key: ' + value)
-					kv.key = value	
-					if(kv.value !== undefined){				
-						var oldValue = kv.value
-						state[kv.key] = kv.value
-						_.assertPrimitive(kv.value)
-						listeners.emitPut(kv.key, kv.value, oldValue, editId)
-					}
-				}
-				function valueListener(value, oldValue, editId){
-					_.assertInt(editId)
-					kv.value = value
-					//console.log('map value: ' + kv.key + '->'+value)
-					if(kv.key !== undefined){
-						state[kv.key] = kv.value
-						//console.log('emitting put')
-						_.assertPrimitive(kv.value)
-						listeners.emitPut(kv.key, kv.value, oldValue, editId)
-					}
-				}
-				
-				allSets[v] = {key: newKeyVariable, value: newValueVariable, keyListener: keyListener, valueListener: valueListener}
-
-				newKeyVariable.attach({
-					set: keyListener
-				}, editId)
-				newValueVariable.attach({
-					set: valueListener
-				}, editId)
-			},
-			remove: function(v, editId){
-				var r = allSets[v]
-				r.key.detach(r.keyListener, editId)
-				r.value.detach(r.valueListener, editId)
-			},
-			objectChange: stub
-		}, editId)*/
+		
 	}
 	
 	var handle = {
@@ -1137,4 +955,4 @@ function svgMapKeyMultiple(s, cache, keyParser, hasObjectValues, contextGetter, 
 	}
 		
 	return cache.store(key, handle)
-}
+}*/

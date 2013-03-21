@@ -263,7 +263,7 @@ ObjectHandle.prototype._internalId = function(){
 ObjectHandle.prototype.id = function(){
 	_.assertPrimitive(this.objectId);
 	_.assertDefined(this.objectId);
-	return this.parent.getTopId() + ':' + this.objectId;
+	return this.parent.getTopId() + '_' + this.objectId;
 }
 ObjectHandle.prototype.propertyIsPrimitive = function(propertyName){
 	var pt = this.typeSchema.properties[propertyName];
@@ -692,7 +692,9 @@ ObjectHandle.prototype.hasProperty = function(propertyName){
 
 	if(this.typeSchema.properties === undefined) _.errout('object has no properties, so definitely not a property called: "' + propertyName + '"')
 	var pt = this.typeSchema.properties[propertyName];
-	if(pt === undefined) _.errout('not a valid property for that object: ' + propertyName)
+	if(pt === undefined){
+		_.errout('not a valid property for that object: ' + this.typeSchema.name+'.'+propertyName)
+	}
 	if(pt.type.type === 'set' || pt.type.type === 'list' || pt.type.type === 'map') return true
 	if(pt === undefined) _.errout('not a valid property(' + propertyName + ') for this type: ' + this.typeSchema.code)
 	_.assertDefined(pt);

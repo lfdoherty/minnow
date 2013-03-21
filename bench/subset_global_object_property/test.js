@@ -7,6 +7,8 @@ var N = 1*1000*1000
 
 //benchmark to beat: N=1M in 63010ms (~15,000 ops/sec)
 
+//since QE rebuild:
+//N=1M in 187705ms
 
 try{
 var agent = require('webkit-devtools-agent');

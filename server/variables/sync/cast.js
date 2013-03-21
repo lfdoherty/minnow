@@ -19,6 +19,9 @@ exports.compute = function(paramValues){
 exports.computeAsync = function(z, cb, a, b){
 	cb(b)
 }
+exports.computeSync = function(z, a, b){
+	return b
+}
 
 exports.descender = function(paramTypes){
 	return function(paramValues){
