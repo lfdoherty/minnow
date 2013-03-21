@@ -1113,7 +1113,6 @@ exports.make = function(schema, objectState, broadcaster){
 		*/
 		makeSnapshot: function(id, lastEditId, endEditId, isHistorical, readyCb){
 			if(isHistorical){
-				_.errout('WTF')
 				getSnapshotInner(getHistoricalObjectInclusionsDuring, getHistoricalObjectEditsBetween, id, lastEditId, endEditId, readyCb)
 			}else{
 				getSnapshotInner(getObjectInclusionsDuring, getObjectEditsBetween, id, lastEditId, endEditId, readyCb)

@@ -77,7 +77,8 @@ exports.make = function(s, rel, recurse, handle, ws){
 				})
 				for(var i=0;i<state.length;++i){
 					getPropertyValueAt(state[i], editId, function(pv, id){
-						_.assertInt(id)
+						//_.assertInt(id)
+						_.assertDefined(id)
 						result[id] = pv
 						//console.log('here: ' + nameStr)
 						//console.log('got at ' + editId + ' ' + id+'->'+JSON.stringify(pv))

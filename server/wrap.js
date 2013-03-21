@@ -814,13 +814,13 @@ function makePreforkedRel(s, obj, preforkedObj){
 				//console.log('got pv: ' + JSON.stringify(pv))
 				//console.log('pv overrides')
 				
-				cb(pv)
+				cb(pv, id)
 			}else{
 				_.assertInt(editId)
 				preforkedObj.getStateAt(bindings, editId, function(preforkedId){
 					if(!preforkedId){
 						//console.log('null preforked id')
-						cb(pv)
+						cb(pv, id)
 						return
 					}
 					s.objectState.getPropertyValueAt(preforkedId, propertyCode, editId, function(pfPv){
@@ -832,7 +832,7 @@ function makePreforkedRel(s, obj, preforkedObj){
 									//_.errout('TODO: convert pf inner ids to have fork top id')
 									
 									//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(convertIds(pfPv)))
-									cb(convertIds(pfPv))
+									cb(convertIds(pfPv), id)
 									return
 								}else{
 									var result = [].concat(pv)
@@ -842,7 +842,7 @@ function makePreforkedRel(s, obj, preforkedObj){
 										}
 									})
 									//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(result))
-									cb(result)
+									cb(result, id)
 									return
 								}
 							}
@@ -853,13 +853,13 @@ function makePreforkedRel(s, obj, preforkedObj){
 							//_.errout('TODO: convert pf inner ids to have fork top id')
 							if(_.isArray(pfPv)){
 								//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(pfPv))
-								cb(convertIds(pfPv))
+								cb(convertIds(pfPv), id)
 							}else{
 								if(pfPv instanceof InnerId){
 									pfPv = innerify(id, pfPv.inner)
 								}
 								//console.log('got via preforked ' + id + '.' + propertyCode + ' ' + editId + ' ' + JSON.stringify(pfPv))
-								cb(pfPv)
+								cb(pfPv, id)
 							}
 						}
 					})
