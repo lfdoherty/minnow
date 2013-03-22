@@ -441,10 +441,10 @@ function makeMergeTypes(schema){
 							obj = t.object
 							objSchema = otherObjSchema
 						}else{
-							console.log(JSON.stringify(objSchema))
-							console.log(JSON.stringify(otherObjSchema))
+							//console.log(JSON.stringify(objSchema))
+							//console.log(JSON.stringify(otherObjSchema))
 							//_.errout('cannot merge types: ' + JSON.stringify(types))
-							throw new Error()
+							throw new Error('cannot merge types: ' + JSON.stringify(types))
 						}
 					}
 				})			

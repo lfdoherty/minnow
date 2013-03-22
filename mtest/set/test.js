@@ -182,7 +182,7 @@ exports.removeAndAll = function(config, done){
 				var foundFirst = false
 				poll(function(){
 				//	console.log(c.has('s'))
-					//if(Math.random() < .3) console.log(JSON.stringify(c.toJson()))
+					if(Math.random() < .3) console.log(JSON.stringify(c.toJson()))
 					if(c.has('all') && c.all.size() === 3){
 						foundFirst = true
 					}else if(foundFirst && c.all.size() === 1){

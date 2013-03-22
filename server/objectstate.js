@@ -238,6 +238,151 @@ function advanceStateAndReportChange(objId, prop, changeReport, e){
 	}
 	return prop
 }
+
+function getDefaultValue(ol, schema, id, propertyCode){
+	var defaultValue
+	var typeCode = ol.getObjectType(id.inner||id.top||id)//TODO optimize this stuff
+	//console.log(typeCode + ' ' + JSON.stringify(schema._byCode[typeCode]))
+	if(schema._byCode[typeCode].propertiesByCode === undefined) _.errout('cannot get non-existent property ' + id + ' ' + typeCode + '.' + propertyCode)
+	var propertyType = schema._byCode[typeCode].propertiesByCode[propertyCode]
+	var defaultValue = undefined
+	if(propertyType === undefined) _.errout('cannot get non-existent property ' + id + ' ' + typeCode + '.' + propertyCode)
+	if(propertyType.type.type === 'set' || propertyType.type.type === 'list') defaultValue = []
+	else if(propertyType.type.type === 'map') defaultValue = {}
+	return defaultValue
+}
+
+var realEdits = {}
+realEdits[editCodes.setLong] = true
+realEdits[editCodes.setString] = true
+realEdits[editCodes.setObject] = true
+realEdits[editCodes.setBoolean] = true
+realEdits[editCodes.setInt] = true
+realEdits[editCodes.wasSetToNew] = true
+realEdits[editCodes.addExisting] = true
+realEdits[editCodes.addString] = true
+realEdits[editCodes.removeString] = true
+realEdits[editCodes.addInt] = true
+realEdits[editCodes.removeInt] = true
+realEdits[editCodes.addedNew] = true
+realEdits[editCodes.putString] = true
+realEdits[editCodes.putBoolean] = true
+realEdits[editCodes.delKey] = true
+realEdits[editCodes.didPutNew] = true
+realEdits[editCodes.putExisting] = true
+realEdits[editCodes.delKey] = true
+realEdits[editCodes.remove] = true
+realEdits[editCodes.clearProperty] = true
+realEdits[editCodes.addedNewAt] = true
+realEdits[editCodes.addAfter] = true
+realEdits[editCodes.addedNewAfter] = true
+realEdits[editCodes.unshiftExisting] = true
+realEdits[editCodes.unshiftedNew] = true
+
+//these are not really real, but we treat them like they are
+realEdits[editCodes.selectStringKey] = true
+realEdits[editCodes.selectSubObject] = true
+realEdits[editCodes.selectObjectKey] = true
+
+var alwaysIgnorable = {}
+alwaysIgnorable[editCodes.setSyncId] = true
+alwaysIgnorable[editCodes.made] = true
+alwaysIgnorable[editCodes.madeFork] = true
+alwaysIgnorable[editCodes.initializeUuid] = true
+alwaysIgnorable[editCodes.refork] = true
+
+
+//TODO optimize for property type
+function getPropertyValueAtViaFilter(defaultValue, ol, id, propertyCode, desiredEditId, cb){
+	_.assertFunction(cb)
+	
+	if(id.inner) _.assert(id.inner !== id.top)
+
+	var pv = defaultValue
+	var isProperty
+	var isObject = !id.inner
+	var currentKey
+	var currentSubObj
+	function filter(editCode, editId){
+		if(editId > desiredEditId) return false
+		if(alwaysIgnorable[editCode]){
+		}else if(editCode === editCodes.selectProperty || editCode === editCodes.selectObject || editCode === editCodes.clearObject){
+			return true
+		}else if(realEdits[editCode]){
+			return isProperty && isObject
+		}else{
+			_.errout('TODO: ' + editNames[editCode] + ' ' + editId)
+		}
+	}
+	//var used = []//temporary, for debugging
+	ol.getPartiallyIncludingForked(id, filter, function(editCode, edit, editId){
+		//used.push([editNames[editCode], edit, editId])
+		if(editCode === editCodes.selectProperty){
+			isProperty = edit.typeCode === propertyCode
+		}else if(editCode === editCodes.selectObject){
+			isObject = id.inner ? edit.id===id.inner : (edit.id===id.top||edit.id===id)
+		}else if(editCode === editCodes.clearObject){
+			isObject = !id.inner
+		}else if(editCode === editCodes.selectSubObject){
+			currentSubObj = edit.id
+		}else if(editCode === editCodes.setString || editCode === editCodes.setInt || editCode === editCodes.setBoolean || editCode === editCodes.setLong){
+			pv = edit.value
+		}else if(editCode === editCodes.setObject){
+			pv = edit.id
+		}else if(editCode === editCodes.addExisting){
+			pv.push(edit.id)
+		}else if(editCode === editCodes.addedNew){
+			pv.push(innerify(id, edit.id))
+		}else if(editCode === editCodes.addedNewAt){
+			pv.push(innerify(id, edit.id))
+		}else if(editCode === editCodes.addedNewAfter){
+			pv.push(innerify(id, edit.id))
+		}else if(editCode === editCodes.addAfter){
+			pv.push(edit.id)
+		}else if(editCode === editCodes.unshiftExisting){
+			pv.unshift(edit.id)
+		}else if(editCode === editCodes.unshiftedNew){
+			pv.unshift(innerify(id, edit.id))
+		}else if(editCode === editCodes.addString || editCode === editCodes.addInt){
+			pv.push(edit.value)
+		}else if(editCode === editCodes.removeString || editCode === editCodes.removeInt){
+			var i = pv.indexOf(edit.value)
+			if(i !== -1) pv.splice(i, 1)
+			else console.log('WARNING: did not need to remove: ' + edit.value)
+		}else if(editCode === editCodes.remove){
+			_.assertDefined(currentSubObj)
+			//var i = pv.indexOf(currentSubObj)
+			var i = indexOfRawId(pv, currentSubObj)
+			if(i !== -1) pv.splice(i, 1)
+			else console.log('WARNING: did not need to remove object: ' + currentSubObj)
+		}else if(editCode === editCodes.selectStringKey || editCode === editCodes.selectObjectKey){
+			currentKey = edit.key
+		}else if(editCode === editCodes.putString || editCode === editCodes.putBoolean){
+			_.assertDefined(currentKey)
+			pv[currentKey] = edit.value
+		}else if(editCode === editCodes.putExisting){
+			_.assertDefined(currentKey)
+			pv[currentKey] = edit.id
+		}else if(editCode === editCodes.delKey){
+			_.assertDefined(currentKey)
+			delete pv[currentKey]// = undefined
+		}else if(editCode === editCodes.didPutNew){
+			_.assertDefined(currentKey)
+			pv[currentKey] = innerify(id, edit.id)
+		}else if(editCode === editCodes.clearProperty){
+			pv = defaultValue
+		}else{
+			_.errout('TODO: ' + JSON.stringify([editCode, edit, editId]))
+		}
+	}, function(){
+		//ol.get(id, -1, -1, function(edits){
+			//console.log('got ' + JSON.stringify([id, propertyCode, pv, desiredEditId, used]))
+			//console.log(JSON.stringify(edits))
+			cb(pv, id)
+		//})
+	})
+}
+
 function advanceState(objId, prop, e, state){
 	_.assertObject(state)
 	var op = e.op
@@ -709,15 +854,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 				id.getPropertyValueAt(id, propertyCode, editId, cb)
 				return
 			}
-			var typeCode = ol.getObjectType(id.inner||id.top||id)//TODO optimize this stuff
-			//console.log(typeCode + ' ' + JSON.stringify(schema._byCode[typeCode]))
-			if(schema._byCode[typeCode].propertiesByCode === undefined) _.errout('cannot get non-existent property ' + id + ' ' + typeCode + '.' + propertyCode)
-			var propertyType = schema._byCode[typeCode].propertiesByCode[propertyCode]
-			var defaultValue = undefined
-			if(propertyType === undefined) _.errout('cannot get non-existent property ' + id + ' ' + typeCode + '.' + propertyCode)
-			if(propertyType.type.type === 'set' || propertyType.type.type === 'list') defaultValue = []
-			else if(propertyType.type.type === 'map') defaultValue = {}
 			
+			var defaultValue = getDefaultValue(ol, schema, id, propertyCode)
+			/*
 			ol.getIncludingForked(id, -1, -1, function(edits){
 				var actual = []
 				for(var i=0;i<edits.length;++i){
@@ -730,6 +869,10 @@ exports.make = function(schema, ap, broadcaster, ol){
 				//console.log('got propertyValueAt normally: ' + id + '.' + propertyCode + ' ' + JSON.stringify(pv))
 				cb(pv, id)
 			})
+			*/
+
+			getPropertyValueAtViaFilter(defaultValue, ol, id, propertyCode, editId, cb)
+			
 		},
 		
 

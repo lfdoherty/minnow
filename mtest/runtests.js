@@ -161,8 +161,9 @@ function moreCont(doneCb){
 	//var dieCdl = _.latch(tests.length, function(){
 	function report(){
 		console.log('all tests finished: ' + passedCount + '/' + (failedCount+passedCount));
-		if(global.gc) global.gc()
-		heapdump.writeSnapshot();
+		
+		//if(global.gc) global.gc()
+		//heapdump.writeSnapshot();
 		
 		console.log('took ' + (Date.now()-start)+'ms.')
 		if(failedList.length > 0){

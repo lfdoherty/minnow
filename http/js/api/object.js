@@ -861,6 +861,7 @@ ObjectHandle.prototype.uid = function(){
 
 ObjectHandle.prototype.del = function(){
 	if(this.isView()) _.errout('cannot delete view object')
+	this.adjustTopObjectToOwn()
 	this.saveEdit(editCodes.destroy, {})
 }
 

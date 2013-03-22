@@ -163,8 +163,8 @@ exports.values = function(config, done){
 			client.view('valuesView', function(err, c){
 			
 				poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
-					if(c.vs.size() === 2){
+					console.log(JSON.stringify(c.toJson()))
+					if(c.vs.size() === 1){
 						done()
 						return true
 					}
@@ -196,7 +196,7 @@ exports.nestedInnerValues = function(config, done){
 			
 				poll(function(){
 					console.log(JSON.stringify(c.toJson()))
-					if(c.vs.size() === 2){
+					if(c.vs.size() === 1){
 						done()
 						return true
 					}
@@ -229,7 +229,7 @@ exports.nestedExternalValues = function(config, done){
 			
 				poll(function(){
 					console.log(JSON.stringify(c.toJson()))
-					if(c.vs.size() === 2){
+					if(c.vs.size() === 1){
 						done()
 						return true
 					}

@@ -328,7 +328,11 @@ function makeSetChangesBetween(handle, ws){
 			handle.getStateAt(bindings, endEditId, function(state){
 				//console.log('and here')
 				if(startState !== state){
-					cb([{type: 'set', value: state, editId: endEditId, syncId: -1}])
+					if(state === undefined){
+						cb([{type: 'clear', editId: endEditId, syncId: -1}])
+					}else{
+						cb([{type: 'set', value: state, editId: endEditId, syncId: -1}])
+					}
 				}else{
 					cb([])
 				}
@@ -872,6 +876,19 @@ function makePreforkedRel(s, obj, preforkedObj){
 	return {
 		name: 'preforked('+obj.name+')',
 		analytics: a,
+		getConfiguredId: function(id, bindings, editId, cb){
+			var boundGetPropertyValueAt = getPropertyValueAt.bind(undefined, bindings)
+			if(_.isObject(id)){
+				_.assertInt(id.top)
+				var newIdObj = innerify(id.top, id.inner)
+				newIdObj.getPropertyValueAt = boundGetPropertyValueAt
+				cb(newIdObj)
+			}else{
+				var newIdObj = innerify(id, undefined)
+				newIdObj.getPropertyValueAt = boundGetPropertyValueAt
+				cb(newIdObj)
+			}
+		},
 		getStateAt: function(bindings, editId, cb){
 			
 			var boundGetPropertyValueAt = getPropertyValueAt.bind(undefined, bindings)
@@ -1066,6 +1083,9 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			handle = {
 				name: nameStr,
 				analytics: a,
+				getConfiguredIdAt: function(id, bindings, editId, cb){
+					cb(id)
+				},
 				getStateAt: function(bindings, editId, cb){
 					if(lastEditId === editId){
 						cb([].concat(lastValue))
@@ -1204,6 +1224,12 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				return b
 			},
 			isFullySync: true,
+			getConfiguredIdAt: function(id, bindings, editId, cb){
+				handle.getStateAt(bindings, editId, function(realId){
+					_.assert(realId === id || (realId.top === id.top && realId.inner === id.inner))
+					cb(realId)
+				})
+			},
 			getStateAt: function(bindings, editId, cb){
 				if(editId >= 0){
 					var b = bindings[paramName]

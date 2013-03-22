@@ -158,6 +158,25 @@ exports.make = function(){
 				return /*readCache[id] = */ob.get(id)
 			}
 		},
+		getPartially: function(id, filter, eachCb){
+			_.assertLength(arguments, 3)
+			if(cache[id]){
+				if(!ob.isNew(id)){
+					ob.getPartially(id, filter, eachCb)
+				}
+				var list = cache[id]
+				for(var i=0;i<list.length;++i){
+					var e = list[i]
+					//_.errout('TODO: ' + JSON.stringify(e))
+					if(filter(e.op, e.editId)){
+						eachCb(e.op, e.edit, e.editId)
+					}
+				}
+			}else{
+				//if(readCache[id]) return readCache[id]
+				return /*readCache[id] = */ob.getPartially(id, filter, eachCb)
+			}
+		},
 		getBinary: function(id){
 			if(cache[id]){
 				var edits

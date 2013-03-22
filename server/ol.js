@@ -427,6 +427,16 @@ Ol.prototype.getAllIncludingForked = function(id, cb){//TODO optimize away
 	}
 }
 
+Ol.prototype.getPartiallyIncludingForked = function(id, filter, eachCb, doneCb){
+	var local = this
+	if(local.forks[id]){
+		local.getPartiallyIncludingForked(local.forks[id], filter, eachCb, function(){
+			local.getPartially(id, filter, eachCb, doneCb)
+		})
+	}else{
+		local.getPartially(id, filter, eachCb, doneCb)
+	}
+}
 Ol.prototype.getIncludingForked = function(id, startEditId, endEditId, cb){//TODO optimize away
 	var local = this
 	this.get(id, startEditId, endEditId, function(edits){
@@ -471,6 +481,73 @@ function selectInside(edits, innerId){
 	}
 	//console.log(JSON.stringify(result))
 	return result
+}
+
+Ol.prototype.getPartially = function(id, filter, eachCb, doneCb){
+	_.assertLength(arguments, 4)
+	_.assertFunction(filter)
+	_.assertFunction(eachCb)
+	_.assertFunction(doneCb)
+	
+	if(!_.isInt(id)){
+		//console.log('id: ' + JSON.stringify(id))
+		_.assertInt(id.top)
+	
+		++this.stats.get
+	
+		try{
+			this.olc.getPartially(id.top, filter, eachCb)
+			doneCb()
+		}catch(e){
+			var typeCode = this.objectTypeCodes[id.top]
+			console.log('failed on top type: ' + this.schema._byCode[typeCode].name)
+			throw e
+		}
+		/*var actual = []
+
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			_.assertInt(e.editId)
+			if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+				actual.push(e)
+			}
+		}
+		if(id.top !== id.inner){
+			cb(selectInside(actual, id.inner))
+		}else{
+			cb(actual)
+		}*/
+	}else{
+		_.assertInt(id)
+		
+		++this.stats.get
+	
+		try{
+			this.olc.getPartially(id, filter, eachCb)
+			doneCb()
+		}catch(e){
+			var typeCode = this.objectTypeCodes[id]
+			console.log('getting type of id: ' + id)
+			if(typeCode === undefined){
+				_.errout('cannot find id(' + id + '), got: ' + JSON.stringify(Object.keys(this.objectTypeCodes)))
+			}
+			console.log('failed on type: ' + this.schema._byCode[typeCode].name)
+			throw e
+		}
+		//console.log('computing actual(' + startEditId + ',' + endEditId + ') from: ' + JSON.stringify(edits))
+		/*var actual = []
+
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			_.assertInt(e.editId)
+			if(startEditId <= e.editId && (endEditId === -1 || e.editId <= endEditId)){
+				actual.push(e)
+			}
+		}
+		//console.log('actual: ' + JSON.stringify(actual))
+		//console.log('returning(' + startEditId+', '+endEditId + ') actual of(' + id + '): ' + JSON.stringify(actual))
+		cb(actual)*/
+	}
 }
 
 Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away

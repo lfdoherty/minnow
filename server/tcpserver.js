@@ -141,7 +141,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			return
 		}
 		connections.push(c)
-		console.log('connections: ' + connectionCount)
+		//console.log('connections: ' + connectionCount)
 	}
 	function removeConnection(c){
 		--connectionCount
@@ -151,7 +151,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			return
 		}
 		connections.splice(connections.indexOf(c), 1)
-		console.log('connections: ' + connectionCount)
+		//console.log('connections: ' + connectionCount)
 		c.destroy()
 	}
 	
@@ -756,8 +756,6 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 
 			//connections.splice(connections.indexOf(c), 1)
 			removeConnection(c)
-			conn.w = undefined
-			deser = undefined
 		}
 		
 		c.on('close', cleanupClient)

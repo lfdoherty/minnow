@@ -43,6 +43,23 @@ function deserializeFrame(frame){
 	return edits
 }
 
+function deserializeFramePartially(frame, filter, eachCb){
+	rs.put(frame)
+	var many = r.readInt()
+
+	for(var i=0;i<many;++i){
+		var b = r.readByte()
+		_.assert(b > 0)
+		var editId = r.readInt()
+		if(filter(b, editId)){
+			var e = readersByCode[b](r)
+			eachCb(b, e, editId)
+		}else{
+			skippersByCode[b](r)
+		}
+	}
+}
+
 function deserializePartOfFrame(frame, startEditId, endEditId){
 	rs.put(frame)
 	var many = r.readInt()
@@ -67,18 +84,11 @@ function appendSerializeFrame(rest, edits, w){
 	_.assert(rest.length > 4)
 	var manyBefore = bin.readInt(rest, 0)
 	w.putInt(manyBefore + edits.length)
-	w.putData(rest, 4, rest.length)//.slice(4))
-	//var str = ''
-	//for(var i=4;i<rest.length;++i){
-	//	str += rest[i]+' '
-	//}
-	//console.log('@'+str)
-	//console.log('& ' + JSON.stringify(deserializeFrame(rest)))
-	//console.log('^ ' + JSON.stringify(edits))
-	//edits.forEach(function(e){
+	w.putData(rest, 4, rest.length)
+
 	for(var i=0;i<edits.length;++i){
 		var e = edits[i]
-		w.putByte(e.op)//fp.codes[e.op])
+		w.putByte(e.op)
 		w.putInt(e.editId)
 		fp.writersByCode[e.op](w, e.edit)
 	}
@@ -171,6 +181,10 @@ exports.make = function(){
 			var res = deserializeFrame(handle.getBinary(id))
 			if(res.length >= 2) _.assertEqual(res[1].edit.id, id)
 			return res
+		},
+		getPartially: function(id, filter, eachCb){
+			_.assertFunction(filter)
+			deserializeFramePartially(handle.getBinary(id), filter, eachCb)
 		},
 		getBinary: function(id){
 			var offset = index[id]

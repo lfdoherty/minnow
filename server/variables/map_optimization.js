@@ -63,7 +63,6 @@ exports.make = function(s, rel, recurse, handle, ws){
 		}
 	}	
 
-
 	var newHandle = {
 		name: nameStr,
 		analytics: a,
@@ -96,23 +95,39 @@ exports.make = function(s, rel, recurse, handle, ws){
 				cb(results)
 			})
 
-			inputSet.getStateAt(bindings, editId, function(state){//TODO optimize, keeping in mind preforked-style issues
-				var has = {}
+			//TODO optimize, keeping in mind preforked-style issues
+			//those being that we need not only the right id, but also the id with whatever
+			//overrides to e.g. getPropertyValueAt have been defined by the inputSet expr.
+			if(inputSet.getConfiguredIdAt){
+			
 				for(var i=0;i<keySet.length;++i){
-					has[keySet[i]] = true
-				}					
-				for(var i=0;i<state.length;++i){
-					var id = state[i]//keySet[i]
-					if(has[id]){
-						getPropertyValueAt(id, editId, function(pv, id){
-							//_.errout('TODO')
+					var id = keySet[i]
+					inputSet.getConfiguredIdAt(id, bindings, editId, function(realId){
+						getPropertyValueAt(realId, editId, function(pv, id){
 							//console.log('got at ' + editId + ' ' + id+'->'+JSON.stringify(pv))
 							results[id] = pv
 							cdl()
 						})
-					}
+					})
 				}
-			})
+			}else{
+				inputSet.getStateAt(bindings, editId, function(state){
+					var has = {}
+					for(var i=0;i<keySet.length;++i){
+						has[keySet[i]] = true
+						if(has[id]){
+							inputSet.getConfiguredIdAt(id, bindings, editId, function(realId){
+								getPropertyValueAt(realId, editId, function(pv, id){
+									//_.errout('TODO')
+									//console.log('got at ' + editId + ' ' + id+'->'+JSON.stringify(pv))
+									results[id] = pv
+									cdl()
+								})
+							})
+						}
+					}
+				})
+			}
 		},
 		getChangesBetween: function(bindings, startEditId, endEditId, cb){
 			//_.errout('TODO')
