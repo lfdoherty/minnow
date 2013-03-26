@@ -27,7 +27,11 @@ var totalBytesSent = 0
 
 var WriteFlushInterval = 10
 
+/*
 var RandomFailureDelay = 100000
+exports.setRandomConnectionFailureDelay = function(newDelay){
+	RandomFailureDelay = newDelay
+}*/
 
 var ReconnectPeriod = 1000*60//a client may reconnect within 1 minute
 
@@ -223,11 +227,11 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			//_.assert(isDead)
 		})
 		
-		var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
+		/*var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
 		var randomHandle = setTimeout(function(){
 			console.log('server randomly destroyed tcp connection: ' + connectionId)
 			c.destroy()
-		},randomFailureDelay)
+		},randomFailureDelay)*/
 
 		var ws = quicklog.make('minnow/tcp server->client.' + (++logCounter))
 	
@@ -354,7 +358,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			function sendUpdate(op, edit, editId, destinationSyncId){
 				_.assertLength(arguments, 4)
 				_.assert(destinationSyncId > 0)
-				//console.log('writing edit', op, edit, syncId, editId, destinationSyncId)
+				//console.log('writing edit', editNames[op], edit, syncId, editId, destinationSyncId)
 				//console.log(new Error().stack)
 			
 				var binaryEdit = binEdit(op, edit)
@@ -472,15 +476,15 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 						conn.w.flush()
 					},10)
 
-					if(conn.randomHandle !== undefined){
-						clearTimeout(conn.randomHandle)
-					}
+					//if(conn.randomHandle !== undefined){
+					//	clearTimeout(conn.randomHandle)
+					//}
 			
-					var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
-					conn.randomHandle = setTimeout(function(){
-						console.log('*server randomly destroyed tcp connection')
-						c.destroy()
-					},randomFailureDelay)
+					//var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
+					//conn.randomHandle = setTimeout(function(){
+					//	console.log('*server randomly destroyed tcp connection')
+					//	c.destroy()
+					//},randomFailureDelay)
 					
 					conn.outgoingAckHistory = conn.lastOutgoingAck - 1//the -1 is to adjust for the reconnect which the new deser will be counting, but the client won't
 					
@@ -522,8 +526,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 
 				conn.deser = deser
 				
-				conn.randomHandle = randomHandle
-				randomHandle = undefined
+				//conn.randomHandle = randomHandle
+				//randomHandle = undefined
 
 				connectionId = 'r'+Math.random()
 				conn.w.setup({serverInstanceUid: s.serverInstanceUid(), connectionId: connectionId});
@@ -694,7 +698,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 						_.errout('TODO: ' + err)
 					}
 					
-					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList), historicalKey: e.historicalKey}
+					var res = {snapshotVersionIds: serializeSnapshotVersionList(versionList), isHistorical: e.isHistorical}
 					res.requestId = e.requestId;
 					conn.w.gotSnapshots(res);
 					conn.w.flush();
@@ -709,7 +713,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					}
 					res.requestId = e.requestId;
 					res.snapshots = serializeAllSnapshots(res.snapshots)
-					res.historicalKey = e.historicalKey
+					res.isHistorical = e.isHistorical
 					conn.w.gotAllSnapshots(res);
 					conn.w.flush();
 				});
@@ -741,15 +745,15 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			if(conn){
 				clearInterval(conn.flushHandle)
 			
-				clearTimeout(conn.randomHandle)
+				//clearTimeout(conn.randomHandle)
 				clearInterval(conn.ackHandle)
-				conn.randomHandle = undefined
+				//conn.randomHandle = undefined
 				conn.flushHandle = undefined
 				conn.ackHandle = undefined
 			}
-			if(randomHandle){
-				clearTimeout(randomHandle)
-			}
+			//if(randomHandle){
+			//	clearTimeout(randomHandle)
+			//}
 			Object.keys(reader).forEach(function(rk){
 				reader[rk] = undefined
 			})

@@ -170,8 +170,8 @@ exports.make = function(schema, cc){
 		makeSyncId: function(cb){
 			cc.makeSyncId(cb);
 		},
-		getViewFilesHistorical: function(viewName, params, historicalKey, cb){
-			_.assertLength(arguments, 4)
+		getViewFilesHistorical: function(viewName, params, cb){
+			_.assertLength(arguments, 3)
 			_.assertDefined(params)
 			
 			var s = schema[viewName];
@@ -180,9 +180,9 @@ exports.make = function(schema, cc){
 			var viewCode = s.code;
 			
 			//log('getting snapshots: ' + JSON.stringify(params))
-			var getMsg = {typeCode: viewCode, params: JSON.stringify(params), historicalKey: historicalKey}
+			var getMsg = {typeCode: viewCode, params: JSON.stringify(params), isHistorical: true}
 			_.assert(getMsg.params != 'null')
-			var pathPrefix = serverStateUid + '/' + viewCode + '/' + historicalKey + '/'
+			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
 		},
 		//returns the paths for the snapshots for the view
@@ -210,10 +210,10 @@ exports.make = function(schema, cc){
 				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
 			})
 		},
-		getViewFileHistorical: function(viewCode, snapshotId, previousId, paramsStr, historicalKey, cb){
-			_.assertLength(arguments, 6)
+		getViewFileHistorical: function(viewCode, snapshotId, previousId, paramsStr, cb){
+			_.assertLength(arguments, 5)
 
-			handle.getViewJsonHistorical(viewCode, snapshotId, previousId, paramsStr, historicalKey, function(err, json){
+			handle.getViewJsonHistorical(viewCode, snapshotId, previousId, paramsStr, function(err, json){
 				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
 			})
 		},
@@ -233,14 +233,14 @@ exports.make = function(schema, cc){
 				}
 			});
 		},
-		getViewJsonHistorical: function(viewCode, snapshotId, previousId, paramsStr, historicalKey, cb){
-			_.assertLength(arguments, 6)
+		getViewJsonHistorical: function(viewCode, snapshotId, previousId, paramsStr, cb){
+			_.assertLength(arguments, 5)
 			
 			var s = schema._byCode[viewCode];
 
 			var parsedParams = doParseParams(paramsStr, s)
 			
-			var snapReq = {historicalKey: historicalKey, typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			var snapReq = {isHistorical: true, typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
 			cc.getSnapshot(snapReq, function(err, response){
 				if(err){
 					cb(err)

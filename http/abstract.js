@@ -125,7 +125,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 					syncId: syncId,
 					typeCode: viewCode,
 					params: msg.params,
-					latestSnapshotVersionId: msg.version
+					latestSnapshotVersionId: msg.version,
+					isHistorical: msg.isHistorical
 				}
 				var sh = syncHandles[syncId]
 				sh.beginView(viewReq, function(err){

@@ -114,7 +114,7 @@ TopObjectHandle.prototype.makeHistorical = function(historicalKey){
 		for(var i=initialJump;i<this.realEdits.length;++i){
 			var e = this.realEdits[i]
 			if(e.editId > version){
-				console.log('next ' + e.editId + ' < ' + version)
+				//console.log('next ' + e.editId + ' < ' + version)
 				return e.editId
 			}
 		}
@@ -131,20 +131,20 @@ TopObjectHandle.prototype.makeHistorical = function(historicalKey){
 		s.currentSyncId=-1
 		//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
 		
-		console.log('advancing edits: ' + s.realEdits.length + ' ' + version)
+		//console.log('advancing edits: ' + s.realEdits.length + ' ' + version)
 		
 		var applied = false// = s.currentHistoricalVersion
 		var next
 		s.realEdits.forEach(function(e, index){
 			if(e.editId < s.currentHistoricalVersion || e.editId > version){
-				console.log('skipped edit: ' + e.editId + ' ' + editNames[e.op])
+				//console.log('skipped edit: ' + e.editId + ' ' + editNames[e.op])
 				if(e.editId > version && !next){
 					next = e.editId
 				}
 				return
 			}
 			
-			console.log('applied edit: ' + e.editId + ' ' + editNames[e.op])
+			//console.log('applied edit: ' + e.editId + ' ' + editNames[e.op])
 			
 			if(e.op === editCodes.setSyncId){
 				s.currentSyncId = e.edit.syncId
@@ -161,13 +161,13 @@ TopObjectHandle.prototype.makeHistorical = function(historicalKey){
 			applied = true
 			
 			s.currentHistoricalVersion = e.editId
-			console.log('currentHistoricalVersion: ' + s.currentHistoricalVersion)
+			//console.log('currentHistoricalVersion: ' + s.currentHistoricalVersion)
 		})
 		
 		if(applied){
 			++s.currentHistoricalVersion
 		}
-		console.log('*currentHistoricalVersion: ' + s.currentHistoricalVersion)
+		//console.log('*currentHistoricalVersion: ' + s.currentHistoricalVersion)
 		return next
 	}
 }
@@ -960,23 +960,18 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 		this.objectApiCache[realId] = this.objectApiCache[temporaryId]
 		delete this.objectApiCache[temporaryId]
 	}
-	this.edits.forEach(function(e){
+
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
 		if(e.op === editCodes.addNew){
-			if(temporaryId !== e.edit.temporary) return
+			if(temporaryId !== e.edit.temporary) continue
 			e.op = editCodes.addedNew
 			e.edit = {id: realId, typeCode: e.edit.typeCode}
 		}else if(e.op === editCodes.selectObject){
-			if(e.edit.id  !== temporaryId) return
+			if(e.edit.id  !== temporaryId) continue
 			e.edit.id = realId
-		}else{
-			return
 		}
-		//console.log('reified edit: ' + JSON.stringify(e))
-
-		/*
-			e.edit.id = realId
-		}*/
-	})
+	}
 }
 
 TopObjectHandle.prototype.changeListenerElevated = ObjectHandle.prototype.changeListenerElevated

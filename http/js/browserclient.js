@@ -12,7 +12,6 @@ var listenForMinnow;
 var api;
 var root;
 
-
 var listeners = [];
 global.listenForMinnow = function(listener){
 	if(api === undefined){
@@ -133,7 +132,7 @@ function loadMinnowView(){
 				});
 			//});
 
-		})
+		}, window.mainViewHistorical?1:undefined)
 	})
 }
 

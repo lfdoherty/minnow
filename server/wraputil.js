@@ -187,7 +187,8 @@ function makeDiffFinder(type){
 				var changes = []
 				Object.keys(a).forEach(function(aKeyStr){
 					if(b[aKeyStr] === undefined){
-						changes.push({type: 'remove', key: aKeyStr})
+						_.assertDefined(aKeyStr)
+						changes.push({type: 'remove', value: aKeyStr})//state: {key: aKeyStr, keyOp: keyOp}})
 					}else{
 						//console.log('not removed: ' + JSON.stringify(b[aKeyStr]))
 					}
@@ -230,14 +231,16 @@ function makeDiffFinder(type){
 				})
 				Object.keys(b).forEach(function(bKeyStr){
 					var key = bKeyStr
+					_.assertDefined(key)
 					if(type.key.type === 'object'){
 						key = parseInt(key)
 					}
+					_.assertDefined(key)
 					if(b[key] === undefined) _.errout('bad value - key set for value undefined') 
 					if(a[key] === undefined){
-						changes.push({type: 'put', key: key, value: b[key]})
+						changes.push({type: 'put', state: {key: key, keyOp: keyOp}, value: b[key]})
 					}else if(a[key] !== b[key]){
-						changes.push({type: 'put', key: key, value: b[key]})
+						changes.push({type: 'put', state: {key: key, keyOp: keyOp}, value: b[key]})
 					}
 				})
 				//console.log('changes: ' + JSON.stringify([a,b,changes]))
@@ -256,8 +259,11 @@ function makeDiffFinder(type){
 				if(type.primitive === 'string'){
 					return [{type: 'set', value: b||''}]
 				}else{
-					_.assertDefined(b)
-					return [{type: 'set', value: b}]
+					if(b === undefined){
+						return [{type: 'clear'}]
+					}else{
+						return [{type: 'set', value: b}]
+					}
 				}
 			}else{
 				return []
@@ -373,10 +379,11 @@ function makeEditConverter(type){
 		if(mt === 'object'){
 			return function(e){
 				if(e.type === 'put'){
-					return {op: editCodes.putExisting, state: {key: e.key, keyOp: keyOp}, edit: {id: e.value}, syncId: -1, editId: e.editId}
+					_.assertDefined(e.state.key)
+					return {op: editCodes.putExisting, state: {key: e.state.key, keyOp: keyOp}, edit: {id: e.value}, syncId: -1, editId: e.editId}
 				}else if(e.type === 'remove'){
-					_.assertDefined(e.key)
-					return {op: editCodes.delKey, edit: {}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+					_.assertDefined(e.value)
+					return {op: editCodes.delKey, edit: {}, state: {key: e.value, keyOp: keyOp}, syncId: -1, editId: e.editId}
 				}else{
 					_.errout('TODO: ' + JSON.stringify(e))
 				}
@@ -387,8 +394,8 @@ function makeEditConverter(type){
 				return function(e){
 					_.assertInt(e.editId)
 					if(e.type === 'put'){
-						_.assertDefined(e.key)
-						return {op: editCodes.putInt, edit: {value: e.value}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+						_.assertDefined(e.state.key)
+						return {op: editCodes.putInt, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 					}else if(e.type === 'remove'){
 						_.assertDefined(e.value)
 						return {op: editCodes.delKey, edit: {}, state: {key: e.value, keyOp: keyOp}, syncId: -1, editId: e.editId}
@@ -401,29 +408,33 @@ function makeEditConverter(type){
 					//console.log(JSON.stringify(e))
 					_.assertInt(e.editId)
 					_.assertString(e.value)
-					_.assertDefined(e.key)
-					return {op: editCodes.putString, edit: {value: e.value}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+					_.assertDefined(e.state.key)
+					return {op: editCodes.putString, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 				}
 			}else if(type.value.primitive === 'long'){
 				return function(e){
 					_.assertInt(e.editId)
-					_.assertDefined(e.key)
-					return {op: editCodes.putLong, edit: {value: e.value}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+					_.assertDefined(e.value)
+					_.assertDefined(e.state.key)
+					return {op: editCodes.putLong, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 				}
 			}else if(type.value.primitive === 'boolean'){
 				return function(e){
 					_.assertInt(e.editId)
-					_.assertDefined(e.key)
-					return {op: editCodes.putBoolean, edit: {value: e.value}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+					_.assertDefined(e.value)
+					_.assertDefined(e.state.key)
+					return {op: editCodes.putBoolean, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 				}
 			}
 			_.errout('TODO: ' + JSON.stringify(type))
 		}else if(mt === 'view'){
 			return function(c){
 				if(c.type === 'put'){
-					return {op: editCodes.putViewObject, edit: {id: c.value}, state: {key: c.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
+					_.assertDefined(c.state.key)
+					return {op: editCodes.putViewObject, edit: {id: c.value}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
 				}else if(c.type === 'remove'){
-					return {op: editCodes.delKey, edit: {}, state: {key: c.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
+					_.assertDefined(c.state.key)
+					return {op: editCodes.delKey, edit: {}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
 				}else{
 					_.errout('TODO: ' + JSON.stringify(c))
 				}
@@ -453,8 +464,8 @@ function makeEditConverter(type){
 							_.assertString(e.value)
 							return {op: editCodes.putRemoveString, edit: {value: e.value}, state: {key: e.state.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
 						}else if(e.type === 'remove'){
-							_.assertDefined(e.key)
-							return {op: editCodes.delKey, edit: {}, state: {key: e.key, keyOp: keyOp}, syncId: -1, editId: e.editId}
+							_.assertDefined(e.value)
+							return {op: editCodes.delKey, edit: {}, state: {key: e.value, keyOp: keyOp}, syncId: -1, editId: e.editId}
 						}else{
 							_.errout('TODO')
 						}
@@ -478,6 +489,7 @@ function makeEditConverter(type){
 						_.assertDefined(c.state.key)
 						return {op: editCodes.putAddExisting, edit: {id: c.value}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
 					}else if(c.type === 'remove'){
+						_.assertDefined(c.value)
 						return {op: editCodes.delKey, edit: {}, state: {key: c.value, keyOp: keyOp}, syncId: -1, editId: c.editId}
 					}else if(c.type === 'putRemove'){
 						_.assertDefined(c.state.key)

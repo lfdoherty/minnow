@@ -53,7 +53,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 	_.assertInt(st.code);
 	//console.log(new Error().stack)
 	
-	cc.getSnapshots({typeCode: st.code, params: paramsStr, historicalKey: historicalKey}, function(err, res){
+	cc.getSnapshots({typeCode: st.code, params: paramsStr, isHistorical: !!historicalKey}, function(err, res){
 		if(err){
 			console.log('getView error: ' + err)
 			cb(err)
@@ -64,7 +64,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 		for(var i=0;i<snapshotIds.length;++i){
 			_.assertInt(snapshotIds[i]);
 		}
-		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds, historicalKey: historicalKey}, function(err, snapshotsRes){
+		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds, isHistorical: !!historicalKey}, function(err, snapshotsRes){
 		
 			if(err){
 				console.log('getAllSnapshots error: ' + err)
@@ -107,7 +107,8 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 				typeCode: st.code, 
 				params: JSON.stringify(params), 
 				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
-				syncId: syncId
+				syncId: syncId,
+				isHistorical: !!historicalKey
 			}
 			if(historicalKey) req.historicalKey = historicalKey
 			//console.log('beginning view')

@@ -496,15 +496,15 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			//throw e
 		}
 	}
-	
+	/*
 	var randomHandle
 	
-	var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
+	var randomFailureDelay = 500//Math.floor(Math.random()*1000*RandomFailureDelay)+1000
 		randomHandle = setTimeout(function(){
 			console.log('client randomly destroyed tcp connection: ' + connectionId)
 			client.destroy()
 		},randomFailureDelay)
-
+*/
 
 	function attachClient(){	
 		client.on('data', dataListener);
@@ -516,7 +516,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		client.on('close', function() {
 			clientClosed = true
 			clearInterval(flushIntervalHandle)
-			clearTimeout(randomHandle)
+			//clearTimeout(randomHandle)
 			clearInterval(increaseAckHandle)
 			console.log('got close event')
 			if(!clientEnded && !wasClosedManually){
@@ -526,7 +526,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		client.on('end', function() {
 			console.log('client disconnected');
 			clearInterval(flushIntervalHandle)
-			clearTimeout(randomHandle)
+			//clearTimeout(randomHandle)
 			clearInterval(increaseAckHandle)
 			clientEnded = true
 		});
@@ -716,6 +716,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 					cb(err)
 					return
 				}
+				//console.log('getAllSnapshots: ' + e.isHistorical)
 
 				res.snapshots = deserializeAllSnapshots(fp.readers, fp.readersByCode, fp.names, res.snapshots)
 				//log('deserialized: ' + JSON.stringify(res).slice(0,500))
@@ -725,6 +726,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		getSnapshot: function(e, cb){
 			_.assertFunction(cb)
+			//console.log('get snapshot: ' + e.isHistorical + ' ' + new Error().stack)
 			applyRequestId(e, function(err, res){
 				if(err){
 					cb(err)

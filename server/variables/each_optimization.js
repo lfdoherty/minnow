@@ -241,8 +241,12 @@ exports.make = function(s, rel, recurse, handle, ws){
 				var cdl = _.latch(mapHandles.length+externalBindingsUsed.length+1, function(){
 					var keyedChanges = {}
 					var changedKeys = []
-					mapHandles.forEach(function(mh, i){
-						mapChanges[i].forEach(function(c){
+
+					for(var i=0;i<mapHandles.length;++i){
+						var mh = mapHandles[i]
+						var mcc = mapChanges[i]
+						for(var j=0;j<mcc.length;++j){
+							var c = mcc[j]
 							if(c.type === 'put'){
 								if(keyedChanges[c.state.key] === undefined){
 									keyedChanges[c.state.key] = {}
@@ -263,12 +267,10 @@ exports.make = function(s, rel, recurse, handle, ws){
 							}else{
 								_.errout('TODO: ' + JSON.stringify(c))
 							}
-						})
-					})
+						}
+					}
 			
 					var results = []
-					//var has = {}
-					
 			
 					var needOldStateKeys = []
 					for(var i=0;i<changedKeys.length;++i){
@@ -540,56 +542,127 @@ exports.make = function(s, rel, recurse, handle, ws){
 			
 		},
 		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-			newHandle.getStateCountsAt(bindings, startEditId, function(counts){
+			console.log('computing each-optimization historical changes')
+
+			if(externalBindingsUsed.length === 0){
+				computeHistoricalChangesBetween(bindings, startEditId, endEditId, {}, function(changes){
+					cb(changes)
+				})
+
+				return
+			}
+			
+			var allStates = []
+			var bcdl = _.latch(externalBindingsUsed.length, function(){
+				allStates.sort(function(a,b){return a.editId - b.editId;})
+				
 				var allChanges = []
-				var externalBindingStates = {}
-				var cdl = _.latch(1+externalBindingsUsed.length+mapHandles.length, function(){
 				
-					//if(mapHandles.length > 1){
-					_.errout('TODO: get associated binding values for all other maps for each map put, and previous associated result value')
-					//}
+				var rem = 1
 				
-					if(allChanges.length === 0){
-						cb([])
-						return
+				function tryFinish(){
+					--rem
+					if(rem === 0){
+						allChanges.sort(function(a,b){return a.editId - b.editId;})
+						console.log('ok?: ' + JSON.stringify([allChanges,allStates, startEditId, endEditId]))
+						cb(allChanges)
 					}
+				}
+				
+				var curExternalBindings = {}
+				for(var i=0;i<allStates.length;++i){
+					var as = allStates[i]
+					while(i<allStates.length && allStates[i].editId === as.editId){
+						_.assertDefined(allStates[i].bk)
+						curExternalBindings[allStates[i].bk] = allStates[i].state
+						++i
+					}
+					--i
+					++rem
+					//TODO compute changes due to external bindings change between as.editId-1 and as.editId
+					computeHistoricalChangesBetween(bindings, as.editId, i+1<allStates.length?allStates[i+1].editId:endEditId, JSON.parse(JSON.stringify(curExternalBindings)), function(changes){
+						allChanges = allChanges.concat(changes)//allChanges.push(changes)
+						tryFinish()
+					})
+				}
+				tryFinish()
+			})
+			
+			console.log('externalBindingsUsed: ' + JSON.stringify(externalBindingsUsed))
+			//var allStates = []
+			externalBindingsUsed.forEach(function(bk, i){
+				var b = bindings[bk]
+				if(!b.getHistoricalChangesBetween) _.errout('missing getHistoricalChangesBetween: ' + b.name)
+	
+				b.getStateAt(bindings, startEditId, function(state){
+					allStates.push({bk: bk, state: state, editId: startEditId})
+					b.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+						var cdl = _.latch(changes.length, bcdl)
+						changes.forEach(function(c){
+							if(c.editId === startEditId || c.editId === endEditId){
+								cdl()
+								return 
+							}
+							b.getStateAt(bindings, c.editId, function(state){
+								allStates.push({bk: bk, state: state, editId: c.editId})
+								cdl()
+							})
+						})
+					})
+				})
+			})		
+		}
+	}
+	
+	function computeHistoricalChangesBetween(bindings, startEditId, endEditId, externalBindingStates, cb){
+		console.log('computing changes between ' + startEditId + ' ' + endEditId + ' ' + JSON.stringify(externalBindingStates))
+		newHandle.getStateCountsAt(bindings, startEditId, function(counts){
+			var allChanges = []
+			var cdl = _.latch(1+mapHandles.length, function(){
+			
+				if(allChanges.length === 0){
+					cb([])
+					return
+				}
+				
+				allChanges.sort(function(a,b){
+					return a.editId - b.editId
+				})
+				
+				var changeTransactions = mergeTransactions(allChanges)
+				
+				_.assert(changeTransactions.length > 0)
+				
+				var changes = []
+				
+				var ncdl = _.latch(changeTransactions.length, function(){
+					console.log('got historical changes between: ' + startEditId + ' ' + endEditId + ': ' + JSON.stringify(changes))
+					console.log(JSON.stringify(allChanges))
+					console.log(JSON.stringify(externalBindingStates))
+					cb(changes);
+				})
+				
+				changeTransactions.forEach(function(c){
+
+					/*externalBindingsUsed.forEach(function(bk, i){
+						if(c[bk]){
+							_.errout('TODO')
+						}
+					})*/
 					
-					allChanges.sort(function(a,b){
-						return a.editId - b.editId
+					var bindingValues = {}
+					var previousBindingValues = {}
+					
+					externalBindingsUsed.forEach(function(bk, i){
+						bindingValues[bk] = externalBindingStates[bk]
+						previousBindingValues[bk] = externalBindingStates[bk]
 					})
 					
-					var changeTransactions = mergeTransactions(allChanges)
-					
-					_.assert(changeTransactions.length > 0)
-					
-					var changes = []
-					
-					changeTransactions.forEach(function(c){
-
-						externalBindingsUsed.forEach(function(bk, i){
-							if(c[bk]){
-								_.errout('TODO')
-							}
-						})
-						
-						var bindingValues = {}
-						mapHandles.forEach(function(mh,i){
-							var cc = c['mh'+i]
-							if(cc){
-								_.assertEqual(cc.type, 'put')
-								if(c.input) _.assertEqual(cc.state.key, c.input.value)
-								bindingValues[mh.uid] = cc.value
-							}
-						})
-						externalBindingsUsed.forEach(function(bk, i){
-							bindingValues[bk] = externalBindingStates[bk]
-						})
-						
-						
+					var cdl = _.latch((c.input?1:2)*mapHandles.length, function(){
 						if(c.input){
 							bindingValues[originalImplicit] = c.input.value
 							if(c.input.type === 'add'){
-								
+							
 								var res = macroHandle.getStateSync(bindingValues)
 								if(res !== undefined){
 									//_.errout('TODO: ' + JSON.stringify([bindings,res]))
@@ -606,57 +679,82 @@ exports.make = function(s, rel, recurse, handle, ws){
 								_.errout('TODO: ' + JSON.stringify(c))
 							}
 						}else{
-							if(mapHandles.length > 1) _.errout('TODO')
-							
-							//_.errout('TODO: ' + JSON.stringify(c) + ' ' + JSON.stringify(bindingValues))
-							bindingValues[originalImplicit] = c.mh0.state.key
-							
+							bindingValues[originalImplicit] = changingId
+							previousBindingValues[originalImplicit] = changingId
+							var prevRes = macroHandle.getStateSync(previousBindingValues)
 							var res = macroHandle.getStateSync(bindingValues)
-							if(res !== undefined){
-								//_.errout('TODO: ' + JSON.stringify([bindings,res]))
-								if(!counts[res]){
-									counts[res] = 1
-									changes.push({type: 'add', value: res, editId: c.input.editId})
+							if(res !== prevRes){
+								//
+								if(res !== undefined && prevRes === undefined){
+									if(!counts[res]){
+										counts[res] = 1
+										changes.push({type: 'add', value: res, editId: editId})
+									}else{
+										++counts[res]
+									}
+								}else if(res === undefined && prevRes !== undefined){
+									--counts[prevRes]
+									if(counts[prevRes] === 0){
+										changes.push({type: 'remove', value: prevRes, editId: editId})
+									}
 								}else{
-									_.errout('TODO')
+									_.errout('TODO: ' + JSON.stringify([prevRes, res]))
 								}
 							}else{
-								//need to know old value
-								_.errout('TODO: ' + JSON.stringify(bindingValues))
+								console.log('no change: ' + JSON.stringify([previousBindingValues,bindingValues]))
 							}
 						}
+						ncdl()
 					})
-					console.log('got historical changes between: ' + startEditId + ' ' + endEditId + ': ' + JSON.stringify(changes))
-					console.log(JSON.stringify(allChanges))
-					console.log(JSON.stringify(externalBindingStates))
-					cb(changes)
-				})
-				inputSet.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
-					tagInto(allChanges, changes, 'input')
-					cdl()
-				})
-				console.log('externalBindingsUsed: ' + JSON.stringify(externalBindingsUsed))
-				externalBindingsUsed.forEach(function(bk, i){
-					var b = bindings[bk]
-					b.getStateAt(bindings, startEditId, function(state){
-						externalBindingStates[bk] = state
-						b.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
-							tagInto(allChanges, changes, bk)
-							console.log('got state and changes for ' + bk + ': ' + JSON.stringify([state, changes]))
+
+					var changingId 
+					var editId
+					
+					if(c.input){
+						changingId = c.input.value
+						editId = c.input.editId
+					}else{
+						mapHandles.forEach(function(mh,i){
+							var cc = c['mh'+i]
+							if(cc){
+								changingId = cc.state.key
+								editId = cc.editId
+							}
+						})
+						mapHandles.forEach(function(mh, i){
+							if(!mh.handle.getKeyStateAt) _.errout('missing getKeyStateAt: ' + mh.handle.name)
+							mh.handle.getKeyStateAt(bindings, editId-1, changingId, function(pv){
+								previousBindingValues[mh.uid] = pv
+								cdl()
+							})
+						})
+					}
+											
+					_.assertDefined(changingId)
+
+					mapHandles.forEach(function(mh, i){
+						if(!mh.handle.getKeyStateAt) _.errout('missing getKeyStateAt: ' + mh.handle.name)
+						mh.handle.getKeyStateAt(bindings, editId, changingId, function(pv){
+							bindingValues[mh.uid] = pv
 							cdl()
 						})
 					})
 				})
-				mapHandles.forEach(function(mh,i){
-					mh.handle.getChangesBetween(bindings, startEditId, endEditId, function(mc){
-						tagInto(allChanges, mc, 'mh'+i)
-						cdl()
-					})
+			})
+			inputSet.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+				tagInto(allChanges, changes, 'input')
+				cdl()
+			})
+		
+			mapHandles.forEach(function(mh,i){
+				if(!mh.handle.getHistoricalChangesBetween) _.errout('missing getHistoricalChangesBetween: ' + mh.handle.name)
+				mh.handle.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(mc){
+					console.log('got map changes ' + JSON.stringify(mc) + ' ' + i)
+					tagInto(allChanges, mc, 'mh'+i)
+					cdl()
 				})
 			})
-		//	_.errout('TODO')
-			
-		}
+		})
 	}
 	
 	function computeComplete(bindings, startEditId, endEditId, cb){

@@ -179,6 +179,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				if(listenerCbs[syncId]){
 					listenerCbs[syncId].seq.end()
 					delete listenerCbs[syncId]
+					console.log('deleted seq for: ' + syncId)
 				}else{
 					console.log('WARNING: tried to end sync handle that does not exist or was already ended: ' + syncId)
 					console.log(new Error().stack)
@@ -206,10 +207,17 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 						currentSyncId = up.syncId
 						listenerCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
 					}
+					
+					//_.assertUndefined(up.id)
+					if(up.state){
+						if(up.id) _.assertEqual(up.id, up.state.top)
+						up.id = up.state.top
+					}
 
 
 					if(up.id !== -1){
 
+						//console.log('currentResponseId: ' + currentResponseId + ' ' + up.id)
 						if(currentResponseId !== up.id){
 							if(_.isString(up.id)){
 								listenerCb(editCodes.selectTopViewObject, {id: up.id}, up.editId)					
@@ -235,6 +243,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 							curState = newState
 						}
 					}
+					//_.assertDefined(up.id)
 					listenerCb(up.op, up.edit, up.editId)					
 				}
 				
@@ -361,7 +370,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				_.assertInt(typeCode);
 
 				if(schema._byCode[typeCode].isView){
-					viewState.getSnapshots(typeCode, params, e.historicalKey, cb);
+					viewState.getSnapshots(typeCode, params, e.isHistorical, cb);
 				}else{
 					//_.errout('ERROR')
 					cb(new Error('view does not exist: ' + schema._byCode[typeCode].name))
@@ -377,7 +386,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
 					try{
-						viewState.getAllSnapshotStates(typeCode, params, snapshotIds, e.historicalKey, function(states){
+						viewState.getAllSnapshotStates(typeCode, params, snapshotIds, e.isHistorical, function(states){
 							cb(undefined, states)
 						}, function(e){
 							console.log('ERROR: ' + e.stack)						
@@ -400,10 +409,13 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				var previousId = e.previousVersionId;
 				
 				_.assert(params.length === schema._byCode[typeCode].viewSchema.params.length);
+				
+				//console.log('getting snapshot: ' + e.isHistorical)
+				//console.log(new Error().stack)
 			
 				if(schema._byCode[typeCode].isView){
 					_.assertArray(params);
-					viewState.getSnapshotState(typeCode, params, snapshotId, previousId, function(res){
+					viewState.getSnapshotState(typeCode, params, snapshotId, previousId, e.isHistorical, function(res){
 						cb(undefined, res)
 					}, function(e){
 						cb(e)

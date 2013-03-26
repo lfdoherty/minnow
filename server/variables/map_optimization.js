@@ -1,4 +1,4 @@
-"use strict";
+//"use strict";
 
 var _ = require('underscorem')
 var wraputil = require('./../wraputil')
@@ -50,16 +50,17 @@ exports.make = function(s, rel, recurse, handle, ws){
 		_.assertObject(prop)
 		var propertyCode = prop.code
 
-	
-	
 		var propertyWs = wraputil.makeUtilities(prop.type)
-		var defaultState = propertyWs.defaultState
+
+		var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
 		
-		var gpv = s.objectState.getPropertyValueAt
+		function getPropertyChangesDuring(id, startEditId, endEditId, cb){
+			s.objectState.getPropertyChangesDuring(id, /*objSchema.code, */propertyCode, startEditId, endEditId, cb)
+		}
+	
 		getPropertyValueAt = function(id, editId, cb){
 			a.gotProperty(propertyName)
-			//console.log('get property value at')
-			gpv(id, propertyCode, editId, cb)
+			getProperty(id, editId, cb)
 		}
 	}	
 
@@ -86,6 +87,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 				}
 			})
 		},
+
 		getPartialStateAt: function(bindings, editId, keySet, cb){//gets the map for the given keys
 			//_.errout('TODO')
 			
@@ -95,7 +97,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 				cb(results)
 			})
 
-			//TODO optimize, keeping in mind preforked-style issues
+			//optimization, keeping in mind preforked-style issues
 			//those being that we need not only the right id, but also the id with whatever
 			//overrides to e.g. getPropertyValueAt have been defined by the inputSet expr.
 			if(inputSet.getConfiguredIdAt){
@@ -111,6 +113,8 @@ exports.make = function(s, rel, recurse, handle, ws){
 					})
 				}
 			}else{
+				//TODO optimize this case or reduce the number of inputSets that do not have getConfiguredIdAt
+				//it should be fairly easy to optimize the no-op when no configuration needs to happen anyway
 				inputSet.getStateAt(bindings, editId, function(state){
 					var has = {}
 					for(var i=0;i<keySet.length;++i){
@@ -148,6 +152,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 					var cdl = _.latch(newIds.length, function(){
 
 						var cdl = _.latch(ids.length, function(){
+							//console.log('**changes: ' + JSON.stringify(changesToMap))
 							cb(changesToMap)
 						})
 						
@@ -160,12 +165,28 @@ exports.make = function(s, rel, recurse, handle, ws){
 							getPropertyValueAt(id, startEditId, function(startPv){
 								getPropertyValueAt(id, endEditId, function(endPv, id){
 									if(startPv !== endPv){
-										console.log('changed: ' + JSON.stringify([startPv, endPv, id]))
-										changesToMap.push({
-											type: 'put', 
-											value: endPv,
-											state: {key: id, keyOp: editCodes.selectObjectKey}, 
-											editId: endEditId})
+										//console.log('changed: ' + JSON.stringify([startPv, endPv, id]))
+										if(_.isArray(endPv)){
+											var aHas = {}
+											var bHas = {}
+											startPv.forEach(function(v){aHas[v]=true;})
+											endPv.forEach(function(v){bHas[v]=true;})
+											var state = {key: id, keyOp: editCodes.selectObjectKey}
+											startPv.forEach(function(v){
+												if(!bHas[v]) changesToMap.push({type: 'putRemove', value: v, state: state, editId: endEditId})
+											})
+											endPv.forEach(function(v){
+												if(!aHas[v]) changesToMap.push({type: 'putAdd', value: v, state: state, editId: endEditId})
+											})
+	
+										}else{
+											_.assertPrimitive(endPv)
+											changesToMap.push({
+												type: 'put', 
+												value: endPv,
+												state: {key: id, keyOp: editCodes.selectObjectKey}, 
+												editId: endEditId})
+										}
 									}
 									cdl()
 								})
@@ -175,6 +196,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 					
 					for(var i=0;i<newIds.length;++i){
 						getPropertyValueAt(newIds[i], endEditId, function(pv, id){
+							if(!_.isPrimitive(pv)) _.errout('not primitive: ' + JSON.stringify(pv))//_.assertPrimitive(pv)
 							changesToMap.push({
 								type: 'put', 
 								value: pv,
@@ -185,8 +207,104 @@ exports.make = function(s, rel, recurse, handle, ws){
 					}
 				})
 			})
+		},
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			inputSet.getChangesBetween(bindings, startEditId, endEditId, function(changes){
+				var newIds = []
+				var isNewId = {}
+				var newIdEditIds = []
+				for(var i=0;i<changes.length;++i){
+					var c = changes[i]
+					_.assertEqual(c.type, 'add')
+					newIds.push(c.value)
+					newIdEditIds.push(c.editId)
+					isNewId[c.value] = true
+				}
+				
+				var changesToMap = []
+				
+				console.log('map inputSet changes: ' + JSON.stringify(changes))
+				
+				function applyChanges(id, propertyChanges){
+					console.log('applying changes: ' + id + ' ' + JSON.stringify(propertyChanges))
+					propertyChanges.forEach(function(pc){
+						if(pc.type === 'set'){
+							_.assertEqual(pc.type, 'set')
+							_.assertInt(pc.editId)
+							_.assertPrimitive(pc.value)
+							changesToMap.push({
+								type: 'put', 
+								value: pc.value,
+								state: {key: id, keyOp: editCodes.selectObjectKey}, 
+								editId: pc.editId})
+						}else if(pc.type === 'add'){
+							changesToMap.push({
+								type: 'putAdd', 
+								value: pc.value,
+								state: {key: id, keyOp: editCodes.selectObjectKey}, 
+								editId: pc.editId})
+						}else if(pc.type === 'remove'){
+							changesToMap.push({
+								type: 'putRemove', 
+								value: pc.value,
+								state: {key: id, keyOp: editCodes.selectObjectKey}, 
+								editId: pc.editId})
+						}else{
+							_.errout('tODO: ' + JSON.stringify(pc))
+						}
+					})
+				}
+				inputSet.getMayHaveChanged(bindings, startEditId, endEditId, function(ids){
+
+					var cdl = _.latch(newIds.length, function(){
+
+						var cdl = _.latch(ids.length, function(){
+							changesToMap.sort(function(a,b){return a.editId - b.editId;})
+							cb(changesToMap)
+						})
+						
+						ids.forEach(function(id){
+
+							if(isNewId[id]){
+								cdl()
+								return
+							}
+							getPropertyChangesDuring(id, startEditId, endEditId, function(propertyChanges){
+								applyChanges(id, propertyChanges)
+								cdl()
+							})
+							
+						})
+					})
+					
+					newIds.forEach(function(id, index){
+						//getPropertyValueAt(id, newIdEditIds[index], function(pv){
+						//	_.assertPrimitive(pv)
+							getPropertyChangesDuring(id, -1, endEditId, function(propertyChanges){
+								//if(pv !== undefined) propertyChanges = [{type: 'set', value: pv, editId: newIdEditIds[index]}].concat(propertyChanges)
+								applyChanges(id, propertyChanges)
+								cdl()
+							})
+						//})						
+					})
+				})
+			})
 		}
 	}
 	
+	if(inputSet.getConfiguredIdAt){
+		newHandle.getKeyStateAt = function(bindings, editId, id, cb){
+			inputSet.getConfiguredIdAt(id, bindings, editId, function(realId){
+				console.log('getting id: ' + realId + ' ' + id)
+				getPropertyValueAt(realId, editId, cb)
+			})
+		}
+	}else{
+		newHandle.getKeyStateAt = function(bindings, editId, id, cb){
+			_.errout('TODO: ' + inputSet.name)
+		}
+		//
+	}
+		
 	return newHandle
 }

@@ -57,6 +57,19 @@ function makeIdRel(s, context){
 					cb([])
 				}
 			})
+		},
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			context.getChangesBetween(bindings, startEditId, endEditId, function(changes){
+				if(changes.length > 0){
+					_.assertLength(changes, 1)
+					var c = changes[0]
+					if(c.editId < 0) _.errout('editId too early: ' + JSON.stringify(c.editId))
+					_.assert(c.editId >= 0)
+					cb([{type: 'set', value: ''+c.value, editId: c.editId, syncId: -1}])
+				}else{
+					cb([])
+				}
+			})
 		}
 	}
 }
@@ -209,6 +222,8 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		var rem = paramRels.length
 		var states = []
 		paramRels.forEach(function(pr, index){
+			//if(pr.getStateSync) _.errout('TODO')
+			//console.log('state: ' + pr.name + ' ' + viewName)
 			pr.getStateAt(bindings, editId, function(state){
 				--rem
 				states[index] = state
@@ -265,7 +280,6 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 			//console.log('making params')
 			makeParams(bindings, editId, computeResult)
 		},
-		
 	}
 
 	if(isFullySync){
@@ -312,9 +326,16 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 	if(rel.schemaType.type === 'primitive' || rel.schemaType.type === 'object' || rel.schemaType.type === 'view'){
 		//_.errout('TODO')
 		handle.getChangesBetween = makeSetChangesBetween(handle, ws)
+		//handle.getHistoricalChangesBetween = makeSetHistoricalChangesBetween(handle, ws)
 	}else{
-		handle.getChangesBetween = makeSyncGenericGetChangesBetween(handle, ws, rel, recurse)
+		handle.getChangesBetween = makeSyncGenericGetChangesBetween(handle, ws, rel, recurse)//TODO
+		
 	}
+	
+	handle.getHistoricalChangesBetween = makeGeneralOperatorHistoricalChangesBetween(paramRels, handle, ws)
+
+	
+	//makeSyncGenericGetHistoricalChangesBetween(handle, ws, rel, recurse)//TODO
 	
 	//handle.getChangesBetween = makeGenericGetChangesBetween(handle, ws, rel, recurse)
 	
@@ -376,46 +397,13 @@ function makeSyncGenericGetChangesBetween(handle, ws, rel, recurse){
 						var es = ws.diffFinder(startState, state)
 						var changes = []
 						es.forEach(function(e){
-							e.editId = endEditId//editId+1
+							e.editId = endEditId
 							changes.push(e)
 						})
 						cb(changes)
 					}
 				})
 			})
-			
-			/*editIds.sort(function(a,b){return a-b;})
-			console.log('here: ' + JSON.stringify(editIds))
-			var snaps = []*/
-			
-			
-			/*var ndl = _.latch(editIds.length+1, function(){
-				var changes = []
-				editIds.forEach(function(editId, i){
-					var nextEditId = editIds[i+1] || editId+1
-					console.log('comparing ' +editId + ' ' + nextEditId + ' ' + JSON.stringify([snaps[i],snaps[i+1]]))
-					var es = ws.diffFinder(snaps[i], snaps[i+1])
-					es.forEach(function(e){
-						e.editId = nextEditId//editId+1
-						changes.push(e)
-					})
-				})
-				console.log('cbing: ' + JSON.stringify(changes))
-				cb(changes)
-			})
-			
-			editIds.forEach(function(editId, i){
-				
-				handle.getStateAt(bindings, editId, _.assureOnce(function(state){
-					snaps[i] = ws.validateState(state)
-					ndl()
-				}))
-			})
-			
-			handle.getStateAt(bindings, editIds[editIds.length-1]+1, _.assureOnce(function(state){
-				snaps[snaps.length] = ws.validateState(state)
-				ndl()
-			}))*/
 		})
 		//console.log('here2')
 		for(var i=0;i<paramFuncs.length;++i){
@@ -426,21 +414,7 @@ function makeSyncGenericGetChangesBetween(handle, ws, rel, recurse){
 					has[editId] = true
 					editIds.push(editId)
 				})
-				
-				//console.log('changes: ' + JSON.stringify(changes))
-				
-				//temporary debugging check
-				/*if(changes.length === 0){
-					paramFuncs[i].getStateAt(bindings, startEditId, function(startState){
-						paramFuncs[i].getStateAt(bindings, endEditId, function(state){
-							console.log(startEditId + ' ' + endEditId + ' ' + paramFuncs[i].name)
-							_.assertEqual(JSON.stringify(startState), JSON.stringify(state))
-							cdl()
-						})
-					})
-					return
-				}*/
-				
+						
 				cdl()
 			})
 		}
@@ -475,8 +449,8 @@ function makeMacroWrapper1(pr, mergeResults){
 
 function makeWrapper(value){
 	//_.assertDefined(value)
-	return {
-		name: 'value',
+	var handle = {
+		name: 'value*',
 		getStateAt: function(bindings, editId, cb){
 			//console.log('getting state of value at ' + editId + ' ' + rel.value)
 			if(editId === -1){
@@ -496,6 +470,8 @@ function makeWrapper(value){
 			}
 		}
 	}
+	handle.getHistoricalChangesBetween = handle.getChangesBetween
+	return handle
 }
 function makeMacroWrapper2(pr, mergeResults){
 
@@ -614,54 +590,31 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 			_.assertInt(editId)
 			_.assertObject(bindings)
 			
-			var key = bindings.__key+':'+editId//JSON.stringify(bindings)+':'+editId
-			if(cache[key]){
+			var key = bindings.__key+':'+editId
+			/*if(cache[key]){
 				//console.log('already cached: ' + key + ' ' + JSON.stringify(cache[key]) + ' ' + nameStr)
 				cb(cache[key])
 				return
-			}
+			}*/
 			//var ttt
+			
 			function callback(result){
-				//clearTimeout(ttt)
-				/*if(cache[key]){
-					if(JSON.stringify(cache[key]) !== JSON.stringify(result)){
-						_.errout('different(' + editId+'): \n' + JSON.stringify(cache[key]) +'\n' + JSON.stringify(result) + '\n'+key +'\n'+impl.callSyntax)
-					}
-				}*/
-				//console.log('here')
-				//cache[key] = result
-				//console.log('cached ' + key + ' ' + JSON.stringify(cache[key]) + ' ' + impl.callSyntax + ' ' + nameStr)
 				cb(result)
 			}
-			callback.name = callback+Math.random()
-			//var ttt
 			function computeResult(paramStates){
-				//console.log('DOOOOO: '+viewName + ' ' + paramStates.length)
 				_.assertEqual(paramStates.length, paramRels.length)
 				
-				/*ttt = setTimeout(function(){
-					console.log('view did not complete: ' + viewName + ' ' + JSON.stringify(paramStates))
-				},3000)*/
-				
-				/*var zl = {schema: z.schema, objectState: z.objectState}//_.extend({}, z)
-				_.assertInt(editId)
-				zl.editId = editId*/
-				
-				
-				
 				var cp = [z, callback].concat(paramStates)
-				//cp = cp.concat(paramStates)
 				if(!impl.computeAsync) _.errout('needs computeAsync: ' + viewName + ', got: ' + JSON.stringify(Object.keys(impl)))
 				
 				impl.computeAsync.apply(undefined, cp)
 			}
 			
 			makeParams(bindings, editId, computeResult)
-		},
-		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-			_.errout('TODO')
 		}
 	}
+	
+	handle.getHistoricalChangesBetween = makeGeneralOperatorHistoricalChangesBetween(paramRels, handle, ws)
 	
 	if(rel.schemaType.type === 'primitive' || rel.schemaType.type === 'object' || rel.schemaType.type === 'view'){
 		handle.getChangesBetween = makeSetChangesBetween(handle, ws)
@@ -686,6 +639,62 @@ function makeOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 
 	return handle
 }
+
+function makeGeneralOperatorHistoricalChangesBetween(paramRels, handle, ws){
+	function getHistoricalChangesBetween(bindings, startEditId, endEditId, cb){
+		
+		var realEditIds = []
+
+		var cdl = _.latch(paramRels.length, function(){
+			if(!has[startEditId]) realEditIds.unshift(startEditId)
+			if(!has[endEditId]) realEditIds.push(endEditId)
+		
+			var states = []
+			
+			var ncdl = _.latch(realEditIds.length, function(){
+				var changes = []
+				realEditIds.slice(0, realEditIds.length-1).forEach(function(editId, index){
+					var es = ws.diffFinder(states[index], states[index+1])
+					for(var i=0;i<es.length;++i){
+						var e = es[i]
+						e.editId = realEditIds[index+1]
+						changes.push(e)
+					}
+				})
+				cb(changes)
+			})
+			
+			realEditIds.forEach(function(editId, index){
+				handle.getStateAt(bindings, editId, function(v){
+					states[index] = v
+					ncdl()
+				})
+			})
+			
+			
+		})
+
+		var has = {}
+		paramRels.forEach(function(pr, index){
+			if(pr.isMacro){
+				cdl()
+			}else{
+				if(pr.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + pr.name)
+				
+				pr.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+					changes.forEach(function(c){
+						if(has[c.editId]) return
+						has[c.editId] = true
+						realEditIds.push(c.editId)
+					})
+					cdl()
+				})
+			}
+		})
+	}
+	return getHistoricalChangesBetween
+}
+
 function makeGenericGetChangesBetween(handle, ws, rel){
 	function genericGetChangesBetween(bindings, startEditId, endEditId, cb){
 	
@@ -693,7 +702,7 @@ function makeGenericGetChangesBetween(handle, ws, rel){
 			//if(rel.schemaType.type === 'map') _.assertObject(startState)
 			handle.getStateAt(bindings, endEditId, function(state){
 				var changes = []
-				//console.log('state: ' + JSON.stringify(state))
+				//console.log('states('+startEditId+','+endEditId+'): ' + JSON.stringify(startState) + ' -> ' + JSON.stringify(state))
 				var es = ws.diffFinder(startState, state)
 				for(var i=0;i<es.length;++i){
 					var e = es[i]
@@ -703,42 +712,6 @@ function makeGenericGetChangesBetween(handle, ws, rel){
 				cb(changes)
 			})
 		})
-	
-		//var snaps = []
-
-				
-		//console.log('doing generic for: ' + handle.name)
-
-		/*var cdl = _.latch(1+endEditId-startEditId, 900, function(){
-			//_.errout('TODO('+startEditId+','+endEditId+'): ' + JSON.stringify(snaps))
-			//console.log('HERE: ' + (1+endEditId-startEditId) + ' ' + '1+'+endEditId+'-'+startEditId)
-			var changes = []
-			wu.range(startEditId, endEditId, function(editId, index){
-				//console.log('finding diff: '+ JSON.stringify([snaps[index], snaps[index+1]]))
-				var es = ws.diffFinder(snaps[index], snaps[index+1])
-				for(var i=0;i<es.length;++i){
-					var e = es[i]
-					e.editId = editId+1
-					changes.push(e)
-				}
-			})
-		
-			//console.log('all changes for ' + handle.name + ' between ' + startEditId + ',' + endEditId + ': ' + JSON.stringify(changes))
-			cb(changes)
-		})
-		console.log('getting states between ' + startEditId + ' ' + (endEditId+1) + ' for ' + handle.name)
-		wu.range(startEditId, endEditId+1, function(editId, index){
-			//console.log('getting state at: ' + editId)
-			if(editId === -1){
-				snaps[index] = ws.defaultState
-				cdl()
-			}else{
-				handle.getStateAt(bindings, editId, _.assureOnce(function(state){
-					snaps[index] = ws.validateState(state)
-					cdl()
-				}))
-			}
-		})*/
 	}
 	return genericGetChangesBetween
 }
@@ -793,8 +766,23 @@ function makeSwitchRel(s, context, cases, defaultCase, ws, rel){
 			})
 		}
 	}
-	handle.getInclusionsDuring = wu.makeGenericGetInclusionsDuring(handle, ws)
+	//handle.getInclusionsDuring = wu.makeGenericGetInclusionsDuring(handle, ws)
 	handle.getChangesBetween = makeGenericGetChangesBetween(handle, ws, rel)
+	
+	handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
+		_.errout('TODO')
+		/*context.getStateAt(bindings, editId, function(contextState){
+			context.getChangesBetween(bindings, editId, function(contextChanges){
+				if(contextChanges.length === 0){
+					getCurrentCase(bindings, editId, function(currentCase,cv,currentState){
+					
+				}else{
+					_.errout('TODO')
+				}
+			})
+		})*/
+	}
+	
 	return handle
 }
 
@@ -916,6 +904,12 @@ function makeContextWrappedWithCache(exprHandle){
 	function contextWrappedWithCache(){
 		var cachedState
 		var cachedEditId
+		
+		var cacheChanges
+		var cachedChangesRange
+		
+		var cachedHistoricalChanges
+		var cachedHistoricalRange
 		return {
 			name: 'let-cache(' + exprHandle.name + ')',
 			getStateAt: function(bindings, editId, cb){
@@ -924,13 +918,38 @@ function makeContextWrappedWithCache(exprHandle){
 					return
 				}
 				exprHandle.getStateAt(bindings, editId, function(state){
+					//console.log('miss ' + editId)
+					//console.log(new Error().stack)
 					cachedEditId = editId
 					cachedState = state
 					cb(state)
 				})
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				exprHandle.getChangesBetween(bindings, startEditId, endEditId, cb)
+				//exprHandle.getChangesBetween(bindings, startEditId, endEditId, cb)
+				var key = startEditId+':'+endEditId
+				if(key === cachedChangesRange){
+					cb(cachedState)
+					return
+				}
+				exprHandle.getChangesBetween(bindings, startEditId, endEditId, function(changes){
+					cachedChangesRange = key
+					cacheChanges = changes
+					cb(changes)
+				})
+			},
+			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+				//exprHandle.getHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
+				var key = startEditId+':'+endEditId
+				if(key === cachedHistoricalRange){
+					cb(cachedHistoricalChanges)
+					return
+				}
+				exprHandle.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+					cachedHistoricalRange = key
+					cachedHistoricalChanges = changes
+					cb(changes)
+				})
 			}
 		}
 	}
@@ -1136,6 +1155,35 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			
 			if(rel.view === 'each-optimization'){
 				handle = eachOptimization.make(s, rel, recurse, handle, ws)
+			}else if(rel.view === 'count' && rel.params[0].view === 'typeset'){
+				//_.errout('TODO')
+				var objName = rel.params[0].params[0].value
+				var nameStr = 'count-typeset-optimization['+objName+']'
+				var a = analytics.make(nameStr, [])
+				//_.errout('TODO: ' + JSON.stringify(rel) + ' ' + objName)
+				var typeCode = s.schema[objName].code
+				handle = {
+					name: nameStr,
+					getStateAt: function(bindings, editId, cb){
+						s.objectState.getManyOfTypeAt(typeCode,editId,cb)
+						//console.log('getting state of value at ' + editId + ' ' + rel.value)
+
+					},
+
+					getChangesBetween: function(bindings, startEditId, endEditId, cb){
+						s.objectState.getManyOfTypeAt(typeCode,startEditId,function(startCount){
+							s.objectState.getManyOfTypeAt(typeCode,endEditId,function(endCount){
+								if(startCount !== endCount){
+									cb([{type: 'set', value: endCount, editId: endEditId}])
+								}else{
+									cb([])
+								}
+							})
+						})
+
+					},
+					analytics: a
+				}
 			}else{
 				var impl = schema.getImplementation(rel.view)
 				_.assertDefined(impl)
@@ -1187,6 +1235,7 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			},
 			analytics: a
 		}
+		handle.getHistoricalChangesBetween = handle.getChangesBetween
 	}else if(rel.type === 'macro'){
 		_.assertInt(rel.manyImplicits)
 		var inner = recurse(rel.expr)
@@ -1267,6 +1316,7 @@ exports.make = function(s, rel, recurse, getViewHandle){
 					cb([])
 				}else if(endEditId >= 0){*/
 					var b = bindings[paramName]
+					if(b.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + b.name)
 					b.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
 						/*if(v===undefined){
 							//console.log('no binding')
@@ -1275,7 +1325,10 @@ exports.make = function(s, rel, recurse, getViewHandle){
 							cb([{type: 'set', value: v, editId: endEditId}])//, editId: bindings.__bindingTimes[paramName]}])
 						}*/
 						if(changes.length > 0){
-							_.errout('TODO: ' + JSON.stringify(changes))
+							//_.errout('TODO: ' + JSON.stringify(changes))
+							cb(changes)
+						}else{
+							cb([])
 						}
 					})
 				/*}else{
@@ -1302,6 +1355,8 @@ exports.make = function(s, rel, recurse, getViewHandle){
 		
 		var contextWrappedWithCache = makeContextWrappedWithCache(exprHandle)
 		
+		if(subHandle.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + subHandle.name)
+		
 		var a = analytics.make('let:'+rel.name+'('+exprHandle.name+','+subHandle.name+')', [exprHandle, subHandle])
 		handle = {
 			name: 'let(' + subHandle.name + ')',
@@ -1317,6 +1372,13 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				newBindings[rel.name] = contextWrappedWithCache()//exprHandle
 				//console.log('in let')
 				subHandle.getChangesBetween(newBindings, startEditId, endEditId, cb)
+			},
+			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+				//_.errout('TODO')
+				var newBindings = _.extend({}, bindings)
+				newBindings[rel.name] = contextWrappedWithCache()//exprHandle
+				//console.log('in let')
+				subHandle.getHistoricalChangesBetween(newBindings, startEditId, endEditId, cb)
 			},
 			analytics: a
 		}

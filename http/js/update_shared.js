@@ -63,13 +63,13 @@ function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, vie
 		})
 	})
 }
-function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb){
+function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb, historicalKey){
 	_.assertInt(lastId)
 	
     var viewId = baseTypeCode+':'+JSON.stringify(params)
     
     for(var i=0;i<snaps.length;++i){
-		api.addSnapshot(snaps[i])
+		api.addSnapshot(snaps[i], historicalKey)
 	}
 	var lastSnapshotVersion = snaps[snaps.length-1].endVersion
 
@@ -80,14 +80,19 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, param
 		
 		if(exports.slowGet){//special debug hook - specifies millisecond delay for testing
 			setTimeout(function(){
-				cb(undefined, api.getView(viewId))
+				cb(undefined, api.getView(viewId, historicalKey))
 			},exports.slowGet)
 		}else{
-			cb(undefined, api.getView(viewId))
+			cb(undefined, api.getView(viewId, historicalKey))
 		}
 	}
 	
-	sendFacade.sendSetupMessage({type: 'setup', viewName: viewName, params: JSON.stringify(params), version: lastSnapshotVersion}, function(){
+	sendFacade.sendSetupMessage({
+		type: 'setup', 
+		viewName: viewName, 
+		params: JSON.stringify(params),
+		isHistorical: !!historicalKey,
+		version: lastSnapshotVersion}, function(){
 		
 		//readyCb()
 		if(api.viewsBeingGotten === undefined || api.viewsBeingGotten[viewId] === undefined){

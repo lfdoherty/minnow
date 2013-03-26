@@ -30,7 +30,7 @@ exports.computeAsync = function(z, cb, a, b){
 
 
 exports.computeSync = function(z, a, b){
-	if(!_.isNumber(a) || !_.isNumber(b)){
+	if(a === undefined || b === undefined){//!_.isNumber(a) || !_.isNumber(b)){
 		return false
 	}else{
 		return a > b

@@ -753,24 +753,24 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, state){
 	
 	var id = state.top
 	
-	if(op === editCodes.selectTopObject) _.errout('err')
+	//if(op === editCodes.selectTopObject) _.errout('err')
 	
 	if(op === editCodes.make){
-		_.assert(syncId > 0)
+		//_.assert(syncId > 0)
 		//console.log('MAKE ' + this.readers.lastVersionId)
 		return this._make(edit, timestamp, syncId)
 	}else if(op === editCodes.makeFork){
-		_.assert(syncId > 0)
+		//_.assert(syncId > 0)
 		return this._makeFork(edit, timestamp, syncId)
 	}else if(op === editCodes.refork){
-		_.assert(syncId > 0)
+		//_.assert(syncId > 0)
 		//return this._makeFork(edit, timestamp, syncId)
-		_.assert(edit.sourceId > 0)//TODO how to handle property streams?
+		//_.assert(edit.sourceId > 0)//TODO how to handle property streams?
 		this.forks[id] = edit.sourceId
 	}
 
-	_.assertInt(state.top)
-	_.assert(state.top > 0)
+	//_.assertInt(state.top)
+	//_.assert(state.top > 0)
 	
 	var newEdits = []
 	
@@ -949,6 +949,29 @@ Ol.prototype.getLatestVersionId = function(){
 Ol.prototype.getMany = function(typeCode){
 	return (this.idsByType[typeCode] || []).length
 }
+Ol.prototype.getManyAt = function(typeCode, endEditId, cb){
+	var many = 0
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.idsByType[tc]// || [];
+		if(ids){
+			var editIds = this.creationEditIdsByType[tc]
+			for(var i=0;i<ids.length;++i){
+				var id = ids[i]
+				if(!this.destroyed[id]){
+					var editId = editIds[i]
+					if(editId > endEditId){
+						break//creationEditIdsByType is sequential
+					}
+					++many
+				}
+			}
+		}
+	}
+	if(cb) cb(many)
+	return many
+}
 Ol.prototype.getAllIdsOfTypeAt = function(typeCode, endEditId, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -960,9 +983,10 @@ Ol.prototype.getAllIdsOfTypeAt = function(typeCode, endEditId, cb){
 			var id = ids[i]
 			if(!this.destroyed[id]){
 				var editId = editIds[i]
-				if(editId <= endEditId){
-					res.push(id)
+				if(editId > endEditId){
+					break//creationEditIdsByType is sequential
 				}
+				res.push(id)
 			}
 		}
 	}
@@ -999,7 +1023,10 @@ Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEdi
 			var id = ids[i]
 			if(!this.destroyed[id]){
 				var editId = editIds[i]
-				if(editId > startEditId && editId <= endEditId){
+				if(editId > endEditId){
+					break
+				}
+				if(editId > startEditId){
 					res.push(id)
 				}
 			}
@@ -1020,7 +1047,10 @@ Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEdit
 			var id = ids[i]
 			if(!this.destroyed[id]){
 				var editId = editIds[i]
-				if(editId > startEditId && editId <= endEditId){
+				if(editId > endEditId){
+					break
+				}
+				if(editId > startEditId){
 					res.push({id: id, editId: editId})
 				}
 			}

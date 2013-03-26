@@ -23,6 +23,16 @@ schema.addFunction('isOfType', {
 		result = !!result
 		//console.log('isOfType ' + id + ','+name + ' ' + result)
 		cb(result)
+	},
+	computeSync: function(z, id, name){
+		if(id === undefined){			
+			return
+		}
+		var objSchema = z.schema._byCode[z.objectState.getObjectType(id)]
+
+		var result = objSchema.name === name || (objSchema.superTypes && objSchema.superTypes[name])
+		result = !!result
+		return result
 	}
 })
 

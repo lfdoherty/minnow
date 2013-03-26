@@ -256,8 +256,8 @@ function establishSocket(appName, schema, host, cb){
 				cb(err, handle)
 			})
 		},
-		_openViewWithSnapshots: function(baseTypeCode, lastId, snaps, viewName, params, cb){
-			shared.openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
+		_openViewWithSnapshots: function(baseTypeCode, lastId, snaps, viewName, params, cb, historicalKey){
+			shared.openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb, historicalKey)
 		},
 		close: function(cb){
 			closed = true

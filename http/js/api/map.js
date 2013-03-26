@@ -505,8 +505,12 @@ MapHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, edi
 	}else if(op === editCodes.putViewObject){
 		var id = edit.id
 		_.assertString(id)
+		_.assertDefined(key)
 
 		var res = this.getObjectApi(id);
+		if(!res){
+			_.errout('putViewObject with unknown viewObject: ' + id)
+		}
 		var old = this.obj[key]
 		this.obj[key] = res
 		res.prepare()

@@ -121,6 +121,7 @@ exports.fastPersist = function(config, done){
 exports.longConnection = function(config, done){
 	var N = 100
 	var D = 100
+
 	minnow.makeServer(config, function(s){
 		var madeCount = 0
 		var remaining = N

@@ -70,8 +70,8 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			_.assertLength(arguments, 3)
 			
 			var viewId = e.typeCode + ':'+e.params
-			//console.log('added view: ' + viewId + ' after ' +  e.latestSnapshotVersionId)
-			seq.addView(viewId, e.latestSnapshotVersionId, readyPacketCb)
+			//console.log('added view: ' + viewId + ' after ' +  e.latestSnapshotVersionId + ' ' + JSON.stringify(e))
+			seq.addView(viewId, e.latestSnapshotVersionId, readyPacketCb, e.isHistorical)
 			
 		},
 		//TODO: implement halving algorithm
@@ -113,7 +113,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 				}));
 			})
 		},
-		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, cb, errCb){
+		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, isHistorical, cb, errCb){
 			_.assertFunction(errCb)
 			
 			if(snapshotId === -1) {
@@ -127,7 +127,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			}
 			
 			var viewId = typeCode+':'+JSON.stringify(params)
-			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, false, _.assureOnce(function(snap){
+			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
 				console.log('got snap')
 				_.assertBuffer(snap)
 				cb(snap)

@@ -72,16 +72,18 @@ function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring){
 					//if(changes.length > 0){
 					//	console.log('for move ' + qhEditId + ' ' + editId + ' ' + id + ' changes: ' + JSON.stringify(changes))
 					//}
+
+					recursivelyInclude(id, qhEditId, editId)
 					
 					changesCb(id, changes)
 					
 					function recursivelyInclude(id, startEditId, endEditId){
 						
 						getObjectInclusionsDuring(id, startEditId, endEditId, function(ids){//TODO recurse
-							/*if(_.isString(id)){
-								console.log('inclusions ' + id + ' ' + qhEditId + ',' + editId + ' ' + JSON.stringify(ids))
+							//if(_.isString(id)){
+								//console.log('inclusions ' + id + ' ' + qhEditId + ',' + editId + ' ' + JSON.stringify(ids))
 								//console.log(new Error().stack)
-							}*/
+							//}
 							rem.increase(ids.length)
 							ids.forEach(function(includedId){
 								if(!alreadyGot[includedId]){
@@ -97,7 +99,6 @@ function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring){
 							rem.decrease(1)
 						})
 					}
-					recursivelyInclude(id, qhEditId, editId)
 				})
 			})
 			rem.decrease(1)
@@ -188,7 +189,7 @@ function createRelHandle(objSchema, relMakers){
 	viewSchema.params.forEach(function(p,i){
 		var w = function(value){
 				_.assertDefined(value)
-				return {
+				var handle = {
 					name: 'value',
 					getStateAt: function(bindings, editId, cb){
 						//console.log('getting state of value at ' + editId + ' ' + rel.value)
@@ -206,19 +207,22 @@ function createRelHandle(objSchema, relMakers){
 						}
 					}
 				}
+				handle.getHistoricalChangesBetween = handle.getChangesBetween
+				return handle
 			}
 		//}
 		w.bindingName = p.name
 		paramWrappers[i] = w
 	})
-	function makeBindings(params, paramTime, viewId){
-		_.assertInt(paramTime)
+	function makeBindings(params, viewId){
+		//_.assertInt(paramTime)
 		_.assertString(viewId)
-		_.assert(paramTime >= 0)
+		//_.assert(paramTime >= 0)
 		var bindings = {}
 		for(var i=0;i<paramWrappers.length;++i){
 			var pw = paramWrappers[i]
 			//_.assert(pw.bindingName.length > 0)
+		//	console.log('set param: ' + pw.bindingName + ' := ' + params[i])
 			bindings[pw.bindingName] = pw(params[i])
 		}
 		bindings.__key = viewId
@@ -247,25 +251,30 @@ function createRelHandle(objSchema, relMakers){
 				//console.log('*returning view inclusions between ' + lastEditId + ',' + endEditId+' ' + viewId + ': ' + JSON.stringify(list))
 				cb(list)
 			})
-			var bindings = makeBindings(params,Math.max(lastEditId,0), viewId)
+			var bindings = makeBindings(params, viewId)
 			relMakers.forEach(function(rm){
 				if(!rm.extractInclusions){
 					_.errout('missing extractInclusions: ' + rm.name)
 				}
+				
+				if(!rm.getChangesBetween){
+					_.errout('missing getChangesBetween: ' + rm.name)
+				}
 
-				rm.getChangesBetween(bindings, lastEditId, endEditId, function(edits){
-					if(edits.length === 0){
+				rm.getChangesBetween(bindings, lastEditId, endEditId, function(changes){
+					if(changes.length === 0){
+						//console.log(lastEditId + ' ' + endEditId + ' no changes for ' + viewId+'.'+rm.propertyCode + ' ' + JSON.stringify(bindings))
 						cdl()
 					}else{
-						var ids = rm.extractInclusions(edits)
-						//console.log(lastEditId + ' ' + endEditId + ' extracted inclusions ' + JSON.stringify(ids) + ' from ' + JSON.stringify(edits))
+						var ids = rm.extractInclusions(changes)
+						//console.log(lastEditId + ' ' + endEditId + ' extracted inclusions ' + JSON.stringify(ids) + ' from ' + JSON.stringify(changes))
 						//console.log(new Error().stack)
 						for(var i=0;i<ids.length;++i){
 							var id = ids[i]
 							if(has[id]) continue
 							has[id] = true
 							if(_.isString(id) && id.indexOf(':') === -1){
-								_.errout('not a valid id string: ' + id + ' ' + JSON.stringify(edits))
+								_.errout('not a valid id string: ' + id + ' ' + JSON.stringify(changes))
 							}
 							list.push(id)
 						}
@@ -289,11 +298,11 @@ function createRelHandle(objSchema, relMakers){
 				list.push(viewId)
 				has[viewId] = true
 			}
-			var cdl = _.latch(relMakers.length, function(){
+			var cdl = _.latch(relMakers.length, 5000, function(){
 				//console.log('*returning view inclusions between ' + lastEditId + ',' + endEditId+' ' + viewId + ': ' + JSON.stringify(list))
 				cb(list)
 			})
-			var bindings = makeBindings(params,Math.max(lastEditId,0), viewId)
+			var bindings = makeBindings(params, viewId)
 			relMakers.forEach(function(rm){
 				if(!rm.extractInclusions){
 					_.errout('missing extractInclusions: ' + rm.name)
@@ -312,7 +321,7 @@ function createRelHandle(objSchema, relMakers){
 							var id = ids[i]
 							if(has[id]) continue
 							has[id] = true
-							if(_.isString(id) && id.indexOf('_') === -1){
+							if(_.isString(id) && id.indexOf(':') === -1){
 								_.errout('not a valid id string: ' + id + ' ' + JSON.stringify(edits))
 							}
 							list.push(id)
@@ -340,7 +349,7 @@ function createRelHandle(objSchema, relMakers){
 				var viewId = viewIdStr(objSchema.code, params)//objSchema.code+':'+JSON.stringify(params)
 				edits.push({op: editCodes.madeViewObject, edit: {id: viewId, typeCode: objSchema.code}, state: {top: viewId}, editId: -1000, syncId: -1})
 			}
-			var bindings = makeBindings(params,Math.max(lastEditId,0),viewId)
+			var bindings = makeBindings(params,viewId)
 			//console.log('getting changes between: ' + lastEditId + ', '+ endEditId)
 			var cdl = _.latch(relMakers.length, function(){
 				//console.log('returning view snapshot: ' + JSON.stringify(edits))
@@ -349,11 +358,11 @@ function createRelHandle(objSchema, relMakers){
 			})
 			relMakers.forEach(function(rm){
 				rm.getChangesBetween(bindings, lastEditId, endEditId, function(relChanges){
-					//console.log('got rel changes: ' + JSON.stringify(relChanges))
+					//console.log('got rel changes: ' + JSON.stringify(relChanges) + ' ' + viewId + '.'+ rm.propertyCode + ' ' + lastEditId + ' ' + endEditId + ' ' + JSON.stringify(bindings))
 					relChanges.forEach(function(c){
 						var e = rm.changeToEdit(c)
 						if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
-						_.assertInt(e.syncId)
+						//_.assertInt(e.syncId)
 						//e = JSON.parse(JSON.stringify(e))
 						if(!e.state) e.state = {}
 						_.assertInt(rm.propertyCode)
@@ -377,7 +386,7 @@ function createRelHandle(objSchema, relMakers){
 				var viewId = viewIdStr(objSchema.code, params)//objSchema.code+':'+JSON.stringify(params)
 				edits.push({op: editCodes.madeViewObject, edit: {id: viewId, typeCode: objSchema.code}, state: {top: viewId}, editId: -1000, syncId: -1})
 			}
-			var bindings = makeBindings(params,Math.max(lastEditId,0),viewId)
+			var bindings = makeBindings(params,viewId)
 			//console.log('getting changes between: ' + lastEditId + ', '+ endEditId)
 			var cdl = _.latch(relMakers.length, function(){
 				//console.log('returning view snapshot: ' + JSON.stringify(edits))
@@ -388,11 +397,11 @@ function createRelHandle(objSchema, relMakers){
 				if(!rm.getHistoricalChangesBetween) _.errout('missing getHistoricalChangesBetween: ' + rm.name)
 				
 				rm.getHistoricalChangesBetween(bindings, lastEditId, endEditId, function(relChanges){
-					//console.log('got rel changes: ' + JSON.stringify(relChanges))
+					console.log('got historical rel changes: ' + JSON.stringify(relChanges))
 					relChanges.forEach(function(c){
 						var e = rm.changeToEdit(c)
 						if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
-						_.assertInt(e.syncId)
+						//_.assertInt(e.syncId)
 						//e = JSON.parse(JSON.stringify(e))
 						if(!e.state) e.state = {}
 						_.assertInt(rm.propertyCode)
@@ -565,6 +574,7 @@ exports.make = function(schema, objectState, broadcaster){
 			paramMakers.forEach(function(pm, index){
 				pm.getStateAt(bindings, editId, function(state){
 					if(state === undefined){
+						//console.log('failed: ' + index + ' ' + editId + ' ' + JSON.stringify(bindings) + ' ' + pm.name)
 						failed = true
 					}else{
 						params[index] = state
@@ -591,7 +601,7 @@ exports.make = function(schema, objectState, broadcaster){
 		
 		var a = analytics.make('view-call', [])
 
-		return {
+		var handle = {
 			name: 'view-call',
 			analytics: a,
 			getStateSync: function(bindingValues){
@@ -614,7 +624,9 @@ exports.make = function(schema, objectState, broadcaster){
 			changeToEdit: function(c){
 				//_.errout('no?')
 				if(c.type === 'set'){
-					return {op: editCodes.setViewObject, edit: {id: c.value}, editId: c.editId, syncId: c.syncId}
+					return {op: editCodes.setViewObject, edit: {id: c.value}, editId: c.editId}
+				}else if(c.type === 'clear'){
+					return {op: editCodes.clearProperty, edit: {}, editId: c.editId}
 				}else{
 					_.errout('TODO: ' + JSON.stringify(c))
 				}
@@ -623,7 +635,22 @@ exports.make = function(schema, objectState, broadcaster){
 				if(changes.length === 1 && changes[0].type === 'set'){
 					return [changes[0].value]
 				}else{
-					_.errout('TODO: ' + JSON.stringify(changes))
+					//_.errout('TODO: ' + JSON.stringify(changes))
+					var inclusions = []
+					var has = {}
+					for(var i=0;i<changes.length;++i){
+						var c = changes[i]
+						if(c.type === 'set'){
+							var v = c.value
+							if(has[v]) continue
+							has[v] = true
+							inclusions.push(v)
+						}else if(c.type === 'clear'){
+						}else{
+							_.errout('TODO: ' + JSON.stringify(c))
+						}
+					}
+					return inclusions
 				}
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
@@ -637,8 +664,70 @@ exports.make = function(schema, objectState, broadcaster){
 						}
 					})
 				})
+			},
+			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+
+				var paramChanges = []
+				var keyEditIds = {}
+				var cdl = _.latch(paramMakers.length, function(){
+					//_.errout('TODO: ' + JSON.stringify(paramChanges))
+					var realEditIds = []
+					Object.keys(keyEditIds).forEach(function(key){
+						var editId = parseInt(key)
+						realEditIds.push(editId)
+					})
+					realEditIds.sort(function(a,b){return a - b;})
+					
+					var states = []
+					var cdl = _.latch(realEditIds.length, function(){
+						//_.errout('TODO: ' + JSON.stringify(states) + ' ' + JSON.stringify(realEditIds))
+						getParams(bindings, startEditId, function(params){
+							var curViewId = viewIdStr(viewCode,params)
+							var changes = []
+							for(var i=0;i<states.length;++i){
+								var state = states[i]
+								if(state === undefined){
+									if(curViewId){
+										changes.push({type: 'clear', editId: realEditIds[i]})
+										curViewId = undefined
+									}
+								}else{
+									var viewId = viewIdStr(viewCode,state)
+									if(viewId !== curViewId){
+										changes.push({type: 'set', value: viewId, editId: realEditIds[i]})
+										curViewId = viewId
+									}
+								}
+							}
+							cb(changes)
+						})
+					})
+					//console.log('getting for all realEditIds: ' + JSON.stringify(realEditIds))
+					realEditIds.forEach(function(editId, index){
+						getParams(bindings, editId, function(params, failed){
+							states[index] = failed?undefined:params
+							cdl()
+						})
+					})
+				})
+				
+				paramMakers.forEach(function(pm, index){
+					pm.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+						//paramChanges[index] = changes
+						console.log(index + ' ' + JSON.stringify(changes))
+						for(var i=0;i<changes.length;++i){
+							keyEditIds[changes[i].editId] = true
+						}
+						cdl()
+					})
+				})
+				
+				//_.errout('TODO')
+				//look through all the versions of the params
 			}
 		}
+		//handle.getHistoricalChangesBetween = handle.getChangesBetween
+		return handle
 	}
 	function makeRelHandle(rel){
 		var wrapped = wrap.make(s, rel, makeRelHandle, getViewCallHandle)
@@ -712,7 +801,7 @@ exports.make = function(schema, objectState, broadcaster){
 	}
 	function getHistoricalObjectEditsBetween(id, lastEditId, endEditId, cb){	
 		if(lastEditId === endEditId) _.errout('wasting time')
-		
+
 		if(_.isString(id)){
 			var pv = parseViewId(id)
 			var m = makers[pv.typeCode]
@@ -752,7 +841,7 @@ exports.make = function(schema, objectState, broadcaster){
 			}
 			makers[pv.typeCode].getInclusionsDuring(pv.rest, lastEditId, endEditId, function(ids){
 				_.assertArray(ids)
-				//console.log('got inclusions ' + JSON.stringify(ids) + ' from ' + makers[pv.typeCode].getInclusionsDuring)
+				//console.log('got inclusions ' + JSON.stringify(ids) + ' from ' + makers[pv.typeCode].name)//getInclusionsDuring)
 				cb(ids)
 			})
 		}else{
@@ -799,6 +888,7 @@ exports.make = function(schema, objectState, broadcaster){
 				var oldState = {top: id}
 				var resultEdits = []
 				edits.forEach(function(e){
+					//console.log('& ' + JSON.stringify(e) + ' editing snapshot obj stream to match: ' + JSON.stringify([oldState, e.state]))
 					pathmerger.editToMatch(oldState, e.state, function(op, edit){
 						resultEdits.push({op: op, edit: edit, editId: e.editId, syncId: -1})
 					})
@@ -894,7 +984,7 @@ exports.make = function(schema, objectState, broadcaster){
 					})
 				}else{
 					getObjectEditsBetween(includedId, -1, endEditId, function(snap){
-						//console.log('*storing: ' + includedId + ' ' + JSON.stringify(snap))
+						console.log('*storing: ' + includedId + ' ' + JSON.stringify(snap))
 						storeEdits(includedId, snap)
 						rem.decrease(1)
 					})
@@ -1037,17 +1127,23 @@ exports.make = function(schema, objectState, broadcaster){
 			}
 			var pollHandle = setInterval(poll, 100)
 			
-			function addView(id, lastEditId, endEditId, readyCb){
+			function addView(id, lastEditId, endEditId, readyCb, isHistorical){
+
+				if(isHistorical) _.errout('TODO')
+				
 				var rem = remainer(1, finish)
 
 				var edits = []
 				var snapshots = []
 				
 				queryHandle.add(id, lastEditId, function(changedId, changes){
+					console.log('appending edits: ' + JSON.stringify(changes))
 					edits = edits.concat(changes)
 				}, function inclusion(includedId){
 					if(!_.isString(includedId)){
-						_.errout('TODO')
+						//_.errout('TODO')
+//						includeObjectCb(id,function(){})//TODO is this right?
+						snapshots.push([includedId])
 					}
 					rem.increase(1)
 					getObjectEditsBetween(includedId, -1, endEditId, function(snap){
@@ -1071,8 +1167,8 @@ exports.make = function(schema, objectState, broadcaster){
 					snapshots.forEach(function(snap){
 						var id = snap[0]
 						snap = snap[1]
-						_.assertObject(snap)
 						if(_.isString(id)){
+							_.assertObject(snap)
 							sendViewObjectCb(id, snap)
 						}else{
 							includeObjectCb(id,function(){})

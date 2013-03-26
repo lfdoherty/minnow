@@ -544,7 +544,7 @@ SyncApi.prototype.getView = function(viewId, historicalKey){
 			
 			for(var i=0;i<list.length;++i){
 				var obj = list[i]
-				console.log('advancing: ' + i)
+				//console.log('advancing: ' + i)
 				obj.advanceTo(smallestNext)
 			}
 			hoc.currentEditId = smallestNext//currentVersion = smallestNext
@@ -560,10 +560,10 @@ SyncApi.prototype.getView = function(viewId, historicalKey){
 			for(var i=0;i<list.length;++i){
 				var obj = list[i]
 				var next = obj.nextVersion(hoc.currentEditId)
-				console.log('*next: ' + next + ' ' + hoc.currentEditId)
+				//console.log('*next: ' + next + ' ' + hoc.currentEditId)
 				if(next && next < smallestNext){
 					smallestNext = next
-					console.log('found next: ' + next)
+					//console.log('found next: ' + next)
 				}
 			}
 			return smallestNext === 4294967295
@@ -588,6 +588,11 @@ SyncApi.prototype.hasView = function(viewId){
 
 SyncApi.prototype.objectListener = function(id, edits){
 	//console.log(this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits))
+	
+	if(_.isInt(id)){
+		this.snap.objects[id] = edits		
+	}
+	
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
@@ -615,28 +620,30 @@ SyncApi.prototype.objectListener = function(id, edits){
 		return
 		//_.errout('TODO:')
 	}
-	if(edits[0].op === editCodes.madeViewObject){
-		var typeCode = edits[0].edit.typeCode
-		var id = edits[0].edit.id
-	}else{
-		var typeCode = edits[1].edit.typeCode
-		var id = edits[1].edit.id
-	}
-	var t = this.schema._byCode[typeCode];
-	//console.log('typeCode: ' + typeCode)
-	_.assertObject(t)
-	if(this.objectApiCache[id] !== undefined){
-		if(this.objectApiCache[id].prepared){
-			_.errout('already prepared object being overwritten: ' + id)
+	//if(!_.isInt(id)){
+		if(edits[0].op === editCodes.madeViewObject){
+			var typeCode = edits[0].edit.typeCode
+			var id = edits[0].edit.id
+		}else{
+			var typeCode = edits[1].edit.typeCode
+			var id = edits[1].edit.id
 		}
-		//console.log('WARNING: redundant update?: ' + id)
-		_.errout('HERE')
-		return
-	}
-	_.assertUndefined(this.objectApiCache[id])
-	var n = new TopObjectHandle(this.schema, t, edits, this, id);
-	this.objectApiCache[id] = n;
-	//n.pathEdits = undefined
+		var t = this.schema._byCode[typeCode];
+		//console.log('typeCode: ' + typeCode)
+		_.assertObject(t)
+		if(this.objectApiCache[id] !== undefined){
+			if(this.objectApiCache[id].prepared){
+				_.errout('already prepared object being overwritten: ' + id)
+			}
+			//console.log('WARNING: redundant update?: ' + id)
+			_.errout('HERE')
+			return
+		}
+		_.assertUndefined(this.objectApiCache[id])
+		var n = new TopObjectHandle(this.schema, t, edits, this, id);
+		this.objectApiCache[id] = n;
+	//}
+	//n.pathEdits = undefined*/
 }
 SyncApi.prototype.addSnapshot = function(snap, historicalKey){
 	var objs = snap.objects;
@@ -817,22 +824,22 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	if(op === editCodes.madeViewObject){
 		//if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		var n = makeViewObject(edit.typeCode, edit.id)
-		this.currentTopObject = n
+		this.currentTopObject = edit.id//n
 		return
 	}else if(op === editCodes.selectTopObject){
 		//if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
 		try{
-			this.currentTopObject = this.getObjectApi(edit.id)
+			this.currentTopObject = edit.id//this.getObjectApi(edit.id)
 			//this.currentTopObject.pathEdits = undefined
 		}catch(e){
-			console.log('WARNING: might be ok if destroyed locally, but cannot find top object: ' + edit.id)
+			console.log('WARNING: might be ok if destroyed locally, but cannot find top object:' + edit.id)
 			this.currentTopObject = undefined
 		}
 		return
 	}else if(op === editCodes.selectTopViewObject){
 		//if(this.currentTopObject) this.currentTopObject.pathEdits = undefined
-		this.currentTopObject = this.getObjectApi(edit.id)
-		this.currentTopObject.pathEdits = undefined
+		this.currentTopObject = edit.id//this.getObjectApi(edit.id)
+		//this.currentTopObject.pathEdits = undefined
 		//console.log('pe: ' + JSON.stringify(this.currentTopObject.pathEdits))
 		//_.assertUndefined(this.currentTopObject.pathEdits)
 		//this.currentTopObject.pathEdits = undefined
@@ -843,25 +850,36 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	}
 
 	if(this.currentTopObject === undefined){
-		this.log.warn('might be ok if destroyed locally, but could not find top object')
+		this.log.warn('no top object yet for: ' + JSON.stringify([editNames[op], edit, editId]))
 		return
 	}
 	
-	if(op === editCodes.destroy){
-		var id = this.currentTopObject.id()
-		delete this.objectApiCache[id]
-		delete this.snap.objects[id]
-		this.currentTopObject._destroy()
-		this.currentTopObject = DESTROYED_REMOTELY
-		//console.log('destroyed current object')
+	var currentTopObjects = this.getAllObjects(this.currentTopObject)
+	var local = this
+	if(local.snap.historicalViewObjects[this.currentTopObject]){
+		local.snap.historicalViewObjects[this.currentTopObject].push({op: op, edit: edit, editId: editId})
 	}else{
-		_.assertInt(this.currentSyncId)
-		if(this.currentTopObject.parent !== this){
-			_.errout('current top object parent is wrong: ' + this.currentTopObject.parent)
+		if(currentTopObjects.length === 0){
+			this.log.warn('top object instances not found: ' + local.currentTopObject)
 		}
-		_.assertEqual(this.currentTopObject.parent, this)
-		this.currentTopObject.changeListener(undefined, undefined, op, edit, this.currentSyncId, editId)
 	}
+	currentTopObjects.forEach(function(currentTopObject){
+		if(op === editCodes.destroy){
+			var id = currentTopObject.id()
+			delete local.objectApiCache[id]
+			delete local.snap.objects[id]
+			currentTopObject._destroy()
+			currentTopObject = DESTROYED_REMOTELY
+			//console.log('destroyed current object')
+		}else{
+			_.assertInt(local.currentSyncId)
+			if(currentTopObject.parent !== local){
+				_.errout('current top object parent is wrong: ' + currentTopObject.parent)
+			}
+			_.assertEqual(currentTopObject.parent, local)
+			currentTopObject.changeListener(undefined, undefined, op, edit, local.currentSyncId, editId)
+		}
+	})
 }
 function getFullSchema(){
 	return this.parent.getFullSchema();
@@ -978,40 +996,131 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	}
 	
 	var local = this
-	Object.keys(this.objectApiCache).forEach(function(key){//TODO optimize
+	var keys = Object.keys(this.objectApiCache)
+	for(var i=0;i<keys.length;++i){
+		var key = keys[i]
 		var n = local.objectApiCache[key]
 		n.reifyParentEdits(temporaryId, realId)
-	})
-	/*
-	if(this.objectCreationCallbacks && this.objectCreationCallbacks[temporaryId]){
-		var cbb = this.objectCreationCallbacks[temporaryId]
-		if(cbb){
-			cbb(realId);
-			delete this.objectCreationCallbacks[temporaryId]
-		}
-	}*/
+	}
 }
 
 SyncApi.prototype.reifyObject = SyncApi.prototype.reifyExternalObject
 
-/*
-SyncApi.prototype.pause = function(){
-	this.paused = true
-	console.log('paused')
-}
-SyncApi.prototype.resume = function(){
-	console.log('beginning resume')
-	if(this.waitingEvents){
-		for(var i=0;i<this.waitingEvents.length;++i){
-			var e = this.waitingEvents[i]
-			_doEmit.apply(e[0],e[1])
-		}
-	}
-	this.paused = false
-	this.waitingEvents = []
-	console.log('resumed')
-}*/
+//retries all historical and non-historical instances of the given object
+SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
+	var n
+	
+	var results = []
 
+	var foundInCache = false	
+	var local = this
+	Object.keys(this.historicalObjectCache).forEach(function(historicalKey){
+		if(local.historicalObjectCache[historicalKey] === undefined) local.historicalObjectCache[historicalKey] = {cache: {}, list: [], currentEditId: 0}
+		
+		var hoc = local.historicalObjectCache[historicalKey]
+		n = hoc.cache[idOrViewKey]
+		
+		if(n){
+			results.push(n)
+			foundInCache = true
+		}
+	})	
+
+	//Object.keys(this.historicalObjectCache).forEach(function(historicalKey){
+	/*if(!foundInCache){
+		if(_.isString(idOrViewKey)){
+			var obj = this.snap.historicalViewObjects[idOrViewKey];
+			if(obj){
+				//_.errout('TODO')
+				var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
+				var t = this.schema._byCode[typeCode];
+
+				if(t === undefined) _.errout('cannot find object type: ' + typeCode);
+
+				n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey);
+				n.makeHistorical(historicalKey)
+				hoc.cache[idOrViewKey] = n;
+				hoc.list.push(n)
+				
+				//return n
+			}
+			
+			if(!n){
+				if(idOrViewKey === '') _.errout('cannot get the null view id')
+				var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
+				var t = this.schema._byCode[typeCode];
+				_.assertObject(t)
+				n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
+				n.makeHistorical(historicalKey)
+				hoc.cache[idOrViewKey] = n;
+				hoc.list.push(n)
+			}
+			
+		}else{
+//			_.errout('TODO - retrieve from historicalObjectCache or use snap')
+			var obj = this.snap.objects[idOrViewKey];
+			if(obj){
+				//_.errout('TODO')
+				var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
+				var t = this.schema._byCode[typeCode];
+
+				if(t === undefined) _.errout('cannot find object type: ' + typeCode);
+
+				n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey);
+				n.makeHistorical(historicalKey)
+				n.prepareHistorically(hoc.currentEditId)
+				hoc.cache[idOrViewKey] = n;
+				hoc.list.push(n)
+			}
+		}
+		
+		results.push(n)
+	}*/
+	
+	n = this.objectApiCache[idOrViewKey];
+	if(n !== undefined){
+		results.push(n)
+		return results
+	}
+	var obj = this.snap.objects[idOrViewKey];
+
+	if(obj === undefined){
+
+		/*if(_.isString(idOrViewKey)){
+			if(idOrViewKey === '') _.errout('cannot get the null view id')
+			var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
+			var t = this.schema._byCode[typeCode];
+			_.assertObject(t)
+			var n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
+			this.objectApiCache[idOrViewKey] = n;
+			return n
+		}*/
+
+		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
+		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
+		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
+		console.log(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
+		return results
+	}
+
+	//console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
+	_.assert(obj.length > 0)
+	
+	if(obj[0].op === editCodes.destroy){
+		return results
+	}
+	//console.log(JSON.stringify(obj))
+	var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
+	var t = this.schema._byCode[typeCode];
+
+	if(t === undefined) _.errout('cannot find object type: ' + typeCode);
+	
+	n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey);
+	this.objectApiCache[idOrViewKey] = n;
+
+	results.push(n)
+	return results
+}
 SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKey){
 
 	var n
@@ -1074,7 +1183,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 			}
 		}
 		
-		console.log('historical: ' + idOrViewKey + ' ' + historicalKey)
+		//console.log('historical: ' + idOrViewKey + ' ' + historicalKey)
 		return n
 	}
 	

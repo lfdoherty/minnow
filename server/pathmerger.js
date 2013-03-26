@@ -37,6 +37,7 @@ function editToMatch(c, n, cb){
 		c.property = n.property
 		cb(editCodes.selectProperty, {typeCode: n.property})
 	}
+	if(n.keyOp && n.key === undefined) _.errout('missing key: ' + JSON.stringify(n))
 	if(n.key !== c.key){
 		if(n.key === undefined) return
 		//console.log('emitting key: ' + n.key)

@@ -69,9 +69,8 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	secureLocal.serveJavascript(exports, appName, generateSchemaUrl);
 	
 	function generateSnapHistorical(req, res){
-		var historicalKey = req.params.historicalKey
 		generateSnapInner(req, res, function(viewId, snapshotId, previousId, paramStr, cb){
-			service.getViewFileHistorical(viewId, snapshotId, previousId, paramStr, historicalKey, cb)
+			service.getViewFileHistorical(viewId, snapshotId, previousId, paramStr, cb)
 		})	
 	}
 	function generateSnap(req, res){
@@ -147,8 +146,8 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	}
 	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
 	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
-	local.get(snapPathHistorical + ':serverUid/:viewId/:historicalKey/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
-	secureLocal.get(snapPathHistorical + ':serverUid/:viewId/:historicalKey/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
+	local.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
+	secureLocal.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
 
 	
 	//local.serveJavascriptFile(exports, 
@@ -163,8 +162,8 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 			var viewSchema = minnowClient.schema[viewName]
 			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
 			var viewCode = viewSchema.code
-			var historicalKey = 'historical_'+Math.random()
-			service.getViewFilesHistorical(viewName, params, historicalKey, function(err, snapshotIds, paths, lastSeenVersionId){
+			//var historicalKey = 'historical_'+Math.random()
+			service.getViewFilesHistorical(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
 				
 				if(err){
 					console.log('view files error: ' + JSON.stringify(err))
@@ -182,7 +181,7 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 				vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
 				vars.applicationName = appName
 				vars.mainViewParams = params
-				vars.mainViewHistoricalKey = historicalKey
+				vars.mainViewHistorical = true
 				//vars.httpPort = local.getPort()
 				//vars.httpsPort = secureLocal.getSecurePort()
 				

@@ -335,7 +335,7 @@ exports.preforkedQuery = function(config, done){
 			client.view('forkQueryPreforked', function(err, c){
 			
 				poll(function(){
-					//console.log(c.has('e') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
+					console.log(c.has('e') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() !== 'purpled' && c.e.reallyAFork.value()){
 						done()
 						return true
