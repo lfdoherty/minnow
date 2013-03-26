@@ -433,8 +433,8 @@ function makeEditConverter(type){
 					_.assertDefined(c.state.key)
 					return {op: editCodes.putViewObject, edit: {id: c.value}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
 				}else if(c.type === 'remove'){
-					_.assertDefined(c.state.key)
-					return {op: editCodes.delKey, edit: {}, state: {key: c.state.key, keyOp: keyOp}, syncId: -1, editId: c.editId}
+					_.assertDefined(c.value)
+					return {op: editCodes.delKey, edit: {}, state: {key: c.value, keyOp: keyOp}, syncId: -1, editId: c.editId}
 				}else{
 					_.errout('TODO: ' + JSON.stringify(c))
 				}

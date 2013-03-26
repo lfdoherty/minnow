@@ -491,7 +491,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			client.destroy()
 			clientDestroyed = true
 			clearInterval(flushIntervalHandle)
-			clearInterval(randomHandle)
+			//clearInterval(randomHandle)
 			clearInterval(increaseAckHandle)
 			//throw e
 		}

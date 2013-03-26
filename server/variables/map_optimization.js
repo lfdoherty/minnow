@@ -196,12 +196,18 @@ exports.make = function(s, rel, recurse, handle, ws){
 					
 					for(var i=0;i<newIds.length;++i){
 						getPropertyValueAt(newIds[i], endEditId, function(pv, id){
-							if(!_.isPrimitive(pv)) _.errout('not primitive: ' + JSON.stringify(pv))//_.assertPrimitive(pv)
-							changesToMap.push({
-								type: 'put', 
-								value: pv,
-								state: {key: id, keyOp: editCodes.selectObjectKey}, 
-								editId: endEditId})
+							//if(!_.isPrimitive(pv)) _.errout('not primitive: ' + JSON.stringify(pv))//_.assertPrimitive(pv)
+							if(_.isArray(pv)){
+								pv.forEach(function(v){
+									changesToMap.push({type: 'putAdd', value: v, state: state, editId: endEditId})
+								})
+							}else{
+								changesToMap.push({
+									type: 'put', 
+									value: pv,
+									state: {key: id, keyOp: editCodes.selectObjectKey}, 
+									editId: endEditId})
+							}
 							cdl()
 						})
 					}
