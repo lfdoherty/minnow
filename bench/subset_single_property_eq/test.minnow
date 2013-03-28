@@ -1,0 +1,13 @@
+
+entity 1
+	numbers set:int 1		
+	
+general() 100
+	plussed add(each(*entity.numbers,{add(1,~)})) 1
+
+person 5
+	age int 1
+
+specific(desiredAge int) 102
+	rightAge subset(*person,{eq(desiredAge,~.age)}) 1
+	many count(*person) 2

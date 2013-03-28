@@ -27,9 +27,10 @@ var innerify = require('./innerId').innerify
 var InnerId = require('./innerId').InnerId
 var wrapProperty = require('./wrap_property').wrapProperty
 
-//var subsetOptimization = require('./variables/subset_optimization')
+var subsetOptimization = require('./variables/subset_optimization')
 var eachOptimization = require('./variables/each_optimization')
 var mapOptimization = require('./variables/map_optimization')
+var multimapOptimization = require('./variables/multimap_optimization')
 
 function makeIdRel(s, context){
 	var a = analytics.make('property-id('+context.name+')', [context])
@@ -239,6 +240,7 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 	}
 	
 	var defaultValue
+	if(rel.schemaType === undefined) _.errout('missing schemaType: ' + JSON.stringify(rel))
 	if(rel.schemaType.type === 'primitive' || rel.schemaType.type === 'object' || rel.schemaType.type === 'view'){
 		defaultValue = undefined
 	}else if(rel.schemaType.type === 'set' || rel.schemaType.type === 'list'){
@@ -1155,6 +1157,11 @@ exports.make = function(s, rel, recurse, getViewHandle){
 			
 			if(rel.view === 'each-optimization'){
 				handle = eachOptimization.make(s, rel, recurse, handle, ws)
+			}else if(rel.view === 'subset-optimization-with-params'){
+				handle = subsetOptimization.make(s, rel, recurse, handle, ws)
+			}else if(rel.isSubsetOptimizationMultimap){
+				//_.errout('TODO')
+				handle = multimapOptimization.make(s, rel, recurse, handle, ws)
 			}else if(rel.view === 'count' && rel.params[0].view === 'typeset'){
 				//_.errout('TODO')
 				var objName = rel.params[0].params[0].value
@@ -1188,10 +1195,12 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				var impl = schema.getImplementation(rel.view)
 				_.assertDefined(impl)
 				var paramRels = []
+				//console.log(JSON.stringify(rel, null, 2))
 				for(var i=0;i<rel.params.length;++i){
 					var p = rel.params[i]
 					var pr = recurse(p)
 					//console.log(JSON.stringify(p))
+					if(p.schemaType === undefined) _.errout('missing schemaType: ' + JSON.stringify(p))
 					_.assertObject(p.schemaType)
 					pr.schemaType = p.schemaType
 					paramRels.push(pr)
@@ -1292,7 +1301,7 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				}
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				if(startEditId > 0){
+				/*if(startEditId > 0){
 					//console.log('startEditId greater ' + startEditId + ',' + endEditId)
 					cb([])
 				}else if(endEditId >= 0){
@@ -1308,7 +1317,9 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				}else{
 					//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
 					cb([])
-				}
+				}*/
+				var b = bindings[paramName]
+				b.getChangesBetween(bindings, startEditId, endEditId, cb)
 			},
 			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
 				/*if(startEditId > 0){

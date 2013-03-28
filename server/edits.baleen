@@ -183,6 +183,11 @@ addedNewAfter 152
 	temporary int 3
 	following int 5
 
+moveToFront 160
+moveToBack 161
+moveToAfter 162
+	id int 1
+
 //TODO
 removeAt 149
 	index int 1

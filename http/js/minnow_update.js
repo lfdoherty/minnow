@@ -22,8 +22,9 @@ var shared = require('./update_shared')
 var lookup = require('./lookup')
 var editCodes = lookup.codes
 
-function establishSocket(appName, schema, host, cb){
-	if(arguments.length !== 4) throw new Error(arguments.length)
+function establishSocket(appName, schema, host, cb, errCb){
+	if(arguments.length < 4) throw new Error(arguments.length)
+	if(arguments.length > 5) throw new Error(arguments.length)
 	
 	//_.assertInt(syncId)
 	//console.log('socket.io loaded, ready to begin socket.io connection');
@@ -145,7 +146,13 @@ function establishSocket(appName, schema, host, cb){
 				console.log('got messages: ' + JSON.stringify(msgs))
 				msgs.forEach(takeMessage)
 				pollServer()
-			}, function(){
+			}, function(status){
+				if(errCb){
+					var giveUp = errCb(status)
+					if(giveUp){
+						return
+					}
+				}
 				setTimeout(pollServer, 2000)//TODO use backoff?
 			})
 		}

@@ -389,6 +389,42 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 	
 			this.emit(edit, 'addAfter', objHandle, beforeHandle)
 		}
+	}else if(op === editCodes.moveToAfter){
+		var before = this.get(subObj);
+		var objHandle = this.get(edit.id);
+		var index = this.obj.indexOf(objHandle)
+		var beforeIndex = this.obj.indexOf(before)
+		if(index !== -1 && beforeIndex !== -1){
+			this.obj.splice(index, 1)
+			this.obj.splice(beforeIndex+1, 0, objHandle)
+			
+			objHandle.prepare()
+	
+			this.emit(edit, 'move', res)
+		}
+		
+	}else if(op === editCodes.moveToFront){
+		var res = this.get(subObj);
+		var index = this.obj.indexOf(res)
+		if(index !== -1){
+			this.obj.splice(index, 1)
+			this.obj.unshift(res)
+			
+			res.prepare()
+	
+			this.emit(edit, 'move', res)
+		}
+	}else if(op === editCodes.moveToBack){
+		var res = this.get(subObj);
+		var index = this.obj.indexOf(res)
+		if(index !== -1){
+			this.obj.splice(index, 1)
+			this.obj.push(res)
+			
+			res.prepare()
+	
+			this.emit(edit, 'move', res)
+		}
 	}else{
 		_.errout('+TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(this.schema));
 	}
@@ -528,6 +564,10 @@ ObjectListHandle.prototype.addAfter = function(beforeHandle, objHandle){
 	var index = this.obj.indexOf(beforeHandle)
 	if(index === -1) _.errout('before is not a member of the list: ' + beforeHandle)
 	
+	if(objHandle.isInner()){
+		_.errout('cannot add inner object to a collection: ' + objHandle.id())
+	}
+	
 	if(this.obj.indexOf(objHandle) !== -1){
 		this.remove(objHandle)
 		index = this.obj.indexOf(beforeHandle)
@@ -628,6 +668,79 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	//console.log('addNew done')
 
 	return n
+}
+
+ObjectListHandle.prototype.moveToFront = function(objHandle){
+	_.assertLength(arguments, 1);
+	
+	var id = objHandle._internalId()
+
+	var index = this.obj.indexOf(objHandle)
+
+	if(index !== undefined){
+
+		this.obj.splice(index, 1);
+		this.obj.unshift(objHandle)
+
+		this.adjustCurrentObject(this.getImmediateObject())
+		this.adjustCurrentProperty(this.schema.code)
+		this.adjustCurrentSubObject(id)
+		var e = {}
+		this.persistEdit(editCodes.moveToFront, e)
+
+		this.emit(e, 'move', objHandle)
+	}else{
+		_.errout('tried to move object not in collection: ' + objHandle.id());
+	}
+}
+
+ObjectListHandle.prototype.moveToBack = function(objHandle){
+	_.assertLength(arguments, 1);
+	
+	var id = objHandle._internalId()
+
+	var index = this.obj.indexOf(objHandle)
+
+	if(index === undefined){
+		_.errout('tried to move object not in collection: ' + objHandle.id());
+	}
+	
+	this.obj.splice(index, 1);
+	this.obj.push(objHandle)
+
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.schema.code)
+	this.adjustCurrentSubObject(id)
+	var e = {}
+	this.persistEdit(editCodes.moveToBack, e)
+
+	this.emit(e, 'move', objHandle)
+}
+
+ObjectListHandle.prototype.moveToAfter = function(beforeHandle, objHandle){
+	_.assertLength(arguments, 2);
+	
+	var id = objHandle._internalId()
+
+	var index = this.obj.indexOf(objHandle)
+
+	var beforeIndex = this.obj.indexOf(beforeHandle)
+	if(beforeIndex === -1){
+		_.errout('before object not in collections: ' + beforeHandle.id());
+	}
+	if(index === -1){
+		_.errout('tried to move object not in collection: ' + objHandle.id());
+	}
+		
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.schema.code)
+	this.adjustCurrentSubObject(beforeHandle._internalId())
+	var e = {id: id}
+	this.persistEdit(editCodes.moveToAfter, e)
+
+	this.obj.splice(index, 1)
+	this.obj.splice(beforeIndex+1, 0, objHandle)
+	this.emit(e, 'move', objHandle, index+1)
 }
 
 ObjectListHandle.prototype.unshift = function(objHandle){

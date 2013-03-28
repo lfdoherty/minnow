@@ -1137,7 +1137,7 @@ exports.make = function(schema, objectState, broadcaster){
 				var snapshots = []
 				
 				queryHandle.add(id, lastEditId, function(changedId, changes){
-					console.log('appending edits: ' + JSON.stringify(changes))
+					//console.log('appending edits: ' + JSON.stringify(changes))
 					edits = edits.concat(changes)
 				}, function inclusion(includedId){
 					if(!_.isString(includedId)){

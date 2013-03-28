@@ -14,11 +14,11 @@ var getJson = require('./xhr').getJson
 
 exports.setup = setup
 
-function setup(host, appName, cb){
+function setup(host, appName, cb, errCb){
     if(typeof(cb) !== 'function') throw new Error('setup(token, hostStr, schemaName, cb) - cb must be a function')
 
 	getJson(host+'/mnw/schema/'+appName, function(schema){
-		update.establishSocket(appName, schema, host, cb)
+		update.establishSocket(appName, schema, host, cb, errCb)
 	})
 }
 

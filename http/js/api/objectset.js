@@ -214,6 +214,10 @@ ObjectSetHandle.prototype.add = function(objHandle){
 		this.log('WARNING: ignoring redundant add: object already in object set')
 		return;
 	}
+
+	if(objHandle.isInner()){
+		_.errout('cannot add inner object to a collection: ' + objHandle.id())
+	}
 	
 	var id = objHandle._internalId()
 	//this.log('id: ' + id)

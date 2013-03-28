@@ -276,6 +276,9 @@ realEdits[editCodes.addAfter] = true
 realEdits[editCodes.addedNewAfter] = true
 realEdits[editCodes.unshiftExisting] = true
 realEdits[editCodes.unshiftedNew] = true
+realEdits[editCodes.moveToAfter] = true
+realEdits[editCodes.moveToFront] = true
+realEdits[editCodes.moveToBack] = true
 
 //these are not really real, but we treat them like they are
 realEdits[editCodes.selectStringKey] = true
@@ -344,6 +347,12 @@ function getPropertyValueAtViaFilter(makeDefaultValue, ol, id, propertyCode, des
 			pv.push(innerify(id, edit.id))
 		}else if(editCode === editCodes.addAfter){
 			pv.push(edit.id)
+		}else if(editCode === editCodes.moveToAfter){
+			//TODO
+		}else if(editCode === editCodes.moveToFront){
+			//TODO
+		}else if(editCode === editCodes.moveToBack){
+			//TODO
 		}else if(editCode === editCodes.unshiftExisting){
 			pv.unshift(edit.id)
 		}else if(editCode === editCodes.unshiftedNew){

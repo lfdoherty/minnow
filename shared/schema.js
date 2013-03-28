@@ -12,6 +12,7 @@ var util = require('util');
 
 var globalizeOptimization = require('./globalize').apply
 var eachOptimization = require('./each_optimization').apply
+var subsetOptimization = require('./subset_optimization').apply
 
 //builtin stuff
 
@@ -1444,6 +1445,8 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	//console.log('wrote generated: ' + schemaDirs[0] + '/view.schema.generated')
 	fs.writeFile(schemaDirs[0] + '/view.schema.generated', vsStr, 'utf8');
 
+	globalizeOptimization(result)
+	subsetOptimization(result)
 	globalizeOptimization(result)
 	eachOptimization(result)
 	globalizeOptimization(result)

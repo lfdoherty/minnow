@@ -816,6 +816,7 @@ function makeInclusionsExtractor(type){
 			return ids
 		}
 	}else if(type.type === 'map'){
+		//console.log('map: ' + JSON.stringify(type))
 		if((type.value.type === 'object' || type.value.type === 'view') && (type.key.type === 'object'||type.key.type==='view')){
 			return function(changes){
 				var ids = []
