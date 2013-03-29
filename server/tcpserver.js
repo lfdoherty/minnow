@@ -576,17 +576,15 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			persistEdit: function(e){
 
 				rrk.put(e.edit)
-				var r = rrk.s
 
 				var op = e.op
-				e.edit = fp.readersByCode[op](r)
+				e.edit = fp.readersByCode[op](rrk.s)
 				var syncId = e.syncId
 				
 				
 				var pu = conn.pathFromClientFor[syncId]
 
 				//console.log('^^^^ ' + editNames[op] + ' ' + JSON.stringify(e))
-				
 
 				if(op === editCodes.selectTopObject){
 					if(conn.currentIdFor[syncId] === e.edit.id){
@@ -631,7 +629,6 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					if(pu) pu.reset()
 					
 					var state = pu.getAll()
-					//state.top = currentId
 							
 					//console.log('make - persisting with state: ' + JSON.stringify(state))
 					var id = s.persistEdit(op, state, e.edit, syncId, tg)

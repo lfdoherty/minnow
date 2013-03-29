@@ -1000,7 +1000,9 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	for(var i=0;i<keys.length;++i){
 		var key = keys[i]
 		var n = local.objectApiCache[key]
-		n.reifyParentEdits(temporaryId, realId)
+		if(!n._destroyed){
+			n.reifyParentEdits(temporaryId, realId)
+		}
 	}
 }
 

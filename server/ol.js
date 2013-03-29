@@ -63,45 +63,45 @@ OlReaders.prototype.selectTopObject = function(e,timestamp){
 OlReaders.prototype.selectObject = function(e,timestamp){
 	_.assertInt(e.id)
 	this.state.object = e.id
-	this.ol.persist(editCodes.selectObject, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectObject, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectSubObject = function(e,timestamp){
 	_.assertInt(e.id)
 	this.state.sub = e.id
-	this.ol.persist(editCodes.selectSubObject, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectSubObject, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectProperty = function(e,timestamp){
 	_.assertInt(e.typeCode)
 	this.state.property = e.typeCode 
-	this.ol.persist(editCodes.selectProperty, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectProperty, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectIntKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectIntKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectIntKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectLongKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectLongKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectLongKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectBooleanKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectBooleanKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectBooleanKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectTimestampKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectTimestampKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectTimestampKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectStringKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectStringKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectObjectKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectObjectKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectObjectKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 OlReaders.prototype.selectStringKey = function(e,timestamp){
 	this.state.key = e.key
-	this.ol.persist(editCodes.selectStringKey, e, this.currentSyncId, timestamp, this.state)
+	this.ol.persist(editCodes.selectStringKey, e, this.currentSyncId, timestamp, this.state.top)
 }
 
 OlReaders.prototype.selectTopViewObject = function(e){
@@ -141,7 +141,7 @@ _.each(shared.editSchema._byCode, function(objSchema){
 			//appendEdit(name, edit)
 			//log('edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
 			//console.log('loading edit: ' + JSON.stringify([this.currentId, name, edit, this.currentSyncId, timestamp]))
-			this.ol.persist(code, edit, this.currentSyncId, timestamp, this.state)
+			this.ol.persist(code, edit, this.currentSyncId, timestamp, this.state.top)
 		}//appendEdit.bind(undefined, name)
 	}
 })
@@ -158,6 +158,7 @@ function Ol(schema){
 	this.creationEditIdsByType = {}
 	this.objectTypeCodes = {}
 	this.destroyed = {}
+	this.destructionEditIdsByType = {}
 	this.lastEditId = {}
 	this.uuid = {}
 	this.syncIdsByEditId = {}
@@ -297,9 +298,19 @@ Ol.prototype._makeFork = function make(edit, timestamp, syncId){
 Ol.prototype.isDeleted = function(id){
 	return this.destroyed[id]
 }
-Ol.prototype._destroy = function(id){
+Ol.prototype._destroy = function(id,editId){
+	if(!editId){
+		editId = this.readers.lastVersionId
+		++this.readers.lastVersionId
+	}
+	_.assertInt(editId)
 	//console.log('id destroyed: ' + id)
 	this.destroyed[id] = true
+	var typeCode = this.objectTypeCodes[id]
+	if(this.destructionEditIdsByType[typeCode] === undefined){
+		this.destructionEditIdsByType[typeCode] = []
+	}
+	this.destructionEditIdsByType[typeCode].push(editId)
 }
 /*
 Ol.prototype.getPathTo = function(id, cb){
@@ -747,11 +758,11 @@ Ol.prototype.getLastVersionAt = function(id, editId, cb){//, cb){
 }
 
 //note that 'path' is only required for edits that are not path updates
-Ol.prototype.persist = function(op, edit, syncId, timestamp, state){
+Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	_.assertNumber(timestamp)
 	_.assertInt(op)
 	
-	var id = state.top
+	//var id = state.top
 	
 	//if(op === editCodes.selectTopObject) _.errout('err')
 	
@@ -861,7 +872,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, state){
 		//indexParent(res.id)
 	}else if(op === editCodes.destroy){
 		//_.errout('TODO')
-		this._destroy(id)
+		this._destroy(id, res.editId)
 	}
 	
 	res.edit = edit
@@ -954,17 +965,23 @@ Ol.prototype.getManyAt = function(typeCode, endEditId, cb){
 	var sts = this.typeCodeSubTypes[typeCode]
 	for(var j=0;j<sts.length;++j){
 		var tc = sts[j]
-		var ids = this.idsByType[tc]// || [];
-		if(ids){
-			var editIds = this.creationEditIdsByType[tc]
-			for(var i=0;i<ids.length;++i){
-				var id = ids[i]
-				if(!this.destroyed[id]){
-					var editId = editIds[i]
+		var editIds = this.creationEditIdsByType[tc]
+		if(editIds){
+			for(var i=0;i<editIds.length;++i){//TODO use binary search
+				var editId = editIds[i]
+				if(editId > endEditId){
+					break//creationEditIdsByType is sequential
+				}
+				++many
+			}
+			var destroyedEditIds = this.destructionEditIdsByType[tc]
+			if(destroyedEditIds){
+				for(var i=0;i<destroyedEditIds.length;++i){
+					var editId = destroyedEditIds[i]
 					if(editId > endEditId){
 						break//creationEditIdsByType is sequential
 					}
-					++many
+					--many
 				}
 			}
 		}
@@ -1012,6 +1029,18 @@ Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 	return res
 }
 
+function binarySearchNext(arr, value){
+  var low = 0, high = arr.length - 1,
+      i, comparison;
+  while (low <= high) {
+    i = Math.floor((low + high) / 2);
+    if (arr[i] < value) { low = i + 1; continue; };
+    if (arr[i] > value) { high = i - 1; continue; };
+    return i;
+  }
+  return i;
+};
+
 Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -1019,16 +1048,30 @@ Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEdi
 		var tc = sts[j]
 		var ids = this.idsByType[tc] || [];
 		var editIds = this.creationEditIdsByType[tc]
-		for(var i=0;i<ids.length;++i){
+		var binResult
+		
+		if(startEditId <= 0){
+			binResult = 0
+		}else{
+			binResult = binarySearchNext(editIds, startEditId+1)
+			//console.log('bin result: ' + binResult + ' ' + startEditId + ' ' + JSON.stringify([editIds.slice(binResult-2, binResult+2),editIds.length]))
+			_.assert(binResult === 0 || editIds[binResult-1] < startEditId+1)
+			if(editIds[binResult] <= startEditId){
+				_.assert(binResult+1 === editIds.length)
+				continue
+			}
+		}
+		for(var i=binResult;i<ids.length;++i){
 			var id = ids[i]
+			var editId = editIds[i]
+			if(editId > endEditId){
+				break
+			}
+			if(editId <= startEditId){//TODO do a binary search for the startEditId point
+				_.errout('bug: ' + editId + ' ' + startEditId)
+			}
 			if(!this.destroyed[id]){
-				var editId = editIds[i]
-				if(editId > endEditId){
-					break
-				}
-				if(editId > startEditId){
-					res.push(id)
-				}
+				res.push(id)
 			}
 		}
 	}

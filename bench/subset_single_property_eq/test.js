@@ -3,13 +3,13 @@ var minnow = require('./../../client/client')
 var u = require('./../util')
 u.reset(run)
 
-var N = 1*1000*100
+var N = 1*1000*1000
 
 //benchmark to beat: N=1M in 60515ms (~16,000 ops/sec)
 
 //since QE rebuild:
-//N=100K in 6495ms
-//N=1M in 78973ms
+//N=100K in 7200ms
+//N=1M in 85277ms
 
 try{
 var agent = require('webkit-devtools-agent');

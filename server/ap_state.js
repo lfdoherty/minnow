@@ -129,7 +129,7 @@ function make(schema, ol){
 		
 		ap[editNames[op]](e)
 
-		var n = ol.persist(op, e, syncId, timestamp, {top: id, topTypeCode: typeCode})
+		var n = ol.persist(op, e, syncId, timestamp, id)//{top: id, topTypeCode: typeCode})
 
 		//log(n.editId, id, op, e, syncId)
 
@@ -154,11 +154,12 @@ function make(schema, ol){
 			_.assertInt(state.objTypeCode)
 		}	
 		
-		state = {
+		/*state = {
 			topTypeCode: state.topTypeCode, objTypeCode: state.objTypeCode, 
 			top: state.top, object: state.object, 
 			property: state.property, sub: state.sub, 
-			key: state.key, keyOp: state.keyOp}//_.extend({}, state)	
+			key: state.key, keyOp: state.keyOp}//_.extend({}, state)	*/
+		var stateTop = state.top
 		//state.topId = id
 		//_.assertFunction(cb)
 		
@@ -214,13 +215,14 @@ function make(schema, ol){
 			}
 		}
 		
-		if((op !== editCodes.make && op !== editCodes.makeFork) && state.top < -1){//note that -1 is not a valid temporary id - that is reserved
+		if((op !== editCodes.make && op !== editCodes.makeFork) && stateTop < -1){//note that -1 is not a valid temporary id - that is reserved
 			//_.assertInt(id)
 			var newId = translateTemporary(top, syncId);
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
 			//id = newId;
 			//_.assertInt(id)
-			state.top = newId
+			_.assertInt(newId)
+			stateTop = newId
 		}
 		
 		if(currentSyncId !== syncId){
@@ -231,7 +233,7 @@ function make(schema, ol){
 		//_.assertInt(id)
 		//console.log(editNames[op])
 		
-		var n = ol.persist(op, edit, syncId, timestamp, state)
+		var n = ol.persist(op, edit, syncId, timestamp, stateTop)
 		var newId = n.id//may be undefined if not applicable for the edit type
 		var editId = n.editId
 		var realOp = n.op
@@ -239,11 +241,11 @@ function make(schema, ol){
 
 		if(op === editCodes.make || op === editCodes.makeFork){
 			currentId = newId
-		}else if(currentId !== state.top && state.top !== -1){
-			ap.selectTopObject({id: state.top})
+		}else if(currentId !== stateTop && stateTop !== -1){
+			ap.selectTopObject({id: stateTop})
 			//console.log('wrote selectTopObject(' + id + ')')
 			//log('wrote selectTopObject(' + id + ')')
-			currentId = state.top
+			currentId = stateTop
 		}
 		
 		if(op === editCodes.putNew){
@@ -287,17 +289,17 @@ function make(schema, ol){
 			return newId;
 		}
 		
-		if(op === editCodes.destroy){
+		/*if(op === editCodes.destroy){
 			//broadcaster.input.objectDeleted(state.topTypeCode, state.top, editId)
 			return
-		}
+		}*/
 
 		//console.log(editNames[op] + ' ' + JSON.stringify(state))
 		//_.assertInt(id);
-		_.assertInt(state.object)
+		/*_.assertInt(state.object)
 		if(op !== editCodes.revert && op !== editCodes.refork && op !== editCodes.initializeUuid){
 			_.assertInt(state.property)
-		}
+		}*/
 		
 		//broadcaster.input.objectUpdated(state.topTypeCode, state.top, realOp, realEdit, syncId, editId)	
 
