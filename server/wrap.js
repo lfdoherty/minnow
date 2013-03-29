@@ -1301,7 +1301,7 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				}
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				/*if(startEditId > 0){
+				if(startEditId > 0){
 					//console.log('startEditId greater ' + startEditId + ',' + endEditId)
 					cb([])
 				}else if(endEditId >= 0){
@@ -1317,9 +1317,9 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				}else{
 					//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
 					cb([])
-				}*/
-				var b = bindings[paramName]
-				b.getChangesBetween(bindings, startEditId, endEditId, cb)
+				}
+				//var b = bindings[paramName]
+				//b.getChangesBetween(bindings, startEditId, endEditId, cb)
 			},
 			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
 				/*if(startEditId > 0){

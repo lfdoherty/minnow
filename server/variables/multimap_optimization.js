@@ -5,7 +5,7 @@ var wu = require('./../wraputil')
 
 exports.make = function(s, rel, recurse, handle, ws){
 
-	console.log(JSON.stringify(rel, null, 2))
+	//console.log(JSON.stringify(rel, null, 2))
 	
 	var inputSet = recurse(rel.params[0])
 	
@@ -27,23 +27,102 @@ exports.make = function(s, rel, recurse, handle, ws){
 	if(keyValueSchemaType.type !== 'set') keyValueSchemaType = {type: 'set', members: keyValueSchemaType}
 	var kws = wu.makeUtilities(keyValueSchemaType)
 	
-	var permanentCache
+	var permanentCache = {}
+	var cacheKeys = []
 	var cacheLastEditId = -1
 	function updateCacheTo(editId, cb){
 		if(editId > cacheLastEditId){
-			handle.getHistoricalChangesBetween({}, cacheLastEditId, editId, function(changes){
-				_.errout('TODO: ' + JSON.stringify(changes))
+			computeHistoricalChangesBetween(cacheLastEditId, editId, function(changes){
+				cacheLastEditId = editId
+				for(var i=0;i<changes.length;++i){
+					var c = changes[i]
+					var key = c.key
+					if(!permanentCache[key]){
+						permanentCache[key] = []
+						cacheKeys.push(key)						
+					}
+					if(c.type === 'putAdd'){
+						permanentCache[key].push({type: 'add', value: c.value, editId: c.editId})
+					}else if(c.type === 'putRemove'){
+						permanentCache[key].push({type: 'remove', value: c.value, editId: c.editId})
+					}else{
+						_.errout('TODO: ' + JSON.stringify(c))
+					}
+				}
+				cb()
 			})
 		}else{
 			cb()
 		}
 	}
 	
+	function computeHistoricalChangesBetween(startEditId, endEditId, cb){
+		//console.log('computing historical changes between: ' + startEditId + ', ' + endEditId)
+		inputSet.getStateAt({}, startEditId, function(inputState){
+			inputSet.getHistoricalChangesBetween({}, startEditId, endEditId, function(inputChanges){
+
+				var result = []
+				
+				var cdl = _.latch(inputState.length+inputChanges.length, function(){
+					result.sort(function(a,b){return a.editId - b.editId;})
+					cb(result)
+				})
+				
+				inputState.forEach(function(id){
+					s.objectState.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(pcs){
+						for(var i=0;i<pcs.length;++i){
+							var c = pcs[i]
+							processChange(id, c)
+						}
+						cdl()
+					})
+				})
+				function processChange(id, c){
+					if(c.type === 'set'){
+						_.assert(Object.keys(c).indexOf('old') !== -1)
+						if(c.old === undefined){
+							result.push({type: 'putAdd', value: id, key: c.value, editId: c.editId})
+						}else{
+							result.push({type: 'putRemove', value: id, key: c.old, editId: c.editId})
+							result.push({type: 'putAdd', value: id, key: c.value, editId: c.editId})
+						}
+					}else if(c.type === 'clear'){
+						_.assertDefined(c.old)
+						result.push({type: 'putRemove', value: id, key: c.old, editId: c.editId})
+					}else{
+						_.errout('TODO: ' + JSON.stringify(c))
+					}
+				}
+				inputChanges.forEach(function(c){
+					if(c.type === 'add'){
+						getPropertyAt(c.value, c.editId, function(ps){
+							s.objectState.getPropertyChangesDuring(c.value, propertyCode, c.editId, endEditId, function(pcs){
+								if(pcs.length === 0 || pcs[0].editId !== c.editId){
+									processChange(c.value, {type: 'set', value: ps, old: undefined, editId: c.editId})
+								}else{
+									pcs[0].old = undefined
+								}
+								for(var i=0;i<pcs.length;++i){
+									processChange(c.value, pcs[i])
+								}
+								cdl()
+							})
+						})
+					}else if(c.type === 'remove'){
+						_.errout('TODO: ' + JSON.stringify(c))
+					}else{
+						_.errout('TODO: ' + JSON.stringify(c))
+					}
+				})
+			})
+		})
+	}
+	
 	var handle = {
 		name: 'multimap-optimization',
 		analytics: a,
 		getValueStateAt: function(key, bindings, editId, cb){
-			updateCacheTo(endEditId, function(){
+			updateCacheTo(editId, function(){
 				var changes = permanentCache[key]||[]
 				var state = []
 				changes.forEach(function(c){
@@ -59,73 +138,47 @@ exports.make = function(s, rel, recurse, handle, ws){
 				})
 				cb(state)
 			})
-			/*handle.getStateAt(bindings, editId, function(states){
-				cb(states[key]||[])
-			})*/
 		},
 		getValueChangesBetween: function(key, bindings, startEditId, endEditId, cb){
 			updateCacheTo(endEditId, function(){
 				var changes = permanentCache[key]||[]
-				cb(changes)
-			})
-			/*handle.getValueStateAt(key, bindings, startEditId, function(startValues){
-				handle.getValueStateAt(key, bindings, endEditId, function(endValues){
-					if(startValues.length === 0 && endValues.length === 0){
-						cb([])
-					}else{
-						//_.errout('TODO: ' + JSON.stringify([startValues, endValues]))
-						var es = kws.diffFinder(startValues, endValues)
-						var changes = []
-						es.forEach(function(e){
-							e.editId = endEditId
-							changes.push(e)
-						})
-						cb(changes)
+				var realChanges = []
+				for(var i=0;i<changes.length;++i){
+					var c = changes[i]
+					if(c.editId > endEditId) break
+					if(c.editId >= startEditId){
+						realChanges.push(c)
 					}
-				})
-			})*/
+				}
+				//console.log('value changes: ' + JSON.stringify([key, startEditId, endEditId, realChanges, changes]))
+				cb(realChanges)
+			})
 		},
 		getStateAt: function(bindings, editId, cb){
-			_.errout('TODO')
-			/*inputSet.getStateAt(bindings, editId, function(inputValues){
-				
-				var undefinedState = []
-				var states = {}
-				var has = {}
-				var cdl = _.latch(inputValues.length, function(){
-					//console.log('result: ' + JSON.stringify(states))
-					cb(states)
-				})
-				
-				inputValues.forEach(function(id){
-					getPropertyAt(id, editId, function(v){
-						if(v === undefined){
-							undefinedState.push(id)
-							cdl()
+			_.errout('TODO?')
+		},
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			_.errout('why is this being called?')
+			updateCacheTo(endEditId, function(){
+				var allChanges = []
+				cacheKeys.forEach(function(key){
+					var changes = permanentCache[key]
+					changes.forEach(function(c){
+						if(c.type === 'add'){
+							allChanges.push({type: 'putAdd', state:{key: key}, value: c.value, editId: c.editId})
+						}else if(c.type === 'remove'){
+							allChanges.push({type: 'putRemove', state:{key: key}, value: c.value, editId: c.editId})
 						}else{
-							if(states[v] === undefined){
-								states[v] = []
-								has[v] = {}
-							}
-							if(!has[v][id]){
-								states[v].push(id)
-								has[v][id] = true
-							}
-							cdl()							
+							_.errout('TODO: ' + JSON.stringify(c))
 						}
 					})
 				})
-			})*/
-		},
-		getChangesBetween: function(bindings, startEditId, endEditId, cb){
-			_.errout('TODO')
-		},
-		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-			inputSet.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
-				_.errout('TODO: ' + JSON.stringify(changes))
+				allChanges.sort(function(a,b){return a.editId - b.editId})
+				console.log('computed changes: ' + JSON.stringify(allChanges))
+				cb(allChanges)
 			})
-			_.errout('TODO')
 		}
 	}
+	handle.getChangesBetween = handle.getHistoricalChangesBetween
 	return handle
 }

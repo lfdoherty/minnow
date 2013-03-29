@@ -41,7 +41,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			params[0].getStateAt(bindings, editId, function(paramValue){
-				console.log('paramValue: ' + JSON.stringify(paramValue))
+				//console.log('paramValue: ' + JSON.stringify(paramValue))
 				multimaps[0].getValueStateAt(paramValue, bindings, editId, function(values){
 					//_.errout('TODO: ' + JSON.stringify(values))
 					cb(values)
@@ -50,12 +50,12 @@ exports.make = function(s, rel, recurse, handle, ws){
 		},
 		getChangesBetween: function(bindings, startEditId, endEditId, cb){
 			//_.errout('TODO')
-			params[0].getChangesBetween(bindings, startEditId, endEditId, function(changes){
+			params[0].getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
 				if(changes.length > 0){
 					if(changes.length === 1 && changes[0].editId === 0){
 					
 						params[0].getStateAt(bindings, 0, function(paramValue){
-							console.log('paramValue: ' + JSON.stringify(paramValue) + ' ' + JSON.stringify(changes))
+							//console.log('paramValue: ' + JSON.stringify(paramValue) + ' ' + JSON.stringify(changes))
 							multimaps[0].getValueChangesBetween(paramValue, bindings, startEditId, endEditId, function(changes){
 								//_.errout('TODO: ' + JSON.stringify(changes))
 								cb(changes)
@@ -68,7 +68,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 				}else{
 					//_.errout('TODO: ' + JSON.stringify(changes))
 					params[0].getStateAt(bindings, startEditId, function(paramValue){
-						console.log('paramValue: ' + JSON.stringify(paramValue) + ' ' + JSON.stringify(changes))
+						//console.log('paramValue: ' + JSON.stringify(paramValue) + ' ' + JSON.stringify(changes))
 						multimaps[0].getValueChangesBetween(paramValue, bindings, startEditId, endEditId, function(changes){
 							//_.errout('TODO: ' + JSON.stringify(changes))
 							cb(changes)
@@ -76,8 +76,10 @@ exports.make = function(s, rel, recurse, handle, ws){
 					})
 				}
 			})
-		}
+		},
+		
 	}
+	handle.getHistoricalChangesBetween = handle.getChangesBetween
 	return handle
 }
 

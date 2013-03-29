@@ -13,27 +13,28 @@ exports.apply = function(view){
 
 function applySubsetOptimizationToView(r){
 	if(r.type === 'view'){
-		console.log('here: ' + JSON.stringify(r))
+		//console.log('here: ' + JSON.stringify(r))
 		if(r.view === 'each' && r.params[1].expr.view === 'filter'){
 			var expr = r.params[1].expr.params[1]
 			var implicits = r.params[1].implicits
-			if(expr.view === 'eq'){
-				if(expr.params[0].view === 'property' && expr.params[0].params[1].name === implicits[0] && expr.params[1].type === 'param'){
-					return applySubsetOptimization(r, implicits[0], expr.params[0], expr.params[1])
-				}else if(expr.params[1].view === 'property' && expr.params[1].params[1].name === implicits[0] && expr.params[0].type === 'param'){
-					return applySubsetOptimization(r, implicits[0], expr.params[1], expr.params[0])
-				}else{
-					console.log('cannot optimize: ' + JSON.stringify(expr))
+
+			//check that the input set is not param-dependent!
+			if(r.params[0].type === 'typeset'){//TODO generalize this a bit
+			
+				if(expr.view === 'eq'){
+					if(expr.params[0].view === 'property' && expr.params[0].params[1].name === implicits[0] && expr.params[1].type === 'param'){
+						return applySubsetOptimization(r, implicits[0], expr.params[0], expr.params[1])
+					}else if(expr.params[1].view === 'property' && expr.params[1].params[1].name === implicits[0] && expr.params[0].type === 'param'){
+						return applySubsetOptimization(r, implicits[0], expr.params[1], expr.params[0])
+					}else{
+						//console.log('cannot optimize: ' + JSON.stringify(expr))
+					}
 				}
 			}
-			r.params.forEach(function(p,i){
-				r.params[i] = applySubsetOptimizationToView(p)
-			})			
-		}else{
-			r.params.forEach(function(p,i){
-				r.params[i] = applySubsetOptimizationToView(p)
-			})
 		}
+		r.params.forEach(function(p,i){
+			r.params[i] = applySubsetOptimizationToView(p)
+		})
 	}else if(r.type === 'let'){
 		r.expr = applySubsetOptimizationToView(r.expr)
 		r.rest = applySubsetOptimizationToView(r.rest)

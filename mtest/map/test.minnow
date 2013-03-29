@@ -10,7 +10,8 @@ general() 100
 	
 container 2
 	members string:entity 201
-	
+	imembers int:entity 202
+
 genc() 101
 	s one(*container) 1
 	
@@ -31,3 +32,7 @@ objkeys() 106
 		
 objkeyer 3
 	members entity:string 202
+	
+idataView(key int) 109
+	names each(*container, {mapValue(~.imembers,key)}).name 1
+

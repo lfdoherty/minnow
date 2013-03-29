@@ -805,7 +805,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 
 	if(editId > -1){
 		if(editId > this.latestVersionId) this.latestVersionId = editId
-		if(editId < this.latestVersionId) throw new Error('edits arriving out of order: ' + editId + ' < ' +  this.latestVersionId)
+		//if(editId < this.latestVersionId) throw new Error('edits arriving out of order: ' + editId + ' < ' +  this.latestVersionId)
 	}
 	
 	//this.editsHappened.push({op: op, edit: edit, editId: editId})

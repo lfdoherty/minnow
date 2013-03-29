@@ -284,6 +284,7 @@ realEdits[editCodes.moveToBack] = true
 realEdits[editCodes.selectStringKey] = true
 realEdits[editCodes.selectSubObject] = true
 realEdits[editCodes.selectObjectKey] = true
+realEdits[editCodes.selectIntKey] = true
 
 var alwaysIgnorable = {}
 alwaysIgnorable[editCodes.setSyncId] = true
@@ -369,7 +370,7 @@ function getPropertyValueAtViaFilter(makeDefaultValue, ol, id, propertyCode, des
 			var i = indexOfRawId(pv, currentSubObj)
 			if(i !== -1) pv.splice(i, 1)
 			else console.log('WARNING: did not need to remove object: ' + currentSubObj)
-		}else if(editCode === editCodes.selectStringKey || editCode === editCodes.selectObjectKey){
+		}else if(editCode === editCodes.selectStringKey || editCode === editCodes.selectObjectKey || editCode === editCodes.selectIntKey){
 			currentKey = edit.key
 		}else if(editCode === editCodes.putString || editCode === editCodes.putBoolean){
 			_.assertDefined(currentKey)

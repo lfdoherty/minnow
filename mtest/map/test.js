@@ -288,6 +288,37 @@ exports.mapPart = function(config, done){
 	})
 }
 
+exports.intmapPart = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('idataView', [3], function(err, c){
+			
+				poll(function(){
+					console.log(JSON.stringify(c.toJson()))
+					if(c.names.size() === 1 && c.names.toJson()[0] === 'billy'){
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						//console.log(''+v.setPropertyToNew)
+						var obj = v.make('entity', {name: 'billy'})
+						var obj2 = v.make('entity', {name: 'mark'})
+						
+						var cont = v.make('container')
+						cont.imembers.put(5, obj2)
+						cont.imembers.put(3, obj)
+						console.log('finished writing')
+					})
+				})
+				
+			})
+		})
+	})
+}
+
 exports.accessObjectKeys = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){

@@ -560,7 +560,7 @@ exports.nameCollision = function(config, done){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
 					}*/
-					console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					if(c.named.size() === 1 && c.named.toJson()[0].name === 'sue'){
 						done()
 						return true
