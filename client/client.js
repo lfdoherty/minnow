@@ -516,7 +516,7 @@ exports.makeServer = function(config, cb){
 	var syncPlugins = {}
 	_.extend(syncPlugins, config.synchronousPlugins||{}, sync.plugins)
 	
-	schema.load(config.schemaDir, syncPlugins, function(dbSchema, globalMacros){
+	schema.load(config.schemaDir, syncPlugins, config.disableOptimizations, function(dbSchema, globalMacros){
 		makeServer(dbSchema, globalMacros, config.dataDir||'.', config.port, cb||function(){})
 	})
 }

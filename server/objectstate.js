@@ -97,14 +97,14 @@ function hasInnerId(arr, id){
 	return false
 }
 
-function advanceStateAndReportChange(objId, prop, changeReport, e){
+function advanceStateAndReportChange(objId, prop, changeReport, e, lastKey){
 	var op = e.op
 	var syncId
 	if(editFp.isSetCode[op]){
 		if(editFp.isPrimitiveSetCode[op]){
 			if(e.edit.value !== prop){
 				_.assertDefined(e.edit.value)
-				changeReport({type: 'set', value: e.edit.value, editId: e.editId, syncId: syncId})
+				changeReport({type: 'set', value: e.edit.value, old: prop, editId: e.editId, syncId: syncId})
 				prop = e.edit.value
 			}
 		}else if(op === editCodes.setExisting || op === editCodes.setObject){
@@ -113,7 +113,7 @@ function advanceStateAndReportChange(objId, prop, changeReport, e){
 					changeReport({type: 'clear', editId: e.editId, syncId: syncId})
 				}else{
 					_.assertDefined(e.edit.id)
-					changeReport({type: 'set', value: e.edit.id, editId: e.editId, syncId: syncId})
+					changeReport({type: 'set', value: e.edit.id, old: prop, editId: e.editId, syncId: syncId})
 				}
 				prop = e.edit.id
 			}
@@ -123,13 +123,19 @@ function advanceStateAndReportChange(objId, prop, changeReport, e){
 		}else{
 			_.errout('TODO: ' + op)
 		}
+	}else if(op === editCodes.clearProperty){
+		if(prop !== undefined){
+			changeReport({type: 'clear', old: prop, editId: e.editId, syncId: syncId})
+			prop = undefined
+		}
 	}else if(op === editCodes.setSyncId){
 		syncId = e.edit.syncId
 		_.assertInt(syncId)
 	}else if(op === editCodes.wasSetToNew){
 		//_.errout('TODO')
-		prop = innerify(objId, e.edit.id)
-		changeReport({type: 'set', value: prop, editId: e.editId, syncId: syncId})
+		var v = innerify(objId, e.edit.id) 
+		changeReport({type: 'set', value: v, old: prop, editId: e.editId, syncId: syncId})
+		prop = v
 	}else if(editFp.isAddCode[op]){
 		if(prop === undefined) prop = []
 		if(editFp.isPrimitiveAddCode[op]){
@@ -235,12 +241,14 @@ function advanceStateAndReportChange(objId, prop, changeReport, e){
 		}
 	}else if(op === editCodes.refork){
 		_.errout('TODO')
+		//TODO recompute the subject property with the new initial properties, diff compared to now
 	}
 	return prop
 }
 
 function getDefaultValue(ol, schema, typeCode, propertyCode){
 	var defaultValue
+	if(propertyCode === -2) return function(){return undefined}
 	//console.log(typeCode + ' ' + JSON.stringify(schema._byCode[typeCode]))
 	if(schema._byCode[typeCode].propertiesByCode === undefined) _.errout('cannot get non-existent property ' + id + ' ' + typeCode + '.' + propertyCode)
 	var propertyType = schema._byCode[typeCode].propertiesByCode[propertyCode]
@@ -396,7 +404,12 @@ function getPropertyValueAtViaFilter(makeDefaultValue, ol, id, propertyCode, des
 
 function makeGetPropertyValueAtViaFilter(ol, makeDefaultValue, p){
 	var propertyCode = p.code
-	if(p.type.type === 'primitive'){
+	if(p === -2){
+		//_.errout('TODO')
+		return function(id, desiredEditId, cb){
+			cb(ol.getUuid(id), id)
+		}
+	}else if(p.type.type === 'primitive'){
 		var setOp = editCodes['set'+p.type.primitive.substr(0,1).toUpperCase()+p.type.primitive.substr(1)]
 		_.assertInt(setOp)
 		return function(id, desiredEditId, cb){
@@ -634,7 +647,7 @@ function advanceState(objId, prop, e, state){
 	return prop
 }
 
-function getPropertyValueChangesDuring(objId, propertyCode, edits){
+function getPropertyValueChangesDuring(objId, propertyCode, edits, startEditId, endEditId){
 	var prop;
 
 	//console.log('streamProperty got ' + edits.length + ' edits, path: ' + JSON.stringify(path))
@@ -652,10 +665,16 @@ function getPropertyValueChangesDuring(objId, propertyCode, edits){
 	
 	var changes = []
 	function changeReport(change){
-		changes.push(change)
+		if(change.editId > startEditId){
+			changes.push(change)
+		}
 	}
 	
-	edits.forEach(function(e){
+	//edits.forEach(function(e){
+	for(var i=0;i<edits.length;++i){
+		var e = edits[i]
+		//if(e.editId < startEditId) continue
+		if(e.editId > endEditId) break
 		
 		var op = e.op
 		var matching = tracker(e)
@@ -669,13 +688,13 @@ function getPropertyValueChangesDuring(objId, propertyCode, edits){
 
 		if(!matching){
 			//console.log('not matching(' + JSON.stringify(objId) + ', ' + propertyCode + '): ' + JSON.stringify(e))
-			return
+			continue
 		}
 		
 		//console.log('op: ' + editNames[op] + ' ' + JSON.stringify(e))
 		
-		prop = advanceStateAndReportChange(objId, prop, changeReport, e)
-	})
+		prop = advanceStateAndReportChange(objId, prop, changeReport, e, lastKey)
+	}
 	//log('streaming ', path, ':', prop)
 	//console.log(' here streaming ' + JSON.stringify(prop))//, path, ':', prop)
 	//console.log(JSON.stringify(edits))
@@ -876,10 +895,6 @@ exports.make = function(schema, ap, broadcaster, ol){
 		getVersionTimestamp: function(id){
 			return ol.getVersionTimestamp(id)
 		},
-		/*getPathTo: function(id, cb){
-			_.assertFunction(cb)
-			ol.getPathTo(id, cb)
-		},*/
 		
 		getInclusionsDuring: function(id, lastEditId, endEditId, cb){//TODO getExclusionsDuring?
 			//_.assertInt(id)
@@ -943,6 +958,9 @@ exports.make = function(schema, ap, broadcaster, ol){
 			//right now they're the same, but we differentiate for future compatibility in case getPropertyChangesDuring is optimized.
 			handle.getPropertyChangesDuring(id, propertyCode, lastEditId, endEditId, cb)
 		},
+		getExistedAtAndMayHaveChangedDuring: function(typeCode, startEditId, endEditId, cb){
+			ol.getExistedAtAndMayHaveChangedDuring(typeCode, startEditId, endEditId, cb)
+		},
 		getPropertyChangesDuring: function(id, propertyCode, lastEditId, endEditId, cb){
 			_.assertDefined(id)
 			if(ol.getLastVersion(id) <= lastEditId){
@@ -954,25 +972,10 @@ exports.make = function(schema, ap, broadcaster, ol){
 			if(!_.isInt(id)) _.assertInt(id.top)
 			
 			ol.getIncludingForked(id, -1, -1, function(edits){
-				var actual = []
-				for(var i=0;i<edits.length;++i){
-					var e = edits[i]
-					if(e.editId <= endEditId){
-						actual.push(e)
-					}
-				}
-				//console.log('getting property changes during ' + lastEditId + ',' + endEditId + ' with ' + JSON.stringify(actual))
 
-				var changes = getPropertyValueChangesDuring(id, propertyCode, actual)
-				var actualChanges = []
-				//changes.forEach(function(c){
-				for(var i=0;i<changes.length;++i){
-					var c = changes[i]
-					if(c.editId > lastEditId && c.editId <= endEditId){
-						actualChanges.push(c)
-					}
-				}
-				cb(actualChanges, id)
+				var changes = getPropertyValueChangesDuring(id, propertyCode, edits, lastEditId, endEditId)
+
+				cb(changes, id)
 			})
 		},
 		getChangedDuringOfType: function(typeCode, startEditId, endEditId, cb){
@@ -1006,8 +1009,13 @@ exports.make = function(schema, ap, broadcaster, ol){
 			
 		},
 		makeGetPropertyAt: function(typeCode, propertyCode){
-			var p = schema._byCode[typeCode].propertiesByCode[propertyCode]
-			_.assertDefined(p)
+			var p
+			if(propertyCode !== -2){
+				p = schema._byCode[typeCode].propertiesByCode[propertyCode]
+				_.assertDefined(p)
+			}else{
+				p = -2
+			}
 			var makeDefaultValue = getDefaultValue(ol, schema, typeCode, propertyCode)
 			return makeGetPropertyValueAtViaFilter(ol, makeDefaultValue, p)
 		},
@@ -1113,8 +1121,14 @@ exports.make = function(schema, ap, broadcaster, ol){
 		getCreationsOfTypeBetween: function(typeCode, startEditId, endEditId, cb){
 			ol.getCreationsOfTypeBetween(typeCode, startEditId, endEditId, cb)
 		},
+		getDestructionsOfTypeBetween: function(typeCode, startEditId, endEditId, cb){
+			ol.getDestructionsOfTypeBetween(typeCode, startEditId, endEditId, cb)
+		},
 		getIdsCreatedOfTypeBetween: function(typeCode, startEditId, endEditId, cb){
 			ol.getIdsCreatedOfTypeBetween(typeCode, startEditId, endEditId, cb)
+		},
+		getIdsDestroyedOfTypeBetween: function(typeCode, startEditId, endEditId, cb){
+			ol.getIdsDestroyedOfTypeBetween(typeCode, startEditId, endEditId, cb)
 		}
 	};
 	

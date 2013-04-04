@@ -86,7 +86,12 @@ function applyEachOptimization(rel){
 		var bindingsUsed = _.extend({}, rel.params[1].bindingsUsed)
 		//1. extract macro params to one or more ~:property maps
 		var maps = []
+		var failed = false
 		var newMacroExpr = replaceMacroPropertyExpressions(rel.params[1].expr, rel.params[1].implicits, function(macroPropertyExpr){
+			if(macroPropertyExpr.schemaType.type === 'map'){
+				failed = true
+				return
+			}
 			var uid = 'extproperty_'+Math.random()
 			var bu = {}
 			bu[uid] = true
@@ -101,14 +106,16 @@ function applyEachOptimization(rel){
 						expr: {type: 'param', name: uid, schemaType: rel.params[0].schemaType.members}, 
 						bindingsUsed: bu, 
 						implicits: [uid], 
-						schemaType: rel.params[0].schemaType.members
+						schemaType: rel.params[0].schemaType.members,
+						implicitTypes: [rel.params[0].schemaType.members]
 					},{
 						type: 'macro', 
 						manyImplicits: 1, 
 						expr: JSON.parse(JSON.stringify(macroPropertyExpr)), 
 						bindingsUsed: bu, 
 						implicits: [rel.params[1].implicits[0]], 
-						schemaType: macroPropertyExpr.schemaType
+						schemaType: macroPropertyExpr.schemaType,
+						implicitTypes: [rel.params[1].implicitTypes[0]]
 					}
 				], 
 				uid: uid
@@ -120,10 +127,13 @@ function applyEachOptimization(rel){
 			_.assertDefined(macroPropertyExpr.schemaType)
 			return {type: 'param', name: uid, schemaType: macroPropertyExpr.schemaType}
 		})
+		if(failed) return originalRel
 		var newMacro = {
 			type: 'macro',
-			expr: newMacroExpr, 
+			expr: newMacroExpr,
+			manyImplicits: newImplicits.length,
 			implicits: newImplicits,
+			implicitTypes: [rel.params[0].schemaType.members],
 			bindingsUsed: bindingsUsed,//newImplicits
 			schemaType: newMacroExpr.schemaType
 		}

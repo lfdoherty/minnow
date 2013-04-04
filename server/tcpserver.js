@@ -140,7 +140,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 	function addConnection(c){
 		++connectionCount
 		if(!connections){
-			console.log('WARNING: adding connection from destroyed server')
+			//console.log('WARNING: adding connection from destroyed server')
 			c.destroy()
 			return
 		}
@@ -150,7 +150,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 	function removeConnection(c){
 		--connectionCount
 		if(!connections){
-			console.log('WARNING: removing connection from destroyed server')//: ' + new Error().stack)
+			//console.log('WARNING: removing connection from destroyed server')//: ' + new Error().stack)
 			c.destroy()
 			return
 		}
@@ -162,9 +162,9 @@ function createTcpServer(appSchema, port, s, readyCb){
 	var cf = makeClientFunc(s, appSchema, addConnection, removeConnection, liveConnections, getTemporaryGenerator, lastTemporaryId)
 	var tcpServer = net.createServer(cf);
 
-	tcpServer.on('close', function(){
-		console.log('TCP SERVER CLOSED')
-	})
+	//tcpServer.on('close', function(){
+	//	console.log('TCP SERVER CLOSED')
+	//})
 	var serverHandle = {
 		close: function(cb){
 			//console.log('minnow server manually closed tcp server')

@@ -3,7 +3,6 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){try{if(f()){clearInterval(ci)}}catch(e){clearInterval(ci);throw e;}}}
 
 exports.basicFork = function(config, done){
 	minnow.makeServer(config, function(){
@@ -11,7 +10,7 @@ exports.basicFork = function(config, done){
 			client.view('general', function(err, c){
 				if(err) throw err
 				
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
@@ -37,7 +36,7 @@ exports.forkChangedAfter = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
@@ -67,7 +66,7 @@ exports.forkChangedImmediately = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				/*poll(function(){
+				/*done.poll(function(){
 					if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
@@ -98,7 +97,7 @@ exports.forkQuery = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQuery', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
@@ -125,7 +124,7 @@ exports.forkQueryWithSlightlyLaterOriginalChange = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQuery', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
 					if(c.has('e') && c.e.name.value() === 'original'){
 						done()
@@ -154,7 +153,7 @@ exports.refork = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQueryTwo', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() === 'purpled'){
 						done()
@@ -188,7 +187,7 @@ exports.reforkUnforked = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQueryTwo', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.has('name') && c.e.name.value() === 'purpled'){
 						done()
@@ -222,7 +221,7 @@ exports.changeOriginalAfterRefork = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('e')){
 						//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 						if(c.e.name.value() === 'blue'){
@@ -267,8 +266,8 @@ exports.queryRefork = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQueryTwo', function(err, c){
 			
-				poll(function(){
-					//console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
+				done.poll(function(){
+					console.log(c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() === 'purpled'){
 						done()
 						return true
@@ -305,7 +304,7 @@ exports.allForked = function(config, done){
 			client.view('forkQueryAllForked', function(err, c){
 				if(err) throw err
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.es.count())
 					if(c.es.count() === 2){
 						done()
@@ -334,7 +333,7 @@ exports.preforkedQuery = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQueryPreforked', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(c.has('e') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() !== 'purpled' && c.e.reallyAFork.value()){
 						done()

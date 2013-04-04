@@ -26,11 +26,13 @@ var wu = require('./wraputil')
 var innerify = require('./innerId').innerify
 var InnerId = require('./innerId').InnerId
 var wrapProperty = require('./wrap_property').wrapProperty
+var wrapPropertyCache = require('./wrap_property_cache').wrap
 
 var subsetOptimization = require('./variables/subset_optimization')
 var eachOptimization = require('./variables/each_optimization')
 var mapOptimization = require('./variables/map_optimization')
 var multimapOptimization = require('./variables/multimap_optimization')
+var mapValueOptimization = require('./variables/map_value_optimization')
 
 function makeIdRel(s, context){
 	var a = analytics.make('property-id('+context.name+')', [context])
@@ -217,6 +219,9 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		nameStr += pr.name
 	})
 	nameStr += ')'
+	if(impl.minParams > 0 && paramRels.length < impl.minParams){
+		_.errout('not enough params, need ' + impl.minParams+', got: ' + JSON.stringify(paramRels))
+	}
 		
 	function makeParams(bindings, editId, cb){
 		
@@ -224,8 +229,11 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		var states = []
 		paramRels.forEach(function(pr, index){
 			//if(pr.getStateSync) _.errout('TODO')
-			//console.log('state: ' + pr.name + ' ' + viewName)
 			pr.getStateAt(bindings, editId, function(state){
+				if(rel.params[index].schemaType.type === 'set'){
+					_.assertArray(state)
+				}
+				//console.log('state: ' + pr.name + ' ' + viewName + ' = ' + JSON.stringify(state))
 				--rem
 				states[index] = state
 				if(rem === 0){
@@ -273,7 +281,20 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 				
 				var cp = [z].concat(paramStates)
 				
+				//console.log(editId+' computing sync ' + impl.callSyntax + ': ' + JSON.stringify(paramStates) +' at ' + editId)
+				//console.log(JSON.stringify(paramRels))
 				var result = impl.computeSync.apply(undefined, cp)
+				if(rel.schemaType.type === 'set'){
+					/*if(!_.isArray(result)){
+						console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId)
+						_.errout('result not an array: ' + JSON.stringify(result))
+					}*/
+					if(result === undefined){
+						//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId)
+						//console.log('WARNING: result not an array: ' + JSON.stringify(result))
+						result = []
+					}
+				}
 				//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId)
 				//console.log(new Error().stack)
 				cb(result)
@@ -282,6 +303,11 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 			//console.log('making params')
 			makeParams(bindings, editId, computeResult)
 		},
+	}
+	
+	//console.log(JSON.stringify(rel, null, 2))
+	if(rel.schemaType.members && rel.schemaType.members.type === 'object'){
+		handle.getMayHaveChanged = handle.getStateAt
 	}
 
 	if(isFullySync){
@@ -319,7 +345,7 @@ function makeSyncOperatorRel(s, rel, paramRels, impl, viewName, ws, recurse){
 		}
 	}else{
 		handle.getStateSync = function(bindingValues){
-			paramRels.forEach(function(pr){console.log('pr: ' + pr.name + ' ' + (!!pr.getStateSync))})
+			paramRels.forEach(function(pr){console.log('pr: ' + pr.name + ' ' + (!!pr.getStateSync) + ' ' + (!!pr.isFullySync))})
 			_.errout('sync operator has non-sync params: ' + JSON.stringify(rel))			
 		}
 	}
@@ -434,7 +460,7 @@ function makeMacroWrapper1(pr, mergeResults){
 		var newBindings = shallowCopy(this.bindings)
 		//_.errout('TODO')
 		//var w = 
-		newBindings[implicit] = makeWrapper(av)
+		newBindings[implicit] = av//makeWrapper(av)
 		newBindings.__key = this.bindings.__key+'_'+av
 		pr.getStateAt(newBindings, this.editId, cb)
 	}
@@ -442,7 +468,7 @@ function makeMacroWrapper1(pr, mergeResults){
 	MacroWrapper1.prototype.getArray = function(arr, cb){
 		_.assertLength(arr, 1)
 		var newBindings = shallowCopy(this.bindings)
-		newBindings[implicit] = makeWrapper(arr[0])
+		newBindings[implicit] = arr[0]//makeWrapper(arr[0])
 		newBindings.__key = this.bindings.__key+'_'+arr[0]
 		pr.getStateAt(newBindings, this.editId, cb)
 	}
@@ -486,8 +512,8 @@ function makeMacroWrapper2(pr, mergeResults){
 	}
 	MacroWrapper2.prototype.get = function(av, bv, cb){
 		var newBindings = shallowCopy(this.bindings)
-		newBindings[implicitA] = makeWrapper(av)
-		newBindings[implicitB] = makeWrapper(bv)
+		newBindings[implicitA] = av//makeWrapper(av)
+		newBindings[implicitB] = bv//makeWrapper(bv)
 		newBindings.__key = this.bindings.__key+'_'+av+':'+bv
 		pr.getStateAt(newBindings, this.editId, cb)
 	}
@@ -495,8 +521,8 @@ function makeMacroWrapper2(pr, mergeResults){
 	MacroWrapper2.prototype.getArray = function(arr, cb){
 		_.assertLength(arr, 2)
 		var newBindings = shallowCopy(this.bindings)
-		newBindings[implicitA] = makeWrapper(arr[0])
-		newBindings[implicitB] = makeWrapper(arr[1])
+		newBindings[implicitA] = arr[0]//makeWrapper(arr[0])
+		newBindings[implicitB] = arr[1]//makeWrapper(arr[1])
 		newBindings.__key = this.bindings.__key+'_'+arr[0]+':'+arr[1]
 		pr.getStateAt(newBindings, this.editId, cb)
 	}
@@ -719,6 +745,10 @@ function makeGenericGetChangesBetween(handle, ws, rel){
 }
 function makeSwitchRel(s, context, cases, defaultCase, ws, rel){
 
+	/*if(rel.params[0].view === 'type' && context.isFullySync){
+		_.errout('TODO: ' + JSON.stringify(rel.params[0].params[0]))
+	}*/
+	
 	function getCurrentCase(bindings, editId, cb){
 		var caseValues = []
 		var contextState
@@ -912,7 +942,7 @@ function makeContextWrappedWithCache(exprHandle){
 		
 		var cachedHistoricalChanges
 		var cachedHistoricalRange
-		return {
+		var handle = {
 			name: 'let-cache(' + exprHandle.name + ')',
 			getStateAt: function(bindings, editId, cb){
 				if(editId === cachedEditId){
@@ -954,12 +984,108 @@ function makeContextWrappedWithCache(exprHandle){
 				})
 			}
 		}
+		handle.getMayHaveChangedAndInAtStart = exprHandle.getMayHaveChangedAndInAtStart
+		return handle
 	}
 	return contextWrappedWithCache
 }
 function stub(){}
 
-exports.make = function(s, rel, recurse, getViewHandle){
+function makeMacroBinding(implicit, macroParamType){
+	var nameStr = 'macro_param['+(JSON.stringify(macroParamType))+':'+implicit+']'
+	var a = analytics.make(nameStr, [])
+	return {
+		name: nameStr,
+		getStateSync: function(bindingValues){
+			var b = bindingValues[implicit]
+			return b
+		},
+		isFullySync: true,
+		/*getConfiguredIdAt: function(id, bindings, editId, cb){
+			handle.getStateAt(bindings, editId, function(realId){
+				_.assert(realId === id || (realId.top === id.top && realId.inner === id.inner))
+				cb(realId)
+			})
+		},*/
+		getStateAt: function(bindings, editId, cb){
+			if(editId >= 0){
+				//console.log('getting binding(' + implicit+'): ' + bindings[implicit])
+				var b = bindings[implicit]
+				cb(b)
+			}else{
+				if(macroParamType.type === 'set'){
+					console.log(JSON.stringify(macroParamType))
+					cb([])
+				}else{
+					cb(undefined)
+				}
+			}
+		},
+		getChangesBetween: function(bindings, startEditId, endEditId, cb){
+			if(startEditId > 0){
+				//console.log('startEditId greater ' + startEditId + ',' + endEditId)
+				cb([])
+			}else if(endEditId >= 0){
+				var v = bindings[implicit]
+				if(_.isArray(v)){
+					//_.errout('TODO?: ' + JSON.stringify(v))
+					var edits = []
+					v.forEach(function(ve){
+						edits.push({type: 'add', value: ve, editId: 0})
+					})
+					cb(edits)
+				}else{
+					if(v===undefined){
+						//console.log('no binding')
+						cb([])
+					}else{
+						cb([{type: 'set', value: v, editId: endEditId}])//, editId: bindings.__bindingTimes[paramName]}])
+					}
+				}
+			}else{
+				//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
+				cb([])
+			}
+		},
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			var v = bindings[implicit]
+			//if(_.isArray(v)) _.errout('TODO?: ' + JSON.stringify(v))
+			if(_.isArray(v)){
+				/*if(v === undefined) _.errout('undefined set value in binding: ' + implicit)
+				if(!_.isArray(v)){
+					_.errout('invalid value, should be array: ' + JSON.stringify(macroParamType) + ' ' + JSON.stringify(v))
+				}*/
+				if(startEditId === -1 && endEditId >= 0){
+					//cb([{type: 'set', value: v, editId: 0}])
+					var edits = []
+					v.forEach(function(ve){
+						edits.push({type: 'add', value: ve, editId: 0})
+					})
+					cb(edits)
+				}else{
+					cb([])
+				}
+			}else if(v !== undefined){
+				//console.log('got v: ' + JSON.stringify(v))
+				if(startEditId === -1 && endEditId >= 0){
+					cb([{type: 'set', value: v, editId: 0}])
+				}else{
+					cb([])
+				}
+			}else{
+				cb([])
+			}
+		},
+		/*getMayHaveChangedAndInAtStart: function(bindings, startEditId, endEditId, cb){
+			var b = bindings[implicit]
+			if(b.getMayHaveChangedAndInAtStart === undefined) _.errout('missing getMayHaveChangedAndInAtStart: ' + b.name)
+	
+			b.getMayHaveChangedAndInAtStart(bindings, startEditId, endEditId, cb)
+		},*/
+		analytics: a
+	}
+}
+exports.make = function(s, rel, recurse, getViewHandle, staticBindings){
 
 	var ws
 	if(rel.schemaType){
@@ -999,6 +1125,17 @@ exports.make = function(s, rel, recurse, getViewHandle){
 					handle = wrapProperty(s, propertyName, propertyType, contextType, resultType, context, ws)
 				}
 			}	
+		}else if(rel.view === 'property-cache'){
+			var allHandle = recurse(rel.fallback)
+			var exprHandle = recurse(rel.params[0])
+			var newStaticBindings = {}
+			var uid = rel.params[1].implicits[0]
+			//console.log(JSON.stringify(rel, null, 2))
+			//_.errout('T')
+			newStaticBindings[uid] = makeMacroBinding(uid, rel.params[0].schemaType)
+			var macroExprHandle = recurse(rel.params[1].expr, newStaticBindings)
+			var resultType = rel.params[1].schemaType
+			handle = wrapPropertyCache(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws)
 		}else if(rel.view === 'switch'){
 			var context = recurse(rel.params[0])
 			var remainder = rel.params.slice(1)
@@ -1119,34 +1256,66 @@ exports.make = function(s, rel, recurse, getViewHandle){
 						lastValue = ids
 						lastEditId = editId
 						
+						/*var str = ''
+						ids.forEach(function(id, index){
+							str += id+','
+							if(index % 10000 === 0) str += '\n'
+						})
+						console.log('got typeset(' + typeCode + ') state at ' + editId + ': ' + str)
+						*/
 						cb([].concat(ids))
 					})
 				},
 				getChangesBetween: function(bindings, startEditId, endEditId, cb){
 					//console.log('here')
-					s.objectState.getIdsCreatedOfTypeBetween(typeCode, startEditId, endEditId, function(ids){
+					s.objectState.getIdsDestroyedOfTypeBetween(typeCode, startEditId, endEditId, function(ids){
 						var changes = []
+						var destroyed = {}
 						for(var i=0;i<ids.length;++i){
 							var id = ids[i]
-							changes.push({type: 'add', value: id, editId: endEditId, syncId: -1})
+							destroyed[id] = true
+							changes.push({type: 'remove', value: id, editId: endEditId})
 						}
-						//console.log('got typeset changes: ' + startEditId + ' ' + endEditId + ' changes: ' + JSON.stringify(changes))
-						cb(changes)
+						s.objectState.getIdsCreatedOfTypeBetween(typeCode, startEditId, endEditId, function(ids){
+							//var str = ''
+							for(var i=0;i<ids.length;++i){
+								var id = ids[i]
+								if(!destroyed[id]){
+									changes.push({type: 'add', value: id, editId: endEditId})
+									//str += id + ','
+								}
+							}
+							//console.log('got typeset adds: ' + startEditId + ' ' + endEditId + ' - ' + str)
+							cb(changes)
+						})
 					})
 				},
 				getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-					s.objectState.getCreationsOfTypeBetween(typeCode, startEditId, endEditId, function(creations){
+					s.objectState.getDestructionsOfTypeBetween(typeCode, startEditId, endEditId, function(destructions){
 						var changes = []
-						for(var i=0;i<creations.length;++i){
-							var c = creations[i]
-							changes.push({type: 'add', value: c.id, editId: c.editId, syncId: -1})
+						for(var i=0;i<destructions.length;++i){
+							var d = destructions[i]
+							changes.push({type: 'remove', value: d.id, editId: d.editId})
 						}
-						//console.log('got typeset changes: ' + startEditId + ' ' + endEditId + ' changes: ' + JSON.stringify(changes))
-						cb(changes)
+						//var str = ''
+						s.objectState.getCreationsOfTypeBetween(typeCode, startEditId, endEditId, function(creations){
+							for(var i=0;i<creations.length;++i){
+								var c = creations[i]
+								changes.push({type: 'add', value: c.id, editId: c.editId})
+								//str += c.id + ','
+							}
+							//console.log('got typeset changes: ' + startEditId + ' ' + endEditId + ' changes: ' + JSON.stringify(changes))
+							//console.log('got typeset adds: ' + startEditId + ' ' + endEditId + ' - ' + str)
+							changes.sort(function(a,b){return a.editId - b.editId})
+							cb(changes)
+						})
 					})
 				},
 				getMayHaveChanged: function(bindings, startEditId, endEditId, cb){
 					s.objectState.getChangedDuringOfType(typeCode, startEditId, endEditId, cb)
+				},
+				getMayHaveChangedAndInAtStart: function(bindings, startEditId, endEditId, cb){
+					s.objectState.getExistedAtAndMayHaveChangedDuring(typeCode, startEditId, endEditId, cb)
 				}
 			}
 		}else{
@@ -1155,13 +1324,16 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				return getViewHandle(rel.view, rel)
 			}
 			
+			//console.log(JSON.stringify(rel))
 			if(rel.view === 'each-optimization'){
-				handle = eachOptimization.make(s, rel, recurse, handle, ws)
-			}else if(rel.view === 'subset-optimization-with-params'){
+				handle = eachOptimization.make(s, rel, recurse, handle, ws, staticBindings)
+			}/*else if(rel.view === 'subset-optimization-with-params'){
 				handle = subsetOptimization.make(s, rel, recurse, handle, ws)
-			}else if(rel.isSubsetOptimizationMultimap){
+			}*/else if(rel.isSubsetOptimizationMultimap){
 				//_.errout('TODO')
 				handle = multimapOptimization.make(s, rel, recurse, handle, ws)
+			}else if(rel.view === 'mapValue' && rel.params[0].isSubsetOptimizationMultimap){
+				handle = mapValueOptimization.make(s, rel, recurse, handle, ws)
 			}else if(rel.view === 'count' && rel.params[0].view === 'typeset'){
 				//_.errout('TODO')
 				var objName = rel.params[0].params[0].value
@@ -1210,7 +1382,7 @@ exports.make = function(s, rel, recurse, getViewHandle){
 				/*if(rel.view === 'each' && rel.params[1].expr.view === 'filter'){
 				 	handle = subsetOptimization.make(s, rel, paramRels, impl, rel.view, ws, handle, recurse)
 				}*/
-				if(rel.view === 'map'){
+				if(rel.view === 'map'){// && recurse(rel.params[0]).getMayHaveChanged){
 					handle = mapOptimization.make(s, rel, recurse, handle, ws)
 					//console.log(JSON.stringify(rel))
 					//_.errout('TODO')
@@ -1247,7 +1419,14 @@ exports.make = function(s, rel, recurse, getViewHandle){
 		handle.getHistoricalChangesBetween = handle.getChangesBetween
 	}else if(rel.type === 'macro'){
 		_.assertInt(rel.manyImplicits)
-		var inner = recurse(rel.expr)
+		var newStaticBindings = _.extend({}, staticBindings)
+		rel.implicits = rel.implicits.slice(0, rel.manyImplicits)
+		if(!rel.implicitTypes) _.errout('missing implicitTypes: ' + JSON.stringify(rel))
+		rel.implicits.forEach(function(implicit, index){
+			//console.log('binding: ' + implicit)
+			newStaticBindings[implicit] = makeMacroBinding(implicit, rel.implicitTypes[index])
+		})
+		var inner = recurse(rel.expr, newStaticBindings)
 		if(!inner.getStateAt) _.errout('missing getStateAt: ' + inner.name + ' ' + inner.getChangesBetween)
 		//TODO REMOVEME?
 
@@ -1272,84 +1451,14 @@ exports.make = function(s, rel, recurse, getViewHandle){
 		var isObject = rel.schemaType.type === 'object'
 		var nameStr = 'param['+(rel.schemaType.object||rel.schemaType.primitive||rel.schemaType.view)+':'+rel.name+']'
 		var a = analytics.make(nameStr, [])
-
-		handle = {
-			name: nameStr,
-			getStateSync: function(bindingValues){
-				var b = bindingValues[paramName]
-				//if(isObject && b === undefined) _.errout('param missing: ' + JSON.stringify([paramName, bindingValues]))
-				//console.log(paramName + ' -> ' + JSON.stringify(b))
-				return b
-			},
-			isFullySync: true,
-			getConfiguredIdAt: function(id, bindings, editId, cb){
-				handle.getStateAt(bindings, editId, function(realId){
-					_.assert(realId === id || (realId.top === id.top && realId.inner === id.inner))
-					cb(realId)
-				})
-			},
-			getStateAt: function(bindings, editId, cb){
-				if(editId >= 0){
-					var b = bindings[paramName]
-					//cb(b)
-					if(b === undefined) _.errout('missing binding: ' + paramName + ' got: ' + JSON.stringify(Object.keys(bindings)))
-					b.getStateAt(bindings, editId, function(v){
-						cb(v)
-					})
-				}else{
-					cb(undefined)
-				}
-			},
-			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				if(startEditId > 0){
-					//console.log('startEditId greater ' + startEditId + ',' + endEditId)
-					cb([])
-				}else if(endEditId >= 0){
-					var b = bindings[paramName]
-					b.getStateAt(bindings, endEditId, function(v){
-						if(v===undefined){
-							//console.log('no binding')
-							cb([])
-						}else{
-							cb([{type: 'set', value: v, editId: endEditId}])//, editId: bindings.__bindingTimes[paramName]}])
-						}
-					})
-				}else{
-					//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
-					cb([])
-				}
-				//var b = bindings[paramName]
-				//b.getChangesBetween(bindings, startEditId, endEditId, cb)
-			},
-			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-				/*if(startEditId > 0){
-					//console.log('startEditId greater ' + startEditId + ',' + endEditId)
-					cb([])
-				}else if(endEditId >= 0){*/
-					var b = bindings[paramName]
-					if(b.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + b.name)
-					b.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
-						/*if(v===undefined){
-							//console.log('no binding')
-							cb([])
-						}else{
-							cb([{type: 'set', value: v, editId: endEditId}])//, editId: bindings.__bindingTimes[paramName]}])
-						}*/
-						if(changes.length > 0){
-							//_.errout('TODO: ' + JSON.stringify(changes))
-							cb(changes)
-						}else{
-							cb([])
-						}
-					})
-				/*}else{
-					//console.log('startEditId lesser ' + startEditId + ',' + endEditId)
-					cb([])
-				}*/
-			},
-			analytics: a
-		}
 		
+		var b = staticBindings[paramName]
+		if(b === undefined){
+			_.errout('cannot find static binding: ' + JSON.stringify([paramName, Object.keys(staticBindings)]))
+		}
+		if(b.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + b.name)
+		handle = b
+		if(!b.name) _.errout('static bound param missing name: ' + JSON.stringify(rel))
 	}else if(rel.type === 'nil'){
 		var a = analytics.make('nil', [])
 		handle = {
@@ -1362,40 +1471,105 @@ exports.make = function(s, rel, recurse, getViewHandle){
 		}
 	}else if(rel.type === 'let'){
 		var exprHandle = recurse(rel.expr)
-		var subHandle = recurse(rel.rest)
 		
 		var contextWrappedWithCache = makeContextWrappedWithCache(exprHandle)
 		
-		if(subHandle.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + subHandle.name)
 		
-		var a = analytics.make('let:'+rel.name+'('+exprHandle.name+','+subHandle.name+')', [exprHandle, subHandle])
+		//handle = subHandle
 		handle = {
-			name: 'let(' + subHandle.name + ')',
 			getStateAt: function(bindings, editId, cb){
-				var newBindings = _.extend({}, bindings)
-				newBindings[rel.name] = contextWrappedWithCache()//exprHandle//TODO wrap this in localized caching?
+				//var newBindings = _.extend({}, bindings)
+				//newBindings[rel.name] = contextWrappedWithCache()//exprHandle//TODO wrap this in localized caching?
 				//console.log('in let')
-				subHandle.getStateAt(newBindings, editId, cb)
+
+				//begin caching
+				subHandle.getStateAt(bindings, editId, function(state){
+					//end caching
+					cb(state)
+				})
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				//_.errout('TODO')
-				var newBindings = _.extend({}, bindings)
-				newBindings[rel.name] = contextWrappedWithCache()//exprHandle
-				//console.log('in let')
-				subHandle.getChangesBetween(newBindings, startEditId, endEditId, cb)
+				subHandle.getChangesBetween(bindings, startEditId, endEditId, cb)
 			},
 			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-				//_.errout('TODO')
-				var newBindings = _.extend({}, bindings)
-				newBindings[rel.name] = contextWrappedWithCache()//exprHandle
-				//console.log('in let')
-				subHandle.getHistoricalChangesBetween(newBindings, startEditId, endEditId, cb)
-			},
-			analytics: a
+				subHandle.getHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
+			}
 		}
+	
+		var stateCache = {}
+		var changesCache = {}
+		var historicalChangesCache = {}	
+	
+		var newStaticBindings = {}
+		var staticAnalytics = analytics.make('static-let-param:'+rel.name, [])
+		var paramName = rel.name
+		var staticHandle = newStaticBindings[rel.name] = {
+			name: 'static-let-param:'+rel.name,
+			analytics: staticAnalytics,
+			//getStateSync: exprHandle.getStateSync,
+			//isFullySync: exprHandle.isFullySync,
+			getStateAt: function(bindings, editId, cb){
+				var key = editId+bindings.__key
+				if(stateCache[key]){
+					cb(stateCache[key])
+					return
+				}
+				exprHandle.getStateAt(bindings, editId, function(state){
+					stateCache[key] = state
+					cb(state)
+				})
+			},
+			getStateSync: function(bindingValues){
+				var b = bindingValues[paramName]
+				return b
+			},
+			isFullySync: true,
+			getConfiguredIdAt: function(id, bindings, editId, cb){
+				exprHandle.getStateAt(bindings, editId, function(realId){
+					_.assert(realId === id || (realId.top === id.top && realId.inner === id.inner))
+					cb(realId)
+				})
+			},
+			getChangesBetween: function(bindings, startEditId, endEditId, cb){
+				var key = startEditId+':'+endEditId+bindings.__key
+				if(changesCache[key]){
+					cb(changesCache[key])
+					return
+				}
+				exprHandle.getChangesBetween(bindings, startEditId, endEditId, function(changes){
+					changesCache[key] = changes
+					cb(changes)
+				})
+			},
+			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+				var key = startEditId+':'+endEditId+bindings.__key
+				if(historicalChangesCache[key]){
+					cb(historicalChangesCache[key])
+					return
+				}
+				exprHandle.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+					historicalChangesCache[key] = changes
+					cb(changes)
+				})
+			},
+		}
+		staticHandle.getMayHaveChangedAndInAtStart = exprHandle.getMayHaveChangedAndInAtStart
+		
+		var subHandle = recurse(rel.rest, newStaticBindings)
+
+		if(subHandle.getHistoricalChangesBetween === undefined) _.errout('missing getHistoricalChangesBetween: ' + subHandle.name)
+
+		var a = analytics.make('let:'+rel.name+'('+exprHandle.name+','+subHandle.name+')', [exprHandle, subHandle])
+		handle.analytics = a
+		handle.name = 'let(' + subHandle.name + ')'
+		handle.getMayHaveChanged = subHandle.getMayHaveChanged
+
+		//handle.getMayHaveChangedAndInAtStart = exprHandle.getMayHaveChangedAndInAtStart
 	}
 
 	if(!handle) _.errout(JSON.stringify(rel))
+	
+	if(!handle.name) _.errout('missing name: ' + JSON.stringify(rel))
 	
 	handle.changeToEdit = function(c){
 		//console.log(JSON.stringify(rel.schemaType))

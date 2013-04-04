@@ -22,6 +22,8 @@ function switchType(rel, ch){
 		types.push(c.schemaType)
 	})
 	
+	//console.log('merging types for: ' + JSON.stringify(rel))
+	
 	return this.mergeTypes(types)
 }
 schema.addFunction('switch', {

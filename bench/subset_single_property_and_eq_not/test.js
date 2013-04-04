@@ -5,8 +5,9 @@ u.reset(run)
 
 var N = 1*1000*1000
 
-//N=100K in 4968ms
-//N=1M in 47736ms (~20,000 ops/sec)
+/*
+N=1M: 136722ms
+*/
 
 try{
 var agent = require('webkit-devtools-agent');
@@ -23,7 +24,7 @@ function testAgeThreshold(minnow, port, done){
 		if(err) throw err
 			
 		poll(function(){
-			if(Math.random() < .1) console.log('right age: ' + c.rightAge.size())
+			if(Math.random() < .1) console.log('right: ' + c.right.size())
 			//console.log(c.many.value() )
 			if(c.many.value() === N){
 				//console.log('d: ' + c.oldEnough.size())
@@ -60,7 +61,7 @@ function makePartially(v){
 		}
 		for(var i=0;i<N/100;++i){
 			//console.log('making')
-			v.make('person', {age: rand(Math.round(1/RATIO))}, true)
+			v.make('person', {age: rand(Math.round(1/RATIO)), prink: rand(10), filbert: rand(10) === 5}, true)
 		}
 	},25)
 }
@@ -75,7 +76,7 @@ function run(){
 		console.log('made server')
 
 		minnow.makeClient(u.config.port, function(client){
-			client.view('specific', [32], testAgeThreshold(minnow, u.config.port, function(){
+			client.view('specific', [32,5], testAgeThreshold(minnow, u.config.port, function(){
 				console.log('done: ' + (Date.now()-start))
 				process.exit(0)
 				//done()

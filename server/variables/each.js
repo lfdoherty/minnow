@@ -56,7 +56,7 @@ schema.addFunction('each', {
 		
 		var results = []
 		var cdl = _.latch(input.length, function(){
-			//console.log('each done')
+			//console.log('each done: ' + JSON.stringify(results))
 			cb(macro.mergeResults(results))
 		})
 		var n = 0

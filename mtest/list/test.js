@@ -3,7 +3,6 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
 
 exports.append = function(config, done){
 	//console.log('running list.append test')
@@ -13,7 +12,7 @@ exports.append = function(config, done){
 			//console.log('got client')
 			client.view('general', function(err, c){
 				//console.log('got general view')
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('primitiveList')) console.log(c.primitiveList.data.size())
 					if(c.has('primitiveList') && c.primitiveList.data.size() === 1){
 						done()
@@ -41,7 +40,7 @@ exports.removePrimitive = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('primitiveList') && c.primitiveList.data.size() === 2){
 						var arr = c.primitiveList.data.toJson()
 						if(arr[0] === 'a' && arr[1] === 'c'){
@@ -75,7 +74,7 @@ exports.shift = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.has('primitiveList'))// + ' ' + c.primitiveList.data.size())
 					if(c.has('primitiveList')){
 						//console.log(c.primitiveList.data.size() + ' ' + JSON.stringify(c.primitiveList.toJson()))

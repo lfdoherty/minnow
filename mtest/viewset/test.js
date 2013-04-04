@@ -3,19 +3,12 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){
-	try{if(f()){clearInterval(ci)}}catch(e){
-		clearInterval(ci)
-		throw e
-	}
-}}
-
 exports.addNewFromJson = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.s.size() === 1){
 						var d;
 						c.s.each(function(dd){d = dd;})
@@ -44,7 +37,7 @@ exports.wrapped = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('wrapped', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.s.size())
 					if(c.s.size() === 1){
 						var d;
@@ -82,7 +75,7 @@ exports.wrappedRemoval = function(config, done){
 						client.view('contained', function(err, c){
 			
 							var had = false
-							poll(function(){
+							done.poll(function(){
 								//console.log('$$$$ ' + had + ' ' + JSON.stringify(c.toJson()))
 								if(c.has('c')){
 									//console.log('rand: ' + c.c.rand)

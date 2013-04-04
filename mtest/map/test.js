@@ -3,17 +3,12 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){
-	try{if(f()){clearInterval(ci)}}
-	catch(e){clearInterval(ci);throw e;}
-}}
-
 exports.put = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s')){
 						if(c.s.data.size() === 1){
 							if(c.s.data.value('testKey') === 'testValueTwo'){
@@ -50,7 +45,7 @@ exports.putSeries = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s')){
 						if(c.s.data.size() === 3){
 							if(c.s.data.value('a') === 'a' && c.s.data.value('b') === 'b' && c.s.data.value('c') === 'c'){
@@ -94,7 +89,7 @@ exports.del = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1){
 						if(c.s.data.value('testKey') === 'testValueTwo'){
@@ -129,7 +124,7 @@ exports.putNew = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('genc', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s')){
 						if(c.s.members.size() === 1 && c.s.members.has('testKey')){
 							if(c.s.members.get('testKey').has('name') && c.s.members.get('testKey').name.value() === 'Bill'){
@@ -162,7 +157,7 @@ exports.values = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('valuesView', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 1){
 						done()
@@ -194,7 +189,7 @@ exports.nestedInnerValues = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('containerValuesView', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 1){
 						done()
@@ -227,7 +222,7 @@ exports.nestedExternalValues = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('containerValuesView', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 					if(c.vs.size() === 1){
 						done()
@@ -262,7 +257,7 @@ exports.mapPart = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('stringForContained', ['test'], function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 					if(c.names.size() === 1 && c.names.toJson()[0] === 'billy'){
 						done()
@@ -293,7 +288,7 @@ exports.intmapPart = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('idataView', [3], function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 					if(c.names.size() === 1 && c.names.toJson()[0] === 'billy'){
 						done()

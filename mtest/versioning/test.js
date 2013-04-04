@@ -3,24 +3,12 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){
-	try{
-		if(f()){
-			clearInterval(ci)
-		}
-	}catch(e){
-		clearInterval(ci)
-		throw e
-	}
-}}
-
-
 exports.hasTopVersions = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.e.versions()))
 					if(c.has('e') && c.e.versions().length === 4){
 						done()
@@ -47,7 +35,7 @@ exports.getTopVersion = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('e') && c.e.versions().length === 4){
 						var olderVersion = c.e.version(c.e.versions()[2])
@@ -79,7 +67,7 @@ exports.revertTop = function(config, done){
 			
 				var hasReverted = false
 				
-				poll(function(){
+				done.poll(function(){
 					if(c.has('e') && c.e.versions().length === 4 && !hasReverted){
 						hasReverted = true
 						c.e.revert(c.e.versions()[2])
@@ -111,7 +99,7 @@ exports.versionPrimitive = function(config, done){
 			
 				var hasReverted = false
 				
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
 					if(c.has('e') && c.e.text.versions().length === 4){
 						done()
@@ -141,7 +129,7 @@ exports.revertPrimitive = function(config, done){
 			
 				var hasReverted = false
 				
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.text.versions()))
 					if(c.has('e') && c.e.text.versions().length === 4 && !hasReverted){
 						hasReverted = true
@@ -182,7 +170,7 @@ exports.revertPrimitiveDouble = function(config, done){
 			
 				var hasReverted = false
 				
-				poll(function(){
+				done.poll(function(){
 					if(c.has('e') && c.e.text.versions().length === 4 && !hasReverted){
 
 						_.assertEqual(c.e.text.value(), 'test3')
@@ -226,7 +214,7 @@ exports.versionMapValue = function(config, done){
 			
 				var hasReverted = false
 				
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('*versions: ' + JSON.stringify(c.e.versions()))
 					if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.values.get('kb').versions()))
 					if(c.has('e') && c.e.versions().length === 5 && c.e.values.get('kb').versions().length === 3){
@@ -260,7 +248,7 @@ exports.revertMapValue = function(config, done){
 			
 				var hasReverted = false
 				
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.e.text.versions()))
 
 					if(!hasReverted && c.has('e') && c.e.versions().length === 5 && c.e.values.get('kb').versions().length === 3){
@@ -296,7 +284,7 @@ exports.versionsQuery = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('generalWithVersions', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.ev.toJson()))
 					if(c.ev.toJson().length === 5){
 						var ts = c.ev.toJson()[1]						
@@ -326,7 +314,7 @@ exports.lastVersionQuery = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('generalWithLastVersion', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.ev.toJson()))
 					if(c.has('ev') && c.ev.value() > 0){
 						//_.assert(ts > 0)
@@ -354,7 +342,7 @@ exports.versionsQueryMany = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('generalWithManyVersions', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('versions: ' + JSON.stringify(c.ev.toJson()))
 					if(c.ev.toJson().length === 10){
 						var ts = c.ev.toJson()[1]						
@@ -389,7 +377,7 @@ exports.versionTopTimestamp = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('generalWithTimestamps', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('timestamps: ' + JSON.stringify(c.et.toJson()))
 					if(c.et.count() === 5){
 						var ts = c.et.toJson()[1]						
@@ -421,7 +409,7 @@ exports.lastVersionTimestamp = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('generalWithSingleTimestamp', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('e')) console.log('timestamps: ' + JSON.stringify(c.et.toJson()))
 					if(c.has('et') && c.et.value() > 0 && Date.now() - c.et.value() < 60*1000){
 						//var ts = c.et.toJson()[1]						

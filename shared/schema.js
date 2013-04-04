@@ -13,6 +13,8 @@ var util = require('util');
 var globalizeOptimization = require('./globalize').apply
 var eachOptimization = require('./each_optimization').apply
 var subsetOptimization = require('./subset_optimization').apply
+var deduplicateLets = require('./deduplicate_lets').apply
+var propertyDerivedCache = require('./property_derived_cache').apply
 
 //builtin stuff
 
@@ -62,11 +64,11 @@ exports.getImplementation = function(name){
 
 var log = require('quicklog').make('minnow/schema')
 
-function loadViews(schemaDirs, str, schema, synchronousPlugins, cb){
+function loadViews(schemaDirs, str, schema, synchronousPlugins, disableOptimizations, cb){
 	_.assertArray(schemaDirs)
 	
 	var view = myrtle.parse(str);
-	view = viewMinnowize(schemaDirs, view, schema, synchronousPlugins);
+	view = viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOptimizations);
 	
 	_.each(view, function(view, viewName){
 		if(view.schema){
@@ -425,12 +427,13 @@ function makeMergeTypes(schema){
 			types.forEach(function(t){
 				if(t.type !== 'object') _.errout('cannot merge types: ' + JSON.stringify(types))
 			})
-			
+			console.log('types: ' + JSON.stringify(types))
 			try{
 				var obj = types[0].object
 				var objSchema = schema[obj]
 			
 				types.forEach(function(t){
+					if(t.object === 'uuided') return
 					var otherObjSchema = schema[t.object]
 				
 					if(!otherObjSchema) _.errout('no schema found: ' + t.object)
@@ -454,10 +457,12 @@ function makeMergeTypes(schema){
 			}catch(e){			
 				var all = []
 				types.forEach(function(t){
+					if(t.object === 'uuided') return
 					var sch = schema[t.object]
 					if(all.indexOf(sch) === -1){
 						all.push(sch)
 					}
+					
 					//allNames = allNames.concat(Object.keys(sch.superTypes||{}))
 					Object.keys(sch.superTypes||{}).forEach(function(k){
 						var os = schema[k]
@@ -502,8 +507,11 @@ function makeMergeTypes(schema){
 	return f
 }
 
-exports.load = function(schemaDir, synchronousPlugins, cb){
-	_.assertLength(arguments, 3)
+exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb){
+	_.assertLength(arguments, 4)
+	_.assertFunction(cb)
+	//_.assertBoolean(disableOptimizations)
+	disableOptimizations = !!disableOptimizations
 
 	schemaDir = schemaDir || process.cwd();
 
@@ -515,7 +523,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 	synchronousPlugins = {}
 	_.each(osp, function(plugin, pluginName){
 		log('plugin: ' + JSON.stringify(Object.keys(plugin)))
-		if(plugin.compute === undefined) _.errout('plugin ' + pluginName + ' must define a "compute" function!')
+		if(plugin.computeSync === undefined && plugin.computeAsync === undefined) _.errout('plugin ' + pluginName + ' must define a computeSync or computeAsync function!')
 		if(plugin.type === undefined) _.errout('plugin ' + pluginName + ' must define a "type" function describing its output type.')
 		if(plugin.minParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
 		if(plugin.maxParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
@@ -603,7 +611,7 @@ exports.load = function(schemaDir, synchronousPlugins, cb){
 			}
 		});		
 
-		loadViews(schemaDirs, str, schema, synchronousPlugins, function(globalMacros){
+		loadViews(schemaDirs, str, schema, synchronousPlugins, disableOptimizations, function(globalMacros){
 			var takenObjectTypeCodes = {}
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
@@ -949,7 +957,7 @@ function invertViewExpression(arr){
 	
 	return e;
 }
-
+/*
 function computePathResultType(path, baseType, context, schema, viewMap){
 	_.assertLength(arguments, 5);
 	_.assertObject(baseType);
@@ -979,7 +987,7 @@ function computePathResultType(path, baseType, context, schema, viewMap){
 	});
 	return t;
 }
-
+*/
 function computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper){
 	_.assertLength(arguments, 4)
 	_.assertArray(implicits)
@@ -999,6 +1007,10 @@ function computeMacroType(schema, computeType, viewMap, macroParam, bindingTypes
 		_.assertDefined(valueType)
 		macroParam.schemaType = valueType
 		macroParam.manyImplicits = Object.keys(newBindingTypes).length
+		macroParam.implicitTypes = []
+		for(var i=0;i<macroParam.manyImplicits;++i){
+			macroParam.implicitTypes[i] = newBindingTypes[macroParam.implicits[i]]
+		}
 	}else if(macroParam.type === 'view'){
 		if(builtinFunctions[macroParam.view] !== undefined){
 			var def = builtinFunctions[macroParam.view]
@@ -1058,7 +1070,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		}
 		_.assertObject(vv.type);
 		return rel.schemaType = vv.type;
-	}else if(rel.type === 'param-path'){
+	}/*else if(rel.type === 'param-path'){
 		var initialTypeName = _.detect(v.params, function(p){
 			if(p.name === rel.path[0].name) return true;
 		}).type;
@@ -1072,7 +1084,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		rel.schemaType = computePathResultType(rel.path.slice(1), initialType, v, schema, viewMap);
 		_.assertDefined(rel.schemaType)
 		return rel.schemaType
-	}else if(rel.type === 'view'){
+	}*/else if(rel.type === 'view'){
 	
 		if(rel.view == undefined) _.errout('missing view name: ' + JSON.stringify(rel))
 		_.assertString(rel.view)
@@ -1176,11 +1188,11 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		}
 		
 		//TODO: detect when a list or singleton is the destination type
-		var res = computePathResultType(rel.path, t, v, schema, viewMap);
+		/*var res = computePathResultType(rel.path, t, v, schema, viewMap);
 		
 		_.assertObject(res);
 		_.assertString(res.name)
-		if(res.name === 'undefined') _.errout('here')
+		if(res.name === 'undefined') _.errout('here')*/
 		return rel.schemaType = {type:'set', members: {type: 'object', object: res.name, objectCode: res.code}};//code: res.code, hintName: res.name}};
 	}else if(rel.type === 'value'){
 		if(_.isString(rel.value)) return rel.schemaType = {type: 'primitive', primitive: 'string'}
@@ -1318,10 +1330,11 @@ function parseParams(paramsStr){
 	});
 	return params
 }
-function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
-	_.assertLength(arguments, 4);
+function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOptimizations){
+	_.assertLength(arguments, 5);
 	_.assertObject(schema);
 	_.assertArray(schemaDirs)
+	_.assertBoolean(disableOptimizations)
 
 	//if(_.isString(schemaDirs)) schemaDirs = [schemaDirs]
 	//console.log(JSON.stringify(schemaDirs))
@@ -1445,11 +1458,108 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins){
 	//console.log('wrote generated: ' + schemaDirs[0] + '/view.schema.generated')
 	fs.writeFile(schemaDirs[0] + '/view.schema.generated', vsStr, 'utf8');
 
-	globalizeOptimization(result)
-	subsetOptimization(result)
-	globalizeOptimization(result)
-	eachOptimization(result)
-	globalizeOptimization(result)
+	if(!disableOptimizations){
+		globalizeOptimization(result)
+		subsetOptimization(result)
+		globalizeOptimization(result)
+		eachOptimization(result)
+		globalizeOptimization(result)
+		deduplicateLets(result)
+		propertyDerivedCache(result)
+	}
+	
+	function stringizeType(t){
+		return keratin.stringizeType(t, function(t){
+			if(t.type === 'view'){
+				if(t.view === 'count'){
+					return 'int';
+				}else{
+					return t.view;
+				}
+			}
+		});
+	}
+	
+	function tabs(d){
+		var str = ''
+		for(var i=0;i<d;++i){str += '\t';}
+		return str
+	}
+	function stringizeView(rel, tabDepth, viewSchema){
+		var str = ''
+		if(rel.type === 'view'){
+			if(rel.view === 'property' && rel.params[1].type === 'param'){
+				str += tabs(tabDepth) + stringizeType(rel.params[1].schemaType)+'^'+rel.params[1].name + '.' + rel.params[0].value + '\n'
+			}else{
+				str += tabs(tabDepth) + rel.view + '\n'
+				rel.params.forEach(function(p, index){
+					str += /*tabs(tabDepth) + */stringizeView(p, tabDepth+1,viewSchema)// + //'\n'
+				})
+			}
+			//str += '\n'
+			//str += tabs(tabDepth-1) + ')'
+		}else if(rel.type === 'macro'){
+			var body = stringizeView(rel.expr,tabDepth+1,viewSchema)
+			/*if(body.length < 30){
+				str += '{'+body+'}'
+			}else{*/
+				str += tabs(tabDepth) + 'macro['
+				//_.errout(JSON.stringify(rel))
+				for(var i=0;i<rel.manyImplicits;++i){
+					if(i > 0) str += ', '
+					str += rel.implicits[i]
+				}
+				str += ']\n'
+				//while(body.charAt(0) === '\t') body = body.substr(1)
+				str += body
+				//str += '}'
+			//}
+		}else if(rel.type === 'param'){
+			str += tabs(tabDepth) + stringizeType(rel.schemaType)+'^'+rel.name+'\n'
+		}else if(rel.type === 'let'){
+			str += tabs(tabDepth) + 'let ' + rel.name + ' be\n'
+			str += stringizeView(rel.expr, tabDepth+1, viewSchema)
+			//str += tabs(tabDepth) + 'for\n'
+			str += stringizeView(rel.rest, tabDepth+1, viewSchema)
+		}else if(rel.type === 'value'){
+			if(rel.schemaType.primitive === 'string'){
+				str += tabs(tabDepth) + '"'+rel.value+'"'+'\n'
+			}else{
+				str += tabs(tabDepth) + rel.value+'\n'
+			}
+		}else if(rel.type === 'int'){
+			str += tabs(tabDepth) + rel.value+'\n'
+		}else if(rel.type === 'nil'){
+			str += tabs(tabDepth) + 'nil\n'
+		}else{
+			_.errout('TODO: ' + JSON.stringify(rel))
+		}
+		return str
+	}
+	
+	var viewStr = ''
+	_.each(result, function(vn, name){
+		if(vn.schema){
+			//_.errout(JSON.stringify(vn))
+			viewStr += vn.name + '('
+			vn.params.forEach(function(p,index){
+				if(index > 0) viewStr += ', '
+				viewStr += p.name + ' ' + stringizeType(p.type)//JSON.stringify(p.type)
+			})
+			viewStr += ')'
+			viewStr += ' ' + vn.code + '\n'
+			Object.keys(vn.rels).forEach(function(relKey, index){
+				var rel = vn.rels[relKey]
+				viewStr += '\t:'+relKey+'\n'
+				viewStr += stringizeView(rel, 2, result)
+				viewStr += '\n'
+			})
+			viewStr += '\n\n';
+		}else{
+			//console.log('not computing schema for: ' + name)
+		}
+	});
+	fs.writeFile(schemaDirs[0] + '/view.generated', viewStr, 'utf8');
 	
 	return result;
 }

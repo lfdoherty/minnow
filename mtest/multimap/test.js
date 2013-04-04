@@ -3,15 +3,13 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
-
 exports.index = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 				if(err) throw err
 			
-				poll(function(){
+				done.poll(function(){
 
 					var values = c.index.value('tall')
 					var v2 = c.index.value('old')
@@ -48,7 +46,7 @@ exports.removeValue = function(config, done){
 			
 				var gotFull
 			
-				poll(function(){
+				done.poll(function(){
 				
 					if(c.index.count() === 3){
 						gotFull = true
@@ -91,7 +89,7 @@ exports.reverseIndex = function(config, done){
 			client.view('general', function(err, c){
 				if(err) throw err
 			
-				poll(function(){
+				done.poll(function(){
 
 					if(c.reverseIndex.count() !== 2) return
 					
@@ -126,7 +124,7 @@ exports.reverseIndexDedup = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 				if(err) throw err
-				poll(function(){
+				done.poll(function(){
 
 					if(c.reverseIndex.count() !== 2) return
 					

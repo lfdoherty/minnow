@@ -4,17 +4,12 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){
-	try{if(f()){clearInterval(ci)}}
-	catch(e){clearInterval(ci);throw e;}
-}}
-
 exports.count = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log('count: ' + JSON.stringify(c.toJson()))
 					if(c.c.value() === 1){
 						done()
@@ -38,7 +33,7 @@ exports.countMap = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('emap', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log('count: ' + c.c.value())
 					if(c.c.value() === 1){
 						done()
@@ -63,7 +58,7 @@ exports.countMapWithRemoval = function(config, done){
 			client.view('emapWithAge', function(err, c){
 			
 				var first
-				poll(function(){
+				done.poll(function(){
 					//console.log('count: ' + c.c.value())
 					if(c.c.value() === 1){
 						first = true
@@ -92,7 +87,7 @@ exports.makeAndForget = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log('count: ' + c.c.value())
 					if(c.c.value() === 1){
 						done()
@@ -116,7 +111,7 @@ exports.type = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log('size: ' + c.t.size())
 					if(c.t.size() === 1){
 						done()
@@ -140,7 +135,7 @@ exports.idProperty = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('idtest', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(c.v.value())
 					if(c.v.value() == 1){
 						done()
@@ -163,7 +158,7 @@ exports.max = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log('json: ' + JSON.stringify(c.toJson()))
 					if(c.oldestAge.value() === 22){
 						done()
@@ -188,7 +183,7 @@ exports.min = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log('youngest: ' + c.youngestAge.value())
 					if(c.youngestAge.value() === 13){
 						done()
@@ -213,7 +208,7 @@ exports.eachFiltered = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log('adults: ' + c.adults.size())
 					if(c.adults.size() === 1){
 						//console.log('adults: ' + JSON.stringify(c.adults.toJson()))
@@ -242,7 +237,7 @@ exports.countOfEachFiltered = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 					_.assertEqual(c.manyAdults.value(), c.adults.toJson().length)
 					if(c.manyAdults.value() === 1 && c.adults.toJson()[0].age === 22){
@@ -267,7 +262,7 @@ exports.countOfEachFiltered = function(config, done){
 function testAgeThreshold(minnow, port, done){
 	return function(err, c){
 			
-		poll(function(){
+		done.poll(function(){
 			//console.log('adults: ' + c.oldEnough.size())
 			if(c.oldEnough.size() === 2){
 				var ages = _.map(c.oldEnough.toJson(), function(a){return a.age;})
@@ -353,7 +348,7 @@ exports.mergeTest = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('mergeTest', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.allTags.has('big') && c.allTags.has('small') && c.allTags.has('important') && c.allTags.has('trivial')){
 						done()
@@ -380,7 +375,7 @@ exports.viewMergeTestFlatTags = function(config, done){
 			//console.log('CLIENT MADE')
 			client.view('viewMergeTest', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.flatTags.toJson()))
 					if(c.flatTags.has('big') && c.flatTags.has('small') && c.flatTags.has('important') && c.flatTags.has('trivial')){
 						done()
@@ -406,7 +401,7 @@ exports.viewMergeTestAllTags = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('viewMergeTest', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					var desired = ['big', 'small', 'important', 'trivial']
 					var actual = _.map(c.allTags.toJson(), function(v){return v.tag})
@@ -441,7 +436,7 @@ exports.singlePairedFilterTest = function(config, done){
 					client.view('pairedFilterTest', [cc], function(err, pc){
 						var gotTeenager = false
 						var lostTeenager = false
-						poll(function(){
+						done.poll(function(){
 							var json = pc.adults.toJson()
 							
 							//console.log(JSON.stringify(pc.toJson()))
@@ -486,7 +481,7 @@ exports.pairedFilterTest = function(config, done){
 					client.view('pairedFilterTest', [cc], function(err, pc){
 						var gotTeenager = false
 						var lostTeenager = false
-						poll(function(){
+						done.poll(function(){
 							var json = pc.adults.toJson()
 							//console.log('@ ' + JSON.stringify(pc.toJson()))
 							if(_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
@@ -495,7 +490,7 @@ exports.pairedFilterTest = function(config, done){
 							}
 							if(gotTeenager){
 								if(!_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
-									//console.log('# ' + JSON.stringify(pc.toJson()))
+								//	console.log('# ' + JSON.stringify(pc.toJson()))
 									lostTeenager = true
 								}
 							}
@@ -531,7 +526,7 @@ exports.crazyPartials = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('crazyPartialMacroTest', function(err, c){
 				var lookingFor = [16,21,22,25,26]
-				poll(function(){
+				done.poll(function(){
 					if(JSON.stringify(c.crazy.toJson().sort()) === JSON.stringify(lookingFor)){
 						done()
 						return true
@@ -556,7 +551,7 @@ exports.nameCollision = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('nameCollisionTest', ['sue'], function(err, c){
-				poll(function(){
+				done.poll(function(){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
 					}*/
@@ -583,7 +578,7 @@ exports.booleanSetTest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('booleanSetTest', ['sue'], function(err, c){
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.truth.size() === 2){
 						var set = c.truth.toJson()
@@ -612,7 +607,7 @@ exports.stringUpdateTest = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('stringUpdateTest', [], function(err, c){
 				var gotFirst
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.name.value() === 'brian'){
 						gotFirst = true
@@ -641,7 +636,7 @@ exports.objectSubsetProperty = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('objectSetProperty', ['sue'], function(err, c){
-				poll(function(){
+				done.poll(function(){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
 					}*/
@@ -674,7 +669,7 @@ exports.childTypeSubsetUpdate = function(config, done){//checks that simple subs
 		minnow.makeClient(config.port, function(client){
 			client.view('childTypeSubsetUpdate', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					
 					if(c.has('s') && c.s.name.value() === 'sue'){
 					

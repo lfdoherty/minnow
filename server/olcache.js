@@ -261,7 +261,7 @@ exports.make = function(){
 			order = undefined
 			ob.close()
 			ob = undefined
-			console.log('closed olc')
+			//console.log('closed olc')
 			if(cb) cb()
 		}
 	}

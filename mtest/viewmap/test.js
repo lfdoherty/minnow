@@ -3,17 +3,12 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){
-	try{if(f()){clearInterval(ci)}}
-	catch(e){clearInterval(ci);throw e;}
-}}
-
 exports.update = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.s.size() === 1){
 						//console.log(JSON.stringify(c.s.toJson()))
 						_.assertEqual(c.s.keys()[0], 'blah');
@@ -39,7 +34,7 @@ exports.topByValues = function(config, done){
 			client.view('generalTop', function(err, c){
 
 				var expected = JSON.stringify([21, 22, 28])
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.threeOldest.size() === 3){
 						var data = c.threeOldest.toJson()
@@ -76,7 +71,7 @@ exports.mapReduce = function(config, done){
 			client.view('mapReduce', function(err, c){
 
 				var expected = {a: 37, b: 50, c: 21}
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.oldestWithKey.size() === 3){
 						//console.log(JSON.stringify(c.oldestWithKey.toJson()))
@@ -114,7 +109,7 @@ exports.topByValuesWithDel = function(config, done){
 			client.view('generalTop', function(err, c){
 
 				var expected = JSON.stringify([19, 22, 28])
-				poll(function(){
+				done.poll(function(){
 					if(c.threeOldest.size() === 3){
 						//console.log(JSON.stringify(c.toJson()))
 						var data = c.threeOldest.toJson()
@@ -161,7 +156,7 @@ exports.topByValuesWithDelAndLimiter = function(config, done){
 						var expected = JSON.stringify([19, 21, 24, 28])
 						var laterExpected = JSON.stringify([24, 28])
 						var gotExpected = false
-						poll(function(){
+						done.poll(function(){
 							if(c.threeOldest.size() === 4){
 								//console.log(JSON.stringify(c.threeOldest.toJson()))
 								var data = c.threeOldest.toJson()
@@ -216,7 +211,7 @@ exports.testSyncInputSetRemoval = function(config, done){
 			client.view('syncInputSetRemoval', function(err, c){
 
 				var gotFirst = false
-				poll(function(){
+				done.poll(function(){
 					//console.log('many: ' + c.manyStrings.value())
 					if(c.manyStrings.value() === 3){
 						gotFirst = true
@@ -246,7 +241,7 @@ exports.mapMerge = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('merged', function(err, c){
 
-				poll(function(){
+				done.poll(function(){
 					//console.log('many: ' + c.byKeys.count() + ' ' + JSON.stringify(c.toJson()))
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.byKeys.count() === 4){
@@ -275,7 +270,7 @@ exports.zeroKey = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('zeroCheck', function(err, c){
 
-				poll(function(){
+				done.poll(function(){
 					//console.log('many: ' + c.m.size() + ' ' + JSON.stringify(c.toJson()))
 					if(c.m.size() === 3){
 						done()

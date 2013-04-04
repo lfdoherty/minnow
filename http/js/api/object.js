@@ -158,6 +158,7 @@ ObjectHandle.prototype.reify = function(id){
 	_.assert(this.objectId < 0)
 	this.objectId = id
 }
+ObjectHandle.prototype.isDestroyed = function(){return false}
 
 ObjectHandle.prototype.prepare = function(){
 	if(this.prepared || !this.typeSchema) return;

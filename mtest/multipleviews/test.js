@@ -2,8 +2,6 @@
 var minnow = require('./../../client/client')//this is the minnow include
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
-
 exports.updateMadeObject = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -18,7 +16,7 @@ exports.updateMadeObject = function(config, done){
 				var e1 = c.make('entity', {ref: bill}, function(){
 					//console.log('MADE ENTITY USING BILL')
 					//_.assertDefined(e1)
-					poll(function(){
+					done.poll(function(){
 						if(bill !== e1.ref){
 							throw new Error('invalid handle duplication')
 						}

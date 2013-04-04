@@ -3,14 +3,12 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
-
 exports.append = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						done()
 						return true
@@ -36,7 +34,7 @@ exports.backandforth = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something'){
@@ -55,7 +53,7 @@ exports.backandforth = function(config, done){
 						var newObj = obj.data.addNew()
 						_.assertDefined(newObj)
 						
-						poll(function(){
+						done.poll(function(){
 							if(obj.data.size() === 1){
 								var d;
 								obj.data.each(function(dd){d = dd;})
@@ -76,7 +74,7 @@ exports.replaceNew = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something'){
@@ -96,7 +94,7 @@ exports.replaceNew = function(config, done){
 						
 						obj.data.replaceNew(newObj, {v: 'something else'})
 						
-						poll(function(){
+						done.poll(function(){
 							if(obj.data.size() === 1){
 								var d;
 								obj.data.each(function(dd){d = dd;})
@@ -117,7 +115,7 @@ exports.replaceNewMore = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something else'){
@@ -148,7 +146,7 @@ exports.replaceExistingWithNew = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something'){
@@ -169,7 +167,7 @@ exports.replaceExistingWithNew = function(config, done){
 						
 						obj.data.replaceNew(newObj, {v: 'something else'})
 						
-						poll(function(){
+						done.poll(function(){
 							if(obj.data.size() === 1){
 								var d;
 								obj.data.each(function(dd){d = dd;})
@@ -189,7 +187,7 @@ exports.replaceExisting = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something else'){
@@ -223,7 +221,7 @@ exports.replaceExistingExternalWithNew = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)
 						if(d.v.value() === 'something else'){
@@ -257,7 +255,7 @@ exports.add = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1){
@@ -294,7 +292,7 @@ exports.shift = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//if(c.has('s')) console.log('DATA SIZE: ' + c.s.data.size())
 					if(c.has('s') && c.s.data.size() === 1){
 						var d = c.s.data.at(0)

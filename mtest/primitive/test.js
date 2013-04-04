@@ -3,15 +3,13 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
-
 function makeWrapper(check, set){
 	return function(config, done){
 		minnow.makeServer(config, function(){
 			minnow.makeClient(config.port, function(client){
 				client.view('general', function(err, c){
 			
-					poll(function(){
+					done.poll(function(){
 						//console.log(c.has('v') + ' ')// + (c.v.intValue.value() === 20))
 						if(c.has('v') && check(c)){	
 							//console.log('doin')

@@ -12,7 +12,7 @@ exports.syntax = 'sub(number,number)'
 
 //var log = require('quicklog').make('sub')
 
-exports.compute = function(paramValues){
+exports.computeSync = function(z, a, b){
 	//log.info('subtracted ' + paramValues[0] + ' - ' + paramValues[1] + ' = ' +(paramValues[0] - paramValues[1]))
-	return paramValues[0] - paramValues[1]
+	return a - b
 }

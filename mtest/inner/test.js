@@ -3,18 +3,14 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){
-	try{if(f()){clearInterval(ci)}}
-	catch(e){clearInterval(ci);throw e;}
-}}
 
 exports.inner = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
-					//console.log('polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
+				done.poll(function(){
+					//console.log('done.polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s') && c.s.size() === 1){
 						var d;
 						//console.log('got s to 1')
@@ -44,7 +40,7 @@ exports.innerToggle = function(config, done){
 			
 				var tog = false
 				var wasOff = false
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.size() === 1){
 						var d;
 						c.s.each(function(dd){d = dd;})

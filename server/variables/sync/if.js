@@ -17,11 +17,11 @@ exports.nullsOk = true
 var log = require('quicklog').make('if')
 _.assertFunction(log.info)
 
-exports.compute = function(paramValues){
-	log.info('if(' + paramValues[0] + '){'+paramValues[1]+'}else{'+paramValues[2]+'}')
-	if(paramValues[0]){
-		return paramValues[1]
+exports.computeSync = function(z, a, b, c){//paramValues){
+	log.info('if(' + a + '){'+b+'}else{'+c+'}')
+	if(a){
+		return b
 	}else{
-		return paramValues[2]
+		return c
 	}
 }

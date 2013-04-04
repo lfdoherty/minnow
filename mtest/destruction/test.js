@@ -3,7 +3,7 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
+//function done.poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
 
 exports.addNewFromJson = function(config, done){
 	//console.log('destruction config: ' + JSON.stringify(config))
@@ -13,7 +13,7 @@ exports.addNewFromJson = function(config, done){
 				if(err) throw err
 				
 				var added = false
-				poll(function(){
+				done.poll(function(){
 					if(c.s.size() === 1){
 						//console.log('added')
 						added = true
@@ -21,7 +21,6 @@ exports.addNewFromJson = function(config, done){
 					if(added && c.s.size() === 0){
 						//console.log('deleted')
 						done()
-						return true
 					}
 				})
 
@@ -90,3 +89,73 @@ exports.gracefulFailureNonexistentIdView = function(config, done){
 		})
 	})
 }
+
+
+exports.delFromTypeset = function(config, done){
+	//console.log('destruction config: ' + JSON.stringify(config))
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+				if(err) throw err
+				
+				var added = false
+				var oldHandle
+				done.poll(function(){
+					if(c.s.size() === 1){
+						//console.log('added')
+						c.s.each(function(obj){
+							oldHandle = obj
+						})
+						added = true
+					}
+					if(added && c.s.size() === 0){
+						//console.log('deleted')
+						_.assert(oldHandle.isDestroyed())
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					//console.log('got client for destroy')
+					otherClient.view('general', function(err, v){
+						var obj = c.make('entity', {v: 'test'})
+						setTimeout(function(){
+							obj.del()
+						},500)
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.retrieveAfterDel = function(config, done){
+	//console.log('destruction config: ' + JSON.stringify(config))
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(otherClient){
+			//console.log('got client for destroy')
+			otherClient.view('empty', function(err, v){
+				var obj = v.make('entity', {v: 'test'})
+				setTimeout(function(){
+					obj.del()
+
+					setTimeout(function(){
+						minnow.makeClient(config.port, function(client){
+							console.log('opening general view')
+							client.view('general', function(err, c){
+								if(err) throw err
+		
+								_.assert(c.s.size() === 0)
+								done()
+								return true
+							})
+						})
+					},200)
+				},200)
+			})
+		})
+	})
+}
+

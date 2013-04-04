@@ -19,11 +19,11 @@ exports.syntax = 'relativeComplement(set,set)'
 
 var log = require('quicklog').make('intersection')
 
-exports.compute = function(paramValues){
+exports.computeSync = function(z, a, b){//paramValues){
 	//++intersections
 	
-	var a = paramValues[0]
-	var b = paramValues[1]
+	//var a = paramValues[0]
+	//var b = paramValues[1]
 	
 	var mb = {}
 	b.forEach(function(bv){

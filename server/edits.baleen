@@ -195,7 +195,10 @@ removeAt 149
 
 addExisting 12
 	id int 1
-
+addExistingInner 56
+	top int 1
+	inner int 2
+	
 addExistingViewObject 35
 	id string 1
 

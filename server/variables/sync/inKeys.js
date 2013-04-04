@@ -13,9 +13,9 @@ exports.syntax = 'inKeys(map,value)'
 
 var log = require('quicklog').make('inKeys')
 
-exports.compute = function(paramValues){
-	var a = paramValues[0]
-	var b = paramValues[1]
+exports.computeSync = function(z, a, b){//paramValues){
+	//var a = paramValues[0]
+	//var b = paramValues[1]
 	
 	if(_.isArray(a)) _.errout('inKeys got non-map first parameter')
 	

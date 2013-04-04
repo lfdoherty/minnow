@@ -32,11 +32,17 @@ exports.make = function(s, rel, recurse, handle, ws){
 
 	var inputSet = recurse(rel.params[0])
 
-	var nameStr = 'map-optimization('+inputSet.name+',{'+recurse(keyExpr).name+'},{'+recurse(valueExpr).name+'})'
+	var nameStr = 'map-optimization('+inputSet.name+')'//,{'+recurse(keyExpr).name+'},{'+recurse(valueExpr).name+'})'
 
 	var a = analytics.make(nameStr, [inputSet])
 
-
+	var inputGetMayHaveChanged
+	if(inputSet.getMayHaveChanged){
+		inputGetMayHaveChanged = inputSet.getMayHaveChanged
+	}else{
+		inputGetMayHaveChanged = inputSet.getStateAt
+	}
+	
 	if(propertyName === 'uuid'){
 		getPropertyValueAt = function(id, editId, cb){
 			a.gotProperty('uuid')
@@ -59,7 +65,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 		}
 	
 		getPropertyValueAt = function(id, editId, cb){
-			a.gotProperty(propertyName)
+			a.gotProperty(propertyCode)
 			getProperty(id, editId, cb)
 		}
 	}	
@@ -146,7 +152,8 @@ exports.make = function(s, rel, recurse, handle, ws){
 				}
 				
 				var changesToMap = []
-				inputSet.getMayHaveChanged(bindings, startEditId, endEditId, function(ids){
+				
+				inputGetMayHaveChanged(bindings, startEditId, endEditId, function(ids){
 					//console.log('may have changed: ' + JSON.stringify(ids))
 				
 					var cdl = _.latch(newIds.length, function(){
@@ -229,10 +236,10 @@ exports.make = function(s, rel, recurse, handle, ws){
 				
 				var changesToMap = []
 				
-				console.log('map inputSet changes: ' + JSON.stringify(changes))
+				//console.log('map inputSet changes: ' + JSON.stringify(changes))
 				
 				function applyChanges(id, propertyChanges){
-					console.log('applying changes: ' + id + ' ' + JSON.stringify(propertyChanges))
+					//console.log('applying changes: ' + id + ' ' + JSON.stringify(propertyChanges))
 					propertyChanges.forEach(function(pc){
 						if(pc.type === 'set'){
 							_.assertEqual(pc.type, 'set')
@@ -255,12 +262,18 @@ exports.make = function(s, rel, recurse, handle, ws){
 								value: pc.value,
 								state: {key: id, keyOp: editCodes.selectObjectKey}, 
 								editId: pc.editId})
-						}else{
+						}/*else if(pc.type === 'put'){
+							changesToMap.push({
+								type: 'putRemove', 
+								value: pc.value,
+								state: {key: id, keyOp: editCodes.selectObjectKey}, 
+								editId: pc.editId})
+						}*/else{
 							_.errout('tODO: ' + JSON.stringify(pc))
 						}
 					})
 				}
-				inputSet.getMayHaveChanged(bindings, startEditId, endEditId, function(ids){
+				inputGetMayHaveChanged(bindings, startEditId, endEditId, function(ids){
 
 					var cdl = _.latch(newIds.length, function(){
 
@@ -301,7 +314,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 	if(inputSet.getConfiguredIdAt){
 		newHandle.getKeyStateAt = function(bindings, editId, id, cb){
 			inputSet.getConfiguredIdAt(id, bindings, editId, function(realId){
-				console.log('getting id: ' + realId + ' ' + id)
+				//console.log('getting id: ' + realId + ' ' + id)
 				getPropertyValueAt(realId, editId, cb)
 			})
 		}

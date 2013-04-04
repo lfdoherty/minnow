@@ -3,17 +3,12 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){
-	try{if(f()){clearInterval(ci)}}
-	catch(e){clearInterval(ci);throw e;}
-}}
-
 exports.basicAdult = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('basic', function(err, c){
 				//console.log('got basic')
-				poll(function(){
+				done.poll(function(){
 					//console.log('size: ' + c.t.size())
 					if(c.has('displayedName')){
 						done()
@@ -38,7 +33,7 @@ exports.basicAdultName = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('basic', function(err, c){
-				poll(function(){
+				done.poll(function(){
 					//console.log('got basic: ' + JSON.stringify(c.toJson()))
 					//console.log('size: ' + c.t.size())
 					if(c.has('displayedName')){
@@ -67,7 +62,7 @@ exports.basicChildName = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('basic', function(err, c){
 				//console.log('got basic')
-				poll(function(){
+				done.poll(function(){
 					//console.log('size: ' + c.t.size())
 					if(c.has('displayedName')){
 						//console.log('displayedName: ' + c.displayedName.value())

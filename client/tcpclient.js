@@ -518,7 +518,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			clearInterval(flushIntervalHandle)
 			//clearTimeout(randomHandle)
 			clearInterval(increaseAckHandle)
-			console.log('got close event')
+			//console.log('got close event')
 			if(!clientEnded && !wasClosedManually){
 				tryReconnect()
 			}

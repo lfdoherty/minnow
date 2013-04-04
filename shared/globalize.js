@@ -47,7 +47,7 @@ function globalizeExpression(rel, extractCb){
 			uid = uid||'extracted_'+Math.random()
 			extractCb(expr, uid)
 			newBindingsUsed[uid] = true
-			return {type: 'param', name: uid, schemaType: expr.schemaType}
+			return {type: 'param', name: uid, schemaType: expr.schemaType, was: expr}
 		})
 		rel.bindingsUsed = newBindingsUsed
 	}else if(rel.type === 'let'){

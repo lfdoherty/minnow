@@ -3,8 +3,6 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
-
 exports.singleTraverse = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(otherClient){
@@ -20,8 +18,8 @@ exports.singleTraverse = function(config, done){
 						client.view('general', [e], function(err, c){
 							if(err) throw err
 	
-							poll(function(){
-								//console.log('polling: ' + c.entities.size() + ' ' + JSON.stringify(c.toJson()))
+							done.poll(function(){
+								//console.log('done.polling: ' + c.entities.size() + ' ' + JSON.stringify(c.toJson()))
 								if(c.entities.size() === 4){
 									var arr = []
 									var res = c.entities.toJson()
@@ -69,9 +67,9 @@ exports.singleTraverseBroken = function(config, done){
 							
 							var first = false
 	
-							poll(function(){
-								//console.log('polling: ' + c.entities.size() + ' ' + JSON.stringify(c.toJson()))
-								if(c.entities.size() === 4){
+							done.poll(function(){
+								//console.log('done.polling: ' + c.entities.size() + ' ' + JSON.stringify(c.toJson()))
+								if(!first && c.entities.size() === 4){
 									var arr = []
 									var res = c.entities.toJson()
 				
@@ -93,7 +91,7 @@ exports.singleTraverseBroken = function(config, done){
 										},0)
 									}
 								}
-								
+								//console.log('here: ' + first + ' ' + c.entities.size())
 								if(first && c.entities.size() === 2){
 									done()
 									return true
@@ -149,12 +147,12 @@ exports.fibonacciShorterThenLonger = function(config, done){
 						if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]'){
 							control.v.set(19)
 							//console.log('shortening')
-							poll(function(){
+							done.poll(function(){
 								//console.log('now: ' + JSON.stringify(arr()))
 								if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181]'){
 								//console.log('lengthening')
 									control.v.set(21)
-									poll(function(){
+									done.poll(function(){
 										//console.log('now: ' + JSON.stringify(arr()))
 										if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765,10946]'){
 											done()
@@ -192,11 +190,11 @@ exports.fibonacciLongerThenShorter = function(config, done){
 			
 						if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765]'){
 							control.v.set(21)
-							poll(function(){
+							done.poll(function(){
 								//console.log('now: ' + JSON.stringify(arr()))
 								if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181,6765,10946]'){
 									control.v.set(19)
-									poll(function(){
+									done.poll(function(){
 									//	console.log('now: ' + JSON.stringify(arr()))
 										if(JSON.stringify(arr()) === '[0,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597,2584,4181]'){
 											done()
@@ -228,8 +226,8 @@ exports.multipleTraverse = function(config, done){
 						client.view('multiple', [e], function(err, c){
 							if(err) throw err
 	
-							poll(function(){
-								//console.log('polling: ' + c.entities.size() + ' ' + JSON.stringify(c.toJson()))
+							done.poll(function(){
+								//console.log('done.polling: ' + c.entities.size() + ' ' + JSON.stringify(c.toJson()))
 								if(c.entities.size() === 4){
 									var arr = []
 									var res = c.entities.toJson()
@@ -290,12 +288,12 @@ exports.incrementTreeShorterThenLonger = function(config, done){
 						if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7,8,9]'){
 							//console.log('shorter: ' + 6)
 							control.v.set(7)
-							poll(function(){
+							done.poll(function(){
 								//console.log('now: ' + JSON.stringify(v.values.toJson()))
 								if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7]'){
 									control.v.set(11)
 									//console.log('longer')
-									poll(function(){
+									done.poll(function(){
 										//console.log('now: ' + JSON.stringify(v.values.toJson()))
 										if(JSON.stringify(v.values.toJson()) === '[1,2,3,4,5,6,7,8,9,10,11]'){
 											done()

@@ -8,6 +8,6 @@ exports.minParams = 2
 exports.maxParams = 2
 exports.syntax = 'div(number,number)'
 
-exports.compute = function(paramValues){
-	return paramValues[0] / paramValues[1]
+exports.computeSync = function(z, a, b){
+	return a / b
 }

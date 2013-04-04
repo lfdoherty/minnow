@@ -15,13 +15,13 @@ var minnow = require('./../client/client')
 var minnowXhr = require('./../http/js/minnow_xhr')
 
 require('./../http/js/api/topobject').prototype.errorOnWarn = true
-
+/*
 try{
 var agent = require('webkit-devtools-agent');
 }catch(e){
 	//throw e
 	console.log(e)
-}
+}*/
 /*
 var count = 0
 var old = console.log
@@ -40,6 +40,7 @@ var oldMakeClient = minnow.makeClient
 var oldMakeServer = minnow.makeServer
 
 var usingSameClient = false
+var usingOptimizations = false
 
 var currentClientList
 var currentServerList
@@ -60,6 +61,7 @@ minnow.makeClient = function(port, host, cb){
 	})
 }
 minnow.makeServer = function(config, cb){
+	config.disableOptimizations = !usingOptimizations
 	oldMakeServer(config, function(server){
 		currentClientList = []//TODO cleanup?
 		currentServerList.push(server)
@@ -152,6 +154,15 @@ var portCounter = 2000
 var heapdump = require('heapdump');
 //heapdump.writeSnapshot();//just checking
 
+var currentFail
+process.on('uncaughtException', function(e){
+	console.log('Error: got uncaught exception')
+	//throw new Error(e)
+	console.log(e)
+	console.log(e.stack)
+	currentFail(e)
+})
+
 function moreCont(doneCb){	
 
 	var passedCount = 0;
@@ -182,16 +193,9 @@ function moreCont(doneCb){
 	
 	var inProgress = []
 	
-	process.on('uncaughtException', function(e){
-		console.log('Error: got uncaught exception')
-		//throw new Error(e)
-		console.log(e)
-		console.log(e.stack)
-		currentFail(e)
-	})
-	
+
 	var currentTest;
-	var currentFail
+	//var currentFail
 	function runNextTest(){
 		if(tests.length === 0){
 			die()
@@ -225,21 +229,31 @@ function moreCont(doneCb){
 	runNextTest()
 	
 	function runTest(t, useSameClient, cb){
-		_.assertLength(arguments, 3)
+		runTestOnce(t, useSameClient, false, function(){
+			runTestOnce(t, useSameClient, true, cb)
+		})
+	}
+	function runTestOnce(t, useSameClient, useOptimizations, cb){
+		_.assertLength(arguments, 4)
 		
 		var port = portCounter
 		++portCounter;
 		inProgress.push(t)
-		var testDir = t.dir + '/' + t.name + '_test_'+(useSameClient?'yes':'no')
+		var testDir = t.dir + '/' + t.name + '_test_'+(useSameClient?'yes':'no')+'_'+(useOptimizations?'yes':'no')
 		
 		usingSameClient = useSameClient
+		usingOptimizations = useOptimizations
 
 		var myServerList = currentServerList = []
 		var myClientList = currentClientList = []
 
 		var donePassed
+		var testDescription = t.dirName+'.'+t.name+'[sameClient: ' + (useSameClient?'yes':'no') + ', optimizations: '+(useOptimizations?'yes':'no') + ']'
 		function done(){
-			log('test passed: ' + t.dirName + '.' + t.name+'[sameClient: ' + (useSameClient?'yes':'no') + ']')
+			log('test passed: ' + testDescription)
+			if(donePassed){
+				_.errout('repeat call')
+			}
 			donePassed = true
 			++passedCount
 			finish()
@@ -247,10 +261,10 @@ function moreCont(doneCb){
 		function fail(e){
 			e = e || new Error('fail called, error unknown')
 			if(donePassed) return
-			log('test failed[sameClient: ' + (useSameClient?'yes':'no') + ']: ' + t.dirName + '.' + t.name)
+			log('test failed: ' + testDescription)
 			++failedCount
 			//console.log(e)
-			failedList.push([t.dirName+'.'+t.name+'[sameClient: ' + (useSameClient?'yes':'no') + ']', e.stack])
+			failedList.push([testDescription, e.stack])
 			log(e.stack)
 			//process.exit(0)
 			finish()
@@ -261,9 +275,29 @@ function moreCont(doneCb){
 			fail(ee)
 		}
 		
+		var polls = []
+		done.poll = function(f){
+			var ci=setInterval(wf,10);
+			function wf(){
+				try{
+					var res = f()
+					if(res){
+						polls.slice(polls.indexOf(ci), 1)
+						clearInterval(ci)
+					}
+				}catch(e){
+					fail(e)
+				}
+			}
+			polls.push(ci)
+		}
+		
 		var timeoutHandle
 		
 		function finish(){
+			polls.forEach(function(ci){
+				clearInterval(ci)
+			})
 			setTimeout(function(){
 				myClientList.forEach(function(s){
 					s.close(function(){})
@@ -305,22 +339,27 @@ function moreCont(doneCb){
 			}
 		}
 		function makeDir(){
-			//log('making dir: ' + testDir)
 			fs.mkdir(testDir, function(err){
 				if(err){
 					if(err.code === 'EEXIST'){
 						//log('making - with rimraf')
 						rimraf(testDir, function(err){
-							if(err) throw err
-							makeDir()
+							if(err){
+								console.log('rimraf failed us')
+								throw err
+							}else{
+								makeDir()
+							}
 						})
 						return;
 					}else{
 						throw new Error('mkdir error: ' + err);
 					}
+				}else{			
+					//console.log('made dir: ' + testDir)
+					//console.log(new Error().stack)
+					doTest()
 				}
-			
-				doTest()
 			})
 		}
 		makeDir()

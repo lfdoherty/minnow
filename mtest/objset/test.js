@@ -3,14 +3,12 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
-
 exports.append = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						done()
 						return true
@@ -37,7 +35,7 @@ exports.backandforth = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 1){
 						var d;
 						c.s.data.each(function(dd){d = dd;})
@@ -57,7 +55,7 @@ exports.backandforth = function(config, done){
 						var newObj = obj.data.addNew()
 						_.assertDefined(newObj)
 						
-						poll(function(){
+						done.poll(function(){
 							if(obj.data.size() === 1){
 								//var d;
 								//obj.data.each(function(dd){d = dd;})
@@ -79,7 +77,7 @@ exports.removeTemporariedInternalObject = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 1 && c.s.data.toJson()[0].v === 'it'){
 						done()
@@ -109,7 +107,7 @@ exports.removeTemporariedExternalObject = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s')){
 						if(c.s.data.size() === 1 && c.s.data.toJson()[0].v === 'it'){
 							done()
@@ -142,7 +140,7 @@ exports.plus = function(config, done){
 			client.view('adder', function(err, c){
 				if(err) throw err
 				
-				poll(function(){
+				done.poll(function(){
 					if(c.has('plussed') && c.plussed.size() === 3){
 						done()
 						return true

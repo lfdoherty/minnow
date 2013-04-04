@@ -3,17 +3,12 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,0);function wf(){
-	try{if(f()){clearInterval(ci)}}
-	catch(e){clearInterval(ci);throw e;}
-}}
-
 exports.append = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 				//	console.log(c.has('s'))
 					if(c.has('s') && c.s.data.size() === 1){
 						done()
@@ -42,7 +37,7 @@ exports.remove = function(config, done){
 			client.view('general', function(err, c){
 			
 				var hasRemoved = false
-				poll(function(){
+				done.poll(function(){
 				//	console.log(c.has('s'))
 					if(c.has('s') && c.s.data.size() === 1){
 						c.s.data.remove('test')
@@ -75,7 +70,7 @@ exports.removeNonexistent = function(config, done){
 			client.view('general', function(err, c){
 			
 				var hasRemoved = false
-				poll(function(){
+				done.poll(function(){
 					if(c.has('s') && c.s.data.size() === 2){
 						c.s.data.remove('test')
 						hasRemoved = true
@@ -112,7 +107,7 @@ exports.appendAndAll = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('contained', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 				//	console.log(c.has('s'))
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('all') && c.all.size() === 1){
@@ -144,7 +139,7 @@ exports.appendAndCreateAll = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('contained', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 				//	console.log(c.has('s'))
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.has('all') && c.all.size() === 3){
@@ -180,7 +175,7 @@ exports.removeAndAll = function(config, done){
 			client.view('contained', function(err, c){
 			
 				var foundFirst = false
-				poll(function(){
+				done.poll(function(){
 				//	console.log(c.has('s'))
 					if(Math.random() < .3) console.log(JSON.stringify(c.toJson()))
 					if(c.has('all') && c.all.size() === 3){

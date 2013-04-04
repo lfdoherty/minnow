@@ -24,9 +24,9 @@ exports.syntax = 'sum(set)'
 
 var log = require('quicklog').make('minnow/sum')
 
-exports.compute = function(paramValues){
+exports.computeSync = function(z, a){//paramValues){
 	//++unions
-	var a = paramValues[0]
+	//var a = paramValues[0]
 	
 	var sum = 0
 	a.forEach(function(v){

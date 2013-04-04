@@ -5,6 +5,12 @@ entity 1
 
 general(name string) 100
 	matches subset(*entity,{and(eq(~.name,name),not(~.removed))}) 1
+
+config 2
+	str string 1
+	
+specific(c config) 102
+	matches subset(*entity,{and(eq(~.name,c.str),not(~.removed))}) 1
 	
 empty() 101
 

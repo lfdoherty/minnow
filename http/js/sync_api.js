@@ -580,9 +580,6 @@ SyncApi.prototype.getView = function(viewId, historicalKey){
 }
 
 SyncApi.prototype.hasView = function(viewId){
-	//var view = this.getObjectApi(viewId, this);
-	//view.prepare();
-	//return view;
 	return this.objectApiCache[viewId] !== undefined
 }
 
@@ -596,18 +593,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
-		//console.log(obj.edits)
-		/*if(obj.edits.length > 0 && obj.edits[0].editId === -2){
-			if(obj.edits.length === edits.length-2){
-				return
-			}else{
-				edits = edits.slice(obj.edits.length+2)
-			}
-		}else{
-			edits = edits.slice(obj.edits.length)
-			//_.assert(obj.edits.length === 0)//TODO?
-		}*/
-		//if(obj.pathEdits === undefined) obj.pathEdits = []//TODO?
+
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			if(e.op === editCodes.setSyncId){
@@ -618,37 +604,36 @@ SyncApi.prototype.objectListener = function(id, edits){
 			}
 		}
 		return
-		//_.errout('TODO:')
 	}
-	//if(!_.isInt(id)){
-		if(edits[0].op === editCodes.madeViewObject){
-			var typeCode = edits[0].edit.typeCode
-			var id = edits[0].edit.id
-		}else{
-			var typeCode = edits[1].edit.typeCode
-			var id = edits[1].edit.id
+
+
+	if(edits[0].op === editCodes.madeViewObject){
+		var typeCode = edits[0].edit.typeCode
+		var id = edits[0].edit.id
+	}else{
+		var typeCode = edits[1].edit.typeCode
+		var id = edits[1].edit.id
+	}
+	var t = this.schema._byCode[typeCode];
+	//console.log('typeCode: ' + typeCode)
+	_.assertObject(t)
+	if(this.objectApiCache[id] !== undefined){
+		if(this.objectApiCache[id].prepared){
+			_.errout('already prepared object being overwritten: ' + id)
 		}
-		var t = this.schema._byCode[typeCode];
-		//console.log('typeCode: ' + typeCode)
-		_.assertObject(t)
-		if(this.objectApiCache[id] !== undefined){
-			if(this.objectApiCache[id].prepared){
-				_.errout('already prepared object being overwritten: ' + id)
-			}
-			//console.log('WARNING: redundant update?: ' + id)
-			_.errout('HERE')
-			return
-		}
-		_.assertUndefined(this.objectApiCache[id])
-		var n = new TopObjectHandle(this.schema, t, edits, this, id);
-		this.objectApiCache[id] = n;
-	//}
-	//n.pathEdits = undefined*/
+		//console.log('WARNING: redundant update?: ' + id)
+		_.errout('HERE')
+		return
+	}
+	_.assertUndefined(this.objectApiCache[id])
+	var n = new TopObjectHandle(this.schema, t, edits, this, id);
+	this.objectApiCache[id] = n;
 }
+
 SyncApi.prototype.addSnapshot = function(snap, historicalKey){
 	var objs = snap.objects;
 	var local = this
-	//_.each(objs, function(obj, idStr){
+
 	Object.keys(objs).forEach(function(idStr){
 		var obj = objs[idStr]
 		
@@ -729,28 +714,6 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 
 	if(this.currentObjectId !== id){
 		_.errout('TODO: adjust better')
-		/*if(this.currentObjectId !== undefined){
-			var handle = this.objectApiCache[this.currentObjectId]
-			 if(handle){
-				//handle.currentPath = undefined
-				handle._resetState()
-				console.log('reset object state')
-				//console.log('reset path: '+ this.currentObjectId)
-			}else{
-				//console.log('no handle: ' + this.currentObjectId)
-			}
-		}
-
-		console.log('&&&&& selecting top object: ' + id + ' ' + op + ' ' + this.currentObjectId)
-		
-		this.currentObjectId = id
-
-		//_.assert(this.objectApiCache[this.currentObjectId] === undefined)
-		//console.log('current path: ' + JSON.stringify(this.objectApiCache[this.currentObjectId].currentPath))
-
-		_.assert(id !== 0)
-		_.assertInt(id)
-		this.sh.persistEdit(editCodes.selectTopObject, {id: id})*/
 	}
 	this.sh.persistEdit(op, edit)
 }
@@ -1000,10 +963,13 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	for(var i=0;i<keys.length;++i){
 		var key = keys[i]
 		var n = local.objectApiCache[key]
+		//console.log('reifying: ' + n)
 		if(!n._destroyed){
 			n.reifyParentEdits(temporaryId, realId)
+		}else{
+			console.log('WARNING: destroyed object still in objectApiCache')
 		}
-	}
+	}//
 }
 
 SyncApi.prototype.reifyObject = SyncApi.prototype.reifyExternalObject
@@ -1027,57 +993,6 @@ SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
 			foundInCache = true
 		}
 	})	
-
-	//Object.keys(this.historicalObjectCache).forEach(function(historicalKey){
-	/*if(!foundInCache){
-		if(_.isString(idOrViewKey)){
-			var obj = this.snap.historicalViewObjects[idOrViewKey];
-			if(obj){
-				//_.errout('TODO')
-				var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
-				var t = this.schema._byCode[typeCode];
-
-				if(t === undefined) _.errout('cannot find object type: ' + typeCode);
-
-				n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey);
-				n.makeHistorical(historicalKey)
-				hoc.cache[idOrViewKey] = n;
-				hoc.list.push(n)
-				
-				//return n
-			}
-			
-			if(!n){
-				if(idOrViewKey === '') _.errout('cannot get the null view id')
-				var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
-				var t = this.schema._byCode[typeCode];
-				_.assertObject(t)
-				n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
-				n.makeHistorical(historicalKey)
-				hoc.cache[idOrViewKey] = n;
-				hoc.list.push(n)
-			}
-			
-		}else{
-//			_.errout('TODO - retrieve from historicalObjectCache or use snap')
-			var obj = this.snap.objects[idOrViewKey];
-			if(obj){
-				//_.errout('TODO')
-				var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
-				var t = this.schema._byCode[typeCode];
-
-				if(t === undefined) _.errout('cannot find object type: ' + typeCode);
-
-				n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey);
-				n.makeHistorical(historicalKey)
-				n.prepareHistorically(hoc.currentEditId)
-				hoc.cache[idOrViewKey] = n;
-				hoc.list.push(n)
-			}
-		}
-		
-		results.push(n)
-	}*/
 	
 	n = this.objectApiCache[idOrViewKey];
 	if(n !== undefined){
@@ -1087,16 +1002,6 @@ SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
 	var obj = this.snap.objects[idOrViewKey];
 
 	if(obj === undefined){
-
-		/*if(_.isString(idOrViewKey)){
-			if(idOrViewKey === '') _.errout('cannot get the null view id')
-			var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
-			var t = this.schema._byCode[typeCode];
-			_.assertObject(t)
-			var n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
-			this.objectApiCache[idOrViewKey] = n;
-			return n
-		}*/
 
 		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
 		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
@@ -1123,12 +1028,10 @@ SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
 	results.push(n)
 	return results
 }
+
 SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKey){
 
 	var n
-	
-	//console.log('getting object ' + idOrViewKey + ' ' + historicalKey)
-	//console.log(new Error().stack)
 	
 	if(historicalKey){
 
@@ -1197,16 +1100,6 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 
 	if(obj === undefined){
 
-		/*if(_.isString(idOrViewKey)){
-			if(idOrViewKey === '') _.errout('cannot get the null view id')
-			var typeCode = parseInt(idOrViewKey.substr(0, idOrViewKey.indexOf(':')))//TODO hacky!
-			var t = this.schema._byCode[typeCode];
-			_.assertObject(t)
-			var n = new TopObjectHandle(this.schema, t, [], this, idOrViewKey);
-			this.objectApiCache[idOrViewKey] = n;
-			return n
-		}*/
-
 		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
 		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
@@ -1232,15 +1125,6 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 	return n
 }
 SyncApi.prototype.wrapObject = function(id, typeCode, part, sourceParent){
-	/*_.assertLength(arguments, 4);
-	_.assertInt(id)
-	_.assertInt(typeCode)
-	_.assertFunction(sourceParent.adjustPath)
-	
-	var t = this.schema._byCode[typeCode];
-	//console.log('typeCode: ' + typeCode)
-	_.assertDefined(t)
-	return new ObjectHandle(t, [], id, part, sourceParent);*/
 	_.errout('TOO FAR')
 }
 SyncApi.prototype.getEditingId = function(){

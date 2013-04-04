@@ -51,7 +51,7 @@ exports.makeUtilities = function(schemaType){
 		extractInclusionsFromState: makeStateInclusionsExtractor(schemaType),
 		//stateConstructor: makeStateConstructor(schemaType),
 		diffFinder: makeDiffFinder(schemaType),
-		convertToChange: makeChangeConverter(schemaType),
+		//convertToChange: makeChangeConverter(schemaType),
 		convertToEdit: makeEditConverter(schemaType),
 		defaultState: makeDefaultState(schemaType),
 		validateState: makeStateValidator(schemaType),
@@ -257,12 +257,12 @@ function makeDiffFinder(type){
 				//_.assertDefined(b)
 				//.if(b === undefined){
 				if(type.primitive === 'string'){
-					return [{type: 'set', value: b||''}]
+					return [{type: 'set', value: b||'', old: a}]
 				}else{
 					if(b === undefined){
 						return [{type: 'clear'}]
 					}else{
-						return [{type: 'set', value: b}]
+						return [{type: 'set', value: b, old: a}]
 					}
 				}
 			}else{
@@ -284,8 +284,10 @@ function getKeyOp(t){
 			return editCodes.selectStringKey
 		}else if(t.primitive === 'int'){
 			return editCodes.selectIntKey
+		}else if(t.primitive === 'boolean'){
+			return editCodes.selectBooleanKey
 		}else{
-			_.errout('tODO: ' + JSON.stringify(type))
+			_.errout('tODO: ' + JSON.stringify(t))
 		}
 	}else if(t.type === 'object'){
 		return editCodes.selectObjectKey
@@ -300,7 +302,13 @@ function makeEditConverter(type){
 		if(mt === 'object'){
 			return function(e){
 				if(e.type === 'add'){
-					return {op: editCodes.addExisting, edit: {id: e.value}, syncId: -1, editId: e.editId}
+					if(_.isObject(e.value)){
+						_.assert(e.value.top !== e.value.inner)
+						return {op: editCodes.addExistingInner, edit: {top: e.value.top, inner: e.value.inner}, syncId: -1, editId: e.editId}
+					}else{
+						_.assertInt(e.value)
+						return {op: editCodes.addExisting, edit: {id: e.value}, syncId: -1, editId: e.editId}
+					}
 				}else{
 					return {op: editCodes.remove, edit: {}, state: {sub: e.value}, syncId: -1, editId: e.editId}
 				}
@@ -311,6 +319,7 @@ function makeEditConverter(type){
 				return function(e){
 					_.assertInt(e.editId)
 					if(e.type === 'add'){
+						_.assertDefined(e.value)
 						return {op: editCodes.addInt, edit: {value: e.value}, syncId: -1, editId: e.editId}
 					}else if(e.type === 'remove'){
 						return {op: editCodes.removeInt, edit: {value: e.value}, syncId: -1, editId: e.editId}
@@ -336,6 +345,7 @@ function makeEditConverter(type){
 					_.assertInt(e.editId)
 					//return {op: editCodes.addLong, edit: {value: e.value}, syncId: -1, editId: e.editId}
 					if(e.type === 'add'){
+						_.assertDefined(e.value)
 						return {op: editCodes.addLong, edit: {value: e.value}, syncId: -1, editId: e.editId}
 					}else if(e.type === 'remove'){
 						return {op: editCodes.removeLong, edit: {value: e.value}, syncId: -1, editId: e.editId}
@@ -349,6 +359,7 @@ function makeEditConverter(type){
 					_.assertInt(e.editId)
 					//return {op: editCodes.addBoolean, edit: {value: e.value}, syncId: -1, editId: e.editId}
 					if(e.type === 'add'){
+						_.assertDefined(e.value)
 						return {op: editCodes.addBoolean, edit: {value: e.value}, syncId: -1, editId: e.editId}
 					}else if(e.type === 'remove'){
 						return {op: editCodes.removeBoolean, edit: {value: e.value}, syncId: -1, editId: e.editId}
@@ -362,6 +373,7 @@ function makeEditConverter(type){
 				//_.errout('TODO: ' + JSON.stringify(edits))
 				_.assertInt(e.editId)
 				if(e.type === 'add'){
+					_.assertDefined(e.value)
 					return {op: editCodes.addExistingViewObject, edit: {id: e.value}, syncId: -1, editId: e.editId}
 				}else if(e.type === 'remove'){
 					return {op: editCodes.removeViewObject, edit: {}, state: {sub: e.value}, syncId: -1, editId: e.editId}
@@ -569,8 +581,9 @@ function makeEditConverter(type){
 	
 	_.errout('tODO: ' + JSON.stringify(type))	
 }
-
+/*
 function makeChangeConverter(type){
+	_.errout('TODO REMOVE')
 	if(type.type === 'set' || type.type === 'list'){
 		return function(state){
 			var changes = []
@@ -602,7 +615,7 @@ function makeChangeConverter(type){
 	}
 	
 	_.errout('tODO: ' + JSON.stringify(type))	
-}
+}*/
 function makeStateValidator(type){
 	if(type.type === 'set' || type.type === 'list'){
 		return function(s){

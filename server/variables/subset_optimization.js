@@ -5,6 +5,19 @@ var u = require('./optimization_util')
 var schema = require('./../../shared/schema')
 var analytics = require('./../analytics')
 
+/*
+let(*typeset,'gp',
+	intersection(
+		mapValue(param, multimap-optimization(gp, {~.property1}, {~}))
+		mapValue(param, multimap-optimization(gp, {~.property2}, {~}))
+	)
+)
+
+single case:
+let(*typeset,'gp',
+	mapValue(param, multimap-optimization(gp, {~.property1}, {~}))
+)
+*/
 schema.addFunction('subset-optimization-with-params', {
 	schemaType: require('./each').eachType,
 	minParams: 3,
@@ -26,15 +39,15 @@ exports.make = function(s, rel, recurse, handle, ws){
 	var multimaps = []
 	var params = []
 	for(var i=1;i<rel.params.length-1;++i){
-		//(function(i){
-			var externalParam = rel.params[i]
-			var multimapExpr = rel.params[i+1]
-			multimaps.push(recurse(multimapExpr))
-			params.push(recurse(externalParam))
-		//})(i)
+		var externalParam = rel.params[i]
+		var multimapExpr = rel.params[i+1]
+		multimaps.push(recurse(multimapExpr))
+		params.push(recurse(externalParam))
 	}
 	
 	var a = analytics.make('subset-optimization-with-params', multimaps)
+	
+	//if(multimaps.length > 1) _.errout('TODO')
 	
 	var handle = {
 		name: 'subset-optimization-with-params',

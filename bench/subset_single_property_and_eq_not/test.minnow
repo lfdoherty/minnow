@@ -1,0 +1,15 @@
+
+entity 1
+	numbers set:int 1		
+	
+general() 100
+	plussed add(each(*entity.numbers,{add(1,~)})) 1
+
+person 5
+	age int 1
+	prink int 2
+	filbert boolean 3
+	
+specific(desiredAge int, desiredPrink int) 102
+	right subset(*person,{and(eq(desiredPrink,~.prink),eq(desiredAge,~.age),not(~.filbert))}) 1
+	many count(*person) 2

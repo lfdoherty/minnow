@@ -116,11 +116,11 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 						value.seq.end()
 					})
 					apClose(function(){
-					console.log('closed ap');
+						//console.log('closed ap');
 						cdl()
 					})
 					ol.close(function(){
-						console.log('closed ol');
+						//console.log('closed ol');
 						cdl()
 					})
 				}catch(e){

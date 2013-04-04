@@ -159,6 +159,7 @@ function Ol(schema){
 	this.objectTypeCodes = {}
 	this.destroyed = {}
 	this.destructionEditIdsByType = {}
+	this.destructionIdsByType = {}
 	this.lastEditId = {}
 	this.uuid = {}
 	this.syncIdsByEditId = {}
@@ -190,6 +191,8 @@ function Ol(schema){
 		var list = tcst[objSchema.code] = [objSchema.code]
 		local.idsByType[objSchema.code] = []
 		local.creationEditIdsByType[objSchema.code] = []
+		local.destructionEditIdsByType[objSchema.code] = []
+		local.destructionIdsByType[objSchema.code] = []
 		if(objSchema.subTypes){
 			Object.keys(objSchema.subTypes).forEach(function(stName){
 				if(schema[stName]){//might be a contract keyword like 'readonly'
@@ -307,10 +310,8 @@ Ol.prototype._destroy = function(id,editId){
 	//console.log('id destroyed: ' + id)
 	this.destroyed[id] = true
 	var typeCode = this.objectTypeCodes[id]
-	if(this.destructionEditIdsByType[typeCode] === undefined){
-		this.destructionEditIdsByType[typeCode] = []
-	}
 	this.destructionEditIdsByType[typeCode].push(editId)
+	this.destructionIdsByType[typeCode].push(id)
 }
 /*
 Ol.prototype.getPathTo = function(id, cb){
@@ -722,20 +723,8 @@ Ol.prototype.getVersionsAt = function(id, editId, cb){
 		cb(versions, id)
 	})
 }
-Ol.prototype.getLastVersion = function(id){//, cb){
+Ol.prototype.getLastVersion = function(id){
 	return this.lastEditId[id]
-	/*this.get(id, -1, -1, function(edits){
-		var version
-		//var has = {}
-		for(var i=0;i<edits.length;++i){
-			var e = edits[i]
-			if(isPathOp(e.op)) continue
-
-			version = e.editId
-		}
-		cb(version)
-	})*/
-	
 }
 
 Ol.prototype.getLastVersionAt = function(id, editId, cb){//, cb){
@@ -1019,10 +1008,10 @@ Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 		var editIds = this.creationEditIdsByType[tc]
 		for(var i=0;i<ids.length;++i){
 			var id = ids[i]
-			if(!this.destroyed[id]){
+			//if(!this.destroyed[id]){
 				var editId = editIds[i]
 				res.push({id: id, editId: editId})
-			}
+			//}
 		}
 	}
 	if(cb) cb(res)
@@ -1041,6 +1030,47 @@ function binarySearchNext(arr, value){
   return i;
 };
 
+function selectIdsForEvents(startEditId, endEditId, editIds, ids, res){
+	//var res = []
+	if(editIds.length === 0) return
+	var binResult
+	if(startEditId <= 0){
+		binResult = 0
+	}else{
+		binResult = binarySearchNext(editIds, startEditId+1)
+	//	console.log('bin result: ' + binResult + ' ' + startEditId + ' ' + JSON.stringify([editIds.slice(binResult-2, binResult+2),editIds.length]))
+		_.assert(binResult === 0 || editIds[binResult-1] < startEditId+1)
+		if(editIds[binResult] <= startEditId){
+			//_.assert(binResult+1 === editIds.length)
+			++startEditId
+			return res
+		}
+	}
+	for(var i=binResult;i<ids.length;++i){
+		var id = ids[i]
+		var editId = editIds[i]
+		if(editId > endEditId){
+			break
+		}
+		if(editId <= startEditId){//TODO do a binary search for the startEditId point
+			_.errout('bug: ' + editId + ' ' + startEditId)
+		}
+		res.push(id)
+	}
+}
+Ol.prototype.getIdsDestroyedOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.destructionIdsByType[tc] || [];
+		var editIds = this.destructionEditIdsByType[tc]||[]
+		
+		selectIdsForEvents(startEditId, endEditId, editIds, ids, res)
+		//console.log(JSON.stringify([startEditId, endEditId, editIds, ids,res]))
+	}
+	cb(res)
+}
 Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -1048,36 +1078,36 @@ Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEdi
 		var tc = sts[j]
 		var ids = this.idsByType[tc] || [];
 		var editIds = this.creationEditIdsByType[tc]
-		var binResult
 		
-		if(startEditId <= 0){
-			binResult = 0
-		}else{
-			binResult = binarySearchNext(editIds, startEditId+1)
-			//console.log('bin result: ' + binResult + ' ' + startEditId + ' ' + JSON.stringify([editIds.slice(binResult-2, binResult+2),editIds.length]))
-			_.assert(binResult === 0 || editIds[binResult-1] < startEditId+1)
-			if(editIds[binResult] <= startEditId){
-				_.assert(binResult+1 === editIds.length)
-				continue
-			}
-		}
-		for(var i=binResult;i<ids.length;++i){
-			var id = ids[i]
-			var editId = editIds[i]
-			if(editId > endEditId){
-				break
-			}
-			if(editId <= startEditId){//TODO do a binary search for the startEditId point
-				_.errout('bug: ' + editId + ' ' + startEditId)
-			}
-			if(!this.destroyed[id]){
-				res.push(id)
-			}
-		}
+		selectIdsForEvents(startEditId, endEditId, editIds, ids, res)
 	}
 	cb(res)
 }
 
+Ol.prototype.getDestructionsOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
+
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.destructionIdsByType[tc] || [];
+		var editIds = this.destructionEditIdsByType[tc]
+		for(var i=0;i<ids.length;++i){
+			var id = ids[i]
+			//if(!this.destroyed[id]){
+				var editId = editIds[i]
+				if(editId > endEditId){
+					break
+				}
+				if(editId > startEditId){
+					res.push({id: id, editId: editId})
+				}
+			//}
+		}
+	}
+	cb(res)
+	//return res	
+}
 Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
 
 	var res = []
@@ -1088,7 +1118,7 @@ Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEdit
 		var editIds = this.creationEditIdsByType[tc]
 		for(var i=0;i<ids.length;++i){
 			var id = ids[i]
-			if(!this.destroyed[id]){
+			//if(!this.destroyed[id]){
 				var editId = editIds[i]
 				if(editId > endEditId){
 					break
@@ -1096,13 +1126,49 @@ Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEdit
 				if(editId > startEditId){
 					res.push({id: id, editId: editId})
 				}
-			}
+			//}
 		}
 	}
 	cb(res)
 	//return res	
 }
 
+Ol.prototype.getExistedAtAndMayHaveChangedDuring = function(typeCode, startEditId, endEditId, cb){
+	var res = []
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var ids = this.idsByType[tc] || [];
+		var editIds = this.creationEditIdsByType[tc]
+		for(var i=0;i<ids.length;++i){
+			var id = ids[i]
+			var editId = editIds[i]
+			if(editId > startEditId){
+				break
+			}
+			
+			var lastEditId = this.lastEditId[id]
+			if(lastEditId > startEditId){
+				res.push(id)
+			}else{
+				var cid = id
+				while(true){
+					var fid = this.forks[cid]
+					if(!fid) break;
+					lastEditId = this.lastEditId[fid]
+					if(lastEditId > startEditId){
+						res.push(id)
+						break
+					}else{
+						cid = fid
+					}
+				}
+			}
+		}
+	}
+	if(cb) cb(res)
+	return res
+}
 Ol.prototype.getChangedDuringOfType = function(typeCode, startEditId, endEditId, cb){
 	var ids = this.getAllIdsOfType(typeCode)
 	var remainingIds = []
@@ -1160,9 +1226,9 @@ Ol.prototype.getAllIdsOfType = function(typeCode, cb){
 		var ids = this.idsByType[tc] || [];
 		for(var i=0;i<ids.length;++i){
 			var id = ids[i]
-			if(!this.destroyed[id]){
+			//if(!this.destroyed[id]){
 				res.push(id)
-			}
+			//}
 		}
 	}
 	if(cb) cb(res)

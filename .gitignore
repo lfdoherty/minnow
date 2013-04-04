@@ -4,7 +4,7 @@ old_plan
 simple_api
 views_plan
 *~
-*.schema.generated
+*.generated
 save
 */minnow_data
 mtest/*/*/

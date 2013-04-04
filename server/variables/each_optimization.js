@@ -16,8 +16,32 @@ schema.addFunction('each-optimization', {
 	}
 })
 
+function makeMacroParam(bindingName){
+	var syncOnlyHandle = {
+		name: 'each-optimization-macro-param['+bindingName+']',
+		analytics: {
+			reset: function(){}
+		},
+		isFullySync: true,
+		getStateSync: function(bindings, editId){
+			//_.errout('ERROR, should never actually be called')
+			if(editId === -1) return
+			return bindings[bindingName]
+		},
+		getStateAt: function(){
+			_.errout('ERROR, should never actually be called')
+		},
+		getChangesBetween: function(){
+			_.errout('ERROR, should never actually be called')
+		},
+		getHistoricalChangesBetween: function(){
+			_.errout('ERROR, should never actually be called')
+		}
+	}
+	return syncOnlyHandle
+}
 //takes the rel for the each
-exports.make = function(s, rel, recurse, handle, ws){
+exports.make = function(s, rel, recurse, handle, ws, staticBindings){
 
 	rel = JSON.parse(JSON.stringify(rel))	
 	
@@ -27,13 +51,22 @@ exports.make = function(s, rel, recurse, handle, ws){
 	//console.log('rel.params: ' + JSON.stringify(rel.params))
 
 	var macroExpr = rel.params[1].expr
-	var macroHandle = recurse(macroExpr)
+	var newStaticBinding = {}
+	//console.log('*** each-optimization bind: ' + rel.params[1].implicits[0])
+	rel.params[1].implicits.forEach(function(implicit){
+		newStaticBinding[implicit] = makeMacroParam(implicit)
+	})
+	var macroHandle = recurse(macroExpr, newStaticBinding)
+	
+	if(macroHandle.getStateSync === undefined) _.errout('missing getStateSync: ' + macroHandle.name)
+	
+	var isOneToOne = macroExpr.view === 'filter' && macroExpr.params[0].name === rel.params[1].implicits[0]
 	
 	if(maps.length === 0){
-		return makeSimpleSyncEach(s, rel, recurse, ws)
+		return makeSimpleSyncEach(s, rel, recurse, ws, _.extend({}, newStaticBinding, staticBindings))
 	}
 	
-	var nameStr = 'each-optimization('+recurse(rel.params[0]).name+',{'+recurse(rel.params[1].expr).name+'})'
+	var nameStr = 'each-optimization'//('+recurse(rel.params[0]).name+',{'+recurse(rel.params[1].expr).name+'})'
 
 	var originalImplicit = rel.params[1].implicits[0]
 
@@ -41,6 +74,10 @@ exports.make = function(s, rel, recurse, handle, ws){
 	externalBindingsUsed = _.filter(externalBindingsUsed, function(b){
 		return rel.params[1].implicits.indexOf(b) === -1
 	})
+	
+	//if(externalBindingsUsed.length === 0){
+	//	return makeNoExternalsEach(s, rel, recurse, ws, maps, isOneToOne, macroHandle, macroExpr)
+	//}
 
 	var mapHandles = []
 	var mapOps = []
@@ -61,7 +98,6 @@ exports.make = function(s, rel, recurse, handle, ws){
 
 	//console.log('complex each optimization applied to: ' + nameStr + '\nwith '+mapNames + ' ' + JSON.stringify(macroExpr))
 
-	var isOneToOne = macroExpr.view === 'filter' && macroExpr.params[0].name === rel.params[1].implicits[0]
 	
 	var a = analytics.make('each-optimization', [inputSet].concat(mapOps))
 	
@@ -79,7 +115,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 			})
 			var bindingValues = {}
 			externalBindingsUsed.forEach(function(bk){
-				bindings[bk].getStateAt(bindings, editId, function(state){
+				staticBindings[bk].getStateAt(bindings, editId, function(state){
 					bindingValues[bk] = state
 					cdl()
 				})
@@ -132,7 +168,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 						}
 					}
 				}
-				//console.log('results: ' + JSON.stringify(results))
+			//	console.log('results: ' + JSON.stringify(results))
 				cb(results)
 			}
 		},
@@ -147,7 +183,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 			})
 			var bindingValues = {}
 			externalBindingsUsed.forEach(function(bk){
-				bindings[bk].getStateAt(bindings, editId, function(state){
+				staticBindings[bk].getStateAt(bindings, editId, function(state){
 					bindingValues[bk] = state
 					cdl()
 				})
@@ -230,7 +266,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 				//console.log(JSON.stringify([rel.params[1].bindingsUsed, externalBindingsUsed, rel.params[1].implicits]))
 				//if(bindings[bk] === undefined) _.errout('missing binding: ' + bk + ' ' + JSON.stringify(externalBindingsUsed) + ' ' + JSON.stringify(Object.keys(bindings)))
 				//console.log('calling getChangesBetween for binding(' + bk + '): ' + bindings[bk].getChangesBetween)
-				bindings[bk].getChangesBetween(bindings, startEditId, endEditId, function(changes){
+				staticBindings[bk].getChangesBetween(bindings, startEditId, endEditId, function(changes){
 					if(changes.length > 0) anyChanged = true
 					bcdl()
 				})
@@ -307,6 +343,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 							var res = macroHandle.getStateSync(bindingValues)
 							
 							//console.log('recomputed ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(res))
+							//console.log(macroHandle.name)
 				
 							if(addedIds[key]){
 								if(res !== undefined){
@@ -342,6 +379,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 								}
 							}
 						}
+						//console.log('*results: ' + JSON.stringify(results))
 						cb(results)
 					}
 				})
@@ -359,9 +397,9 @@ exports.make = function(s, rel, recurse, handle, ws){
 				})
 		
 				externalBindingsUsed.forEach(function(bk){
-					bindings[bk].getStateAt(bindings, startEditId, function(state){
+					staticBindings[bk].getStateAt(bindings, startEditId, function(state){
 						oldBindingValues[bk] = state
-						bindings[bk].getStateAt(bindings, endEditId, function(state){
+						staticBindings[bk].getStateAt(bindings, endEditId, function(state){
 							bindingValues[bk] = state
 							cdl()
 						})
@@ -518,9 +556,9 @@ exports.make = function(s, rel, recurse, handle, ws){
 					})
 			
 					externalBindingsUsed.forEach(function(bk){
-						bindings[bk].getStateAt(bindings, startEditId, function(state){
+						staticBindings[bk].getStateAt(bindings, startEditId, function(state){
 							oldBindingValues[bk] = state
-							bindings[bk].getStateAt(bindings, endEditId, function(state){
+							staticBindings[bk].getStateAt(bindings, endEditId, function(state){
 								bindingValues[bk] = state
 								cdl()
 							})
@@ -564,7 +602,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 					--rem
 					if(rem === 0){
 						allChanges.sort(function(a,b){return a.editId - b.editId;})
-						console.log('ok?: ' + JSON.stringify([allChanges,allStates, startEditId, endEditId]))
+						//console.log('ok?: ' + JSON.stringify([allChanges,allStates, startEditId, endEditId]))
 						cb(allChanges)
 					}
 				}
@@ -588,10 +626,10 @@ exports.make = function(s, rel, recurse, handle, ws){
 				tryFinish()
 			})
 			
-			console.log('externalBindingsUsed: ' + JSON.stringify(externalBindingsUsed))
+			//console.log('externalBindingsUsed: ' + JSON.stringify(externalBindingsUsed))
 			//var allStates = []
 			externalBindingsUsed.forEach(function(bk, i){
-				var b = bindings[bk]
+				var b = staticBindings[bk]
 				if(!b.getHistoricalChangesBetween) _.errout('missing getHistoricalChangesBetween: ' + b.name)
 	
 				b.getStateAt(bindings, startEditId, function(state){
@@ -613,6 +651,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 			})		
 		}
 	}
+
 	
 	function computeHistoricalChangesBetween(bindings, startEditId, endEditId, externalBindingStates, cb){
 		console.log('computing changes between ' + startEditId + ' ' + endEditId + ' ' + JSON.stringify(externalBindingStates))
@@ -636,9 +675,9 @@ exports.make = function(s, rel, recurse, handle, ws){
 				var changes = []
 				
 				var ncdl = _.latch(changeTransactions.length, function(){
-					console.log('got historical changes between: ' + startEditId + ' ' + endEditId + ': ' + JSON.stringify(changes))
-					console.log(JSON.stringify(allChanges))
-					console.log(JSON.stringify(externalBindingStates))
+					//console.log('got historical changes between: ' + startEditId + ' ' + endEditId + ': ' + JSON.stringify(changes))
+					//console.log(JSON.stringify(allChanges))
+					//console.log(JSON.stringify(externalBindingStates))
 					cb(changes);
 				})
 				
@@ -673,7 +712,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 										_.errout('TODO')
 									}
 								}else{
-									console.log('no res: ' + JSON.stringify(bindingValues))
+									//console.log('no res: ' + JSON.stringify(bindingValues))
 								}
 							}else{
 								_.errout('TODO: ' + JSON.stringify(c))
@@ -749,7 +788,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 			mapHandles.forEach(function(mh,i){
 				if(!mh.handle.getHistoricalChangesBetween) _.errout('missing getHistoricalChangesBetween: ' + mh.handle.name)
 				mh.handle.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(mc){
-					console.log('got map changes ' + JSON.stringify(mc) + ' ' + i)
+					//console.log('got map changes ' + JSON.stringify(mc) + ' ' + i)
 					tagInto(allChanges, mc, 'mh'+i)
 					cdl()
 				})
@@ -802,8 +841,251 @@ function tagInto(all, changes, tag){
 	}
 }
 
-function makeSimpleSyncEach(s, rel, recurse, ws){
-	var macro = recurse(rel.params[1].expr)
+//TODO optimize the 'no-externals' case
+//basically just the multimap-optimization case, minus the mapValue(...) parameterization
+/*
+function makeNoExternalsEach(s, rel, recurse, ws, maps, isOneToOne, macroHandle, macroExpr){
+	//_.errout('TODO')
+	
+	//var macro = recurse(rel.params[1].expr)
+	//var macroImplicit = rel.params[1].implicits[0]
+	
+	var mapHandles = []
+	var mapOps = []
+	var mapNames = '['
+	maps.forEach(function(m,i){
+		var h = recurse(m)
+		mapOps.push(h)
+		mapHandles.push({handle: h, uid: m.uid})
+		if(i > 0) mapNames += ','
+		mapNames += h.name
+	})
+	mapNames += ']'
+	
+	var inputSet = recurse(rel.params[0])
+	
+	var originalImplicit = rel.params[1].implicits[0]
+
+	//console.log('simple: ' + JSON.stringify(rel, null, 2))
+	//console.log(new Error().stack)
+	var nameStr = 'no-externals-each-optimization('+inputSet.name+')'
+	var a = analytics.make(nameStr, [inputSet])
+	var handle = {
+		name: nameStr,
+		analytics: a,
+		
+		getChangesBetween: function(bindings, startEditId, endEditId, cb){
+			_.errout('TODO')
+		},
+		
+	}
+	if(isOneToOne){
+		handle.getStateAt = function(bindings, editId, cb){
+			var cdl = _.latch(mapHandles.length+1, finish)
+			var state
+			inputSet.getStateAt(bindings, editId, function(ss){
+				state = ss
+				cdl()
+			})
+			var mapStates = []
+			mapHandles.forEach(function(mh,i){
+				mh.handle.getStateAt(bindings, editId, function(ms){
+					mapStates[i] = ms
+					cdl()
+				})
+			})
+			
+			function finish(){
+				if(state.length === 0){
+					//console.log('zero state')
+					cb([])
+					return
+				}
+				var results = []
+				var has = {}
+				
+				var bindingValues = {}
+				for(var i=0;i<state.length;++i){
+					var key = state[i]
+					bindingValues[originalImplicit] = key
+					for(var j=0;j<mapStates.length;++j){
+						var ms = mapStates[j]
+						var value = ms[key]
+						bindingValues[mapHandles[j].uid] = value
+					}
+					//console.log('computing at ' + editId)
+					var res = macroHandle.getStateSync(bindingValues)
+					//console.log(editId + ' ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(res))
+					if(res !== undefined){
+						if(_.isArray(res)){
+							for(var j=0;j<res.length;++j){
+								var r = res[j]
+								if(has[r]){
+									_.errout('supposed to be one-to-one')
+								}
+								has[r] = true
+								results.push(r)
+							}
+						}else{
+							if(has[res]){
+								_.errout('supposed to be one-to-one')
+							}
+							has[res] = true
+							results.push(res)
+						}
+					}
+				}
+				//console.log('results: ' + JSON.stringify(results))
+				cb(results)
+			}
+		},
+		handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
+			var addedIds = {}
+			var cdl = _.latch(mapHandles.length+1, function(){
+				var keyedChanges = {}
+				var changedKeys = []
+
+				for(var i=0;i<mapHandles.length;++i){
+					var mh = mapHandles[i]
+					var mcc = mapChanges[i]
+					for(var j=0;j<mcc.length;++j){
+						var c = mcc[j]
+						if(c.type === 'put'){
+							if(keyedChanges[c.state.key] === undefined){
+								keyedChanges[c.state.key] = {}
+								changedKeys.push(c.state.key)
+							}
+							keyedChanges[c.state.key][mh.uid] = c.value
+						}else if(c.type === 'putAdd'){
+							_.assertDefined(c.state)
+							if(keyedChanges[c.state.key] === undefined){
+								keyedChanges[c.state.key] = {}
+								changedKeys.push(c.state.key)
+							}
+							var kh = keyedChanges[c.state.key]
+							if(kh[mh.uid] === undefined){
+								kh[mh.uid] = []
+							}
+							kh[mh.uid].push(c.value)
+						}else{
+							_.errout('TODO: ' + JSON.stringify(c))
+						}
+					}
+				}
+		
+				var results = []
+		
+				var needOldStateKeys = []
+				for(var i=0;i<changedKeys.length;++i){
+					var key = changedKeys[i]
+					if(!addedIds[key]){
+						needOldStateKeys.push(key)
+					}
+				}
+
+				var cdl = _.latch(mapHandles.length, finish)
+				mapHandles.forEach(function(mh,i){
+					if(mh.handle.getPartialStateAt === undefined) _.errout('missing getPartialStateAt: ' + mh.handle.name)
+					mh.handle.getPartialStateAt(bindings, startEditId, needOldStateKeys, function(ms){
+						oldMapStates[i] = ms
+						mh.handle.getPartialStateAt(bindings, endEditId, changedKeys, function(ms){
+							mapStates[i] = ms
+							cdl()
+						})
+					})
+				})
+		
+				function finish(){
+					console.log('changedKeys: ' + JSON.stringify(changedKeys))
+					var bindingValues = {}
+					var oldBindingValues = {}
+					for(var i=0;i<changedKeys.length;++i){
+						var key = changedKeys[i]
+						bindingValues[originalImplicit] = key
+
+						for(var j=0;j<mapStates.length;++j){
+							var ms = mapStates[j]
+							var value = ms[key]
+							bindingValues[mapHandles[j].uid] = value
+						}
+				
+						var res = macroHandle.getStateSync(bindingValues)
+						
+						console.log('recomputed ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(res))
+			
+						if(addedIds[key]){
+							if(res !== undefined){
+								//_.errout(JSON.stringify([res, macroExpr.schemaType]))
+								if(macroExpr.schemaType.type === 'set' || macroExpr.schemaType.type === 'list'){
+									//_.errout('TODO')
+									_.assertArray(res)
+									for(var j=0;j<res.length;++j){
+										var r = res[j]
+										results.push({type: 'add', value: r, editId: endEditId})									
+									}
+								}else{
+									results.push({type: 'add', value: res, editId: endEditId})
+								}
+							}
+						}else{
+							oldBindingValues[originalImplicit] = key
+
+							for(var j=0;j<oldMapStates.length;++j){
+								var ms = oldMapStates[j]
+								var value = ms[key]
+								oldBindingValues[mapHandles[j].uid] = value
+							}
+							var oldRes = macroHandle.getStateSync(oldBindingValues)
+							if(res !== oldRes){
+								if(res === undefined){
+									results.push({type: 'remove', value: oldRes, editId: endEditId})
+								}else if(oldRes === undefined){
+									results.push({type: 'add', value: res, editId: endEditId})
+								}else{
+									_.errout('TODO: ' + JSON.stringify([res, oldRes]))
+								}
+							}
+						}
+					}
+					cb(results)
+				}
+			})
+	
+			inputSet.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+				for(var i=0;i<changes.length;++i){
+					var c = changes[i]
+					if(c.type === 'add'){
+						addedIds[c.value] = true
+					}else{
+						_.errout('TODO')
+					}
+				}
+				cdl()
+			})
+	
+			var mapStates = []
+			var oldMapStates = []
+			var mapChanges = []
+			mapHandles.forEach(function(mh,i){
+				mh.handle.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(mc){
+					mapChanges[i] = mc
+					cdl()
+				})
+			})
+		}
+	}else{
+		handle.getStateAt = function(bindings, editId, cb){
+			_.errout('TODO')
+		}
+		handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
+			_.errout('TODO')
+		}
+	}
+	
+	return handle
+}*/
+function makeSimpleSyncEach(s, rel, recurse, ws, staticBindings){
+	var macro = recurse(rel.params[1].expr, staticBindings)
 	if(macro.getStateSync === undefined) _.errout('missing getStateSync: ' + macro.name)//_.assertFunction(macro.computeSync)
 	var macroImplicit = rel.params[1].implicits[0]
 	
@@ -835,7 +1117,7 @@ function makeSimpleSyncEach(s, rel, recurse, ws){
 			})
 			
 			bindingsUsed.forEach(function(bk){
-				bindings[bk].getStateAt(bindings, editId, function(state){
+				staticBindings[bk].getStateAt(bindings, editId, function(state){
 					bindingValues[bk] = state
 					cdl()
 				})

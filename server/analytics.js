@@ -8,7 +8,7 @@ exports.make = function(name, params, getCb){
 	var pan = []
 	params.forEach(function(p){
 		if(p.analytics === undefined){
-			_.errout('missing analytics: ' + p.name)
+			_.errout('missing analytics: ' + p.name + ' ' + JSON.stringify(p) + ' ' + JSON.stringify(Object.keys(p)))
 		}
 		pan.push(p.analytics)
 	})
@@ -17,16 +17,19 @@ exports.make = function(name, params, getCb){
 	var counts
 	var handle = {
 		gotProperty: function(propertyCode){
+			_.assertInt(propertyCode)
 			if(!counts.property) counts.property = {}
 			if(!counts.property[propertyCode]) counts.property[propertyCode] = 0
 			++counts.property[propertyCode]
 		},
 		gotPropertyChanges: function(propertyCode){
+			_.assertInt(propertyCode)
 			if(!counts.propertyDuring) counts.propertyDuring = {}
 			if(!counts.propertyDuring[propertyCode]) counts.propertyDuring[propertyCode] = 0
 			++counts.propertyDuring[propertyCode]
 		},
 		gotTypeIds: function(typeCode){
+			_.assertInt(typeCode)
 			if(!counts.gotTypeIds) counts.gotTypeIds = {}
 			if(!counts.gotTypeIds[typeCode]) counts.gotTypeIds[typeCode] = 0
 			++counts.gotTypeIds[typeCode]

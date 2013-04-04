@@ -10,7 +10,7 @@ exports.syntax = 'lessThan(number,number)'
 
 //var log = require('quicklog').make('intersection')
 
-exports.compute = function(paramValues){
+exports.computeSync = function(z, a, b){
 	
-	return paramValues[0] < paramValues[1]
+	return a < b
 }

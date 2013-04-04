@@ -185,7 +185,7 @@ function createRelHandle(objSchema, relMakers){
 	
 	//log('creating rel handle for: ' + JSON.stringify(viewSchema, null, 2))
 
-	var paramWrappers = []
+	/*var paramWrappers = []
 	viewSchema.params.forEach(function(p,i){
 		var w = function(value){
 				_.assertDefined(value)
@@ -213,17 +213,18 @@ function createRelHandle(objSchema, relMakers){
 		//}
 		w.bindingName = p.name
 		paramWrappers[i] = w
-	})
+	})*/
 	function makeBindings(params, viewId){
 		//_.assertInt(paramTime)
 		_.assertString(viewId)
 		//_.assert(paramTime >= 0)
 		var bindings = {}
-		for(var i=0;i<paramWrappers.length;++i){
-			var pw = paramWrappers[i]
+		for(var i=0;i<params.length;++i){
+			//var pw = paramWrappers[i]
 			//_.assert(pw.bindingName.length > 0)
 		//	console.log('set param: ' + pw.bindingName + ' := ' + params[i])
-			bindings[pw.bindingName] = pw(params[i])
+			var p = viewSchema.params[i]
+			bindings[p.name] = params[i]
 		}
 		bindings.__key = viewId
 		return bindings
@@ -538,6 +539,7 @@ function viewIdStr(viewCode,params){//viewCode+':'+JSON.stringify(params)
 		if(_.isString(v)){
 			v = '"'+v+'"'
 		}
+		if(v+'' === '[object Object]') _.errout('cannot parameterize: ' + JSON.stringify(v))
 		str += v
 	}
 	str += ']'
@@ -554,7 +556,9 @@ exports.make = function(schema, objectState, broadcaster){
 		getEditsBetween: getObjectEditsBetween,
 		getInclusionsDuring: getObjectInclusionsDuring
 	}
-	function getViewCallHandle(viewName, viewCall){
+	function getViewCallHandle(viewName, viewCall, staticBindings){
+		_.assertObject(staticBindings)
+		
 		var viewCode = schema[viewName].code
 		var handle = makers[viewCode]
 		
@@ -563,7 +567,7 @@ exports.make = function(schema, objectState, broadcaster){
 		//_.errout(JSON.stringify(viewCall))
 		var paramMakers = []
 		viewCall.params.forEach(function(expr){
-			paramMakers.push(makeRelHandle(expr))
+			paramMakers.push(makeRelHandle(expr, staticBindings))//, handle.viewParamsStaticBindings))
 		})
 		function getParams(bindings, editId, cb){
 			var params = []
@@ -585,6 +589,7 @@ exports.make = function(schema, objectState, broadcaster){
 		}
 
 		function getParamValues(bindingValues){
+			console.log('computing param values: ' + JSON.stringify([viewCall.params, bindingValues]))
 			var params = []
 			for(var i=0;i<viewCall.params.length;++i){
 				var p = viewCall.params[i]
@@ -714,7 +719,7 @@ exports.make = function(schema, objectState, broadcaster){
 				paramMakers.forEach(function(pm, index){
 					pm.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
 						//paramChanges[index] = changes
-						console.log(index + ' ' + JSON.stringify(changes))
+						//console.log(index + ' ' + JSON.stringify(changes))
 						for(var i=0;i<changes.length;++i){
 							keyEditIds[changes[i].editId] = true
 						}
@@ -729,8 +734,19 @@ exports.make = function(schema, objectState, broadcaster){
 		//handle.getHistoricalChangesBetween = handle.getChangesBetween
 		return handle
 	}
-	function makeRelHandle(rel){
-		var wrapped = wrap.make(s, rel, makeRelHandle, getViewCallHandle)
+	function makeRelHandle(rel, staticBindings){
+		var wrapped = wrap.make(s, rel, function(rel, newStaticBindings){
+			if(newStaticBindings){
+				//console.log('recursing with new bindings: ' + JSON.stringify(Object.keys(newStaticBindings)))
+				var newStaticBindings = _.extend({}, staticBindings, newStaticBindings)
+				return makeRelHandle(rel, newStaticBindings)
+			}else{
+				//console.log('recursing with same bindings')//: ' + JSON.stringify(Object.keys(staticBindings)))
+				return makeRelHandle(rel, staticBindings)
+			}
+		}, function(viewName, viewCall){
+			return getViewCallHandle(viewName, viewCall, staticBindings)
+		}, staticBindings)
 		return wrapped
 	}
 	
@@ -747,13 +763,55 @@ exports.make = function(schema, objectState, broadcaster){
 			makers[objSchema.code].relMakers = relMakers
 		}
 	})
+	
 	_.each(schema, function(objSchema){
 		if(objSchema.isView){
 
 			var viewSchema = objSchema.viewSchema
+			var viewParamsStaticBindings = {}
+			viewSchema.params.forEach(function(p){
+				var paramName = p.name
+				var f
+				var nameStr = 'view-param:'+p.name
+				var a = analytics.make(nameStr, [])				
+				var vpHandle = {
+					name: nameStr,
+					analytics: a,
+					getStateAt: function(bindings, editId, cb){
+						if(editId === -1){
+							cb(undefined)
+						}else{
+							//console.log('got binding value: ' + JSON.stringify(bindings[paramName]))
+							cb(bindings[paramName])
+						}
+					},
+					isFullySync: true,
+					getStateSync: function(bindings, editId){
+						if(editId === -1){
+							//console.log('here')
+							return
+						}else{
+							//console.log('computed getStateSync: ' + JSON.stringify([paramName, bindings[paramName], editId]))
+							return bindings[paramName]
+						}
+					},
+					getChangesBetween: function(bindings, startEditId, endEditId, cb){
+						if(startEditId === -1 && endEditId >= 0){
+							var value = bindings[paramName]
+							//console.log('changes ' + startEditId + ' ' + endEditId + ' ' + value)
+							cb([{type: 'set', value: value, editId: 0}])
+						}else{
+							cb([])
+						}
+					}				
+				}
+				vpHandle.getHistoricalChangesBetween = vpHandle.getChangesBetween
+				
+				viewParamsStaticBindings[p.name] = vpHandle
+			})
 			Object.keys(viewSchema.rels).forEach(function(relName){
 				var rel = viewSchema.rels[relName];
-				var rm = makeRelHandle(rel)
+				var rm = makeRelHandle(rel, viewParamsStaticBindings)
 				if(!rm.changeToEdit) _.errout('needs changeToEdit: ' + rm.name + ' ' + JSON.stringify(rel) + ' ' + rm.getChangesBetween)
 				rm.propertyCode = viewSchema.rels[relName].code
 				if(rm.propertyCode === undefined) _.errout('missing code: ' + JSON.stringify(viewSchema.rels[relName]))
@@ -762,6 +820,7 @@ exports.make = function(schema, objectState, broadcaster){
 				makers[objSchema.code].relMakers.push(rm)
 			})
 			makers[objSchema.code].analytics = analytics.make('view['+viewSchema.name+']', makers[objSchema.code].relMakers)
+			makers[objSchema.code].viewParamsStaticBindings = viewParamsStaticBindings
 			
 		}
 	})
@@ -984,7 +1043,7 @@ exports.make = function(schema, objectState, broadcaster){
 					})
 				}else{
 					getObjectEditsBetween(includedId, -1, endEditId, function(snap){
-						console.log('*storing: ' + includedId + ' ' + JSON.stringify(snap))
+						//console.log('*storing: ' + includedId + ' ' + JSON.stringify(snap))
 						storeEdits(includedId, snap)
 						rem.decrease(1)
 					})

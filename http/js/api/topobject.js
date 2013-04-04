@@ -42,10 +42,6 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id, forkedObject){
 	
 	this.innerObjects = {}
 
-	//this.currentHandle = this
-	//_.assertObject(this.currentHandle)
-	//this.uid = Math.random()
-
 	this._gg = Math.random()
 	
 	//console.log(this._gg+' making TopObject ' + id + ' ' + edits.length + ' ' + this.uid + ' '+this.getEditingId())
@@ -72,11 +68,6 @@ function TopObjectHandle(schema, typeSchema, edits, parent, id, forkedObject){
 	if(forkedObject){
 	
 		var fes = forkedObject._getEdits()
-		//console.log('forkedObject: ' + JSON.stringify(fes))
-		//_.assert(fes.length >= 2)
-		/*if(fes.length >= 2 && fes[1].op === editCodes.made){
-			fes = [fes[0]].concat(fes.slice(2))
-		}*/
 		this.edits = fes.concat(this.edits)
 		this.manyForkedEdits = fes.length
 		this._isFork = true
@@ -190,36 +181,21 @@ TopObjectHandle.prototype.locally = function(f){
 }
 
 TopObjectHandle.prototype._acceptForkChange = function(subObj, key, op, edit, syncId, editId){//, path){
-	//TODO handle path switchover
+
 	console.log('MAINTAINING FORK: ' + op + ' ' + JSON.stringify(edit) + ' on ' + this.objectId + ' ' + syncId + ' ' + this.getEditingId())
-	//if(op === editCodes.refork){
-		var manyToRemove = 0
-		for(var i=0;i<this.edits.length;++i){
-			var e = this.edits[i]
-			if((e.op === editCodes.made || e.op === editCodes.madeFork) && e.edit.sourceId === this._forkedObject._internalId()){
-				break;
-			}
-			++manyToRemove
+
+	var manyToRemove = 0
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		if((e.op === editCodes.made || e.op === editCodes.madeFork) && e.edit.sourceId === this._forkedObject._internalId()){
+			break;
 		}
-		this.edits = this.edits.slice(manyToRemove)
-		this.edits = [].concat(this._forkedObject._getEdits()).concat(this.edits)
-			
-		this._rebuild()
-		//_.errout('TODO forked reforked')
-		//console.log('forked refork complete: ' + this)
-	//}else{
-	//	this._rebuild()
-		/*this.prepare()
+		++manyToRemove
+	}
+	this.edits = this.edits.slice(manyToRemove)
+	this.edits = [].concat(this._forkedObject._getEdits()).concat(this.edits)
 		
-		//this.edits.push({op: op, edit: edit, editId: editId})
-		
-		changeOnPath(this, op, edit, syncId, editId)
-		this.special = this._gg
-		console.log(this.special + ' after fork update: ' + this)*/
-	//}
-	//console.log('ERRR')
-	//local.changeListener(op, edit, syncId, editId, false, true)
-	//_.errout('TODO')
+	this._rebuild()
 }
 
 function changeOnPath(local, op, edit, syncId, editId){
@@ -321,63 +297,7 @@ function changeOnPath(local, op, edit, syncId, editId){
 		//console.log('HERERERERER')
 		//console.log('editing ' + editNames[op] + ' ' + (chp.rally = Math.random()))
 		chp.changeListener(local.inputSubObject, local.inputKey, op, edit, syncId, editId)
-	}	
-	//return
-	//_.errout('TODO')
-	/*
-	
-	if(op === editCodes.delKey || op === editCodes.setObject || op === editCodes.clearObject || 
-			op === editCodes.clearProperty || op === editCodes.setViewObject || lookup.isPutCode[op] || lookup.isPutAddCode[op] || lookup.isPutRemoveCode[op] ||
-			op === editCodes.del || op === editCodes.didPutNew || op === editCodes.remove || op === editCodes.addAfter || op === editCodes.addNewAfter || op === editCodes.addedNewAfter){
-		_.assert(path.length > 0)
-		var lastCode
-		var lastEdit = path[path.length-1]
-		if(lastEdit.op === editCodes.selectProperty){
-			lastCode = lastEdit.edit.typeCode
-		}else if(lastEdit.op === editCodes.reselectProperty){
-			lastCode = lastEdit.edit.typeCode
-		}else if(lastEdit.op === editCodes.selectObject || lastEdit.op === editCodes.reselectObject){
-			lastCode = lastEdit.edit.id
-		}else if(lookup.isKeyCode[lastEdit.op]){//lastEdit.op.indexOf('Key') !== -1){
-			lastCode = lastEdit.edit.key
-		}else{
-			console.log(JSON.stringify(lookup.isKeyCode))
-			_.errout('TODO: ' + op + ' ' + JSON.stringify(lastEdit))
-		}
-		//this.log('here: ' + local.currentHandle.constructor)
-		var ch = descend(local, path.slice(0, path.length-1))
-		
-		if(ch !== undefined){
-			//this.log(JSON.stringify(local.pathEdits))
-			//local.log.info('calling elevated change listener ' + lastCode + ' ' + op + ' ', edit)
-			//console.log('calling elevated change listener ' + lastCode + ' ' + op + ' ' + JSON.stringify(edit))
-			ch.changeListenerElevated(lastCode, op, edit, syncId, editId)
-		}else{
-			local.log.info('cannot execute edit, descent failed: ' + op + ' ', edit)
-		}
-	}else{
-		var currentHandle = descend(local, path)
-		
-		if(currentHandle === undefined){
-			//local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
-			return
-		}
-
-		_.assertObject(currentHandle)
-
-		if(currentHandle === local){
-			console.log(local.uid + ' YY: ' + JSON.stringify(local.edits, null, 2))
-			if(op === editCodes.initializeUuid){
-				this._uuid = edit.uuid
-			}else{
-				console.log(local.getEditingId()+ ' TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(path) + ' ' + op + ' ' + JSON.stringify(edit))
-				return
-			}
-		}else{
-			//console.log('calling change listener: ' + JSON.stringify(local.pathEdits) + ': ' + op + ' ' + JSON.stringify(edit))
-			currentHandle.changeListener(op, edit, syncId, editId)
-		}
-	}*/	
+	}
 }
 
 TopObjectHandle.prototype.uuid = function(){
@@ -415,6 +335,8 @@ TopObjectHandle.prototype.clearProperty = ObjectHandle.prototype.clearProperty
 TopObjectHandle.prototype.isDefined = function(){return true;}
 
 TopObjectHandle.prototype.getTopParent = function(){return this;}
+
+TopObjectHandle.prototype.isDestroyed = function(){return this._destroyed;}
 
 function samePath(a, b){
 	//_.errout('TODO')
@@ -491,13 +413,7 @@ TopObjectHandle.prototype.fork = function fork(cb){
 }
 
 TopObjectHandle.prototype.setForked = function fork(objHandle){
-	//_.assert(this._isFork)
 
-	/*var res = this.parent.createFork(this, cb)
-	res.prepare();
-	console.log('forked: ' + res)
-	return res;*/
-	//_.errout('TODO')
 	var sourceId = objHandle._internalId()
 	this.adjustTopObjectToOwn()
 	this.persistEdit(editCodes.refork, {sourceId: sourceId})
@@ -507,7 +423,6 @@ TopObjectHandle.prototype.setForked = function fork(objHandle){
 }
 
 function sameState(a, b){
-	//_.errout('TODO')
 	return a.object === b.object && a.property === b.property
 }
 
@@ -529,7 +444,7 @@ function applyReversions(edits){
 					if(r.version < e.editId){
 						//console.log('[' + JSON.stringify(r) + ']')
 						//console.log('{' + JSON.stringify(e.path) + '}')
-						if(sameState(r.state, e.state)){//samePath(r.path, e.path))){
+						if(sameState(r.state, e.state)){
 							//console.log('skip on')
 							skip = true
 						}
@@ -584,32 +499,10 @@ TopObjectHandle.prototype.prepareHistorically = function prepareHistorically(ver
 	var realEdits = applyReversions(this.edits)//[]//edits without reverts or reverted
 	//applyReversions(realEdits)
 	realEdits.reverse()
-	
-	/*console.log('prev edits: ' + JSON.stringify(this.edits))
-	realEdits.forEach(function(e, index){
-		console.log(index + ' ' + editNames[e.op] + ' ' + JSON.stringify(e.edit))
-	})*/
-	
+
 	//apply edits
 	this.realEdits = realEdits
-	/*
-	s.currentSyncId=-1
-	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
-	realEdits.forEach(function(e, index){
-		if(e.op === editCodes.setSyncId){
-			s.currentSyncId = e.edit.syncId
-		}else if(e.op === editCodes.madeViewObject){
-			//s.log('ignoring view object creation')
-		}else if(e.op === editCodes.made){
-			//s.log('ignoring object creation')
-			s.pathEdits = []
-		}else{
-			s.changeListener(e.op, e.edit, s.currentSyncId, e.editId, true)
-			s.lastEditId = e.editId
-		}
-	})
-	
-	*/
+
 	
 	if(s.typeSchema.properties){
 		var keys = Object.keys(s.typeSchema.properties);
@@ -706,25 +599,24 @@ TopObjectHandle.prototype.prepare = function prepare(){
 			s.inputSyncId = e.edit.syncId
 		}else if(e.op === editCodes.madeViewObject){
 			//s.log('ignoring view object creation')
-		}/*else if(e.op === editCodes.made){
-			//s.log('ignoring object creation')
-			s.pathEdits = []
-		}*/else{
+		}else{
 			s.changeListener(s.inputSubObject, s.inputKey, e.op, e.edit, s.inputSyncId, e.editId||-3, true)
 			s.lastEditId = e.editId
 		}
 	})
 	
-	if(s.typeSchema.properties){
-		var keys = Object.keys(s.typeSchema.properties);
-		keys.forEach(function(name){
-			//console.log('preparing: ' + name)
-			var p = s.typeSchema.properties[name];
-			var v = s.property(name);
-			v.prepare();
-			s[name] = v;
+	if(!s._destroyed){
+		if(s.typeSchema.properties){
+			var keys = Object.keys(s.typeSchema.properties);
+			keys.forEach(function(name){
+				//console.log('preparing: ' + name)
+				var p = s.typeSchema.properties[name];
+				var v = s.property(name);
+				v.prepare();
+				s[name] = v;
 		
-		});
+			});
+		}
 	}
 }
 
@@ -762,10 +654,7 @@ TopObjectHandle.prototype.id = function(){
 	return this.objectId;
 }
 TopObjectHandle.prototype.getTopId = TopObjectHandle.prototype.id
-/*TopObjectHandle.prototype.uid = function(){
-	if(this.objectId < 0) throw new Error('cannot get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the id becomes available.')
-	return ''+this.objectId;
-}*/
+
 TopObjectHandle.prototype._internalId = function(){
 	return this.objectId;
 }
@@ -794,35 +683,7 @@ TopObjectHandle.prototype._rewriteObjectApiCache = function(){
 }
 
 TopObjectHandle.prototype.isa = ObjectHandle.prototype.isa
-/*
-TopObjectHandle.prototype.adjustPath = function(source){
-	_.assertLength(arguments, 1)
-	_.assertInt(source)
-	_.assert(source > 0)
-	
-	var currentPath = this.currentPath
-	//console.log('adjustPath: ' + JSON.stringify(currentPath))
-	if(currentPath === undefined) currentPath = this.currentPath = []
-	//this.log('adjust top path: ' + JSON.stringify(currentPath) + ' -> ' + source)
-	
-	if(currentPath.length === 0){
-		this.persistEdit(editCodes.selectProperty, {typeCode: source})
-		return []
-	}else if(currentPath[0] !== source){
-		if(currentPath.length > 1){
-			//this.reduceBy(currentPath.length-1)
-			if(currentPath.length-1 <= 5){
-				this.persistEdit(editCodes['ascend'+(currentPath.length-1)], {})
-			}else{
-				this.persistEdit(editCodes.ascend, {many: currentPath.length-1})
-			}
-		}
-		this.persistEdit(editCodes.reselectProperty, {typeCode: source})
-		return []
-	}else{
-		return this.currentPath.slice(1)
-	}
-}*/
+
 TopObjectHandle.prototype.persistEdit = function(op, edit){
 	//this.log('here: ' + this.getObjectId())
 	//console.log('persisting: ' + op + ' ' + JSON.stringify(edit))
@@ -861,11 +722,7 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 		})
 	}
 }
-/*
-TopObjectHandle.prototype.getCurrentPath = function(){
-	if(this.currentPath === undefined) this.currentPath = []
-	return this.currentPath
-}*/
+
 TopObjectHandle.prototype.saveEdit = function(op, edit){
 	this.persistEdit(op, edit)
 }
@@ -913,13 +770,7 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
 		cb = undefined
 		forget = true
 	}
-	
-   // var objSchema = this.schema[typeName]
-   // if(objSchema  === undefined) throw new Error('unknown type: ' + typeName)
-	//var typeCode = objSchema.code;
-	//var objEdits = jsonutil.convertJsonToEdits(this.schema, typeName, json);
 
-	
 	if(forget){
 		this.createNewExternalObject(typeName, json, forget, undefined)//objEdits)
 	}else{
@@ -928,11 +779,6 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
 		var res = this.createNewExternalObject(typeName, json, forget, cb)
 	
 		res.prepare();
-
-		/*if(cb){
-			if(this.parent.objectCreationCallbacks === undefined) this.parent.objectCreationCallbacks = {};
-			this.parent.objectCreationCallbacks[temporary] = cb;
-		}*/
 
 		return res;
 	}
@@ -973,8 +819,6 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 		}
 	}
 }
-
-TopObjectHandle.prototype.changeListenerElevated = ObjectHandle.prototype.changeListenerElevated
 
 TopObjectHandle.prototype.adjustTopObjectToOwn = function(){
 	this.parent.adjustTopObjectTo(this.objectId)
@@ -1019,57 +863,6 @@ function updateInputPath(local, op, edit, editId){
 	return true
 }
 
-/*
-function updatePath(local, op, edit, editId){
-	_.assertLength(arguments, 4)
-
-	if(local.pathEdits === undefined) local.pathEdits = []
-
-	//console.log(JSON.stringify([op, edit, editId]))
-	//console.log(new Error().stack)
-	
-	if(op === editCodes.reset){
-		//local.path = []
-		var dif = -local.pathEdits.length
-		local.pathEdits = []
-	}else if(op === editCodes.selectProperty){
-		//local.path.push(edit.typeCode)
-		//console.log(local.uid + ' selected property: ' + edit.typeCode)
-		local.pathEdits.push({op: op, edit: edit})
-	}else if(op === editCodes.reselectProperty){
-		//_.assert(local.pathEdits.length > 0)
-		if(local.pathEdits.length === 0) _.errout('invalid path state for reselectProperty operation: ' + JSON.stringify(local.pathEdits))
-		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
-	}else if(op === editCodes.selectObject){
-		local.pathEdits.push({op: op, edit: edit})
-	}else if(op === editCodes.reselectObject){
-		if(local.pathEdits.length === 0) _.errout('invalid path state for reselectProperty operation: ' + JSON.stringify(local.pathEdits))
-		//_.assert(local.pathEdits.length > 0)
-		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
-	}else if(lookup.isKeySelectCode[op]){//op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
-		local.pathEdits.push({op: op, edit: edit})		
-	}else if(lookup.isKeyReselectCode[op]){//op.indexOf('reselect') === 0 && op.indexOf('Key') === op.length-3){
-		local.pathEdits[local.pathEdits.length-1] = {op: op, edit: edit}
-	}else if(op === editCodes.ascend1){
-		local.pathEdits.pop()
-	}else if(op === editCodes.ascend2){
-		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-2)
-	}else if(op === editCodes.ascend3){
-		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-3)
-	}else if(op === editCodes.ascend4){
-		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-4)
-	}else if(op === editCodes.ascend5){
-		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-5)
-	}else if(op === editCodes.ascend){
-		local.pathEdits = local.pathEdits.slice(0, local.pathEdits.length-edit.many)
-	}else if(op === editCodes.madeFork){
-		local.pathEdits = []
-	}else{
-		return false
-	}
-	return true
-}
-*/
 function maintainPath(local, op, edit, syncId, editId){
 	_.assertInt(editId)
 	//if(local.uid === undefined) local.uid = Math.random()
@@ -1080,27 +873,17 @@ function maintainPath(local, op, edit, syncId, editId){
 	
 	_.assertInt(op)
 
-	/*if(local.lastEditId !== undefined && editId < local.lastEditId && editId >= 0){
-		console.log('HERE**: ' + JSON.stringify(local.edits))
-		_.errout('invalid old edit received: ' + editId + ' < ' + local.lastEditId + ': ' + JSON.stringify([op, edit, syncId, editId]))
-	}*/
 
 	if(local.lastEditId < editId){
 		local.lastEditId = editId
 	}
-	
-	/*if(local.pathEdits === undefined){
-		//local.path = []
-		local.pathEdits = []
-	}*/
+
 	
 	var did = updateInputPath(local, op, edit, editId)
 	if(did){
 		return
 	}else if(op === editCodes.made){
-		//local.pathEdits = []
 	}else if(op === editCodes.madeFork){
-		//local.pathEdits = []
 	}else if(op === editCodes.initializeUuid){
 		local._uuid = edit.uuid
 	}else if(op === editCodes.wasSetToNew && local.inputObject === local.objectId){
@@ -1117,13 +900,6 @@ function maintainPath(local, op, edit, syncId, editId){
 		local.objectApiCache[edit.id] = n
 
 		if(local.getEditingId() === syncId){
-			//_.assert(edit.temporary < -1)
-			//console.log('NOT: ' + local[property.name].rere)
-			//var temporary = local[property.name].objectId
-			//console.log('temporary: ' + temporary)
-			//_.assert(temporary < -1)
-			//local[property.name].objectId = edit.id
-			//local.replaceObjectHandle(local[property.name], n)
 			return
 		}
 		local[property.name] = n
@@ -1131,59 +907,7 @@ function maintainPath(local, op, edit, syncId, editId){
 	}else{
 		//console.log('pathEdits: ' + JSON.stringify(local.pathEdits))
 		changeOnPath(local, op, edit, syncId, editId)
-		
-		/*if(op === editCodes.delKey || op === editCodes.setObject || op === editCodes.clearObject || 
-				op === editCodes.clearProperty || op === editCodes.setViewObject || lookup.isPutCode[op] || lookup.isPutAddCode[op] || lookup.isPutRemoveCode[op] ||
-				op === editCodes.del || op === editCodes.didPutNew || op === editCodes.remove || op === editCodes.addAfter || op === editCodes.addNewAfter || op === editCodes.addedNewAfter){
-			_.assert(local.pathEdits.length > 0)
-			var lastCode
-			var lastEdit = local.pathEdits[local.pathEdits.length-1]
-			if(lastEdit.op === editCodes.selectProperty){
-				lastCode = lastEdit.edit.typeCode
-			}else if(lastEdit.op === editCodes.reselectProperty){
-				lastCode = lastEdit.edit.typeCode
-			}else if(lastEdit.op === editCodes.selectObject || lastEdit.op === editCodes.reselectObject){
-				lastCode = lastEdit.edit.id
-			}else if(lookup.isKeyCode[lastEdit.op]){//lastEdit.op.indexOf('Key') !== -1){
-				lastCode = lastEdit.edit.key
-			}else{
-				console.log(JSON.stringify(lookup.isKeyCode))
-				_.errout('TODO: ' + op + ' ' + JSON.stringify(lastEdit))
-			}
-			//this.log('here: ' + local.currentHandle.constructor)
-			var ch = descend(local, local.pathEdits.slice(0, local.pathEdits.length-1))
-			
-			if(ch !== undefined){
-				//this.log(JSON.stringify(local.pathEdits))
-				//local.log.info('calling elevated change listener ' + lastCode + ' ' + op + ' ', edit)
-				//console.log('calling elevated change listener ' + lastCode + ' ' + op + ' ' + JSON.stringify(edit))
-				ch.changeListenerElevated(lastCode, op, edit, syncId, editId)
-			}else{
-				local.log.info('cannot execute edit, descent failed: ' + op + ' ', edit)
-			}
-		}else{
-			var currentHandle = descend(local, local.pathEdits)
-			_.assertObject(currentHandle)
-			
-			if(currentHandle === undefined){
-				local.log.warn('WARNING: cannot complete edit: ' + op + ' ', edit)
-				return
-			}
-			if(currentHandle === local){
-				console.log(local.uid + ' YY: ' + JSON.stringify(local.edits, null, 2))
-				_.errout(local.getEditingId()+ ' TODO(' + local.objectId + '): ' + op + ' ' + JSON.stringify(local.pathEdits))
-			}else{
-				//console.log('calling change listener: ' + JSON.stringify(local.pathEdits) + ': ' + op + ' ' + JSON.stringify(edit))
-				currentHandle.changeListener(op, edit, syncId, editId)
-			}
-		}*/
 	}
-	//local.log.info(local.objectId + ' maintained: ', [op, edit, syncId, editId])
-	//local.log('new path: ' + JSON.stringify(local.pathEdits))
-
-	//console.log(local.objectId + ' maintained: ' + JSON.stringify([op, edit, syncId, editId]))
-	//console.log('new path: ' + JSON.stringify(local.pathEdits))
-
 }
 exports.maintainPath = maintainPath
 
@@ -1215,7 +939,6 @@ TopObjectHandle.prototype.adjustCurrentSubObject = function(id){
 		//console.log('adjusted current object: ' + this.currentSubObject + ' -> ' + id)
 		//console.log(new Error().stack)
 		this.persistEdit(editCodes.selectSubObject, {id: id})
-		//this.edits.push({op: editCodes.selectSubObject, edit: {id: id}})
 	}
 	this.currentSubObject = id
 }
@@ -1227,7 +950,6 @@ TopObjectHandle.prototype.adjustCurrentProperty = function(typeCode){
 		//console.log('adjusted current property: ' + this.currentProperty + ' -> ' + typeCode)
 		//console.log(new Error().stack)
 		this.persistEdit(editCodes.selectProperty, {typeCode: typeCode})
-		//this.edits.push({op: editCodes.selectProperty, edit: {typeCode: typeCode}})
 	}
 	this.currentProperty = typeCode
 }
@@ -1240,7 +962,6 @@ TopObjectHandle.prototype.adjustCurrentKey = function(key, keyOp){
 		//console.log('adjusted current key')//: ' + this.currentProperty + ' -> ' + typeCode)
 		//console.log(new Error().stack)
 		this.persistEdit(keyOp, {key: key})
-		//this.edits.push({op: keyOp, edit: {key: key}})
 	}
 	this.currentKey = key
 	this.currentKeyOp = keyOp
@@ -1281,15 +1002,6 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 			this.localEdits.shift()
 		}
 	}
-	
-	/*if(!this.prepared){
-		//console.log('NOT PREPARED')
-		if(this._editListeners){
-			this.prepare()
-		}else{
-			return
-		}
-	}*/
 
 	//console.log('updating path?: ' + editNames[op])
 	var did = updateInputPath(this, op, edit, editId)
@@ -1318,6 +1030,8 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 			//console.log('rebuilt')
 			//console.log(JSON.stringify(this.edits))
 		}
+	}else if(op === editCodes.destroy){
+		this._destroy(true)
 	}else{
 		if(this.getEditingId() === syncId && !isNotExternal){
 			//console.log('just updating path?: ' + editNames[op])
@@ -1337,11 +1051,8 @@ TopObjectHandle.prototype._makeAndSaveNew = function(json, type, source){
 	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this), temporary);
 
 	if(edits.length > 0){
-		//this.adjustPath(temporary)
-		//this.parent.adjustPath(this.part)
 		source.adjustCurrentObject(temporary)
 		source.adjustCurrentProperty(source.part)
-		//this.persistEdit(editCodes.selectObject, {id: temporary})
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
@@ -1452,8 +1163,8 @@ TopObjectHandle.prototype.del = function(){
 	this._destroy()
 }
 
-TopObjectHandle.prototype._destroy = function(){
-	this.parent._destroyed(this)
+TopObjectHandle.prototype._destroy = function(isFromServer){
+	if(!isFromServer) this.parent._destroyed(this)
 	var local = this
 	Object.keys(this).forEach(function(key){
 		var v = local[key]
@@ -1464,7 +1175,9 @@ TopObjectHandle.prototype._destroy = function(){
 		}
 	})
 	Object.keys(TopObjectHandle.prototype).forEach(function(key){
-		local[key] = destroyedWarning
+		if(key !== 'isDestroyed'){
+			local[key] = destroyedWarning
+		}
 	})
 	this._destroyed = true
 }

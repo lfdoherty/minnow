@@ -3,8 +3,6 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-function poll(f){var ci=setInterval(wf,10);function wf(){try{if(f()){clearInterval(ci)}}catch(e){clearInterval(ci);throw e;}}}
-
 exports.localEdit = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -14,7 +12,7 @@ exports.localEdit = function(config, done){
 					otherClient.view('empty', function(err, v){
 						var ev = v.make('entity', {name: 'original'})
 
-						poll(function(){
+						done.poll(function(){
 
 							if(c.has('e') && c.e.name.value() === 'original'){
 								ev.locally(function(){
@@ -49,7 +47,7 @@ exports.locallyFork = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					console.log(JSON.stringify(c.toJson()))
 				})
 				
@@ -91,7 +89,7 @@ exports.localPathChange = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
 			
-				poll(function(){
+				done.poll(function(){
 					if(c.has('e')){
 						if(c.e.name.value() !== 'original'){
 							_.errout('name was incorrectly changed to "' + c.e.name.value()+'"')
