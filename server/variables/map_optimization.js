@@ -9,7 +9,96 @@ var editFp = require('./../tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
 
-exports.make = function(s, rel, recurse, handle, ws){
+function makeWithIndex(s, rel, recurse, handle, ws,objSchema, propertyCode, staticBindings){
+
+	//_.errout('TODO')
+
+	var a = analytics.make('map-optimization-with-index', [])
+	
+	var index = staticBindings.makePropertyIndex(objSchema, objSchema.propertiesByCode[propertyCode])
+	//_.errout('TODO')
+	var newHandle = {
+		name: 'map-optimization-with-index',
+		analytics: a,
+		getValueStateAt: function(key, bindings, editId, cb){
+			cb(index.getValueAt(key, editId))
+		},
+		getValueAt: function(key, bindings, editId){
+			return index.getValueAt(key, editId)
+		},
+		getValueChangesBetween: function(key, bindings, startEditId, endEditId, cb){
+			cb(index.getValueChangesBetween(key, startEditId, endEditId))
+		},
+		getValueBetween: function(key, bindings, startEditId, endEditId){
+			return index.getValueChangesBetween(key, startEditId, endEditId)
+		},
+		getStateAt: function(bindings, editId, cb){
+			cb(index.getStateAt(editId))
+		},
+		getAt: function(bindings, editId){
+			return index.getStateAt(editId)
+		},
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			cb(index.getChangesBetween(startEditId, endEditId))
+		},
+		getHistoricalBetween: function(bindings, startEditId, endEditId){
+			return index.getChangesBetween(startEditId, endEditId)
+		},
+		getPartialStateAt: function(bindings, editId, keys, cb){
+			cb(index.getPartialStateAt(bindings, keys, editId))
+		},
+		getPartialAt: function(bindings, editId, keys){
+			return index.getPartialStateAt(bindings, keys, editId)
+		}
+	}
+	newHandle.getChangesBetween = newHandle.getHistoricalChangesBetween
+	return newHandle
+}
+
+function makeWithIndexPartialSync(s, rel, recurseSync, handle, ws,objSchema, propertyCode, staticBindings){
+
+	//_.errout('TODO')
+
+	var inputSet = recurseSync(rel.params[0])
+
+	var a = analytics.make('map-optimization-with-index', [])
+	
+	var index = staticBindings.makePropertyIndex(objSchema, objSchema.propertiesByCode[propertyCode])
+	
+	if(!index.getPartialStateAt){
+		_.errout('index missing getPartialStateAt: ' + index.getValueAt)
+	}
+	//_.errout('TODO')
+	var newHandle = {
+		name: 'map-optimization-with-index',
+		analytics: a,
+		getValueAt: function(key, bindings, editId){
+			return index.getValueAt(key, editId)
+		},
+		getValueBetween: function(key, bindings, startEditId, endEditId){
+			return index.getValueChangesBetween(key, startEditId, endEditId)
+		},
+		getAt: function(bindings, editId){
+			var partials = inputSet.getAt(bindings, editId)
+			return index.getPartialStateAt(bindings, partials, editId)
+		},
+		getHistoricalBetween: function(bindings, startEditId, endEditId){
+			//return index.getChangesBetween(startEditId, endEditId)
+			_.errout('TODO')
+		},
+		getPartialAt: function(bindings, editId, keys){
+			return index.getPartialStateAt(keys, editId)
+		}
+	}
+	newHandle.getChangesBetween = newHandle.getHistoricalChangesBetween
+	return newHandle
+}
+exports.makeSync = function(s, rel, recurse, handle, ws, staticBindings){
+	return make(s, rel, recurse, handle, ws, staticBindings, true)
+}
+exports.make = make
+
+function make(s, rel, recurse, handle, ws, staticBindings, mustBeSync){
 	var keyExpr = rel.params[1].expr
 	var valueExpr = rel.params[2].expr
 
@@ -20,6 +109,13 @@ exports.make = function(s, rel, recurse, handle, ws){
 		valueExpr.params[1].type === 'param' &&
 		rel.params[2].implicits[0] === valueExpr.params[1].name){
 	}else{
+		//console.log(handle.name)
+		//if(mustBeSync) _.errout('must be sync?')
+		//_.assertDefined(handle)
+		if(!handle){
+			console.log(JSON.stringify(rel, null, 2))
+			_.errout('cannot find sync implementation')
+		}
 		return handle
 	}
 	
@@ -29,7 +125,21 @@ exports.make = function(s, rel, recurse, handle, ws){
 	var propertyName = valueExpr.params[0].value
 	
 	var getPropertyValueAt
+	
+	if(rel.params[0].view === 'typeset' && propertyName !== 'uuid'){
+		var prop = objSchema.properties[propertyName]
+		_.assertObject(prop)
+		var propertyCode = prop.code
+		return makeWithIndex(s, rel, recurse, handle, ws,objSchema, propertyCode, staticBindings)
+	}
 
+	if(mustBeSync){
+		var prop = objSchema.properties[propertyName]
+		_.assertObject(prop)
+		var propertyCode = prop.code
+		return makeWithIndexPartialSync(s, rel, recurse, handle, ws,objSchema, propertyCode, staticBindings)
+	}
+	
 	var inputSet = recurse(rel.params[0])
 
 	var nameStr = 'map-optimization('+inputSet.name+')'//,{'+recurse(keyExpr).name+'},{'+recurse(valueExpr).name+'})'
@@ -58,15 +168,16 @@ exports.make = function(s, rel, recurse, handle, ws){
 
 		var propertyWs = wraputil.makeUtilities(prop.type)
 
-		var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+		var getProperty = s.facade.makeGetPropertyAt(objSchema.code, propertyCode)
 		
 		function getPropertyChangesDuring(id, startEditId, endEditId, cb){
+			a.gotPropertyChanges(propertyCode)
 			s.objectState.getPropertyChangesDuring(id, /*objSchema.code, */propertyCode, startEditId, endEditId, cb)
 		}
 	
 		getPropertyValueAt = function(id, editId, cb){
 			a.gotProperty(propertyCode)
-			getProperty(id, editId, cb)
+			getProperty({}, id, editId, cb)
 		}
 	}	
 

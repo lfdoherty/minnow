@@ -90,7 +90,7 @@ function serializeViewObjects(w, codes, writersByCode, viewObjectEditBuffers){
 		var e = viewObjectEditBuffers[i]
 		var id = e.id//viewIds[i]
 		var list = e.edits//viewObjectEditBuffers[id]
-		
+		//console.log('writing view object: ' + id)
 
 		writersByCode[editCodes.selectTopViewObject](w, {id: id})
 

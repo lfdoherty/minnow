@@ -27,8 +27,9 @@ exports.addNewFromJson = function(config, done){
 				minnow.makeClient(config.port, function(otherClient){
 					//console.log('got client for destroy')
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {v: 'test'})
+						var obj = v.make('entity', {v: 'test'})
 						setTimeout(function(){
+							//console.log('deleted')
 							obj.del()
 						},500)
 					})
@@ -93,6 +94,8 @@ exports.gracefulFailureNonexistentIdView = function(config, done){
 
 exports.delFromTypeset = function(config, done){
 	//console.log('destruction config: ' + JSON.stringify(config))
+	var theObj
+	var theOtherClient
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
@@ -106,10 +109,13 @@ exports.delFromTypeset = function(config, done){
 						c.s.each(function(obj){
 							oldHandle = obj
 						})
+						if(client === theOtherClient){
+							_.assert(theObj === oldHandle)
+						}
 						added = true
 					}
 					if(added && c.s.size() === 0){
-						//console.log('deleted')
+						//console.log('deleted: ' + oldHandle + ' ' + oldHandle._destroyed)
 						_.assert(oldHandle.isDestroyed())
 						done()
 						return true
@@ -118,8 +124,11 @@ exports.delFromTypeset = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					//console.log('got client for destroy')
+					theOtherClient = otherClient
 					otherClient.view('general', function(err, v){
-						var obj = c.make('entity', {v: 'test'})
+						var obj = v.make('entity', {v: 'test'})
+						console.log('created entity')
+						theObj = obj
 						setTimeout(function(){
 							obj.del()
 						},500)

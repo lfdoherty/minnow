@@ -12,10 +12,6 @@ exports.syntax = 'length(string)'
 
 var log = require('quicklog').make('minnow/length')
 
-exports.compute = function(paramValues){
-	log(paramValues[0])
-	return paramValues[0].length
-}
 exports.computeSync = function(z, str){
 	if(str === undefined) return -1
 	return str.length

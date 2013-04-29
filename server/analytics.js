@@ -2,6 +2,26 @@
 
 var _ = require('underscorem')
 
+function filterCounts(counts){
+	var res = {}
+	Object.keys(counts).forEach(function(k){
+		var of = counts[k]
+		var nr = {}
+		var found = false
+		Object.keys(of).forEach(function(lk){
+			var v = of[lk]
+			if(v > 10){
+				nr[lk] = v
+				found = true
+			}
+		})
+		if(found){
+			res[k] = nr
+		}
+	})
+	return res
+}
+
 exports.make = function(name, params, getCb){
 	_.assertArray(params)
 	_.assertString(name)
@@ -16,6 +36,16 @@ exports.make = function(name, params, getCb){
 	
 	var counts
 	var handle = {
+		computeSync: function(name){
+			if(!counts.computeSync) counts.computeSync = {}
+			if(!counts.computeSync[name]) counts.computeSync[name] = 0
+			++counts.computeSync[name]
+		},
+		computeAsync: function(name){
+			if(!counts.computeAsync) counts.computeAsync = {}
+			if(!counts.computeAsync[name]) counts.computeAsync[name] = 0
+			++counts.computeAsync[name]
+		},
 		gotProperty: function(propertyCode){
 			_.assertInt(propertyCode)
 			if(!counts.property) counts.property = {}
@@ -39,7 +69,10 @@ exports.make = function(name, params, getCb){
 				name: name
 			}
 			if(Object.keys(counts).length > 0){
-				report.self = counts
+				report.self = filterCounts(counts)
+				if(Object.keys(report.self).length === 0){
+					delete report.self
+				}
 			}
 			if(pan.length > 0){
 				report.children = []

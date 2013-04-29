@@ -56,22 +56,36 @@ schema.addFunction('each', {
 		
 		var results = []
 		var cdl = _.latch(input.length, function(){
-			//console.log('each done: ' + JSON.stringify(results))
+		//	console.log('each done: ' + JSON.stringify(results) + ' from ' + JSON.stringify(input))
 			cb(macro.mergeResults(results))
 		})
-		var n = 0
-		var t = 0
+		//var n = 0
+		//var t = 0
 		input.forEach(function(v){
 			//console.log('getting macro value: ' + v)
-			++n
+			//++n
 			macro.get(v, function(vs){
-				++t
+				//++t
+				//console.log(v + ': ' + vs)
 				if(vs !== undefined){
 					results.push(vs)
 				}
 				cdl()
 			})
 		})
+	},
+	computeSync: function(z, input, macro){
+	
+		var results = []
+
+		for(var i=0;i<input.length;++i){
+			var v = input[i]
+			var vs = macro.get(v)
+			if(vs !== undefined){
+				results.push(vs)
+			}
+		}
+		return macro.mergeResults(results)
 	}
 })
 

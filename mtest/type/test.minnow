@@ -26,3 +26,5 @@ names(e entity){
 
 subs() 101
 	va each(*entity,{names(~)}) 1
+
+empty() 102

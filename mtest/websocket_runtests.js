@@ -15,6 +15,78 @@ var start = Date.now()
 var minnow = require('./../client/client')
 var minnowWebsocket = require('./../http/js/minnow_websocket')
 
+var oldMakeClient = minnow.makeClient
+var oldMakeServer = minnow.makeServer
+
+var portCounter = 8000
+
+function serviceSecuritySettings(viewName, cb){
+	cb(true)//open everything up
+}
+function authenticate(req,res,next){next()}
+function authenticateByToken(token, cb){cb(undefined, 'TheOnlyUser');}
+
+var hostsByPort = {}	
+var closedHosts = {}
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+require('./runtests_abstract').run(
+	function(port, host, cb){
+		//oldMakeClient(port, host, cb)
+		if(closedHosts[port]){
+			_.errout('tried to connect to ended server: ' + port)
+		}
+		if(hostsByPort[port] === undefined){
+			//console.log(JSON.stringify([hostsByPort,closedHosts]))
+			_.errout('tried to connect to unmade or unloaded server at port: ' + port)
+		}
+		minnowWebsocket.setup(hostsByPort[port],'testapp',function(db){
+			//console.log('got db')
+			cb(db)
+		})
+	},
+	function(config, cb){
+		/*oldMakeServer(config, function(server){
+			cb(server)
+		})*/
+		var mhPort = portCounter
+		++portCounter;
+		var matterhornConfig = {
+			name: 'testing',
+			host: 'localhost',
+			port: mhPort*2,
+			securePort: mhPort
+		};
+		//console.log('minnow port: ' + config.port)
+		var host = 'https://localhost:'+mhPort
+		hostsByPort[config.port] = host
+
+		mh.load(matterhornConfig, function(local, secureLocal, doneCb){
+			oldMakeServer(config, function(sh){
+				_.assertObject(sh)
+				//servers.push(sh)
+				sh.port = config.port
+				oldMakeClient(config.port, function(c){
+					//console.log('setting up mh service: ' + matterhornConfig.port)
+					//name, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener
+					c.setupService('testapp', local, secureLocal, authenticate, authenticateByToken, serviceSecuritySettings);
+					doneCb()							
+					setTimeout(function(){
+						cb({
+							close: function(cb){
+								//servers.splice(servers.indexOf(sh), 1)
+								sh.close(cb)
+							}
+						})
+					},100)
+					
+				})
+			})
+		})
+	}
+)
+
 /*
 var old = console.log
 console.log = function(msg){
@@ -25,6 +97,7 @@ console.log = function(msg){
 	old(msg)
 }*/
 
+/*
 var includedTestDir
 var includedTest
 if(process.argv.length > 2){
@@ -318,4 +391,4 @@ function moreCont(doneCb){
 		}
 		makeDir()
 	}
-}
+}*/

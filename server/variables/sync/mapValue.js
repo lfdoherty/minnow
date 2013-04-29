@@ -12,48 +12,18 @@ exports.minParams = 2
 exports.maxParams = 2
 exports.syntax = 'mapValue(map,key)'
 
-exports.descender = function(paramTypes){
-	var keyOp = u.selectKeyOp(paramTypes[0])
-	return function(paramValues){
-		//console.log('paramTypes: ' + JSON.stringify(paramTypes))
-		//console.log('paramValues: ' + JSON.stringify(paramValues))
-		//console.log('descenders: ' + JSON.stringify(descenders))
-		if(paramTypes[0].value.type === 'object'){
-			return {prefix: [], index: 0}
-		}else{
-			return {prefix: [{op: keyOp, key: paramValues[1]}], index: 0}
-		}
-	}
-}
-
 var log = require('quicklog').make('mapValue')
 
-exports.compute = function(paramValues){
-	var a = paramValues[0]
-	var b = paramValues[1]
-	
-	//log('mapValue('+JSON.stringify(a)+','+b+') -> ' + a[b])
-	return a[b]
-}
-
-exports.computeAsync = function(z, cb, map, key){
-	if(map === undefined){
-		//console.log('map undefined')
-		cb(undefined)
-	}else{
-		//console.log('map ' + key + ' -> ' + map[key])
-		//console.log('full map: ' + JSON.stringify(map))
-		cb(map[key])
-	}
-}
-
 exports.computeSync = function(z, map, key){
+	//_.errout('TODO?')//currently, cannot correctly handle boolean keys?
 	if(map === undefined){
 		//console.log('map undefined')
 		return undefined
 	}else{
-		//console.log('map ' + key + ' -> ' + map[key])
-		//console.log('full map: ' + JSON.stringify(map))
+		//if(!map[key] && (key === true || key === false || !key)){
+		//	console.log('map ' + key + ' -> ' + map[key])
+		//	console.log('full map: ' + JSON.stringify(map))
+		//}
 		return map[key]
 	}
 }

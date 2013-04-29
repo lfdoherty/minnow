@@ -91,26 +91,32 @@ exports.computeSharedObjectType = function(schema, objectNames){
 	}else{
 		var currentBase = objectNames[0]
 		var curSchema = schema[currentBase]
+		
 		if(curSchema === undefined) _.errout('cannot find object type named: ' + currentBase)
 		_.assertDefined(curSchema)
 		
 		objectNames.slice(1).forEach(function(n){
-
+			if(!curSchema) return
+			
 			var s = schema[n]
+			_.assertDefined(s)
 			if(currentBase === n) return
 			if(s.superTypes && s.superTypes[currentBase]) return
 			if(curSchema.superTypes && curSchema.superTypes[n]){
 				currentBase = n
 				curSchema = s
+				if(!curSchema) _.errout('unknown: ' + n)
 				return
 			}
 			
 			if(curSchema.superTypes && s.superTypes){
 				var found = false
 				Object.keys(curSchema.superTypes).forEach(function(st){
+					if(st === 'uuided') return
 					if(s.superTypes[st]){
 						currentBase = st
 						curSchema = schema[currentBase]
+						if(!curSchema) _.errout('unknown base: ' + currentBase)
 						found = true
 					}
 				})

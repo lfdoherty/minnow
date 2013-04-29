@@ -14,17 +14,6 @@ exports.syntax = 'any(set)'
 
 var log = require('quicklog').make('any')
 
-exports.compute = function(paramValues){
-
-	var a = paramValues[0]
-
-	var res = false	
-	a.forEach(function(av){
-		res = res || av
-	})
-	return res
-}
-
 exports.computeSync = function(z, input){
 	var res = false	
 	_.assertArray(input)

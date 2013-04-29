@@ -44,6 +44,8 @@ function deserializeFrame(frame){
 }
 
 function deserializeFramePartially(frame, filter, eachCb){
+	//if(Math.random() < .001) console.log(new Error().stack)
+	
 	rs.put(frame)
 	var many = r.readInt()
 

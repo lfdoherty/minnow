@@ -72,6 +72,7 @@ function load(dataDir, objectSchema, reader, olLatestVersionId, loadedCb){
 			var e = ex.readersByCode[typeCode](rs.s)
 			var name = ex.names[typeCode]
 			//console.log('*timestamp: ' + timestamp)
+			//console.log('reading ' + name)
 			exReader[name](e, timestamp)//TODO optimize to use code instead of name?
 			off += rs.getOffset()
 		}

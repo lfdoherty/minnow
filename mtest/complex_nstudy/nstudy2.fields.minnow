@@ -188,13 +188,14 @@ computeElements(f node, u user){
 	switch(isOfType(f, 'nest'),
 		case(false,list()),
 		default(
-			switch(type(f),
+			/*switch(type(f),
 				case('webpage',preforked(nest:f,bookmarkForm(u))),
 				case('snippet',preforked(nest:f,u.data.sidebar.snippetForm)),
 				default(
 					nest:f
 				)
-			).elements
+			).elements*/
+			f.elements
 		)
 	)
 }
@@ -271,6 +272,26 @@ computeSnippetStates(user user, tabUrl string){
 	})
 }
 
+wrapInForms(u user, rest macro){
+	mutate(1,{
+			preforked(
+				switch(type(~),
+					case('webpage',u.data.sidebarForm.bookmarkForm),
+					case('quote',u.data.sidebarForm.quoteForm),
+					case('snippet',u.data.sidebarForm.snippetForm),
+					case('sidebar', u.data.sidebarForm),
+					default(nil)
+			))}, 
+		rest)
+}
+
+computeChildren(user user){
+	map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)})
+}
+
+statsPage(user user) 168
+	webpagesQuoted count(subset(*webpage,{and(eq(user.contact, ~.creator), greaterThan(count(userQuotesForPage(user,~.url)),0))})) 3
+
 //a bookmark object for the given URL will already have been created by the time this view is requested
 overlayPage(user user, session userSession, tab tab) 160
 	userId user.id 1
@@ -280,17 +301,25 @@ overlayPage(user user, session userSession, tab tab) 160
 	url tab.url 10
 	
 	sidebar user.data.sidebar 211
+	sidebarForm user.data.sidebarForm 222
 	
 	root user.data.sidebar 212
 	
 	userData user.data 25
-	children map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)}) 13
+	children wrapInForms(user,{computeChildren(user)}) 13
+	historyData keysByValues(topByValues(20,map(userBookmarks(user),{~},{add(0,~.lastOpened)}))) 231
+
+	
 	session session 16
 		
 	contacts user.data.contacts 230
 	//tab tab 21
-	sourceQuery session.searchQuery 23
+	//sourceQuery session.searchQuery 23
 	groups userGroups(user) 24
 	
 	snippetStates computeSnippetStates(user, tab.url) 26
+
+userStoryPage(user user) 189
+	session user.currentSession 3
+	overlay overlayPage(user, user.currentSession, user.currentSession.currentTab) 4
 

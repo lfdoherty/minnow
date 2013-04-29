@@ -197,12 +197,12 @@ function makeClient(host, port, clientCb){
 		}*/
 		return doMake(type, json, forget, cb, temporary)
 	}
-	
+/*	
 	wrapper.makeFork = function(obj, cb, temporary){
 		_.assertLength(arguments, 3)
 		return doFork(obj, cb)
 	}
-
+*/
 	wrapper.forgetLastTemporary = function(){
 		//_.errout('TODO');
 		cc.getDefaultSyncHandle().forgetLastTemporary(listeningSyncId)
@@ -277,12 +277,13 @@ function makeClient(host, port, clientCb){
 			dsh.persistEdit(e.op, e.edit, listeningSyncId);
 		}
 		if(forget){
+			//console.log('doing make, forgetting')
 			dsh.forgetLastTemporary(listeningSyncId)
 		}
 		return edits
 	}	
 
-	function doFork(obj, cb){
+	/*function doFork(obj, cb){
 
 		var dsh = cc.getDefaultSyncHandle()
 		var requestId = dsh.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()}, listeningSyncId)
@@ -293,7 +294,7 @@ function makeClient(host, port, clientCb){
 		}
 		
 		return []
-	}	
+	}	*/
 
 	var dbSchema
 	
@@ -399,7 +400,7 @@ function makeClient(host, port, clientCb){
 
 				var ws = websocket.load(local, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
 				
-				xhrService.make(name, dbSchema, local, handle, identifier, viewSecuritySettings, lp);
+				xhrService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings);
 				return matterhornService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);
 			},
 			view: function(type, params, cb){

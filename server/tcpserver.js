@@ -290,7 +290,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				},
 				c: c
 			}
-			var wfs = fparse.makeReplayableWriteStream(shared.serverResponses, wHandle)
+			var wfs = fparse.makeWriteStream(shared.serverResponses, wHandle)
 			wfs.wHandle = wHandle
 		
 			/*
@@ -330,8 +330,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					_.errout('bad server shutdown: still receiving object updates')
 				}
 				_.assertBuffer(ob.edits)
-				ws('sending object: ' + ob.id)
-				//console.log('sending object: ' + ob.id)
+				//ws('sending object: ' + ob.id)
+				//console.log('sending object: ' + ob.id + ' ' + syncId)
 				ob.destinationSyncId = syncId
 				conn.w.updateObject(ob);
 			}
@@ -351,7 +351,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				if(w === undefined){
 					throw new Error('got update after already disconnected')
 				}
-			
+				
 				sendUpdate(op, edit, editId, destinationSyncId)
 			
 			}
@@ -402,9 +402,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				currentIdFor: {},
 				pathFromClientFor: {},
 				reifications: {},
-				lastAck: 0,
-				lastOutgoingAck: 0,
-				outgoingAckHistory: 0,
+				//lastAck: 0,
+				//lastOutgoingAck: 0,
+				//outgoingAckHistory: 0,
 				w: w,
 				openSyncIds: [syncId]
 			}
@@ -420,13 +420,13 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			conn.w.reifyObject(msg);
 		}	
 		
-		function increaseAck(frameCount){
+		/*function increaseAck(frameCount){
 			//console.log('server got ack: ' + frameCount)
 			if(frameCount > conn.lastAck){
 				conn.wfs.discardReplayableFrames(frameCount - conn.lastAck)
 				conn.lastAck = frameCount
 			}
-		}	
+		}*/	
 		
 		//var lastAck = 0
 		var reader = {
@@ -437,7 +437,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					conn.lastAck = e.frameCount
 				}
 			},*/
-			reconnect: function(e){
+			/*reconnect: function(e){
 				if(isDead) throw new Error('tried to reconnect via dead client?')
 				
 				connectionId = e.connectionId
@@ -512,7 +512,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 						console.log('server: reconnect expired')
 					},100)
 				}
-			},
+			},*/
 			originalConnection: function(){
 			
 				//console.log('got original connection')
@@ -535,13 +535,13 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 		
 				liveConnections[connectionId] = conn
 
-				startAck(deser, c)
+				//startAck(deser, c)
 
 			},
 			beginSync: function(e){
 				var syncId = s.makeSyncId()
 				conn.openSyncIds.push(syncId)
-				console.log('adding open syncId: ' + syncId)
+				//console.log('adding open syncId: ' + syncId)
 				var ne = {syncId: syncId}
 				var updater = conn.sendEditUpdate.bind(ne)
 				function objectUpdater(ob){
@@ -572,6 +572,10 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				}else{
 					console.log('WARNING: ended unknown or already ended syncId: ' + e.syncId)
 				}
+			},
+			syncIdUpTo: function(e){
+				s.syncIdUpTo(e.syncId, e.editId)
+				//_.errout('TODO: ' + JSON.stringify(e))
 			},
 			persistEdit: function(e){
 
@@ -642,9 +646,19 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				
 					if(!e.edit.forget){
 						conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
+						
+						
 						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
 						_.assert(lastTemporaryId[syncId] < 0)
-						conn.w.objectMade(msg);
+						
+						//TODO delay this until sync handle updates to the editId of the object creation
+						
+						//console.log('would do here: ' + JSON.stringify(msg))
+						reifyCb(msg.temporary, msg.id, msg.destinationSyncId)
+						s.afterNextSyncHandleUpdate(syncId, function(){
+							//console.log('sending objectMade: ' + JSON.stringify(msg))
+							conn.w.objectMade(msg);
+						})
 					}
 				}else{
 					if(currentId === undefined){
@@ -743,10 +757,10 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				clearInterval(conn.flushHandle)
 			
 				//clearTimeout(conn.randomHandle)
-				clearInterval(conn.ackHandle)
+				//clearInterval(conn.ackHandle)
 				//conn.randomHandle = undefined
 				conn.flushHandle = undefined
-				conn.ackHandle = undefined
+				//conn.ackHandle = undefined
 			}
 			//if(randomHandle){
 			//	clearTimeout(randomHandle)
@@ -779,7 +793,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 
 		var deser;
 		//c.on('connect', function(){
-		deser = fparse.makeReadStream(shared.clientRequests, reader, increaseAck)			
+		deser = fparse.makeReadStream(shared.clientRequests, reader, function(){})
 		//})
 		
 		function permanentlyEndConnection(){
@@ -788,7 +802,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			})
 		}
 		
-		function startAck(deser, c){
+		/*function startAck(deser, c){
 			//last = last || 0
 			//console.log('started ack')
 			conn.ackHandle = setInterval(function(){
@@ -807,7 +821,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					//console.log('same: ' + v + ' ' + conn.lastOutgoingAck)
 				}
 			},100)
-		}
+		}*/
 		c.on('data', function(buf){
 			try{
 				deser(buf);

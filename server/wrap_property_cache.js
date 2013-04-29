@@ -6,8 +6,13 @@ var wu = require('./wraputil')
 
 var analytics = require('./analytics')
 
-function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
-	_.assertLength(arguments, 7)
+function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, ws, staticBindings){
+	_.assertLength(arguments, 8)
+	
+	if(rel.sync){
+		_.errout('TODO?')//return wrapSingleValueSync(s, type, rel, exprHandle, macroExprHandle, allHandle, ws, staticBindings)
+	}
+	
 	
 	var letName = rel.params[1].implicits[0]
 	
@@ -16,6 +21,7 @@ function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, w
 	function getProperty(id, editId, cb){
 		updateCache(id, function(){
 			var changes = cache[id]
+			//console.log('cache updated')
 			if(!changes){
 				//console.log(editId + ' ' + id + ' -> []& -> undefined')
 				cb(undefined)
@@ -46,6 +52,8 @@ function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, w
 		var specificBindings = {}
 		specificBindings[letName] = id
 		
+		//console.log('ipdating cache: ' + macroExprHandle.getHistoricalChangesBetween)
+		//console.log('name: ' + macroExprHandle.name)
 		macroExprHandle.getHistoricalChangesBetween(specificBindings, -1, latestEditId, function(changes){
 			if(changes.length === 0){
 				//console.log('no changes computed')
@@ -53,6 +61,7 @@ function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, w
 			}else{
 				cache[id] = changes
 				//console.log('updated: ' + JSON.stringify(changes))
+				//console.log(new Error().stack)
 				//console.log('macroExprHandle: ' + macroExprHandle.name)
 				lastCacheUpdate[id] = latestEditId//changes[changes.length-1].editId
 			}
@@ -63,7 +72,8 @@ function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, w
 		var lastEditId = lastCacheUpdate[id]
 		var latestEditId =  s.objectState.getCurrentEditId()
 		if(lastEditId){
-			s.objectState.getLastVersion(id, function(eId){
+			//console.log('getLastVersion: ' + staticBindings.getLastVersion)
+			staticBindings.getLastVersion(id, function(eId){
 				if(eId >= lastEditId){
 					//console.log('cache needs updating: ' + id + ' ' + lastEditId)
 					updateCacheValue(id, latestEditId, cb)
@@ -85,23 +95,28 @@ function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, w
 		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			//console.log('bindings: ' + JSON.stringify(bindings))
+			if(bindings.__mutatorKey){
+				//console.log('here^^^')
+				allHandle.getStateAt(bindings, editId, cb)
+				return
+			}
+			
+				//console.log('here**')
+				//console.log(new Error().stack)
 			exprHandle.getStateAt(bindings, editId, function(id){
+				//console.log('here***')
+				//_.errout('TODO')
 				if(id !== undefined){
 					getProperty(id, editId, function(pv){
-						/*allHandle.getStateAt(bindings, editId, function(rightPv){
-							if(JSON.stringify(pv) !== JSON.stringify(rightPv)){
-								console.log(JSON.stringify(rel, null, 2))
-								_.errout('error: ' + JSON.stringify([pv, rightPv]))
-							}*/
-							//console.log('got: ' + pv)
-							cb(pv)
-						//})
+						//console.log('here&&&: ' + pv)// + ' ' + cb)
+						cb(pv)
 					})
 				}else{
-					//console.log('got none')
+					//console.log('here&&&*')
 					cb(undefined)
 				}
 			})
+			
 		}/*,
 		getChangesBetween: function(bindings, startEditId, endEditId, cb){
 			context.
@@ -113,11 +128,15 @@ function wrapSingleValue(s, type, rel, exprHandle, macroExprHandle, allHandle, w
 	handle.getChangesBetween = allHandle.getChangesBetween
 	handle.getHistoricalChangesBetween = allHandle.getHistoricalChangesBetween
 	
+	handle.getPropertyValueAt = allHandle.getPropertyValueAt
+	
 	return handle
 }
 
-function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
-	_.assertLength(arguments, 7)
+function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws, staticBindings){
+	_.assertLength(arguments, 8)
+
+	if(rel.sync) _.errout('TODO')
 	
 	var letName = rel.params[1].implicits[0]
 	
@@ -175,7 +194,7 @@ function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
 		var lastEditId = lastCacheUpdate[id]
 		var latestEditId =  s.objectState.getCurrentEditId()
 		if(lastEditId){
-			s.objectState.getLastVersion(id, function(eId){
+			staticBindings.getLastVersion(id, function(eId){
 				if(eId >= lastEditId){
 					//console.log('last change for ' + id + ' at ' +  + eId + ' last update: ' + lastEditId)
 					updateCacheValue(id, latestEditId, cb)
@@ -196,6 +215,11 @@ function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
 		analytics: a,
 		getStateAt: function(bindings, editId, cb){
 			//console.log('bindings: ' + JSON.stringify(bindings))
+			if(bindings.__mutatorKey){
+				allHandle.getStateAt(bindings, editId, cb)
+				return
+			}
+			
 			exprHandle.getStateAt(bindings, editId, function(id){
 				//_.assert(_.isInt(id) || _.isInt(id.top))
 				if(_.isArray(id)){
@@ -216,13 +240,7 @@ function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
 					})
 				}else if(id){
 					getProperty(id, editId, function(pv){
-						/*allHandle.getStateAt(bindings, editId, function(rightPv){
-							if(JSON.stringify(pv) !== JSON.stringify(rightPv)){
-								console.log(JSON.stringify(rel, null, 2))
-								_.errout('error: ' + JSON.stringify([pv, rightPv]))
-							}*/
-							cb(pv)
-						//})
+						cb(pv)
 					})
 				}else{
 					cb([])
@@ -233,8 +251,10 @@ function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
 			context.
 		},*/
 		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			if(bindings.__mutatorKey) _.errout('TODO')
+			
 			if(startEditId === -1){
-				console.log('running property-cached single.set getHistoricalChangesBetween')
+				//console.log('running property-cached single.set getHistoricalChangesBetween')
 				exprHandle.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
 					if(changes.length === 1){
 						_.assertEqual(changes[0].type, 'set')
@@ -281,12 +301,15 @@ function wrapSet(s, type, rel, exprHandle, macroExprHandle, allHandle, ws){
 	
 	return handle
 }	
-function wrapProperty(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws){
+function wrapProperty(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws, staticBindings){
+	_.assertLength(arguments, 8)
+	
 	//return allHandle
+	
 	if(resultType.type === 'primitive' || resultType.type === 'object'){
-		return wrapSingleValue(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws)
+		return wrapSingleValue(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws, staticBindings)
 	}else if(resultType.type === 'set'){
-		return wrapSet(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws)
+		return wrapSet(s, resultType, rel, exprHandle, macroExprHandle, allHandle, ws, staticBindings)
 	}else if(resultType.type === 'map'){
 	}
 	return allHandle//just fall through for now

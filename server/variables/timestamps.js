@@ -15,17 +15,16 @@ schema.addFunction('timestamps', {
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'timestamps(versions)',
-	computeAsync: function(z, cb, versions){
+	computeSync: function(z, versions){
 		var result = {}
 		if(versions === undefined){
-			cb(result)
-			return
+			return result
 		}
 		versions.forEach(function(v){
 			var ts = z.objectState.getVersionTimestamp(v)
 			result[v] = ts
 		})
-		cb(result)
+		return result
 	}
 })
 

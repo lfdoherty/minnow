@@ -1,0 +1,112 @@
+
+//we have to be careful we don't send out user objects, since that includes private info.
+addon(user user, sessionId int) 100
+	userId user.id 1
+	username user.email 2
+	userData user.data 3
+	contact user.contact 4
+	session currentSession(sessionId) 6
+	userChats map(chatsByUser(user),{~.chatUid},{count(~.comments)}) 9
+	sidebarWidth user.data.sidebarWidth 10
+
+currentSession(sessionId int){
+	one(subset(*userSession,{eq(~.syncId,sessionId)}))
+}
+
+getUser(user user) 121
+	user user 1
+
+getUserId(username string) 123
+	userId one(subset(*user,{eq(~.email,username)})) 1
+
+chatsByUser(user user){ subset(*chat,{in(~.participants,user)}) }
+
+
+userSettings(user user) 140
+	chatDisabled and(user.settings.chatDisabled,userGroups(user).settings.chatDisabled) 1
+	role user.settings.role 4
+	usePrompts user.settings.usePrompts 5
+	
+userGroups(user user){
+	subset(*group,{in(~.members,user.contact)})
+}
+
+tabpage(user user, tab webpage) 143
+	quotes subset(*quote, {and(not(~.removed),eq(~.creator,user.contact),eq(~.url,tab.url))}) 1
+	url tab.url 2
+
+chatByUid(chatUid string){one(subset(*chat,{eq(~.chatUid,chatUid)}))}
+
+getChat(chat chat) 141
+	chat chat 1
+
+getChatByUid(chatUid string) 134
+	chat chatByUid(chatUid) 1
+
+theUser(userId int){
+	user(userId)
+}
+
+getUserByName(username string) 2084
+	user one(subset(*user,{eq(~.email,username)})) 1
+	
+	
+participantRoles(chat chat){
+	mapMerge(
+		chatByUid(uid).participantRoles,
+		map(chat.participants,{~},{user(~).settings.role}),
+		map(chat.participants,{~},{one(userGroups(theUser(~)).settings.role)})
+	)
+}
+
+getChatParticipantNames(c chat) 156
+	participantNames each(c.participants, {~.displayName}) 1
+	
+chatPage(chatUid string, u user) 108
+	chat chatByUid(chatUid) 1
+	userContact u.contact 3
+	participantNames map(chatByUid(chatUid).participants, {~}, {~.displayName}) 2
+	possibleUserRoles userGroups(u).roles 4
+	possibleGenericPrompts userGroups(u).genericPrompts 5
+	usePrompts or(u.settings.usePrompts, userGroups(u).settings.usePrompts) 6
+	manyUserGroups count(userGroups(u)) 7
+
+userAdmin(user user) 127
+	user contact(user) 1
+	groups subset(*group, {eq(~.creator,user.contact)}) 2
+	
+groupAdmin(adminUser user, group group) 129
+	group group 1
+	groupUsers group.members 2
+	allUsers each(*user,{~.contact}) 3
+
+groupOwner(group group) 130
+	ownerId group.creator.userId 1//creator(group) 1
+
+getGroup(group group) 131
+	group group 1
+
+getGroupByNameFunction(name string){
+	one(subset(*group,{eq(name,~.name)}))
+}
+getGroupByName(name string) 132
+	group getGroupByNameFunction(name) 1
+
+userPage(user user) 139
+	userId user.id 1
+	userEmail user.email 2
+	settings userSettings(user) 4
+	groupNames userGroups(user).name 5
+	possibleUserRoles userGroups(user).roles 6
+	userSettings user.settings 7
+
+getUserSet(us userSet) 151
+	userSet us 1
+
+getUserSetAdministrator(us userSet, u user) 152
+	userSet us 1
+	isAdmin or(in(us.administrators, u.contact), eq(us.creator, u.contact)) 2
+	
+
+empty() 1999
+

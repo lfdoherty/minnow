@@ -23,21 +23,6 @@ exports.syntax = 'range(int, int)'
 
 var log = require('quicklog').make('minnow/range')
 
-exports.compute = function(paramValues){
-	//++unions
-	var a = paramValues[0]
-	var b = paramValues[1]
-	
-	var arr = []
-	for(var i=a;i<b;++i){
-		arr.push(i)
-	}
-	
-	log(a + ' ' + b + ' ' + JSON.stringify(arr))
-	
-	return arr
-}
-
 exports.computeSync = function(z, a, b){
 	var arr = []
 	for(var i=a;i<b;++i){

@@ -18,6 +18,8 @@ function wrapInputExprInNot(inputExpr, p){
 		name: inputImplicit,
 		schemaType: inputExpr.schemaType.members
 	}
+	var bindingsUsed = {}
+	bindingsUsed[inputImplicit] = true
 	var res = {
 		type: 'view',
 		view: 'each',
@@ -26,6 +28,7 @@ function wrapInputExprInNot(inputExpr, p){
 			{type: 'macro',
 				implicits: [inputImplicit],
 				schemaType: inputExpr.schemaType.members,
+				bindingsUsed: bindingsUsed,
 				expr: {	
 					type: 'view',
 					view: 'filter',
@@ -59,6 +62,12 @@ function wrapInputExprInNot(inputExpr, p){
 function applySubsetOptimizationToView(r){
 	if(r.type === 'view'){
 		//console.log('here: ' + JSON.stringify(r))
+		/*if(r.view === 'mutate'){
+			//return r
+			r.params[0] = applySubsetOptimizationToView(r.params[0])
+			//TODO for now, at least, we cannot apply subset optimizations inside a mutate rest block
+			return r
+		}*/
 		if(r.view === 'each' && r.params[1].expr.view === 'filter'){
 			var expr = r.params[1].expr.params[1]
 			var implicits = r.params[1].implicits
@@ -157,23 +166,37 @@ function applySubsetOptimizationToView(r){
 
 function makeMultimap(r, inputExpr, implicit, macroPropertyExpr){
 	var reduceImplicits = ['reduce_'+Math.random(), 'reduce_'+Math.random()]
+	var bindingsUsedA = {}
+	bindingsUsedA[implicit] = true
+	var bindingsUsedB = {}
+	bindingsUsedB[implicit] = true
+	var bindingsUsedC = {}
+	bindingsUsedC[reduceImplicits[0]] = true
+	bindingsUsedC[reduceImplicits[1]] = true
 	var map = {
 		type: 'view', 
 		view: 'multimap', 
 		isSubsetOptimizationMultimap: true,
 		params: [
 			inputExpr,
-			{type: 'macro', expr: macroPropertyExpr, implicits: [implicit], manyImplicits: 1, 
-				schemaType: macroPropertyExpr.schemaType},
+			{type: 'macro', expr: macroPropertyExpr, 
+				implicits: [implicit], 
+				manyImplicits: 1, 
+				implicitTypes: [inputExpr.schemaType.members],
+				schemaType: macroPropertyExpr.schemaType,
+				bindingsUsed: bindingsUsedA
+			},
 			{type: 'macro', 
 				expr: {
 					type: 'param', 
 					name: implicit, 
 					schemaType: r.schemaType.members
 				}, 
-				implicits: [implicit], 
+				implicits: [implicit],
+				implicitTypes: [r.schemaType.members],
 				manyImplicits: 1, 
-				schemaType: r.schemaType.members
+				schemaType: r.schemaType.members,
+				bindingsUsed: bindingsUsedB
 			},
 			{type: 'macro', expr: 
 				{type: 'view', view: 'union', 
@@ -184,8 +207,10 @@ function makeMultimap(r, inputExpr, implicit, macroPropertyExpr){
 					schemaType: r.schemaType
 				},
 				implicits: reduceImplicits, 
+				implicitTypes: [r.schemaType,r.schemaType],
 				manyImplicits: 2,
-				schemaType: r.schemaType
+				schemaType: r.schemaType,
+				bindingsUsed: bindingsUsedC
 			}
 		],
 		schemaType: {
@@ -261,6 +286,7 @@ function applyAndSubsetOptimization(r, inputExpr, implicit, macroPropertyExprs, 
 	}
 	return combination
 }
+/*
 function makeSubsetOptimization(r, combinationMacro, externalParamExprs, mapExprs){
 	var params = [combinationMacro]
 	externalParamExprs.forEach(function(epe, index){
@@ -274,5 +300,5 @@ function makeSubsetOptimization(r, combinationMacro, externalParamExprs, mapExpr
 		schemaType: r.schemaType,
 		code: r.code
 	}
-}
+}*/
 

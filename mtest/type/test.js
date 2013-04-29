@@ -45,7 +45,7 @@ exports.innerTypeSwitch = function(config, done){
 				})
 
 				minnow.makeClient(config.port, function(otherClient){
-					otherClient.view('general', function(err, v){
+					otherClient.view('empty', function(err, v){
 						var e = v.make('entity')
 						e.subs.addNew('suba', {name: 'Bill'})
 						e.subs.addNew('subb', {name: 'hidden'})

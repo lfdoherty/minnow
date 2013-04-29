@@ -17,16 +17,19 @@ exports.make = function(dataDir, schema, ol, cb){
 
 	//var inv = require('./inverse').make();
 	
-	var broadcaster = require('./broadcast').make(schema);
+	//var broadcaster = require('./broadcast').make(schema);
 	//inv.setBroadcaster(broadcaster)
 	
-	apState.external.setBroadcaster(broadcaster)
+	//apState.external.setBroadcaster(broadcaster)
 	
 	//TODO apf load should go straight to OLE
+	
+	ol.propertyIndex.endIndexAttaching()
+	
 	apf.load(dataDir, schema, ol.readers, ol.getLatestVersionId(), function(aph){
 	
 		apState.setAp(aph)
-		cb(apState.external, broadcaster, aph.close.bind(aph))
+		cb(apState.external, aph.close.bind(aph))
 	})
 
 }

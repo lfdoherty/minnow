@@ -119,8 +119,12 @@ function setupUserStuff(c, v, cb){
 			webGroup.members.add(u.contact)
 		
 			var session = v.make('userSession', {user: u.id()})
+			u.setProperty('currentSession', session)
+
 			var tab = v.make('tab', {url: tabUrl}, function(){
-			
+
+				session.setProperty('currentTab', tab)
+				
 				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title'}, function(){
 				
 					makeSidebar(c, u, function(){
@@ -140,10 +144,10 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.candidateSidebarForm.fork()
+				candidateSidebar = v.make('sidebar', {})//v.candidateSidebarForm.fork()
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
-			//console.log('forked sidebar')
+			console.log('forked sidebar')
 			v.userData.setProperty('sidebarForm', v.candidateSidebarForm)
 			v.userData.setProperty('sidebar', candidateSidebar)
 			console.log('made sidebar')
@@ -159,11 +163,44 @@ exports.openOverlayPage = function(config, done){
 				if(err) throw err
 				
 				setupUserStuff(client, c, function(u, session, tab){
+					console.log('user stuff ready')
 
 					minnow.makeClient(config.port, function(otherClient){
+						console.log('getting view')
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 					
+							done()
+						})
+					})
+				})	
+			})
+		})
+	})
+}
+
+exports.openOverlayPageHistory = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('empty', function(err, c){
+				if(err) throw err
+				
+				setupUserStuff(client, c, function(u, session, tab){
+
+					minnow.makeClient(config.port, function(otherClient){
+						console.log('getting historical view')
+						otherClient.historicalView('userStoryPage', [u], function(err, v){
+							if(err) throw err
+					
+							console.log('here')
+							var stepCount = 0
+							while(!v.isAtEnd()){
+								console.log('step: ' + JSON.stringify(v.toJson()).length)
+								var next = v.advance()
+								console.log('next: ' + next)
+								++stepCount
+							}
+							
 							done()
 						})
 					})
@@ -186,13 +223,22 @@ exports.checkHistory = function(config, done){
 							if(err) throw err
 					
 							console.log('children: ' + v.children)
+							//console.log(JSON.stringify(v.sidebar))
+							v.sidebar.locally(function(){
+								v.sidebar.setForked(v.sidebarForm)
+							})
 							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
 							_.assert(v.sidebar.elements.count() > 0)
 							
-							console.log('history: ' + v.sidebar.elements.at(0))
-							console.log('history parent: ' + v.sidebar.elements.at(0).getTopParent())
+							//console.log('history: ' + v.sidebar.elements.at(0))
+							//console.log('history parent: ' + v.sidebar.elements.at(0).getTopParent())
+							console.log('history: ' + v.sidebar.elements.at(0).id())
+							console.log('history parent: ' + v.sidebar.elements.at(0).getTopParent().id())
+							console.log(childMap.toJson())
+							console.log(JSON.stringify(v.historyData.toJson()))
+							//console.log(JSON.stringify(v.sidebar.elements.at(0).elements.toJson()))
 
 							var set = childMap.get(v.sidebar.elements.at(0).id())
 							
@@ -212,6 +258,7 @@ exports.checkHistory = function(config, done){
 			})
 		})
 	})
+	return 20*1000
 }
 
 exports.checkQuote = function(config, done){
@@ -227,6 +274,10 @@ exports.checkQuote = function(config, done){
 							if(err) throw err
 							
 							console.log(JSON.stringify(v.children.toJson()))
+							
+							v.sidebar.locally(function(){
+								v.sidebar.setForked(v.sidebarForm)
+							})
 							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
@@ -249,50 +300,66 @@ exports.checkQuote = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
-								setTimeout(function(){//TODO REMOVE
-									console.log('localWebpage: ' + localWebpage.id())
-									console.log('children: ' + v.children)
-									console.log('quote id: ' + quote.id())
-							
-									var childObj = v.children.get(localWebpage.id())
-									_.assertObject(childObj)
-									var childMap = childObj.children
-									var quotesField = localWebpage.elements.at(2)
-									console.log('quotesField id: ' + quotesField.id())
-									console.log('historyField id: ' + historyField.id())
-									console.log(childMap.toJson())
-									console.log(localWebpage.id() + ' ' + JSON.stringify(v.children.toJson(), null, 2))
-									var set = childMap.get(quotesField.id())
-									//console.log('set: ' + set)
-									
-									_.assertDefined(set)
-									
-									_.assert(set.count() === 1)
-									
-									done()
-								},600)
+								console.log('localWebpage: ' + localWebpage.id())
+								console.log('children: ' + v.children)
+								console.log('quote id: ' + quote.id())
+						
+								var childObj = v.children.get(localWebpage.id())
+								_.assertObject(childObj)
+								var childMap = childObj.children
+								var quotesField = localWebpage.elements.at(2)
+								console.log('quotesField id: ' + quotesField.id())
+								console.log('historyField id: ' + historyField.id())
+								console.log(childMap.toJson())
+								console.log(localWebpage.id() + ' ' + JSON.stringify(v.children.toJson(), null, 2))
+								var set = childMap.get(quotesField.id())
+								//console.log('set: ' + set)
 								
-							})
-							//console.log('made quote')
-							
-							/*webpage.removed.set(true)
-							
-							setTimeout(function(){
-							
-								_.assert(set.count() === 0)
+								_.assertDefined(set)
+								
+								_.assert(set.count() === 1)
 								
 								done()
-							},1000)*/
+							})
 						})
 					})
 				})	
 			})
 		})
 	})
+	
+	return 10*1000
 }
 
+
+exports.checkQuoteCount = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('empty', function(err, c){
+				if(err) throw err
+				
+				setupUserStuff(client, c, function(u, session, tab, webpage){
+
+					minnow.makeClient(config.port, function(otherClient){
+						otherClient.view('statsPage', [u], function(err, v){
+							if(err) throw err
+							
+							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+
+								_.assertEqual(v.webpagesQuoted.value(), 1)
+								done()
+							})
+						})
+					})
+				})	
+			})
+		})
+	})
+	
+	return 10*1000
+}
 exports.checkQuoteRemoval = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -305,6 +372,10 @@ exports.checkQuoteRemoval = function(config, done){
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 							
+							v.sidebar.locally(function(){
+								v.sidebar.setForked(v.sidebarForm)
+							})
+							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
 							_.assert(v.sidebar.elements.count() > 0)
@@ -316,60 +387,49 @@ exports.checkQuoteRemoval = function(config, done){
 							set.each(function(nv){localWebpage = nv;})
 							
 							localWebpage.locally(function(){
-								localWebpage.setForked(v.sidebar.bookmarkForm)
+								localWebpage.setForked(v.sidebarForm.bookmarkForm)
 							})
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
-								setTimeout(function(){//TODO REMOVE
-									//console.log('localWebpage: ' + localWebpage.id())
-									//console.log('children: ' + v.children)
-									//console.log('quote id: ' + quote.id())
-							
-									var childObj = v.children.get(localWebpage.id())
-									_.assertObject(childObj)
-									var childMap = childObj.children
-									var quotesField = localWebpage.elements.at(2)
-									//console.log('quotesField id: ' + quotesField.id())
+								console.log('localWebpage: ' + localWebpage.id())
+								console.log('children: ' + v.children)
+								console.log('quote id: ' + quote.id())
+						
+								var childObj = v.children.get(localWebpage.id())
+								_.assertObject(childObj)
+								var childMap = childObj.children
+								var quotesField = localWebpage.elements.at(2)
+								//console.log('quotesField id: ' + quotesField.id())
+								var set = childMap.get(quotesField.id())
+								//console.log('set: ' + set)
+								
+								_.assert(set.count() === 1)
+								
+								//done()
+								quote.removed.set(true)
+								
+								setTimeout(function(){//TODO attach cb to quote.removed.set operation
+									//TODO check that 'set' retrieved above has been invalidated as well
+									
 									var set = childMap.get(quotesField.id())
-									//console.log('set: ' + set)
+									console.log(childMap+'')
+									_.assert(set === undefined || set.count() === 0)
 									
-									_.assert(set.count() === 1)
-									
-									//done()
-									quote.removed.set(true)
-									
-									setTimeout(function(){
-										//TODO check that 'set' retrieved above has been invalidated as well
-										
-										var set = childMap.get(quotesField.id())
-										_.assert(set === undefined || set.count() === 0)
-										
-										done()
-									},1900)
-								},600)
-								
+									done()
+								},5900)
 							})
-							//console.log('made quote')
-							
-							/*webpage.removed.set(true)
-							
-							setTimeout(function(){
-							
-								_.assert(set.count() === 0)
-								
-								done()
-							},1000)*/
 						})
 					})
 				})	
 			})
 		})
 	})
+	
+	return 20*1000//desired delay
 }
-
 
 exports.checkQuoteDoubleAdd = function(config, done){
 	minnow.makeServer(config, function(){
@@ -383,6 +443,10 @@ exports.checkQuoteDoubleAdd = function(config, done){
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 							
+							v.sidebar.locally(function(){
+								v.sidebar.setForked(v.sidebarForm)
+							})
+							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
 							_.assert(v.sidebar.elements.count() > 0)
@@ -394,55 +458,42 @@ exports.checkQuoteDoubleAdd = function(config, done){
 							set.each(function(nv){localWebpage = nv;})
 							
 							localWebpage.locally(function(){
-								localWebpage.setForked(v.sidebar.bookmarkForm)
+								localWebpage.setForked(v.sidebarForm.bookmarkForm)
 							})
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = c.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
-								setTimeout(function(){//TODO REMOVE
-									//console.log('localWebpage: ' + localWebpage.id())
-									//console.log('children: ' + v.children)
-									//console.log('quote id: ' + quote.id())
-							
-									var childObj = v.children.get(localWebpage.id())
-									_.assertObject(childObj)
-									var childMap = childObj.children
-									var quotesField = localWebpage.elements.at(2)
-									//console.log('quotesField id: ' + quotesField.id())
-									var set = childMap.get(quotesField.id())
-									//console.log('set: ' + set)
-									
-									_.assert(set.count() === 1)
-									
-									//done()
-									//quote.removed.set(true)
-									
-									c.make('quote', {creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl})
-									
-									setTimeout(function(){
-										_.assert(set.count() === 2)
-										
-										done()
-									},900)
-								},300)
+								console.log('localWebpage: ' + localWebpage.id())
+								console.log('children: ' + v.children)
+								console.log('quote id: ' + quote.id())
+						
+								var childObj = v.children.get(localWebpage.id())
+								_.assertObject(childObj)
+								var childMap = childObj.children
+								var quotesField = localWebpage.elements.at(2)
+								//console.log('quotesField id: ' + quotesField.id())
+								var set = childMap.get(quotesField.id())
+								//console.log('set: ' + set)
 								
+								_.assert(set.count() === 1)
+								
+								//done()
+								//quote.removed.set(true)
+								
+								v.make('quote', {creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
+									_.assert(set.count() === 2)
+									
+									done()
+								})
 							})
-							//console.log('made quote')
-							
-							/*webpage.removed.set(true)
-							
-							setTimeout(function(){
-							
-								_.assert(set.count() === 0)
-								
-								done()
-							},1000)*/
 						})
 					})
 				})	
 			})
 		})
 	})
+	
+	return 20*1000//desired delay before test times out
 }

@@ -3,7 +3,7 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
-
+/*
 exports.basicFork = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -65,14 +65,7 @@ exports.forkChangedImmediately = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
-			
-				/*done.poll(function(){
-					if(c.has('e')) console.log((c.e.has('name')?c.e.name.rally:'noname') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' + c)
-					if(c.has('e') && c.e.name.value() === 'original'){
-						done()
-						return true
-					}
-				})*/
+
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
@@ -327,14 +320,14 @@ exports.allForked = function(config, done){
 		})
 	})
 }
-
+*/
 exports.preforkedQuery = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('forkQueryPreforked', function(err, c){
 			
 				done.poll(function(){
-					console.log(c.has('e') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
+					//console.log(c.has('e') + ' ' + c.e._gg + ' ' + c.e.special + ' ' + c.e._isFork + ' ' +  c.e._forkedObject + ' ' +c)
 					if(c.has('e') && c.e.name.value() !== 'purpled' && c.e.reallyAFork.value()){
 						done()
 						return true
@@ -353,7 +346,7 @@ exports.preforkedQuery = function(config, done){
 		})
 	})
 }
-
+/*
 exports.forkWithLocalEdits = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -378,4 +371,4 @@ exports.forkWithLocalEdits = function(config, done){
 			})
 		})
 	})
-}
+}*/

@@ -71,7 +71,7 @@ function establishSocket(appName, schema, host, cb){
 	var syncId
 	
 	ws.onerror = function(err) {
-		_.errout('error: ' + err)
+		console.log('error: ' + err)
 	}
 	
 	var api
@@ -148,7 +148,7 @@ function establishSocket(appName, schema, host, cb){
 		persistEdit: function(op, edit){
 			_.assertInt(op)
 			_.assertObject(edit)
-			console.log('sending edit: ' + JSON.stringify({op: op, edit: edit}))
+			//console.log('sending edit: ' + JSON.stringify({op: op, edit: edit}))
 			send({data: {op: op, edit: edit}});
 		},
 		make: function(type, json, forget, cb, temporary){

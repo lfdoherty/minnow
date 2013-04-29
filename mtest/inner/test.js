@@ -10,10 +10,10 @@ exports.inner = function(config, done){
 			client.view('general', function(err, c){
 			
 				done.poll(function(){
-					//console.log('done.polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
+					console.log('done.polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s') && c.s.size() === 1){
 						var d;
-						//console.log('got s to 1')
+						console.log('got s to 1')
 						c.s.each(function(dd){d = dd;})
 						if(d.wrappedValue.value() === 'test' && d.wrappedOtherValue.value() === 'test2'){
 							done()

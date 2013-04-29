@@ -42,7 +42,7 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 
 ObjectListHandle.prototype.prepare = stub
 
-ObjectListHandle.prototype.adjustPath = u.adjustObjectCollectionPath
+//ObjectListHandle.prototype.adjustPath = u.adjustObjectCollectionPath
 
 ObjectListHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 
@@ -59,6 +59,7 @@ ObjectListHandle.prototype.count = function(){return this.obj.length;}
 ObjectListHandle.prototype.size = ObjectListHandle.prototype.count;
 ObjectListHandle.prototype.types = u.genericCollectionTypes
 
+/*
 ObjectListHandle.prototype.adjustInto = function(id){
 	var remainingCurrentPath = this.parent.adjustPath(this.part)
 	if(remainingCurrentPath && remainingCurrentPath.length > 1){
@@ -69,8 +70,11 @@ ObjectListHandle.prototype.adjustInto = function(id){
 	}else if(remainingCurrentPath[0] !== id){
 		this.persistEdit(editCodes.reselectObject, {id: id})
 	}
-}
+}*/
 
+ObjectListHandle.prototype.positionOf = function(objHandle){
+	return this.obj.indexOf(objHandle)
+}
 ObjectListHandle.prototype.remove = function(objHandle){
 
 	//console.log('**removing')
@@ -79,7 +83,7 @@ ObjectListHandle.prototype.remove = function(objHandle){
 
 	var index = this.obj.indexOf(objHandle)
 
-	if(index !== undefined){
+	if(index !== -1){
 
 		this.obj.splice(index, 1);
 
@@ -196,6 +200,7 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		
 		this.obj.push(res)
 		res.prepare()
+		//console.log('object list added new to : ' + this.parent.type() + ' ' + this.parent.id())
 		return this.emit(edit, 'add', res)
 
 	}else if(op === editCodes.unshiftedNew){

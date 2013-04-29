@@ -9,6 +9,7 @@ user 301
 	admin boolean 15
 	settings settings 55
 	contact contact 56
+	currentSession userSession 58
 
 userData 5
 	contacts set:contact 14
@@ -24,10 +25,8 @@ userData 5
 userSession 19
 	user int 1
 	syncId int 2
-	tabsOpen set:webpage 3
-	searchQuery string 4
-	activeUrl string 5
-	activeTitle string 7
+	tabsOpen set:tab 3
+	currentTab tab 40
 	isExtensionSession boolean 6
 	
 settings 13

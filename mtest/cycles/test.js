@@ -7,7 +7,8 @@ exports.simplest = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('simpleOther', function(err, c){
-			
+				if(err) throw err
+				
 				done.poll(function(){
 					//console.log('done.polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s')){

@@ -154,7 +154,7 @@ ObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 			this.obj.splice(index, 1);
 
 			res.prepare()
-			console.log('removed: ' + res)
+			//console.log('removed: ' + res)
 			return this.emit(edit, 'remove', res)
 		}
 	}else{

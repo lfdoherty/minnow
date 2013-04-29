@@ -13,19 +13,8 @@ exports.type = type
 exports.minParams = 2
 exports.maxParams = 2
 exports.syntax = 'cast(typename,object)'
-exports.compute = function(paramValues){
-	return paramValues[1]
-}
-exports.computeAsync = function(z, cb, a, b){
-	cb(b)
-}
+
 exports.computeSync = function(z, a, b){
 	return b
-}
-
-exports.descender = function(paramTypes){
-	return function(paramValues){
-		return {prefix: [], index: 1}
-	}
 }
 

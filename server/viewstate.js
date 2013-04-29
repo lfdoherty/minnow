@@ -32,8 +32,8 @@ exports.makeGetAllSubtypes = makeGetAllSubtypes
 
 var analyticsLog = require('quicklog').make('minnow/analytics')
 
-exports.make = function(schema, globalMacros, broadcaster, objectState){
-	_.assertFunction(broadcaster.output.listenForNew)
+exports.make = function(schema, globalMacros, objectState, viewSequencer){
+	//_.assertFunction(broadcaster.output.listenForNew)
 
 	function checkParams(typeCode, params, errCb){
 		_.assertFunction(errCb)
@@ -63,7 +63,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 		return true
 	}
 	
-	var viewSequencer = newViewSequencer.make(schema, objectState, broadcaster)
+	//var viewSequencer = newViewSequencer.make(schema, objectState)
 	
 	var handle = {
 		beginView: function(e, seq, readyPacketCb){
@@ -128,7 +128,7 @@ exports.make = function(schema, globalMacros, broadcaster, objectState){
 			
 			var viewId = typeCode+':'+JSON.stringify(params)
 			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
-				console.log('got snap')
+				//console.log('got snap')
 				_.assertBuffer(snap)
 				cb(snap)
 			}));

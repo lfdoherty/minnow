@@ -31,7 +31,7 @@ BooleanHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 BooleanHandle.prototype.changeListener = u.primitiveChangeListener;
 BooleanHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 BooleanHandle.prototype.set = function(v){
-	if(this.obj === v) return
+	if(!!this.obj === v) return
 	
 	this.obj = v;
 

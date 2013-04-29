@@ -56,6 +56,9 @@ exports.apply = function(view){
 
 function applyEachOptimizationToView(r){
 	if(r.type === 'view'){
+		if(r.view === 'mutate'){//for now, at least, we cannot apply each optimizations inside a mutate block
+			return r
+		}
 		if(r.view === 'each'){
 			return applyEachOptimization(r)
 		}else{
@@ -118,6 +121,7 @@ function applyEachOptimization(rel){
 						implicitTypes: [rel.params[1].implicitTypes[0]]
 					}
 				], 
+				willBeOptimized: true,
 				uid: uid
 			}
 			m.schemaType = {type: 'map', key: m.params[1].schemaType, value: m.params[2].schemaType}

@@ -12,16 +12,10 @@ schema.addFunction('count', {
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'count(collection)',
-	computeAsync: function(z, cb, collection){
-		//console.log('counting ' + JSON.stringify(collection))
-		if(_.isObject(collection)){
-			cb(Object.keys(collection).length)
-		}else{
-			cb(collection.length)
-		}
-	},
 	computeSync: function(z, collection){
 		//console.log('counting ' + JSON.stringify(collection))
+		
+		//console.log(new Error().stack)
 		if(_.isObject(collection)){
 			return Object.keys(collection).length
 		}else{

@@ -10,13 +10,14 @@ var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
 
-function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, context, ws){
+function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings){
 	var objSchema = s.schema[contextType.object]
-	var propertyCode = objSchema.properties[propertyName].code
+	var p = objSchema.properties[propertyName]
+	var propertyCode = p.code
 	
 	var nameStr = 'property-single(' + context.name+','+propertyName + ')'
 
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	var getProperty = staticBindings.makeGetPropertyAt(objSchema.code, propertyCode)
 	
 	/*
 	var cache = {}
@@ -65,6 +66,8 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 		}
 	}*/
 	
+	var wsPc = wu.makeUtilities(p.type)
+	
 	var a = analytics.make('property-single['+propertyName+']('+context.name+')', [context])
 	var handle = {
 		name: nameStr,
@@ -73,7 +76,7 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 			context.getStateAt(bindings, editId, function(id){
 				//console.log(JSON.stringify(bindings) + ' ' + context.name + ' got id at: ' + editId + ' ' + id)
 				if(id !== undefined){
-					getProperty(id, editId, function(pv){
+					getProperty(bindings, id, editId, function(pv){
 						a.gotProperty(propertyCode)
 						//console.log(id+'('+objSchema.name+').'+propertyName+' is ' + pv + ' at ' + editId)
 						cb(pv)
@@ -96,9 +99,10 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 						}
 						startEditId = changes[0].editId
 						_.assertDefined(id)
-						getProperty(id, startEditId, function(pv){
+						getProperty(bindings, id, startEditId, function(pv){
 							a.gotProperty(propertyCode)
-							s.objectState.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(changes){
+							//s.objectState.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(changes){
+							staticBindings.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(changes){
 								a.gotPropertyChanges(propertyCode)
 								if(changes.length > 0){
 
@@ -134,27 +138,78 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
 			if(startEditId === -1){
 				context.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
+					//console.log('computing property-single historical changes with context: ' + JSON.stringify(changes))
 					if(changes.length === 1){
 						//_.errout('TODO: ' + JSON.stringify(changes))
 						var c = changes[0]
 						var id = c.value
 						_.assertEqual(c.type, 'set')
-						getProperty(id, c.editId, function(startPv){
+						getProperty(bindings, id, c.editId, function(startPv){
 							var allChanges = []
 							if(startPv !== undefined){
 								if(_.isArray(startPv)) _.errout('error, not a single value: ' + JSON.stringify(startPv))
 								allChanges.push({type: 'set', value: startPv, editId: c.editId})
 							}
-							s.objectState.getHistoricalPropertyChangesDuring(id, propertyCode, c.editId, endEditId, function(propertyChanges){
+							//s.objectState
+							staticBindings.getHistoricalPropertyChangesDuring(id, propertyCode, c.editId, endEditId, function(propertyChanges){
 								//_.errout('TODO: ' + JSON.stringify([startPv, propertyChanges]))
 								allChanges = allChanges.concat(propertyChanges)
-								//console.log(JSON.stringify([startEditId, endEditId, changes, startPv, propertyChanges]))
+								//console.log('here: ' + JSON.stringify([startEditId, endEditId, changes, startPv, propertyChanges, allChanges]))
 								cb(allChanges)
 							})
 						})						
 					}else{
-						console.log('*falling back to slow single.single getHistoricalChangesBetween')
-						genericGetHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
+					
+						context.getStateAt(bindings, startEditId, function(firstId){
+							var allEditIds = [firstId]
+							var has = {}
+							has[firstId] = true
+							
+							var allResults = []
+							
+							var cdl = _.latch(changes.length, function(){
+								var results = []
+								for(var i=0;i<allResults.length;++i){
+									results = results.concat(allResults[i])
+								}
+								cb(results)
+							})
+							
+							changes.forEach(function(c, index){
+								var nextEditId = index+1<changes.length?changes[index+1]:endEditId
+								if(c.type === 'set'){
+									//_.assertDefined(c.old)
+									if(c.old !== undefined){
+										getProperty(bindings, c.old, c.editId, rest)
+									}else{
+										rest(undefined)
+									}
+									
+									function rest(oldValue){
+										getProperty(bindings, c.value, c.editId, function(newValue){
+
+											staticBindings.getHistoricalPropertyChangesDuring(c.value, propertyCode, c.editId, nextEditId, function(propertyChanges){
+												//_.errout('tODO diff: ' + JSON.stringify([oldValue, newValue]))
+												var es = wsPc.diffFinder(oldValue, newValue)
+												var res = []
+												es.forEach(function(e){
+													e.editId = c.editId
+													res.push(e)
+												})
+											
+												allResults[index] = res.concat(propertyChanges)
+												cdl()
+											})
+										})
+									}
+								}else{
+									_.errout('tODO: ' + JSON.stringify(c))
+								}
+							})
+						})
+						
+						//console.log('*falling back to slow single.single getHistoricalChangesBetween: ' + JSON.stringify(changes))
+						//genericGetHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
 					}
 				})
 				return
@@ -163,7 +218,8 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 					if(changes.length === 0){
 						//cb([])
 						context.getStateAt(bindings, startEditId, function(id){
-							s.objectState.getHistoricalPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(propertyChanges){
+							//s.objectState.
+							staticBindings.getHistoricalPropertyChangesDuring(id, propertyCode, startEditId, endEditId, function(propertyChanges){
 								//console.log('for ' + id + ' got changes: ' + JSON.stringify(propertyChanges))
 								cb(propertyChanges)
 							})
@@ -244,17 +300,17 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 		}
 	}
 	
-	var genericGetHistoricalChangesBetween = makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
+	var genericGetHistoricalChangesBetween = wu.makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
 	
 	return handle
 }
 
-function wrapSetSingleProperty(s, propertyName, propertyType, contextType, context, ws){
+function wrapSetSingleProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings){
 	var objSchema = s.schema[contextType.members.object]
 	var propertyCode = objSchema.properties[propertyName].code
 	var a = analytics.make('property-set['+propertyName+']('+context.name+')', [context])
 
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	var getProperty = staticBindings.makeGetPropertyAt(objSchema.code, propertyCode)
 
 	var handle = {
 		name: 'property-set',
@@ -272,7 +328,7 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 				})
 				state.forEach(function(e){
 					var id = e.value
-					getProperty(id, editId, function(propertyValue){
+					getProperty(bindings, id, editId, function(propertyValue){
 						a.gotProperty(propertyCode)
 						_.assertPrimitive(propertyValue)
 						if(propertyValue !== undefined){
@@ -294,7 +350,7 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 				})
 				state.forEach(function(e){
 					var id = e.value
-					getProperty(id, editId, function(propertyValue){
+					getProperty(bindings, id, editId, function(propertyValue){
 						a.gotProperty(propertyCode)
 						_.assertPrimitive(propertyValue)
 						if(propertyValue !== undefined){
@@ -311,7 +367,7 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 	if(propertyType.type === 'object' || propertyType.type === 'primitive' || propertyType.type === 'view'){
 		handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
 		
-		var genericGetHistoricalChangesBetween = makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
+		var genericGetHistoricalChangesBetween = wu.makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
 		handle.getHistoricalChangesBetween = genericGetHistoricalChangesBetween
 		/*handle.getHistoricalChangesBetween = function(){
 			_.errout('TODO')
@@ -323,15 +379,15 @@ function wrapSetSingleProperty(s, propertyName, propertyType, contextType, conte
 	return handle
 }
 
-function wrapSetSetProperty(s, propertyName, propertyType, contextType, context, ws){
+function wrapSetSetProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings){
 	var objSchema = s.schema[contextType.members.object]
 	var propertyCode = objSchema.properties[propertyName].code
 	var a = analytics.make('property-set-set['+propertyName+']('+context.name+')', [context])
 
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	var getProperty = s.facade.makeGetPropertyAt(objSchema.code, propertyCode)
 	//var getChang = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
 	function getChanges(id, startEditId, endEditId, cb){
-		s.objectState.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, cb)
+		staticBindings.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, cb)
 	}
 
 	var handle = {
@@ -347,7 +403,7 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 					cb(result)
 				})
 				state.forEach(function(id){
-					getProperty(id, editId, function(propertyValue){
+					getProperty(bindings, id, editId, function(propertyValue){
 						_.assertArray(propertyValue)
 						a.gotProperty(propertyCode)
 						for(var i=0;i<propertyValue.length;++i){
@@ -370,7 +426,7 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 				})
 				state.forEach(function(e){
 					var id = e.value
-					getProperty(id, editId, function(propertyValue){
+					getProperty(bindings, id, editId, function(propertyValue){
 						a.gotProperty(propertyCode)
 						_.assertPrimitive(propertyValue)
 						if(propertyValue !== undefined){
@@ -388,6 +444,39 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 				context.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
 					if(changes.length === 0){
 						cb([])
+					}else if(changes.length === 1 && startEditId === -1){
+						_.assertEqual(changes[0].type, 'add')
+						var singleAdded = changes[0].value
+						var singleEditId = changes[0].editId
+
+						getChanges(singleAdded, startEditId, endEditId, function(pcs){
+							var startValue = []
+							var after = []
+							for(var i=0;i<pcs.length;++i){
+								var c = pcs[i]
+								if(c.editId <= singleEditId){
+									if(c.type === 'add'){
+										startValue.push(c.value)
+									}else if(c.type === 'remove'){
+										var index = startValue.indexOf(c.value)
+										if(index !== -1){
+											startValue.splice(index, 1)
+										}
+									}else{
+										_.errout('TODO: ' + JSON.stringify(c))
+									}
+								}else if(c.editId <= endEditId){
+									after.push(c)
+								}
+							}
+							var all = []
+							for(var i=0;i<startValue.length;++i){
+								all.push({type: 'add', value: startValue[i], editId: singleEditId})
+							}
+							all = all.concat(after)
+							//console.log('computed ' + JSON.stringify([changes, pcs, all]))
+							cb(all)
+						})
 					}else if(changes[changes.length-1].editId === 0){
 
 						var allChanges = []
@@ -419,43 +508,19 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 						console.log(JSON.stringify(changes) + ' ' + context.name)
 						changes.forEach(function(c){
 							_.assertEqual(c.type, 'add')
-							getProperty(c.value, c.editId, function(startPv){
-								/*if(startPv !== undefined){
-									if(_.isArray(startPv)) _.errout('error, not a single value: ' + JSON.stringify(startPv))
-									allChanges.push({type: 'set', value: startPv, editId: c.editId})
-								}*/
+							getProperty(bindings, c.value, c.editId, function(startPv){
 								startPv.forEach(function(v){
 									allChanges.push({type: 'add', value: v, editId: 0})
 								})
-								s.objectState.getHistoricalPropertyChangesDuring(c.value, propertyCode, c.editId, endEditId, function(propertyChanges){
-									//_.errout('TODO: ' + JSON.stringify([startPv, propertyChanges]))
-									//allChanges = allChanges.concat(propertyChanges)
-									//console.log(JSON.stringify([startEditId, endEditId, changes, startPv, propertyChanges]))
-									//cb(allChanges)
+								staticBindings.getHistoricalPropertyChangesDuring(c.value, propertyCode, c.editId, endEditId, function(propertyChanges){
 									allChanges = allChanges.concat(propertyChanges)
 									cdl()
 								})
 							})		
 						})
-						//_.errout('TODO: ' + JSON.stringify(changes))
-						/*var c = changes[0]
-						var id = c.value
-						_.assertEqual(c.type, 'set')
-						getProperty(id, c.editId, function(startPv){
-							var allChanges = []
-							if(startPv !== undefined){
-								if(_.isArray(startPv)) _.errout('error, not a single value: ' + JSON.stringify(startPv))
-								allChanges.push({type: 'set', value: startPv, editId: c.editId})
-							}
-							s.objectState.getHistoricalPropertyChangesDuring(id, propertyCode, c.editId, endEditId, function(propertyChanges){
-								//_.errout('TODO: ' + JSON.stringify([startPv, propertyChanges]))
-								allChanges = allChanges.concat(propertyChanges)
-								//console.log(JSON.stringify([startEditId, endEditId, changes, startPv, propertyChanges]))
-								cb(allChanges)
-							})
-						})	*/					
+									
 					}else{
-						console.log('*falling back to slow set.set getHistoricalChangesBetween')
+						console.log('*falling back to slow set.set getHistoricalChangesBetween: ' + JSON.stringify(changes))
 						genericGetHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
 					}
 				})
@@ -469,7 +534,7 @@ function wrapSetSetProperty(s, propertyName, propertyType, contextType, context,
 	handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
 	
 	//handle.getHistoricalChangesBetween = makeSetSetHistoricalChangesBetween(handle, ws, context, getProperty, getChanges)
-	var genericGetHistoricalChangesBetween = makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
+	var genericGetHistoricalChangesBetween = wu.makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
 	//handle.getHistoricalChangesBetween = genericGetHistoricalChangesBetween
 	
 	return handle
@@ -545,7 +610,7 @@ function makeSetSetHistoricalChangesBetween(handle, ws, context, getProperty, ge
 							
 							inputState.push(c.value)
 							++rem
-							getProperty(c.value, c.editId, function(pv){
+							getProperty(bindings, c.value, c.editId, function(pv){
 								pv.forEach(function(v){
 									ars.push({type: 'add', value: v, editId: c.editId})
 								})
@@ -565,7 +630,7 @@ function makeSetSetHistoricalChangesBetween(handle, ws, context, getProperty, ge
 							if(!idRemoveAdds[c.value]) idRemoveAdds[c.value] = [{type: 'remove', editId: c.editId}]
 							else idRemoveAdds[c.value].push({type: 'remove', editId: c.editId})
 							
-							getProperty(c.value, c.editId, function(pv){
+							getProperty(bindings, c.value, c.editId, function(pv){
 								pv.forEach(function(v){
 									ars.push({type: 'remove', value: v, editId: c.editId})
 								})
@@ -584,44 +649,15 @@ function makeSetSetHistoricalChangesBetween(handle, ws, context, getProperty, ge
 	}
 }
 
-function makeGenericHistoricalChangesBetween(handle, ws, context, getProperty){
-	return function(bindings, startEditId, endEditId, cb){
-		console.log('running slow getHistoricalChangesBetween')
-		//console.log(new Error().stack)
-		var cdl = _.latch(endEditId+1-startEditId, function(){
-			var changes = []
-			wu.range(startEditId, endEditId, function(editId, index){
-				var es = ws.diffFinder(states[index], states[index+1])
-				es.forEach(function(e){
-					//_.assert(editId > 0)
-					//if(editId < 0) _.errout(editId + ' nothing can happen before editId 1: ' + JSON.stringify([snaps[index], snaps[index+1]]))
-					e.editId = editId+1
-					changes.push(e)
-				})
-			})
-			//console.log('computed: ' + JSON.stringify([states, changes]))
-			cb(changes)
-		})
-		
-		var states = []
-		//console.log('getting all states: ' + startEditId + ' ' + endEditId)
-		wu.range(startEditId, endEditId+1, function(editId, index){
-			handle.getStateAt(bindings, editId, function(state){
-				states[index] = state
-				cdl()
-			})
-		})
-	}
-}
 
 
-function wrapSingleSetProperty(s, propertyName, propertyType, contextType, context, ws){
+function wrapSingleSetProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings){
 	var objSchema = s.schema[contextType.object]
 	var propertyCode = objSchema.properties[propertyName].code
 	var nameStr = 'property-single-set['+propertyName+']('+context.name+')'
 	var a = analytics.make(nameStr, [context])
 
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	var getProperty = staticBindings.makeGetPropertyAt(objSchema.code, propertyCode)
 
 	var handle = {
 		name: nameStr,
@@ -639,10 +675,11 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 					_.errout('invalid null value instead of undefined')
 				}
 
-				getProperty(id, editId, function(propertyValue){
-				//s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
+				getProperty(bindings, id, editId, function(propertyValue){
+
 					a.gotProperty(propertyCode)
-					//console.log(editId + ' got* property value ' + id + '.' + propertyCode+': ' + propertyValue)
+					//console.log(editId + ' got* property value ' + id + '.' + propertyCode+': ' + JSON.stringify(propertyValue))
+					
 					_.assertArray(propertyValue)
 					cb(propertyValue)
 				})
@@ -655,7 +692,8 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 			context.getStateAt(bindings, endEditId, function(endId){
 				if(id !== endId){
 					if(id === undefined){
-						s.objectState.getPropertyChangesDuring(endId, propertyCode, -1, endEditId, function(changes){
+						//s.objectState.
+						staticBindings.getPropertyChangesDuring(endId, propertyCode, -1, endEditId, function(changes){
 							a.gotPropertyChanges(propertyCode)
 							cb(changes)
 						})
@@ -666,7 +704,8 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 					if(id === undefined){
 						cb([])
 					}else{
-						s.objectState.getPropertyChangesDuring(endId, propertyCode, startEditId, endEditId, function(changes){
+						//s.objectState.
+						staticBindings.getPropertyChangesDuring(endId, propertyCode, startEditId, endEditId, function(changes){
 							a.gotPropertyChanges(propertyCode)
 							cb(changes)
 						})
@@ -682,30 +721,100 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 				if(changes.length === 0){
 					cb([])
 				}else if(changes.length === 1){
+					//console.log('^^')
 					var c = changes[0]
 					var id = c.value
 					_.assertEqual(c.type, 'set')
-					getProperty(id, c.editId, function(startPv){
+					getProperty(bindings, id, c.editId, function(startPv){
 						var allChanges = []
 						_.assertArray(startPv)
 						
 						startPv.forEach(function(v){
 							allChanges.push({type: 'add', value: v, editId: c.editId})
 						})
-						/*if(startPv !== undefined){
-							if(_.isArray(startPv)) _.errout('error, not a single value: ' + JSON.stringify(startPv))
-							//allChanges.push({type: 'set', value: startPv, editId: c.editId})
-							
-						}*/
-						s.objectState.getHistoricalPropertyChangesDuring(id, propertyCode, c.editId, endEditId, function(propertyChanges){
+
+						staticBindings.getHistoricalPropertyChangesDuring(id, propertyCode, c.editId, endEditId, function(propertyChanges){
 							//_.errout('TODO: ' + JSON.stringify([startPv, propertyChanges]))
 							allChanges = allChanges.concat(propertyChanges)
 							//console.log(JSON.stringify([startEditId, endEditId, changes, startPv, propertyChanges]))
+							//console.log('^^-')
 							cb(allChanges)
 						})
 					})		
+				}else if(startEditId === -1){
+				//	console.log('^^%')
+					
+					var allChanges = {}
+					var allStates = {}
+					var alreadyGetting = {}
+					
+					var cdl = _.latch(changes.length, function(){
+						var resultChanges = []
+						changes.forEach(function(c, index){
+						
+							var nextEditId = index+1 < changes.length? changes[index+1].editId : endEditId
+							
+							var currentState = []
+							if(c.type === 'set'){
+								var stateAtAdd = allStates[c.value+':'+c.editId]
+								var propertyChanges = allChanges[c.value]
+								var es = ws.diffFinder(currentState, stateAtAdd)
+								es.forEach(function(e){
+									e.editId = c.editId
+									resultChanges.push(e)
+								})
+								currentState = stateAtAdd
+								for(var i=0;i<propertyChanges.length;++i){
+									var pc = propertyChanges[i]
+									if(pc.editId < c.editId) continue
+									if(pc.editId > nextEditId) break
+									resultChanges.push(pc)
+									if(pc.type == 'add'){
+										currentState.push(pc.value)
+									}else if(pc.type === 'remove'){
+										var index = currentState.indexOf(pc.value)
+										currentState.splice(index, 1)
+									}else{
+										_.errout('TODO: ' + JSON.stringify(pc))
+									}
+								}
+							}else if(c.type === 'clear'){
+								var es = ws.diffFinder(currentState, [])
+								currentState = []
+								es.forEach(function(e){
+									e.editId = c.editId
+									resultChanges.push(e)
+								})
+							}else{
+								_.errout('TODO: ' + JSON.stringify(c))
+							}
+						})
+						cb(resultChanges)
+					})
+					
+					changes.forEach(function(c, index){
+						//var nextEditId = index+1 < changes.length? changes[index+1].editId : endEditId
+						if(c.type === 'set'){
+							if(alreadyGetting[c.value]){
+								cdl()
+								return
+							}
+							alreadyGetting[c.value] = true
+							getProperty(bindings, c.value, c.editId, function(pv){
+								allStates[c.value+':'+c.editId] = pv
+								staticBindings.getHistoricalPropertyChangesDuring(c.value, propertyCode, c.editId, endEditId, function(propertyChanges){
+									allChanges[c.value] = propertyChanges
+									cdl()
+								})
+							})
+						}else if(c.type === 'clear'){
+							cdl()
+						}else{
+							_.errout('TODO: ' + JSON.stringify(c))
+						}
+					})
 				}else{
-					console.log('*falling back to slow single.set getHistoricalChangesBetween')
+					console.log('*falling back to slow single.set getHistoricalChangesBetween: ' + JSON.stringify(changes))
 					genericGetHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
 				}
 			})
@@ -798,19 +907,19 @@ function wrapSingleSetProperty(s, propertyName, propertyType, contextType, conte
 	}*/
 	//makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
 
-	var genericGetHistoricalChangesBetween = makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
-	handle.getHistoricalChangesBetween = genericGetHistoricalChangesBetween	
+	var genericGetHistoricalChangesBetween = wu.makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
+	//handle.getHistoricalChangesBetween = 
 	
 	return handle
 }
 
-function wrapSingleMapProperty(s, propertyName, propertyType, contextType, context, ws){
+function wrapSingleMapProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings){
 	var objSchema = s.schema[contextType.object]
 	var propertyCode = objSchema.properties[propertyName].code
 	var nameStr = 'property-single-map['+propertyName+']('+context.name+')'
 	var a = analytics.make(nameStr, [context])
 
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	var getProperty = staticBindings.makeGetPropertyAt(objSchema.code, propertyCode)//s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
 
 	var handle = {
 		name: nameStr,
@@ -825,7 +934,7 @@ function wrapSingleMapProperty(s, propertyName, propertyType, contextType, conte
 				}
 
 				//s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
-				getProperty(id, editId, function(propertyValue){
+				getProperty(bindings, id, editId, function(propertyValue){
 					//console.log(editId + ' got property value ' + id + '.' + propertyCode+': ' + propertyValue)
 					a.gotProperty(propertyCode)
 					_.assertObject(propertyValue)
@@ -835,24 +944,27 @@ function wrapSingleMapProperty(s, propertyName, propertyType, contextType, conte
 		}
 	}
 
-	handle.getChangesBetween = function(bindings, startEditId, endEditId, cb){
+	handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
+	handle.getHistoricalChangesBetween = wu.makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
+
+	/*handle.getChangesBetween = function(bindings, startEditId, endEditId, cb){
 		_.errout('TODO')
 	}
 
 	handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
 		_.errout('TODO')
-	}
+	}*/
 	
 	return handle
 }
 
 
-function wrapSetMapProperty(s, propertyName, propertyType, contextType, context, ws){
+function wrapSetMapProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings){
 	var objSchema = s.schema[contextType.members.object]
 	var propertyCode = objSchema.properties[propertyName].code
 	var a = analytics.make('property-set-map['+propertyName+']('+context.name+')', [context])
 	
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	var getProperty = staticBindings.makeGetPropertyAt(objSchema.code, propertyCode)
 	
 	var handle = {
 		name: 'property-set-map',
@@ -871,7 +983,7 @@ function wrapSetMapProperty(s, propertyName, propertyType, contextType, context,
 				})
 				state.forEach(function(id){
 					//s.objectState.getPropertyValueAt(id, propertyCode, editId, function(propertyValue){
-					getProperty(id, editId, function(propertyValue){
+					getProperty(bindings, id, editId, function(propertyValue){
 						a.gotProperty(propertyCode)
 						//console.log(editId + ' got property value ' + id + '.' + propertyCode+': ' + propertyValue)
 						_.assertObject(propertyValue)
@@ -887,11 +999,7 @@ function wrapSetMapProperty(s, propertyName, propertyType, contextType, context,
 	}
 
 	handle.getChangesBetween = makeGenericEditsBetween(handle, ws)
-	
-	/*handle.getHistoricalChangesBetween = function(bindings, startEditId, endEditId, cb){
-		_.errout('TODO')
-	}*/
-	handle.getHistoricalChangesBetween = makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
+	handle.getHistoricalChangesBetween = wu.makeGenericHistoricalChangesBetween(handle, ws, context, getProperty)
 
 	return handle
 }
@@ -950,30 +1058,30 @@ function makeGenericEditsBetween(handle, ws){
 
 
 	
-function wrapProperty(s, propertyName, propertyType, contextType, resultType, context, ws){
+function wrapProperty(s, propertyName, propertyType, contextType, resultType, context, ws, staticBindings){
 
 	if(propertyType.type === 'primitive' || propertyType.type === 'object'){
 		if(contextType.type === 'object'){
-			return wrapSingleSingleProperty(s, propertyName, propertyType, contextType, context, ws)
+			return wrapSingleSingleProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings)
 		}else if(contextType.type === 'set'){
-			return wrapSetSingleProperty(s, propertyName, propertyType, contextType, context, ws)
+			return wrapSetSingleProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings)
 		}else{
 		}
 	}else if(propertyType.type === 'set' || propertyType.type === 'list'){
 		if(contextType.type === 'object'){
 			//console.log(JSON.stringify(contextType))
 			//_.errout('here')
-			return wrapSingleSetProperty(s, propertyName, propertyType, contextType, context, ws)			
+			return wrapSingleSetProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings)			
 		}else if(contextType.type === 'set'){
-			return wrapSetSetProperty(s, propertyName, propertyType, contextType, context, ws)			
+			return wrapSetSetProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings)			
 		}else{
 			_.errout('TODO: ' + JSON.stringify(contextType))
 		}
 	}else if(propertyType.type === 'map'){
 		if(contextType.type === 'object'){
-			return wrapSingleMapProperty(s, propertyName, propertyType, contextType, context, ws)			
+			return wrapSingleMapProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings)			
 		}else if(contextType.type === 'set'){
-			return wrapSetMapProperty(s, propertyName, propertyType, contextType, context, ws)			
+			return wrapSetMapProperty(s, propertyName, propertyType, contextType, context, ws, staticBindings)			
 		}else{
 		}
 	}else{

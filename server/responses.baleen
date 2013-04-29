@@ -2,12 +2,12 @@
 setup 9
 	serverInstanceUid string 1
 	connectionId string 2//used for reconnecting by the client
-
+/*
 confirmReconnect 16
 	manyClientMessagesReceived int 1
 
 reconnectExpired 17
-
+*/
 newSyncId 8
 	requestId int 1
 	syncId int 2
@@ -58,8 +58,7 @@ objectMade 10
 	temporary int 3
 	destinationSyncId int 4
 
-
-
+	
 reifyObject 15
 	id int 1
 	temporary int 2

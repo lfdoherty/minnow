@@ -36,23 +36,94 @@ function multimapType(rel, ch){
 	}
 	return {type: 'map', key: keyType, value: valueType}
 }
+
+//var inn = 0
 schema.addFunction('multimap', {
 	schemaType: multimapType,
 	//implementation: multimapMaker,
 	minParams: 3,
 	maxParams: 3,
 	callSyntax: 'multimap(collection,key-macro,value-macro)',
+	computeValueSync: function(z, cb, desiredKey, set, keyMacro, valueMacro){
+		var result = []
+		var has = {}
+		//++inn
+		//console.log(' computing multimap value...')
+		var cdl = _.latch(set.length, function(){
+			//console.log(' computed multimap value' + JSON.stringify(set) + ' ' + JSON.stringify(map) + ' ' + JSON.stringify(z.schemaType))
+			cb(result)
+		})
+		function putAdd(key, value){
+			if(has[value]) return
+			result.push(value)
+			has[value] = true
+		}
+		set.forEach(function(v){
+			keyMacro.get(v, function(key){
+				if(z.schemaType.key.primitive === 'boolean'){
+					key = !!key
+				}
+				//console.log('key ' + key + ', ' + desiredKey)
+				if(_.isArray(key) || key === desiredKey){
+					valueMacro.get(v, function(value){
+						//console.log('multimap ' + JSON.stringify(key) + ' ' + JSON.stringify(value))
+						if(_.isArray(value)){
+							if(_.isArray(key)){
+								key.forEach(function(k){
+									if(k !== desiredKey){
+										cdl()
+										return
+									}
+									value.forEach(function(v){
+										putAdd(k, v)
+									})
+								})
+							}else{
+								value.forEach(function(v){
+									putAdd(key, v)
+								})
+							}
+						}else{
+							if(_.isArray(key)){
+								key.forEach(function(k){
+									if(k !== desiredKey){
+										cdl()
+										return
+									}
+									putAdd(k, value)
+								})
+							}else{
+								putAdd(key, value)
+							}
+						}
+						cdl()
+					})
+				}else{
+					cdl()
+				}					
+			})
+		})
+	},
 	computeAsync: function(z, cb, set, keyMacro, valueMacro){
 		var map = {}
+		var hasMap = {}
+		//++inn
+		//console.log(' computing multimap...')
 		var cdl = _.latch(set.length, function(){
-			//console.log('computed multimap ' + JSON.stringify(set) + ' ' + JSON.stringify(map))
+			//--inn
+			//console.log(' computed multimap ' + JSON.stringify(set) + ' ' + JSON.stringify(map) + ' ' + JSON.stringify(z.schemaType))
 			cb(map)
 		})
 		function putAdd(key, value){
+			if(z.schemaType.key.primitive === 'boolean'){
+				key = !!key
+			}
 			if(map[key] === undefined){
 				map[key] = []
+				hasMap[key] = {}
 			}
-			if(map[key].indexOf(value) === -1){
+			if(hasMap[key][value] === undefined){
+				hasMap[key][value] = true
 				map[key].push(value)
 			}
 		}
@@ -87,6 +158,53 @@ schema.addFunction('multimap', {
 				
 			})
 		})
+	},
+	computeSync: function(z, set, keyMacro, valueMacro){
+		var map = {}
+		var hasMap = {}
+
+		function putAdd(key, value){
+			if(z.schemaType.key.primitive === 'boolean'){
+				key = !!key
+			}
+			if(map[key] === undefined){
+				map[key] = []
+				hasMap[key] = {}
+			}
+			if(hasMap[key][value] === undefined){
+				hasMap[key][value] = true
+				map[key].push(value)
+			}
+		}
+		set.forEach(function(v){
+			var key = keyMacro.get(v)
+			//_.assertPrimitive(key)
+			var value = valueMacro.get(v)
+			//console.log('multimap ' + JSON.stringify(key) + ' ' + JSON.stringify(value))
+			if(_.isArray(value)){
+				if(_.isArray(key)){
+					key.forEach(function(k){
+						value.forEach(function(v){
+							putAdd(k, v)
+						})
+					})
+				}else{
+					value.forEach(function(v){
+						putAdd(key, v)
+					})
+				}
+			}else{
+				if(_.isArray(key)){
+					key.forEach(function(k){
+						putAdd(k, value)
+					})
+				}else{
+					putAdd(key, value)
+				}
+			}
+		})
+	//	console.log('map: ' + JSON.stringify(map))
+		return map
 	}
 })
 

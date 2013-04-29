@@ -14,10 +14,6 @@ schema.addFunction('filter', {
 	minParams: 2,
 	maxParams: 2,
 	callSyntax: 'filter(any,boolean)',
-	computeAsync: function(z, cb, v, state){
-		if(state) cb(v)
-		else cb(undefined)//?
-	},
 	computeSync: function(z, v, state){
 		return state?v:undefined
 	}

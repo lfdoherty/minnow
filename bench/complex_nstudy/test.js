@@ -1,14 +1,12 @@
 "use strict";
 
 /* 
-	Time to beat (N, ms): (50000,16320)
-	
+	Time to beat (N, ms): 	(50000, 9251)
+							(100000,16859)
 */
 
 
-var N = 50000
-
-
+var N = 1000*100
 
 var minnow = require('./../../client/client')//this is the minnow include
 
@@ -30,7 +28,6 @@ function setupSidebarForm(c, v, cb){
 		
 		h.admin.set(true)
 		var webGroup = v.make('group', {name: 'web', creator: contact, doNotDisplayChatContacts: true, settings: {}}, function(){
-			//setupGroupListening()
 			
 			var jot = v.make('nest', {name: 'jot'})
 			
@@ -45,7 +42,6 @@ function setupSidebarForm(c, v, cb){
 				{type: 'text', name: 'Notes'},
 				{type: 'quotes', name: 'Quotes'},
 				{type: 'snippets', name: 'Snippets'}
-				//{type: 'history'}
 			]})
 			var snippetForm = v.make('snippet', {elements: [
 				{type: 'slider', name: 'Rate your mastery from 1 to 5:'}
@@ -74,7 +70,6 @@ function setupSidebarForm(c, v, cb){
 			
 			var sidebar = v.make('sidebar', {name: 'DefaultWebSidebar', creator: contact, hideHeader: true, elements: [
 					{type: 'history', hideHeader: true, elements: [
-						//newMenu,
 						contactsField
 					]}
 				],
@@ -127,10 +122,11 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.candidateSidebarForm.fork()
+				candidateSidebar = v.make('sidebar', {})
+				console.log(v.candidateSidebarForm._internalId())
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
-			//console.log('forked sidebar')
+			console.log('forked sidebar')
 			v.userData.setProperty('sidebarForm', v.candidateSidebarForm)
 			v.userData.setProperty('sidebar', candidateSidebar)
 			console.log('made sidebar')
@@ -153,6 +149,10 @@ function run(){
 					minnow.makeClient(u.config.port, function(otherClient){
 						otherClient.view('overlayPage', [um, session, tab], function(err, v){
 							if(err) throw err
+							
+							v.sidebar.locally(function(){
+								v.sidebar.setForked(v.sidebarForm)
+							})
 							
 							console.log(JSON.stringify(v.children.toJson()))
 							
@@ -181,6 +181,8 @@ function run(){
 								var quote = c.make('quote', {creator: um.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, true)
 							}
 							
+							var quotesMade = Date.now()
+							
 							poll(function(){
 								var childObj = v.children.get(localWebpage.id())
 								if(!childObj) return
@@ -192,6 +194,7 @@ function run(){
 								var set = childMap.get(quotesField.id())
 								if(set && set.count() === Math.min(20,N) && v.quoteCount.value() === N){
 									console.log('done: ' + (Date.now()-start))
+									console.log('after write: ' + (Date.now()-quotesMade))
 									process.exit(0)
 								}else if(set){
 									console.log('count: ' + set.count())
@@ -199,33 +202,6 @@ function run(){
 									//console.log(JSON.stringify(childMap.toJson()))
 								}
 							})
-											
-							/*
-								setTimeout(function(){//TODO REMOVE
-									console.log('localWebpage: ' + localWebpage.id())
-									console.log('children: ' + v.children)
-									console.log('quote id: ' + quote.id())
-							
-									var childObj = v.children.get(localWebpage.id())
-									_.assertObject(childObj)
-									var childMap = childObj.children
-									var quotesField = localWebpage.elements.at(2)
-									console.log('quotesField id: ' + quotesField.id())
-									console.log('historyField id: ' + historyField.id())
-									console.log(childMap.toJson())
-									console.log(localWebpage.id() + ' ' + JSON.stringify(v.children.toJson(), null, 2))
-									var set = childMap.get(quotesField.id())
-									//console.log('set: ' + set)
-									
-									_.assertDefined(set)
-									
-									_.assert(set.count() === 1)
-									
-									done()
-								},600)
-								
-							})*/
-
 						})
 					})
 				})	

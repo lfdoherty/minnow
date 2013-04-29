@@ -3,12 +3,74 @@ var _ = require('underscorem')
 var analytics = require('./../analytics')
 var wu = require('./../wraputil')
 
-exports.make = function(s, rel, recurse, handle, ws){
+function makeWithIndex(s, rel, recurseSync, handle, ws, staticBindings, allHandle, objSchema, propertyCode, keysAreBoolean){
+	
+	var a = analytics.make('multimap-optimization-with-index', [])
+	
+	var p = propertyCode===-2?propertyCode:objSchema.propertiesByCode[propertyCode]
+	var index = staticBindings.makeReversePropertyIndex(objSchema, p)
+	_.assertFunction(index.getValueChangesBetween)
+	_.assertDefined(index.getValueAt)
+	
+	var inputSet = recurseSync(rel.params[0])
 
-	//console.log(JSON.stringify(rel, null, 2))
+	var forwardIndex = staticBindings.makePropertyIndex(objSchema, p)
 	
-	var inputSet = recurse(rel.params[0])
-	
+	var handle = {
+		name: 'multimap-optimization',
+		analytics: a,
+		getValueStateAt: function(key, bindings, editId, cb){
+			cb(index.getValueAt(bindings, key, editId))
+		},
+		getValueAt: function(key, bindings, editId){
+			return index.getValueAt(bindings, key, editId)
+		},
+		getValueBetween: function(key, bindings, startEditId, endEditId){
+			//console.log('getting value changes between for: ' + key)
+			return index.getValueChangesBetween(bindings, key, startEditId, endEditId)
+		},
+		getValueChangesBetween: function(key, bindings, startEditId, endEditId, cb){
+			cb(index.getValueChangesBetween(bindings, key, startEditId, endEditId))
+		},
+		getAt: function(bindings, editId){
+			_.assertLength(arguments, 2)
+			
+			var ids = inputSet.getAt(bindings, editId)
+			var m = {}
+			for(var i=0;i<ids.length;++i){
+				var id = ids[i]
+				var v = forwardIndex.getValueAt(bindings, id, editId)
+				var arr = m[v]
+				if(!arr){
+					arr = m[v] = []
+				}
+				arr.push(id)
+			}
+			//console.log('m: ' + JSON.stringify(m))
+			return m
+		},
+		getStateAt: function(bindings, editId, cb){
+			_.errout('TODO')
+			//TODO keep in mind domain issue
+		},
+		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
+			_.errout('TODO')
+			//TODO keep in mind domain issue
+		}
+	}
+	handle.getChangesBetween = handle.getHistoricalChangesBetween
+
+	return handle
+}
+
+exports.make = make
+exports.makeSync = function(s, rel, recurse, handle, ws, staticBindings, allHandle){
+	return make(s, rel, recurse, handle, ws, staticBindings, allHandle, true)
+}
+
+function make(s, rel, recurse, handle, ws, staticBindings, allHandle, mustBeSync){
+	_.assertObject(staticBindings)
+
 	var propertyName = rel.params[1].expr.params[0].value
 	var objectName = rel.params[0].schemaType.members.object
 	var objSchema = s.schema[objectName]
@@ -21,21 +83,32 @@ exports.make = function(s, rel, recurse, handle, ws){
 		propertyCode = p.code
 	}
 
-	var a = analytics.make('multimap-optimization', [inputSet])
+	var keyValueSchemaType = rel.params[2].schemaType
+	if(keyValueSchemaType.type !== 'set') keyValueSchemaType = {type: 'set', members: keyValueSchemaType}
+	var kws = wu.makeUtilities(keyValueSchemaType)
+	var keysAreBoolean = rel.params[1].expr.schemaType.primitive === 'boolean'
 
-	var getProperty = s.objectState.makeGetPropertyAt(objSchema.code, propertyCode)
+	//console.log(JSON.stringify(rel, null, 2))
+	//if(/*rel.params[0].view === 'typeset' && propertyCode !== -2*/){
+	return makeWithIndex(s, rel, recurse, handle, ws, staticBindings, allHandle, objSchema, propertyCode, keysAreBoolean)
+	//}
+	/*
+	if(mustBeSync) _.errout('cannot make sync, but must: ' + propertyCode)
+	
+	var inputSet = recurse(rel.params[0])
+	
+
+	var a = analytics.make('multimap-optimization', [inputSet,allHandle])
+
+	var getProperty = staticBindings.makeGetPropertyAt(objSchema.code, propertyCode)
 	function getPropertyAt(id, editId, cb){
 		a.gotProperty(propertyCode)
-		getProperty(id, editId, cb)
+		getProperty({}, id, editId, cb)
 	}
 	
 	if(!inputSet.getMayHaveChangedAndInAtStart) _.errout('missing getMayHaveChangedAndInAtStart: ' + inputSet.name)
 	
 	
-	var keyValueSchemaType = rel.params[2].schemaType
-	if(keyValueSchemaType.type !== 'set') keyValueSchemaType = {type: 'set', members: keyValueSchemaType}
-	var kws = wu.makeUtilities(keyValueSchemaType)
-	var keysAreBoolean = rel.params[1].expr.schemaType.primitive === 'boolean'
 	//console.log('keysAreBoolean: ' + keysAreBoolean)
 	//console.log(JSON.stringify(rel, null, 2))
 	
@@ -64,7 +137,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 						_.errout('TODO: ' + JSON.stringify(c))
 					}
 				}
-				//console.log('updated cache to: ' + JSON.stringify(permanentCache))
+				//console.log(keysAreBoolean + ' updated cache to: ' + JSON.stringify(permanentCache))
 				cb()
 			})
 		}else{
@@ -97,7 +170,8 @@ exports.make = function(s, rel, recurse, handle, ws){
 					cdl()
 				}
 				for(var i=0;i<inputMayHaveChanged.length;++i){
-					s.objectState.getPropertyChangesDuring(inputMayHaveChanged[i], propertyCode, startEditId, endEditId, propertyChangeProcessor)
+					a.gotPropertyChanges(propertyCode)
+					staticBindings.getPropertyChangesDuring(inputMayHaveChanged[i], propertyCode, startEditId, endEditId, propertyChangeProcessor)
 				}
 				function processChange(id, c){
 					//console.log('processing change: ' + JSON.stringify(c))
@@ -122,7 +196,7 @@ exports.make = function(s, rel, recurse, handle, ws){
 					if(c.type === 'add'){
 						getPropertyAt(c.value, c.editId, function(ps){
 							a.gotProperty(propertyCode)
-							s.objectState.getPropertyChangesDuring(c.value, propertyCode, c.editId, endEditId, function(pcs){
+							staticBindings.getPropertyChangesDuring(c.value, propertyCode, c.editId, endEditId, function(pcs){
 								a.gotPropertyChanges(propertyCode)
 								//console.log('changes: ' + JSON.stringify(pcs))
 								if(pcs.length === 0 || pcs[0].editId !== c.editId){
@@ -163,8 +237,18 @@ exports.make = function(s, rel, recurse, handle, ws){
 		name: 'multimap-optimization',
 		analytics: a,
 		getValueStateAt: function(key, bindings, editId, cb){
-			updateCacheTo(editId, function(){
-				var changes = permanentCache[key]||[]
+			if(bindings.__mutatorKey){
+				if(!allHandle.getValueStateAt) _.errout('missing getValueStateAt: ' + allHandle.name)
+				allHandle.getValueStateAt(key, bindings, editId, cb)
+				return
+			}
+			
+			if(keysAreBoolean){
+				key = !!key
+			}
+			
+			function computeValue(){
+				var changes =permanentCache[key]||[]
 				var state = []
 				//console.log('changes: ' + JSON.stringify(changes))
 				for(var i=0;i<changes.length;++i){
@@ -181,10 +265,23 @@ exports.make = function(s, rel, recurse, handle, ws){
 						_.errout('TODO: ' + JSON.stringify(c))
 					}
 				}
+				//console.log('computed value: ' + state.length)
 				cb(state)
-			})
+			}
+			
+			updateCacheTo(editId, computeValue)
 		},
 		getValueChangesBetween: function(key, bindings, startEditId, endEditId, cb){
+			if(bindings.__mutatorKey){
+				console.log('multimap optimization falling back')
+				allHandle.getValueStateAt(key, bindings, startEditId, endEditId, cb)
+				return
+			}
+			
+			if(keysAreBoolean){
+				key = !!key
+			}
+			
 			updateCacheTo(endEditId, function(){
 				var changes = permanentCache[key]||[]
 				var realChanges = []
@@ -200,6 +297,13 @@ exports.make = function(s, rel, recurse, handle, ws){
 			})
 		},
 		getStateAt: function(bindings, editId, cb){
+			
+			if(bindings.__mutatorKey){
+				console.log('*multimap optimization falling back')
+				allHandle.getStateAt(bindings, editId, cb)
+				return
+			}
+			
 			updateCacheTo(editId, function(){
 				var state = {}
 				//console.log('colllecting state')
@@ -228,6 +332,12 @@ exports.make = function(s, rel, recurse, handle, ws){
 		},
 		getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
 			//_.errout('why is this being called?')
+			if(bindings.__mutatorKey){
+				console.log('**multimap optimization falling back')
+				allHandle.getHistoricalChangesBetween(bindings, startEditId, endEditId, cb)
+				return
+			}
+			
 			updateCacheTo(endEditId, function(){
 				var allChanges = []
 				cacheKeys.forEach(function(key){
@@ -254,5 +364,5 @@ exports.make = function(s, rel, recurse, handle, ws){
 		}
 	}
 	handle.getChangesBetween = handle.getHistoricalChangesBetween
-	return handle
+	return handle*/
 }

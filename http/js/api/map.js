@@ -100,20 +100,39 @@ MapHandle.prototype.each = function(cb){
 			_.errout('TODO: ' + JSON.stringify(local.schema));
 		}
 	}else{
-		Object.keys(this.obj).forEach(function(key){
-			var idOrValue = local.obj[key];
-			//console.log(key + ' ' + JSON.stringify(Object.keys(local.obj)))
-			_.assertDefined(idOrValue)
-			if(typeof(idOrValue) === 'number'){
-				var a = local.apiCache[idOrValue];
-				if(a === undefined) a = local.getObjectApi(id);
-				cb(key, a);
-			}else{
-				//_.errout('TODO: ' + JSON.stringify(local.schema));
-				cb(key, idOrValue)
-			}
-		})
-		
+		if(this.schema.type.key.type === 'object'){
+			Object.keys(this.obj).forEach(function(key){
+				var idOrValue = local.obj[key];
+				
+				//var k = local.apiCache[key];
+				//if(k === undefined) k = local.getObjectApi(key);
+				var k = local.getObjectApi(parseInt(key));
+				k.prepare()
+
+				_.assertDefined(idOrValue)
+				if(typeof(idOrValue) === 'number'){
+					var a = local.apiCache[idOrValue];
+					if(a === undefined) a = local.getObjectApi(idOrValue);
+					cb(k, a);
+				}else{
+					cb(k, idOrValue)
+				}
+			})
+		}else{
+			Object.keys(this.obj).forEach(function(key){
+				var idOrValue = local.obj[key];
+				//console.log(key + ' ' + JSON.stringify(Object.keys(local.obj)))
+				_.assertDefined(idOrValue)
+				if(typeof(idOrValue) === 'number'){
+					var a = local.apiCache[idOrValue];
+					if(a === undefined) a = local.getObjectApi(id);
+					cb(key, a);
+				}else{
+					//_.errout('TODO: ' + JSON.stringify(local.schema));
+					cb(key, idOrValue)
+				}
+			})
+		}		
 	}
 }
 
@@ -153,7 +172,7 @@ MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
 	this.adjustCurrentProperty(this.part)
 	this.adjustCurrentKey(key, this.keyOp)
 }
-
+/*
 MapHandle.prototype.adjustPath = function adjustMapPath(key){
 	if(this.schema.type.value.type === 'primitive'){
 		_.assertDefined(key)
@@ -194,7 +213,7 @@ MapHandle.prototype.adjustPath = function adjustMapPath(key){
 		}
 		return []
 	}
-}
+}*/
 MapHandle.prototype.del = function(key){
 
 	this.adjustPathLocal(key)
@@ -210,6 +229,7 @@ MapHandle.prototype.put = function(newKeyObj, newValue){
 	var newKey
 	if(newKeyObj._internalId){
 		newKey = newKeyObj._internalId()
+		//_.assert(newKey !== -1)
 	}else{
 		newKey = newKeyObj
 	}
@@ -221,6 +241,10 @@ MapHandle.prototype.put = function(newKeyObj, newValue){
 	if(this.obj[newKey] === newValue) return
 
 
+	//if(this.schema.type.key.type === 'object'){
+	//	_.assert(newKey !== -1)
+	//}
+	
 	this.adjustPathLocal(newKey)
 	
 	if(this.schema.type.value.type === 'object'){

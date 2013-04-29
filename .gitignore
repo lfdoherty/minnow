@@ -15,3 +15,6 @@ bench/*/*/
 minnow_data
 .temp_schema_file*
 *.heapsnapshot
+*stack_count.report.html
+mtest/*.pem
+mtest/cover_html/

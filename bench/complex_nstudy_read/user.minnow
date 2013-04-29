@@ -1,0 +1,11 @@
+
+user 301
+	createdTime long 1
+	emailChangedTime long 2
+	passwordChangedTime long 3
+	email string 5
+	hash string 7
+
+session 302
+	user user 1
+	token string 2

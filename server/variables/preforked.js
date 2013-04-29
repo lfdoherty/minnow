@@ -15,8 +15,8 @@ function type(rel, ch){
 }
 schema.addFunction('preforked', {
 	schemaType: type,
-	minParams: 2,
-	maxParams: 2,
-	callSyntax: 'preforked(obj,newPreforked)'
+	minParams: 1,
+	maxParams: 1,
+	callSyntax: 'preforked(toForkFrom)'
 })
 

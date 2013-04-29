@@ -15,6 +15,7 @@ var eachOptimization = require('./each_optimization').apply
 var subsetOptimization = require('./subset_optimization').apply
 var deduplicateLets = require('./deduplicate_lets').apply
 var propertyDerivedCache = require('./property_derived_cache').apply
+var forceSync = require('./force_sync').apply
 
 //builtin stuff
 
@@ -307,6 +308,7 @@ function computeBindingsUsed(expr){
 	//console.log('computing bindings used: ' + JSON.stringify(expr))
 	if(expr.type === 'macro'){
 		var used = computeBindingsUsed(expr.expr)
+		_.assertDefined(used)
 		expr.bindingsUsed = used
 		return used
 	}else if(expr.type === 'view'){
@@ -1206,7 +1208,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		rel.expr.schemaType = computeTypeWrapper(rel.expr, bindingTypes, implicits)
 		var newBindingTypes = _.extend({},bindingTypes)
 		newBindingTypes[rel.name] = rel.expr.schemaType
-		if(rel.rest.type === 'macro') _.errout('logic bug')
+		//if(rel.rest.type === 'macro') _.errout('logic bug')
 		rel.schemaType = computeTypeWrapper(rel.rest, newBindingTypes, implicits)
 		return rel.schemaType
 	}else if(rel.type === 'macro'){//macro is the inline form (alternate types: global-macro, bound-macro)
@@ -1459,13 +1461,21 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 	fs.writeFile(schemaDirs[0] + '/view.schema.generated', vsStr, 'utf8');
 
 	if(!disableOptimizations){
+
+		forceSync(result, schema)
+
 		globalizeOptimization(result)
 		subsetOptimization(result)
 		globalizeOptimization(result)
-		eachOptimization(result)
+		//eachOptimization(result)
+		
 		globalizeOptimization(result)
 		deduplicateLets(result)
-		propertyDerivedCache(result)
+
+		//forceSync(result, schema)
+		//propertyDerivedCache(result, computeBindingsUsed)
+
+		forceSync(result, schema)
 	}
 	
 	function stringizeType(t){
@@ -1476,6 +1486,8 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 				}else{
 					return t.view;
 				}
+			}else if(t.type === 'nil'){
+				return 'nil'
 			}
 		});
 	}
@@ -1489,9 +1501,9 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 		var str = ''
 		if(rel.type === 'view'){
 			if(rel.view === 'property' && rel.params[1].type === 'param'){
-				str += tabs(tabDepth) + stringizeType(rel.params[1].schemaType)+'^'+rel.params[1].name + '.' + rel.params[0].value + '\n'
+				str += tabs(tabDepth) + stringizeType(rel.params[1].schemaType)+'^'+rel.params[1].name + '.' + rel.params[0].value + ' ' + (rel.sync?'s':'a') + '\n'
 			}else{
-				str += tabs(tabDepth) + rel.view + '\n'
+				str += tabs(tabDepth) + rel.view + ' ' + (rel.sync?'s':'a') + '\n'
 				rel.params.forEach(function(p, index){
 					str += /*tabs(tabDepth) + */stringizeView(p, tabDepth+1,viewSchema)// + //'\n'
 				})
@@ -1499,6 +1511,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 			//str += '\n'
 			//str += tabs(tabDepth-1) + ')'
 		}else if(rel.type === 'macro'){
+			_.assertDefined(rel.bindingsUsed)
 			var body = stringizeView(rel.expr,tabDepth+1,viewSchema)
 			/*if(body.length < 30){
 				str += '{'+body+'}'
@@ -1509,7 +1522,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 					if(i > 0) str += ', '
 					str += rel.implicits[i]
 				}
-				str += ']\n'
+				str += '] ' + (rel.sync?'s':'a') + '\n'
 				//while(body.charAt(0) === '\t') body = body.substr(1)
 				str += body
 				//str += '}'
@@ -1517,7 +1530,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 		}else if(rel.type === 'param'){
 			str += tabs(tabDepth) + stringizeType(rel.schemaType)+'^'+rel.name+'\n'
 		}else if(rel.type === 'let'){
-			str += tabs(tabDepth) + 'let ' + rel.name + ' be\n'
+			str += tabs(tabDepth) + 'let ' + rel.name + ' be ' + (rel.sync?'s':'a') + '\n'
 			str += stringizeView(rel.expr, tabDepth+1, viewSchema)
 			//str += tabs(tabDepth) + 'for\n'
 			str += stringizeView(rel.rest, tabDepth+1, viewSchema)

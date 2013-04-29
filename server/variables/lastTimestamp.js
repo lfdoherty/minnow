@@ -19,7 +19,7 @@ schema.addFunction('timestamp', {
 	maxParams: 1,
 	callSyntax: 'timestamp(version)'
 })
-
+/*
 function maker(s, self, rel, typeBindings){
 	var elementGetter = self(rel.params[0], typeBindings)
 	
@@ -67,11 +67,7 @@ function svg(s, cache, elementGetter, bindings, editId){
 		detach: function(listener, editId){
 			listeners.remove(listener)
 			if(editId && timestamp){
-				/*for(var i=0;i<versions.length;++i){
-					var v = versions[i]
-					var t = timestamps[v]
-					listener.del(v,editId)
-				}*/
+
 				listener.emitSet(undefined, timestamp, editId)
 			}
 		},
@@ -98,4 +94,4 @@ function svg(s, cache, elementGetter, bindings, editId){
 		}
 	}, editId)
 	return cache.store(key, handle)
-}
+}*/

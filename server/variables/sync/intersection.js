@@ -30,6 +30,9 @@ exports.computeSync = function(z){
 			return []
 		}
 	}
+	
+	var original = [].concat(params)
+	
 	params.sort(function(a,b){return a.length - b.length})
 
 	var ma
@@ -48,7 +51,8 @@ exports.computeSync = function(z){
 		cur = res
 	}
 
-	//console.log('intersection of ' + JSON.stringify(_.map(params, function(p){return p.length})) + ' -> ' + res.length)
+	//console.log(JSON.stringify(params))
+	//console.log('intersection of ' + JSON.stringify(_.map(original, function(p){return p.length})) + ' -> ' + res.length)
 	return res
 }
 

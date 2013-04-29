@@ -52,91 +52,31 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	this.log = this.parent.log
 }
 
+ObjectHandle.prototype.asAt = function(editId){
+	//_.errout('TODO')
+	/*var allowedEdits = []
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		if(e.editId > editId) break
+		allowedEdits.push(e)
+	}
+	console.log('allowed edits: ' + JSON.stringify([allowedEdits, this.edits, editId, this._isAtCopy]))
+	var copy = new ObjectHandle(this.typeSchema, allowedEdits, this.objectId, this.part, this.parent)
+	copy.prepare()
+	copy._isAtCopy = true
+	return copy*/
+	//_.errout('cannot construct inner object asAt copy independent of its top object container')
+	var parent = this.getTopParent()
+	var copy = parent.asAt(editId)
+	var ourCopy = copy.objectApiCache[this.objectId]
+	_.assertDefined(ourCopy)
+	return ourCopy
+}
+
+
 ObjectHandle.prototype.types = u.genericObjectTypes
 
 ObjectHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
-
-/*
-ObjectHandle.prototype.adjustPath = function(source){
-	_.assertFunction(this.parent.adjustPath)
-
-	_.assertInt(source)
-	_.assert(source > 0)
-	
-	_.assert(this.objectId !== -1)
-	
-	var remainingCurrentPath = this.parent.adjustPath(this.part[0])
-	//this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
-	//console.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + source)
-	if(remainingCurrentPath.length === 0){
-		this.persistEdit(editCodes.selectObject, {id: this.objectId})
-		this.persistEdit(editCodes.selectProperty, {typeCode: source})
-		return []
-	}else if(remainingCurrentPath[0] !== this.objectId){
-		if(remainingCurrentPath.length > 1){
-			if(remainingCurrentPath.length < 6){
-				//this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + source)
-				this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-1)], {})
-			}else{
-				this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
-			}
-		}
-		this.persistEdit(editCodes.reselectObject, {id: this.objectId})
-		this.persistEdit(editCodes.selectProperty, {typeCode: source})
-		return []
-	}else{
-		if(remainingCurrentPath.length === 1 || remainingCurrentPath[1] !== source){
-			
-			if(remainingCurrentPath.length > 2){//since we're switching the property, we ascend to that point (if necessary)
-				if(remainingCurrentPath.length < 6){
-					this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-2)], {})
-				}else{
-					this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-2})
-				}
-			}
-			
-			if(remainingCurrentPath.length > 1){
-				this.persistEdit(editCodes.reselectProperty, {typeCode: source})
-			}else{
-				this.persistEdit(editCodes.selectProperty, {typeCode: source})
-			}
-			return []
-		}else{
-			return remainingCurrentPath.slice(2)
-		}
-	}
-}*/
-
-/*
-ObjectHandle.prototype.adjustPathSelf = function(objId){
-	_.assertFunction(this.parent.adjustPath)
-
-	_.assertInt(objId)
-	//_.assert(source > 0)
-	
-	//var remainingCurrentPath = this.parent.adjustPath(this.objectId)
-	var remainingCurrentPath = this.parent.adjustPath(this.part[0])
-	//this.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
-	//console.log('adjusting path: ' + JSON.stringify(remainingCurrentPath) + ' -> +' + objId)
-	if(remainingCurrentPath.length === 0){
-		this.persistEdit(editCodes.selectObject, {id: objId})
-		return []
-	}else if(remainingCurrentPath[0] !== source){
-		if(remainingCurrentPath.length > 1){
-			if(remainingCurrentPath.length < 6){
-				//this.log('ascending due to remainingCurrentPath ' + remainingCurrentPath[0] + ' ' + objId)
-				this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-1)], {})
-			}else{
-				this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
-			}
-		}
-		this.persistEdit(editCodes.reselectObject, {id: objId})
-		return []
-	}else{
-		return remainingCurrentPath.slice(1)
-	}
-}
-*/
 
 ObjectHandle.prototype.isDefined = function(){
 	return !this.isReadonlyAndEmpty
@@ -237,6 +177,7 @@ function recursivelyGetLeafTypes(objType, schema){
 	});
 	return res;
 }
+/*
 ObjectHandle.prototype.getPath = function(){
 	//this.log('adding part: ' + this.part + ' and id ' + this.objectId + ', parent: ' + JSON.stringify(this.parent.getPath()));
 	var res = this.parent.getPath().concat(this.part);
@@ -247,7 +188,8 @@ ObjectHandle.prototype.getPath = function(){
 	}
 	//this.log('object returned path: ' + JSON.stringify(res));
 	return res;
-}
+}*/
+
 ObjectHandle.prototype._typeCode = function(){return this.typeSchema.code;}
 ObjectHandle.prototype.type = function(){return this.typeSchema.name;}
 ObjectHandle.prototype.innerId = function(){
@@ -265,6 +207,9 @@ ObjectHandle.prototype.id = function(){
 	_.assertPrimitive(this.objectId);
 	_.assertDefined(this.objectId);
 	return this.parent.getTopId() + '_' + this.objectId;
+}
+ObjectHandle.prototype.getParent = function(){
+	return this.parent
 }
 ObjectHandle.prototype.propertyIsPrimitive = function(propertyName){
 	var pt = this.typeSchema.properties[propertyName];
@@ -287,6 +232,7 @@ ObjectHandle.prototype.propertyTypes = function(propertyName){
 }
 ObjectHandle.prototype.properties = getProperties;
 
+/*
 ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, syncId, editId){
 	if(op === editCodes.setObject || op === editCodes.setViewObject){// || op === editCodes.clearObject){
 		_.assertInt(descentCode)
@@ -331,7 +277,7 @@ ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, 
 		_.errout('TODO: ' + op)
 	}
 }
-
+*/
 ObjectHandle.prototype.isa = function(name){
 	return this.typeSchema.name === name || (this.typeSchema.superTypes && this.typeSchema.superTypes[name])
 }
@@ -390,6 +336,7 @@ ObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncId){
 		//_.errout('TODO: ' + editNames[op] + ' ' + JSON.stringify(edit))
 		console.log('WARNING: ' + editNames[op] + ' ' + JSON.stringify(edit))
 	}
+	
 	/*
 		setPropertyValue(this.obj, path[0], edit.value);
 		return this.refresh(edit);

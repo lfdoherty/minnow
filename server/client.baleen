@@ -42,13 +42,18 @@ getSnapshot 6
 	
 forgetLastTemporary 8
 	syncId int 1
-
+/*
 reconnect 10
 	connectionId string 1
 	manyServerMessagesReceived int 2
-	
+	*/
 originalConnection 11
 
+
+syncIdUpTo 12
+	editId int 1
+	syncId int 2
+	
 /*increaseAck 12
 	frameCount int 1*/
 	

@@ -74,7 +74,7 @@ exports.make = function(app, appName, identifier){
 			return
 		}*/
 		if(userTokenBySyncId[syncId] !== req.userToken){
-			log('user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
+			//log('user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
 			console.log('WARNING: user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
 			console.log(req.url)
 			res.send(403)

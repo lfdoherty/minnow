@@ -128,8 +128,7 @@ function moreCont(doneCb){
 		
 		doneCb(report)
 	}
-	//})
-	
+
 	var inProgress = []
 	
 	process.on('uncaughtException', function(e){
@@ -176,15 +175,15 @@ function moreCont(doneCb){
 			function authenticateByToken(token, cb){cb(undefined, 'TheOnlyUser');}
 
 			minnow.makeClient = function(port, cb){
-			if(closedHosts[port]){
-				_.errout('tried to connect to ended server: ' + port)
-			}
-			if(hostsByPort[port] === undefined){
-				console.log(JSON.stringify([hostsByPort,closedHosts]))
-				_.errout('tried to connect to unmade or unloaded server at port: ' + port)
-			}
+				if(closedHosts[port]){
+					_.errout('tried to connect to ended server: ' + port)
+				}
+				if(hostsByPort[port] === undefined){
+					console.log(JSON.stringify([hostsByPort,closedHosts]))
+					_.errout('tried to connect to unmade or unloaded server at port: ' + port)
+				}
 			
-			minnowXhr.setup(hostsByPort[port],'testapp',function(db){
+				minnowXhr.setup(hostsByPort[port],'testapp',function(db){
 					//console.log('got db')
 					cb(db)
 				})

@@ -319,11 +319,12 @@ exports.accessObjectKeys = function(config, done){
 		minnow.makeClient(config.port, function(client){
 			client.view('objkeys', function(err, c){
 			
-				c.on('set', function(propertyName, objkeyer){
+				c.on('set', function(e, type, propertyName, objkeyer){
+					console.log('set: ' + propertyName)
 					if(propertyName === 's'){
-						//console.log('got keyer')
-						objkeyer.members.on('put', function(key, value){
-							//console.log('got put')
+						console.log('got keyer')
+						objkeyer.members.on('put', function(e,type,key, value){
+							//console.log('got put: ' + JSON.stringify([key, value]))
 							if(!key.name){
 								done.fail('invalid key: ' + key)
 							}
@@ -342,7 +343,7 @@ exports.accessObjectKeys = function(config, done){
 						var keyer = v.make('objkeyer')
 						setTimeout(function(){
 							keyer.members.put(obj, 'testValue')
-						},100)
+						},500)
 					})
 				})
 				

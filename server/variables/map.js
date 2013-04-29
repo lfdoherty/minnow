@@ -97,14 +97,62 @@ schema.addFunction('map', {
 		}else{
 			noReduceComputeAsync(z, cb, input, keyMacro, valueMacro)
 		}
+	},
+	computeSync: function(z, input, keyMacro, valueMacro, reduceMacro){
+		if(reduceMacro){
+			return reduceCompute(z, input, keyMacro, valueMacro, reduceMacro)
+		}else{
+			return noReduceCompute(z, input, keyMacro, valueMacro)
+		}
 	}
 })
+
+function reduceCompute(z, input, keyMacro, valueMacro, reduceMacro){
+	
+	var state = {}
+	_.assertArray(input)
+	
+	//console.log('reducing map')
+
+	input.forEach(function(v){
+		var key = keyMacro.get(v)
+		var value = valueMacro.get(v)
+		_.assertDefined(key)			
+		_.assertDefined(value)	
+		if(!state[key]) state[key] = []		
+		state[key].push(value)
+	})
+	
+	Object.keys(state).forEach(function(key){
+		var values = state[key]
+
+		while(values.length > 1){
+			var combinedValue = reduceMacro.get(values[0], values[1])
+			//console.log('reduced ' + values[0] + ',' + values[1] + ': ' + combinedValue)
+			values.shift()
+			values[0] = combinedValue
+		}
+	})
+
+	var ss = {}
+	var keys = Object.keys(state)
+	for(var i=0;i<keys.length;++i){
+		var key = keys[i]
+		//console.log('kkkk: ' + key)
+		ss[key] = state[key][0]
+	}
+	
+	console.log('reduced: ' + JSON.stringify(ss))
+	
+	return ss
+}
+
 
 function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
 	var state = {}
 	_.assertArray(input)
 	
-	console.log('reducing map')
+	//console.log('reducing map')
 	
 	var combinationsToDo = 0
 	var cdl = _.latch(input.length*2, function(){
@@ -117,7 +165,7 @@ function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
 				//console.log('kkkk: ' + key)
 				ss[key] = state[key][0]
 			}
-			console.log('lkjeoirueroeu***: ' + JSON.stringify(ss))
+			//console.log('lkjeoirueroeu***: ' + JSON.stringify(ss))
 			var ncb = cb
 			cb = undefined
 			ncb(ss)
@@ -182,11 +230,30 @@ function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
 	})
 }
 
+function noReduceCompute(z, input, keyMacro, valueMacro){
+	var state = {}
+	_.assertArray(input)
+	
+	input.forEach(function(v){
+		var key = keyMacro.get(v)
+		var value = valueMacro.get(v)
+		//console.log('key: ' + key + ', value: ' + value)
+		if(value !== undefined){
+			state[key] = value
+		}
+	})
+	//console.log('state: ' + JSON.stringify(state) + ' from ' + JSON.stringify(input))
+	return state
+}
+
+
+
 function noReduceComputeAsync(z, cb, input, keyMacro, valueMacro){
 	var state = {}
 	_.assertArray(input)
+	//console.log('++')
 	var cdl = _.latch(input.length, function(){
-		//console.log('computed state: ' + JSON.stringify(state))
+		//console.log('computed map state: ' + JSON.stringify([input, state]))
 		cb(state)
 	})
 	input.forEach(function(v){

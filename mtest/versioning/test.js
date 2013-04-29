@@ -59,7 +59,7 @@ exports.getTopVersion = function(config, done){
 		})
 	})
 }
-
+/*
 exports.revertTop = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -91,7 +91,7 @@ exports.revertTop = function(config, done){
 		})
 	})
 }
-
+*/
 exports.versionPrimitive = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -121,7 +121,7 @@ exports.versionPrimitive = function(config, done){
 		})
 	})
 }
-
+/*
 exports.revertPrimitive = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -206,7 +206,7 @@ exports.revertPrimitiveDouble = function(config, done){
 		})
 	})
 }
-
+*/
 exports.versionMapValue = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -240,7 +240,7 @@ exports.versionMapValue = function(config, done){
 		})
 	})
 }
-
+/*
 exports.revertMapValue = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -278,7 +278,7 @@ exports.revertMapValue = function(config, done){
 		})
 	})
 }
-
+*/
 exports.versionsQuery = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){

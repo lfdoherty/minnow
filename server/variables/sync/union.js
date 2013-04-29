@@ -21,7 +21,7 @@ exports.type = function(paramTypes, params, schema){
 		try{
 			return 'set:'+util.computeSharedObjectType(schema, names)//paramTypes[0].members.object;
 		}catch(e){
-			console.log(JSON.stringify(paramTypes))
+			//console.log(JSON.stringify(paramTypes))
 			throw e
 		}
 	}else{
@@ -58,15 +58,9 @@ exports.compute = function(paramValues){
 			}
 		})
 	})
-	//log('union ', paramValues, results)
+	//console.log('union ', paramValues, results)
 	return results
 }
-
-exports.computeAsync = function(z, cb){
-	var args = Array.prototype.slice.call(arguments, 2)
-	cb(exports.compute(args))
-}
-
 
 exports.computeSync = function(z){
 	var args = Array.prototype.slice.call(arguments, 1)

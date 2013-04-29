@@ -28,7 +28,8 @@ var log = require('quicklog').make('minnow/xhr')
 
 var urlModule = require('url')
 
-exports.make = function(appName, schema, local, minnowClient, authenticator, viewSecuritySettings){//, clientInfoBySyncId){
+exports.make = function(appName, schema, local, secureLocal, minnowClient, authenticator, viewSecuritySettings){//, clientInfoBySyncId){
+	_.assertLength(arguments, 7)
 
 	_.assertString(appName)
 	_.assertFunction(authenticator)
@@ -49,19 +50,31 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 		schemaUrl = ccc(JSON.stringify(minnowClient.schema));
 		//console.log('serve json: ' + schemaUrl)
 	});
+	secureLocal.serveJson(appName, function(ccc){
+		_.assertFunction(ccc);
+		schemaUrl = ccc(JSON.stringify(minnowClient.schema));
+		//console.log('serve json: ' + schemaUrl)
+	});
 	
 	function aa(req,res,next){
 		//console.log('authenticating')
 		authenticator(req,res,next)
 	}
+	console.log('providing service: ' + '/mnw/schema/'+appName)
 	local.get('/mnw/schema/'+appName, aa, function(req, httpRes){
 		var url= 'http://'+req.headers.host+schemaUrl
 		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
 		
 		httpRes.redirect(url)
 	})
+	secureLocal.get('/mnw/schema/'+appName, aa, function(req, httpRes){
+		var url= 'https://'+req.headers.host+schemaUrl
+		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
+		
+		httpRes.redirect(url)
+	})
 	
-	local.get('/mnw/meta/'+appName+'/:syncId/:viewName/:params', authenticator, function(req, httpRes){
+	function generateMeta(req, httpRes){
 		var viewName = req.params.viewName
 		var syncId = parseInt(req.params.syncId)
 		var viewSchema = schema[viewName]
@@ -126,9 +139,11 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				httpRes.end(data)
 			});
 		}, params, req.userToken)
-	})
+	}
+	local.get('/mnw/meta/'+appName+'/:syncId/:viewName/:params', authenticator, generateMeta)
+	secureLocal.get('/mnw/meta/'+appName+'/:syncId/:viewName/:params', authenticator, generateMeta)
 	
-	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, function(req, res){
+	function generateSnap(req, res){
 
 		var viewId = parseInt(req.params.viewId);
 		var viewName = schema._byCode[viewId].name
@@ -193,7 +208,9 @@ exports.make = function(appName, schema, local, minnowClient, authenticator, vie
 				});
 			}
 		}, params, req.userToken);
-	})
+	}
+	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap)
+	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap)
 	log('minnow xhr service set up');
 	
 }

@@ -52,8 +52,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 			sh = syncHandles[syncId] = syncHandle
 			sh.id = syncId
 			sh.msgs = []
-			log('got sync handle: ' + syncId)
-			console.log('got sync handle: ' + syncId)
+			//log('got sync handle: ' + syncId)
+			//console.log('got sync handle: ' + syncId)
 			if(syncHandleCreationListener) syncHandleCreationListener(userToken, syncId)
 			
 			replyCb(syncId)

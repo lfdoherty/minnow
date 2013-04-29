@@ -1,6 +1,6 @@
 "use strict";
 
-Error.stackTraceLimit = 100
+Error.stackTraceLimit = 300
 
 var _ = require('underscorem');
 
@@ -23,6 +23,7 @@ var editNames = editFp.names
 
 
 var log = require('quicklog').make('minnow/server')
+
 /*
 var old = Array.prototype.indexOf
 var ccc = 0
@@ -71,27 +72,29 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 	makeDirIfNecessary(function(){
 		require('./ol').make(dataDir, schema, _.assureOnce(function(ol){
 			log('got ol')
-			require('./ap').make(dataDir, schema, ol, function(ap, broadcaster, apClose){
+			var viewSequencer = newViewSequencer.make(schema, ol)
+			require('./ap').make(dataDir, schema, ol, function(ap, apClose){
 				log('got ap')
-				_.assertLength(arguments, 3);
+				_.assertLength(arguments, 2);
 				openUid(dataDir, function(uid){
 					serverUid = uid
 					log('got uid')
-					var objectState = require('./objectstate').make(schema, ap, broadcaster, ol);
+					var objectState = require('./objectstate').make(schema, ap, ol);
+					viewSequencer.initialize(objectState)
 					//objectState.setIndexing(indexing)
-					load(ap, objectState, broadcaster, apClose, ol);
+					load(ap, objectState, apClose, ol, viewSequencer);
 				})
 			});
 		}));
 	})
 
-	function load(ap, objectState, broadcaster, apClose, ol){
+	function load(ap, objectState, apClose, ol, viewSequencer){
 		//console.log('loading...');
 		_.assertFunction(ol.close)
-	
-		var viewState = viewStateModule.make(schema, globalMacros, broadcaster, objectState);
 
-		var viewSequencer = newViewSequencer.make(schema, objectState, broadcaster)
+	
+		var viewState = viewStateModule.make(schema, globalMacros, objectState, viewSequencer);
+
 
 		//TODO the ap should initialize the sync handle counter to avoid using the same one multiple times
 		//var syncHandleCounter = 1;
@@ -140,6 +143,9 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				//log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
+			afterNextSyncHandleUpdate: function(syncId, cb){
+				listenerCbs[syncId].seq.afterNextUpdate(cb)
+			},
 			persistEdit: function(op, state, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
@@ -175,6 +181,9 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				var syncId = ap.makeNewSyncId();
 				return syncId
 			},
+			syncIdUpTo: function(syncId, editId){
+				ap.syncIdUpTo(syncId, editId)
+			},
 			endSync: function(syncId){
 				if(listenerCbs[syncId]){
 					listenerCbs[syncId].seq.end()
@@ -197,8 +206,14 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				var currentResponseId
 				var curState = {}
 				function sendEditUpdate(up){
-					if(up.syncId === undefined) _.errout('no syncId: ' + JSON.stringify(up))
-					if(up.editId === undefined) _.errout('no editId: ' + JSON.stringify(up))
+					if(up.syncId === undefined){
+						console.log('ERROR: no syncId: ' + JSON.stringify(up))
+						return
+					}
+					if(up.editId === undefined){
+						console.log('ERROR: no editId: ' + JSON.stringify(up))
+						return
+					}
 					//_.assertInt(up.syncId)
 					
 					//console.log('sync sending edit update: ' + JSON.stringify(up))
@@ -220,6 +235,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 						//console.log('currentResponseId: ' + currentResponseId + ' ' + up.id)
 						if(currentResponseId !== up.id){
 							if(_.isString(up.id)){
+								//console.log('selecting: ' + JSON.stringify(up.id))
 								listenerCb(editCodes.selectTopViewObject, {id: up.id}, up.editId)					
 								curState = {}
 							}else{
@@ -319,9 +335,9 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					
 					if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
 					
-					if(e.state && e.state.key){
+					/*if(e.state && e.state.key){
 						_.assertInt(e.state.keyOp)
-					}
+					}*/
 					
 					//console.log('got edit for object: ' + JSON.stringify(e))
 					
@@ -349,6 +365,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				
 				function sendViewObjectCb(id, edits){
 					//_.errout('TODO: ' + id + ' ' + JSON.stringify(edits))
+					//console.log('sending view object: ' + id)
 					viewObjectCb(id, edits, syncId)
 				}
 

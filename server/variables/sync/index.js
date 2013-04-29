@@ -27,5 +27,6 @@ exports.plugins = {
 	mapMerge: require('./mapMerge'),
 	exists: require('./exists'),
 	list: require('./list'),
-	keysByValues: require('./keysByValues')
+	keysByValues: require('./keysByValues'),
+	parseInt: require('./parseInt')
 }

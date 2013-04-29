@@ -13,11 +13,11 @@ schema.addFunction('timestamp', {
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'timestamp(version)',
-	computeAsync: function(z, cb, version){
+	computeSync: function(z, version){
 		if(version === undefined){
-			cb(undefined)
+			return undefined
 		}else{
-			cb(z.objectState.getVersionTimestamp(version))
+			return z.objectState.getVersionTimestamp(version)
 		}
 	}
 })

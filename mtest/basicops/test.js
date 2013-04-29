@@ -483,14 +483,14 @@ exports.pairedFilterTest = function(config, done){
 						var lostTeenager = false
 						done.poll(function(){
 							var json = pc.adults.toJson()
-							//console.log('@ ' + JSON.stringify(pc.toJson()))
+							console.log('@ ' + JSON.stringify(pc.toJson()))
 							if(_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
-								//console.log('@ ' + JSON.stringify(pc.toJson()))
+								console.log('@ ' + JSON.stringify(pc.toJson()))
 								gotTeenager = true
 							}
 							if(gotTeenager){
 								if(!_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
-								//	console.log('# ' + JSON.stringify(pc.toJson()))
+									console.log('# ' + JSON.stringify(pc.toJson()))
 									lostTeenager = true
 								}
 							}
@@ -555,7 +555,7 @@ exports.nameCollision = function(config, done){
 					/*if(c.named.size() === 1){
 						console.log('name: ' + c.named.toJson()[0].name)
 					}*/
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.named.size() === 1 && c.named.toJson()[0].name === 'sue'){
 						done()
 						return true

@@ -18,9 +18,6 @@ forkQuery() 102
 forkQueryTwo() 103
 	e one(subset(*entity,{and(~.reallyAFork,eq('purpled', ~.name))})) 1
 
-forkQueryAllForked() 104
-	es allForked(*entity) 1
-
 isForked(){
 	subset(*entity,{~.reallyAFork})
 }
@@ -28,12 +25,23 @@ purpled(){
 	one(subset(*entity,{eq('purpled', ~.name)}))
 }
 
+/*
 madePreforked(){
 	each(isForked(),{preforked(~,purpled())})
-}
+}*/
+
 forkQueryPreforked() 105
-	e one(subset(madePreforked(),{eq('purpled', ~.name)})) 1
+	e mutate(1, {preforked(switch(eq(type(~),'entity'), 
+				case(true,
+					switch(entity:~.reallyAFork,
+						case(true, purpled()),
+						default(nil)
+					)
+				),
+				default(nil)
+		))}, 
+		{one(subset(isForked(),{eq('purpled', ~.name)}))}) 6
 	p purpled() 2
 	isf isForked() 3
-	mp madePreforked() 4
+	//mp madePreforked() 4
 

@@ -1,28 +1,30 @@
 {
-	"name": "minnow",
-	"version": "0.3.6",
-	"description": "An auto-syncing, in-memory-canonical relational database",
-	"main": "./index",
-	"author": "Liam Doherty",
-	"dependencies" : { 
-	  	"mkdirp": "*",
-		"keratin": "git://github.com/lfdoherty/keratin.git",
-		"matterhorn": "git://github.com/lfdoherty/matterhorn.git",
-		"matterhorn-standard": "git://github.com/lfdoherty/matterhorn-standard.git",
-		"myrtle-parser": "git://github.com/lfdoherty/myrtle-parser.git",
-		"rimraf": "*",
-		"seedrandom": ">=0.1.1",
-		"structures": "git://github.com/lfdoherty/structures.git",
-		"underscorem": "git://github.com/lfdoherty/underscorem.git",
-		"fparse": "git://github.com/lfdoherty/fparse.git",
-		"quicklog": "git://github.com/lfdoherty/quicklog.git",
-		"xmlhttprequest": ">=1.4.2",
-		"ws": ">=0.4.21"
-	},
-	"devDependencies": {
-		"cover": ">=0.2.8"
-	},
-	"engines": {
-		 "node" : ">=0.8"
-	}
+  "name": "minnow",
+  "version": "0.3.6",
+  "description": "An auto-syncing, in-memory-canonical relational database",
+  "main": "./index",
+  "author": "Liam Doherty",
+  "dependencies": {
+    "mkdirp": "*",
+    "keratin": "git://github.com/lfdoherty/keratin.git",
+    "matterhorn": "git://github.com/lfdoherty/matterhorn.git",
+    "matterhorn-standard": "git://github.com/lfdoherty/matterhorn-standard.git",
+    "myrtle-parser": "git://github.com/lfdoherty/myrtle-parser.git",
+    "rimraf": "*",
+    "seedrandom": ">=0.1.1",
+    "structures": "git://github.com/lfdoherty/structures.git",
+    "underscorem": "git://github.com/lfdoherty/underscorem.git",
+    "fparse": "git://github.com/lfdoherty/fparse.git",
+    "quicklog": "git://github.com/lfdoherty/quicklog.git",
+    "xmlhttprequest": ">=1.4.2",
+    "ws": ">=0.4.21",
+    "buffered-writer": "~0.2.3",
+    "intintmap": "*"
+  },
+  "devDependencies": {
+    "cover": ">=0.2.8"
+  },
+  "engines": {
+    "node": ">=0.8"
+  }
 }

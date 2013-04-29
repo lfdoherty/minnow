@@ -10,7 +10,7 @@ exports.complexRemoval = function(config, done){
 
 				var first = false			
 				done.poll(function(){
-				//	console.log(JSON.stringify(c.toJson()))
+					//console.log(JSON.stringify(c.toJson()))
 					
 					if(c.matches.size() === 2){
 						first = true
@@ -46,7 +46,7 @@ exports.globalForEq = function(config, done){
 
 						var first = false			
 						done.poll(function(){
-							console.log(JSON.stringify(c.toJson()))
+							//console.log(JSON.stringify(c.toJson()))
 					
 							if(c.matches.size() === 2){
 								first = true
@@ -83,7 +83,7 @@ exports.globalForEqWithChange = function(config, done){
 
 						var first = false			
 						done.poll(function(){
-							console.log(JSON.stringify(c.toJson()))
+							//console.log(JSON.stringify(c.toJson()))
 					
 							if(c.matches.size() === 2){
 								first = true

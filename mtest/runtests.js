@@ -36,9 +36,22 @@ console.log = function(msg){
 }
 */
 
+
 var oldMakeClient = minnow.makeClient
 var oldMakeServer = minnow.makeServer
 
+require('./runtests_abstract').run(
+	function(port, host, cb){
+		oldMakeClient(port, host, cb)
+	},
+	function(config, cb){
+		oldMakeServer(config, function(server){
+			cb(server)
+		})
+	}
+)
+
+/*
 var usingSameClient = false
 var usingOptimizations = false
 
@@ -72,10 +85,12 @@ minnow.makeServer = function(config, cb){
 var includedTestDir
 var includedTest
 var useSameClient
+var useOptimizations
 if(process.argv.length > 2){
 	includedTestDir = process.argv[2]
 	includedTest = process.argv[3]
 	useSameClient = process.argv[4]
+	useOptimizations = process.argv[5]
 	//console.log('including only dirs: ' + JSON.stringify(includedTestDirs))
 }
 
@@ -210,17 +225,17 @@ function moreCont(doneCb){
 				console.log('cannot run same client test: forbidden by test')
 				runNextTest()
 			}else{
-				runTest(t, false, runNextTest)
+				runTest(t, false, useOptimizations, runNextTest)
 			}
 		}else{
 			if(useSameClient === 'yes'){
-				runTest(t, true, runNextTest)
+				runTest(t, true, useOptimizations, runNextTest)
 			}else{	
-				runTest(t, false, function(){
+				runTest(t, false, useOptimizations, function(){
 					if(useSameClient === 'no'){
 						runNextTest()
 					}else{
-						runTest(t, true, runNextTest)
+						runTest(t, true, useOptimizations, runNextTest)
 					}
 				})
 			}
@@ -228,10 +243,17 @@ function moreCont(doneCb){
 	}
 	runNextTest()
 	
-	function runTest(t, useSameClient, cb){
-		runTestOnce(t, useSameClient, false, function(){
+	function runTest(t, useSameClient, useOptimizations, cb){
+		_.assertLength(arguments, 4)
+		if(useOptimizations === 'yes'){
 			runTestOnce(t, useSameClient, true, cb)
-		})
+		}else if(useOptimizations === 'no'){
+			runTestOnce(t, useSameClient, false, cb)
+		}else{
+			runTestOnce(t, useSameClient, false, function(){
+				runTestOnce(t, useSameClient, true, cb)
+			})
+		}
 	}
 	function runTestOnce(t, useSameClient, useOptimizations, cb){
 		_.assertLength(arguments, 4)
@@ -364,4 +386,4 @@ function moreCont(doneCb){
 		}
 		makeDir()
 	}
-}
+}*/

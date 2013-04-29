@@ -125,20 +125,41 @@ ViewObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, s
 		if(op === editCodes.remove) _.assertInt(subObj)
 		if(op === editCodes.removeViewObject) _.assertString(subObj)
 		
-		var objHandle = this.getObjectApi(subObj);
+		var index;
+		
+		for(var i=0;i<this.obj.length;++i){
+			var a = this.obj[i]
+			if(a.objectId === subObj){
+				index = i
+				break
+			}
+		}
+		
+		/*var objHandle = this.getObjectApi(subObj);
 		if(objHandle === undefined){
-			this.log.warn('object not found, may have been del\'ed: ' + edit.id)
+			console.log('object not found, may have been del\'ed: ' + edit.id)
+			return
+		}*/
+		if(index === -1){
+			console.log('object not found: ' + subObj)
 			return
 		}
 		/*}catch(e){
 			this.log.info('WARNING: might be ok (if already destroyed locally), but could not find object: ' + edit.id)
 			return
 		}*/
-		this.obj.splice(this.obj.indexOf(objHandle), 1)
+		//var index = this.obj.indexOf(objHandle)
+		this.obj.splice(index, 1)
+		//console.log('removed: ' + index)
 
+		var objHandle = this.getObjectApi(subObj);
+		if(objHandle === undefined){
+			console.log('object not found, may have been del\'ed: ' + edit.id)
+			return
+		}
 		objHandle.off('del', this.delListener)
-
 		return this.emit(edit, 'remove', objHandle)
+
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}

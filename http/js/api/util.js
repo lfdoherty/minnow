@@ -127,6 +127,7 @@ exports.primitiveChangeListener = function changeListener(subObj, key, op, edit,
 	_.assertInt(op)
 	
 	if(lookup.isSetCode[op]){//op.indexOf('set') === 0){
+		if(this.obj === edit.value) return
 		this.obj = edit.value;
 		//console.log('primitive value set to: ' + this.obj)
 		this.emit(edit, 'set', edit.value, editId)
@@ -237,6 +238,7 @@ var primitiveTypeChecker = {
 }
 function objectIdTypeChecker(v){
 	_.assertInt(v)
+	_.assert(v !== -1)
 }
 
 exports.getAddOperator = function(schema){

@@ -79,6 +79,23 @@ schema.addFunction('eachReduce', {
 				cdl()
 			})
 		})
+	},
+	computeSync: function(z, input, macro, reduceMacro){
+		
+		var results = []
+		input.forEach(function(v){
+			var vs = macro.get(v)
+			if(vs !== undefined){
+				results.push(vs)
+			}
+		})
+
+		while(results.length > 1){
+			var first = results.shift()
+			var second = results[0]
+			results[0] = reduceMacro.get(first,second)
+		}
+		return results.length > 0 ? results[0] : undefined
 	}
 })
 

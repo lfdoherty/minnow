@@ -31,20 +31,14 @@ function compute(m){
 		resultKeys.push(kv[0])
 	})
 	
-	//console.log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
+	//if(resultKeys.length > 5){
+	//	console.log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
+	//	console.log(new Error().stack)
+	//}
 	
 	return resultKeys
 }
 
-exports.compute = function(paramValues){
-	
-	var m = paramValues[0]
-	return compute(m)
-}
-
-exports.computeAsync = function(z, cb, map){
-	cb(compute(map))
-}
 exports.computeSync = function(z, map){
 	return compute(map)
 }

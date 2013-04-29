@@ -90,7 +90,7 @@ exports.wrappedRemoval = function(config, done){
 
 				
 							setTimeout(function(){
-								//console.log('removing')
+								console.log('removing: ' + obj.id())
 								cont.members.remove(obj)
 							},500)
 						})

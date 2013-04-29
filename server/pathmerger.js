@@ -30,6 +30,8 @@ function editToMatch(c, n, cb){
 		if(_.isInt(n.sub)){
 			cb(editCodes.selectSubObject, {id: n.sub})
 		}else{
+			_.assertDefined(n.sub)
+			if(n.sub == undefined || n.sub == "undefined") _.errout('invalid sub: ' + JSON.stringify(n))
 			cb(editCodes.selectSubViewObject, {id: n.sub})
 		}
 	}
