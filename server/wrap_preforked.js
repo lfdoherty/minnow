@@ -181,7 +181,29 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 					return preforkedValue
 				}else{
 					if(originalValue === undefined || _.isArray(originalValue) || _.isObject(originalValue)){
-						_.errout('tODO: ' + key + ' ' + JSON.stringify([originalValue, preforkedValue, originalChanges]))
+						if(originalValue === undefined){
+							_.errout('tODO: ' + key + ' ' + JSON.stringify([originalValue, preforkedValue, originalChanges]))
+						}else{
+							//var preforkedChanges = originalIndex.getValueChangesBetween(bindings, preforkId, -1, editId)						
+							var set = [].concat(preforkedValue)
+							originalChanges.forEach(function(c){
+								if(c.type === 'remove'){
+									if(set.indexOf(c.value) !== -1){
+										set.splice(set.indexOf(c.value), 1)
+									}
+								}else if(c.type === 'add'){
+									//removedByOriginal[c.value] = false
+									if(set.indexOf(c.value) === -1){
+										set.push(c.value)
+									}
+								}else{
+									_.errout('TODO: ' + JSON.stringify(c))
+								}
+							})
+							
+							//console.log('Computed: ' + key + ' ' + JSON.stringify([originalValue, preforkedValue, originalChanges, set]))
+							return set
+						}
 					}else{
 						//console.log('returning originalValue: ' + originalValue + ' also has preforkedValue: ' + preforkedValue + ' ' + preforkedObjSchema.name+'.'+property.name)
 						return originalValue
