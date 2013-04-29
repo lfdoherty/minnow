@@ -1,6 +1,6 @@
 {
   "name": "minnow",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "An auto-syncing, in-memory-canonical relational database",
   "main": "./index",
   "author": "Liam Doherty",
@@ -19,7 +19,8 @@
     "xmlhttprequest": ">=1.4.2",
     "ws": ">=0.4.21",
     "buffered-writer": "~0.2.3",
-    "intintmap": "*"
+    "intintmap": "*",
+    "stack-count": "*"
   },
   "devDependencies": {
     "cover": ">=0.2.8"
