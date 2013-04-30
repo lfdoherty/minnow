@@ -86,7 +86,8 @@ ViewObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, s
 		}else{
 			//console.log('added object: ' + edit.id)
 			if(this.obj.indexOf(addedObjHandle) !== -1){
-				_.errout('duplicate add: ' + JSON.stringify(addedObjHandle.toJson()))
+				console.log('ERROR: duplicate add: ' + JSON.stringify(addedObjHandle.toJson()))
+				return
 			}
 			this.obj.push(addedObjHandle)
 			//this.rand = Math.random()
@@ -104,7 +105,8 @@ ViewObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, s
 		}else{
 			//console.log('added object: ' + edit.id)
 			if(this.obj.indexOf(addedObjHandle) !== -1){
-				_.errout('duplicate add: ' + JSON.stringify(addedObjHandle.toJson()))
+				console.log('ERROR: duplicate add: ' + JSON.stringify(addedObjHandle.toJson()))
+				return
 			}
 			this.obj.push(addedObjHandle)
 			//this.rand = Math.random()
