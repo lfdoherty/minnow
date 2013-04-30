@@ -46,7 +46,7 @@ function syncable(schema, rel){
 			return true
 		}else{
 			//_.errout(impl.callSyntax)
-			if(!impl.computeSync) console.log('checking: ' + impl.callSyntax)
+			//if(!impl.computeSync) console.log('checking: ' + impl.callSyntax)
 			return !!impl.computeSync
 		}
 	}else if(rel.type === 'macro'){

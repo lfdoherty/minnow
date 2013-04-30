@@ -39,7 +39,7 @@ function globalizeExpression(rel, extractCb){
 		if(rel.view === 'mutate'){
 			rel.params[1].expr = globalizeExpression(rel.params[1].expr)//, extractCb)
 			
-			console.log('mutateRel: ' + JSON.stringify(rel.params[2]))
+			//console.log('mutateRel: ' + JSON.stringify(rel.params[2]))
 			rel.params[2].expr = globalizeExpression(rel.params[2].expr)
 
 			/*var newBindingsUsed = _.extend({},rel.params[2].bindingsUsed)

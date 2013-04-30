@@ -431,7 +431,7 @@ function makeMergeTypes(schema){
 			types.forEach(function(t){
 				if(t.type !== 'object') _.errout('cannot merge types: ' + JSON.stringify(types))
 			})
-			console.log('types: ' + JSON.stringify(types))
+			//console.log('types: ' + JSON.stringify(types))
 			try{
 				var obj = types[0].object
 				var objSchema = schema[obj]
