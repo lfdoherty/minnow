@@ -156,11 +156,11 @@ exports.make = function(schema, ol){
 					}else if(fp.isAddCode[op]){
 						if(op === editCodes.addExisting || op === editCodes.addAfter || op === editCodes.unshiftExisting){
 							c = {type: 'add', value: edit.id, editId: editId}
-						}else if(op === editCodes.addedNew || op === editCodes.addedNewAfter || op === editCodes.addedNewAt){
+						}else if(op === editCodes.addedNew || op === editCodes.addedNewAfter || op === editCodes.addedNewAt || op === editCodes.unshiftedNew){
 							c = {type: 'add', value: innerify(id, edit.id), editId: editId}
 						}else{
 							//console.log(JSON.stringify([editNames[op], edit]))
-							_.assertDefined(edit.value)
+							if(edit.value === undefined) _.errout('cannot process edit: ' + editNames[op] + ' ' + JSON.stringify(arguments))
 							c = {type: 'add', value: edit.value, editId: editId}
 						}
 					}else if(fp.isRemoveCode[op]){
@@ -189,6 +189,9 @@ exports.make = function(schema, ol){
 						c = {type: 'removeKey', key: key, editId: editId}
 					}else if(op === editCodes.destroy){
 						//do nothing?
+					}else if(op === editCodes.moveToAfter || op === editCodes.moveToFront || op === editCodes.moveToBack){
+						//TODO
+						//for now, do nothing
 					}else{
 						_.errout('TODO: ' + JSON.stringify([id, editNames[op], edit, editId]))
 					}

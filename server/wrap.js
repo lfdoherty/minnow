@@ -173,7 +173,7 @@ function makeUuidRelSync(s, context){
 		name: 'property-uuid',
 		analytics: a,
 		getAt: function(bindings, editId){
-			var id = context.getStateAt(bindings, editId)
+			var id = context.getAt(bindings, editId)
 			if(id === undefined){
 				return
 			}else{

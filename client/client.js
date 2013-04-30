@@ -118,6 +118,94 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 	});
 }
 
+function getSnap(dbSchema, cc, st, type, params, cb){
+
+	_.assertFunction(cb)
+	
+	_.assertArray(params);
+	var paramsStr = JSON.stringify(params);
+
+	var viewId = st.code+':'+paramsStr//JSON.stringify(params)
+	
+	//console.log(require('util').inspect(st));
+	_.assertInt(st.code);
+	//console.log(new Error().stack)
+	
+	//TODO optimize this to a single call
+	/*cc.getSnapshots({typeCode: st.code, params: paramsStr, isHistorical: false}, function(err, res){
+		if(err){
+			console.log('getView error: ' + err)
+			cb(err)
+			return
+		}
+		var snapshotIds = res.snapshotVersionIds;
+		//console.log(JSON.stringify(snapshotIds));
+		for(var i=0;i<snapshotIds.length;++i){
+			_.assertInt(snapshotIds[i]);
+		}*/
+		cc.getAllCurrentSnapshots({typeCode: st.code, params: paramsStr, /*snapshotVersionIds: snapshotIds, */isHistorical: false}, function(err, snapshotsRes){
+		
+			if(err){
+				console.log('getAllSnapshots error: ' + err)
+				cb(err)
+				return
+			}
+		
+			var snapshots = snapshotsRes.snapshots;
+			if(snapshots === undefined){
+				cb();
+				return;
+			}
+			
+			//TODO impl and use makeSnap
+			var api = syncApi.make(dbSchema, {}, log);
+			api.setEditingId(-2)
+			
+			snapshots.forEach(function(snapshot){
+				api.addSnapshot(snapshot)
+			})
+			
+			cb(undefined, api.getView(viewId))
+		/*
+			//var snapshot = mergeSnapshots(snapshots);
+			//console.log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
+
+			//TODO: cache/reuse sync apis?
+			//TODO: they would need to have different syncIds though...
+		
+			//var api;
+			function readyCb(e){
+				//_.assertInt(e.syncId);
+				//cb()//.getRoot());
+				//log('ready!!!!!!!!!!!!!!!!!!!!!!!1')
+				cb()
+			}
+			
+			snapshots.forEach(function(snapshot){
+				//log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
+				//process.exit(0)
+				api.addSnapshot(snapshot, historicalKey)
+			})
+		
+			//var key = st.isView ? st.code+':'+JSON.stringify(params) : params;
+		
+			//_.errout('TODO')
+		
+			
+			var req = {
+				typeCode: st.code, 
+				params: JSON.stringify(params), 
+				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
+				syncId: syncId,
+				isHistorical: !!historicalKey
+			}
+			if(historicalKey) req.historicalKey = historicalKey
+			//console.log('beginning view')
+			beginView(req, readyCb);*/
+
+		});
+	//});
+}
 function translateParamObjects(s, params){
 	var viewSchema = s.viewSchema
 	//console.log(JSON.stringify(viewSchema))
@@ -321,6 +409,11 @@ function makeClient(host, port, clientCb){
 		
 		_.extend(wrapper, cc);
 		
+		function snapGetter(type, params, st, cb){
+			getSnap(dbSchema, cc, st, type, params, cb)
+			//cb(undefined, api.getView(viewId, historicalKey))
+		}
+		
 		var viewGetter = _.memoizeAsync(function(type, params, historicalKey, st, syncId, sc, cb){
 			_.assertFunction(cb)
 			//console.log(uid + ' getting view ' + type + JSON.stringify(params))
@@ -402,6 +495,29 @@ function makeClient(host, port, clientCb){
 				
 				xhrService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings);
 				return matterhornService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);
+			},
+			snap: function(type, params, cb){
+				var st = dbSchema[type];
+				if(st === undefined){_.errout('unknown view: ' + type);}
+
+
+				_.assertNot(st.superTypes.abstract);
+				if(arguments.length === 2 && st.isView && st.viewSchema.params.length === 0){
+					cb = params;
+					params = [];
+
+				}else{
+					_.assertLength(arguments, 3)
+				}
+
+				_.assertFunction(cb)
+
+				params = translateParamObjects(st, params)
+				
+				//var syncHandle = syncHandles[syncId]
+				//_.assertObject(syncHandle)
+				_.assertArray(params)
+				snapGetter(type, params, st, cb)
 			},
 			view: function(type, params, cb){
 	

@@ -16,6 +16,8 @@ var subsetOptimization = require('./subset_optimization').apply
 var deduplicateLets = require('./deduplicate_lets').apply
 var propertyDerivedCache = require('./property_derived_cache').apply
 var forceSync = require('./force_sync').apply
+var oneToOneMultimapOptimization = require('./one_to_one_multimap_optimization').apply
+var oneListOneOptimization = require('./one_list_one_optimization').apply
 
 //builtin stuff
 
@@ -1474,8 +1476,11 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 
 		//forceSync(result, schema)
 		//propertyDerivedCache(result, computeBindingsUsed)
-
+		
 		forceSync(result, schema)
+
+		oneToOneMultimapOptimization(result, schema)
+		oneListOneOptimization(result, schema)
 	}
 	
 	function stringizeType(t){

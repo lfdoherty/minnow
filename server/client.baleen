@@ -32,6 +32,12 @@ getAllSnapshots 5
 	snapshotVersionIds binary 4
 	isHistorical int 5
 
+getAllCurrentSnapshots 13
+	requestId int 1
+	typeCode int 2
+	params string 3
+	isHistorical int 5
+
 getSnapshot 6
 	requestId int 1
 	typeCode int 2

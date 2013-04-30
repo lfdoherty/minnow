@@ -33,7 +33,8 @@ minnow.makeClient(Port, function(c){//get a DB connection to the server
 		inn.pause();
 		currentTask = undefined
 		
-		c.view('roomView', [roomName], function(rv){//get a view of the room
+		c.view('roomView', [roomName], function(err, rv){//get a view of the room
+			if(err) throw err
 			roomView = rv
 			user = roomView.make('user', {name: username})//create a new user
 			out.write('you have entered room: ' + roomName + '\n')
@@ -44,9 +45,12 @@ minnow.makeClient(Port, function(c){//get a DB connection to the server
 			//any new messages that 'belong' to this room, according to the rules in
 			//chat.minnow, will be sent from the server to the client
 			//and will trigger this event
-			roomView.messages.on('add', function(msg){
+			roomView.messages.on('add', function(e,t,msg){
 				if(msg.user !== user){
+					out.clearLine()
+					out.cursorTo(0)
 					out.write(msg.user.name.value() + '> ' + msg.text.value() + '\n')
+					prompt()
 				}
 			})
 			currentTask = sendMessage
@@ -55,15 +59,6 @@ minnow.makeClient(Port, function(c){//get a DB connection to the server
 	function sendMessage(line){
 		//make a new message (anything we 'make' is automatically saved to the DB of course.)
 		var msg = roomView.make('message', {text: line, user: user, roomName: roomName})
-		
-		//This shortcuts the roundtrip to the server.
-		//Eventually the edit adding 'msg' to the room's messages will arrive from the server anyway
-		//'modifying' views in this way is very helpful - it can save you from having to implement your 
-		//own local data model separate from the one the DB provides, as you would have to with most DBs
-		//if you needed to modify a local representation of the data synchronously.
-		//In this case, it's not essential - but it does reduce latency.
-		roomView.messages.add(msg)
-		
 		prompt()
 	}
 

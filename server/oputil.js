@@ -239,6 +239,7 @@ function makeMacroWrapper1Sync(pr, mergeResults, macroRel, staticBindings){
 		this.bindings = bindings
 		this.editId = editId
 		this.newBindings = {}
+		//console.log('*mutatorKey: ' + this.bindings.__mutatorKey)
 		if(this.bindings.__mutatorKey){
 			var keys = Object.keys(this.bindings)
 			for(var i=0;i<keys.length;++i){
@@ -257,6 +258,7 @@ function makeMacroWrapper1Sync(pr, mergeResults, macroRel, staticBindings){
 		
 		this.newBindings[implicit] = av
 		this.newBindings.__key = this.bindings.__key+'_'+av
+		//console.log('mutatorKey: ' + this.bindings.__mutatorKey)
 		
 		return pr.getAt(this.newBindings, this.editId)
 	}
@@ -272,7 +274,7 @@ function makeMacroWrapper1Sync(pr, mergeResults, macroRel, staticBindings){
 		newBindings[implicit] = arr[0]
 		newBindings.__key = this.bindings.__key+'_'+arr[0]
 		
-		console.log('set binding ' + implicit + ' to ' + arr[0])
+		//console.log('set binding ' + implicit + ' to ' + arr[0])
 
 		return pr.getAt(newBindings, this.editId)
 	}

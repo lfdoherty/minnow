@@ -1360,7 +1360,7 @@ exports.make = function(schema, ol){
 	
 	function getSnapshotInner(getObjectInclusionsDuring, getObjectEditsBetween, id, lastEditId, endEditId, readyCb){
 	
-		console.log('getting snapshot inner ' + lastEditId + ', ' + endEditId)
+		//console.log('getting snapshot inner ' + lastEditId + ', ' + endEditId)
 
 		if(lastEditId === endEditId){
 			var snap = snapshotSerialization.serializeSnapshot(lastEditId, endEditId, [], [])
@@ -1386,7 +1386,7 @@ exports.make = function(schema, ol){
 					resultEdits.push(e)
 					oldState = e.state
 				})
-				console.log('storing ' + resultEdits.length + ' edits for ' + id + ' between ' + lastEditId + ', ' + endEditId)
+				//console.log('storing ' + resultEdits.length + ' edits for ' + id + ' between ' + lastEditId + ', ' + endEditId)
 				viewObjectEditBuffers.push({id: id, edits: resultEdits})
 			}else{
 				objectEditBuffers.push({id: id, edits: edits})

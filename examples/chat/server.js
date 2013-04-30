@@ -1,13 +1,12 @@
 
 var minnow = require('../..')
 
-var Port = 4039
+var config = {
+	schemaDir: __dirname, //the directory where the schema files are to be found
+	port: 4039 //the port on which to accept client connections via TCP
+}
 
-minnow.makeServer(
-	__dirname, //the directory in which to find the schema files
-	'.', //the directory to store data
-	Port/*, //the port on which to accept client connections via TCP
-	function(){//a callback that returns once the server is fully loaded and accepting connections
-		console.log('minnow server started on port ' + Port)
-	}*/)
+minnow.makeServer(config, function(){
+	console.log('minnow server started on port: ' + config.port)
+})
 

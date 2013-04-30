@@ -1,0 +1,8 @@
+
+entity 1
+	name string 1
+
+empty() 100
+
+general() 101
+	entities *entity 1

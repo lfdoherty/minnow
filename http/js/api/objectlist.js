@@ -451,7 +451,7 @@ function doListReplace(list, objHandle, newObj){
 		return false
 	}
 
-	objHandle.removeParent(list);
+	//objHandle.removeParent(list);
 	
 	list.obj.splice(index, 1, newObj);
 	

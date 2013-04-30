@@ -729,6 +729,27 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					conn.w.flush();
 				});
 			},
+			getAllCurrentSnapshots: function(e){
+				//e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
+				s.getSnapshots(e, function(err, versionList){
+					if(err){
+						conn.w.requestError({err: ''+err, requestId: e.requestId, code: err.code||'UNKNOWN'})
+						return
+					}
+					e.snapshotVersionIds = versionList
+					s.getAllSnapshots(e, function(err, res){
+						if(err){
+							conn.w.requestError({err: ''+err, requestId: e.requestId, code: err.code||'UNKNOWN'})
+							return
+						}
+						res.requestId = e.requestId;
+						res.snapshots = serializeAllSnapshots(res.snapshots)
+						res.isHistorical = e.isHistorical
+						conn.w.gotAllSnapshots(res);
+						conn.w.flush();
+					});
+				})
+			},
 			getSnapshot: function(e){
 				//console.log('getting snapshot: ' + JSON.stringify(e))
 				s.getSnapshot(e, function(err, res){

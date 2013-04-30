@@ -707,6 +707,18 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			w.getSnapshots(e);
 			//log('tcpclient: getSnapshots: ' + JSON.stringify(e))
 		},
+		getAllCurrentSnapshots: function(e, cb){
+			_.assertFunction(cb)
+			applyRequestId(e, function(err, res){
+				if(err){
+					cb(err)
+					return
+				}
+				res.snapshots = deserializeAllSnapshots(fp.readers, fp.readersByCode, fp.names, res.snapshots)
+				cb(undefined, res)
+			});
+			w.getAllCurrentSnapshots(e);
+		},
 		
 		getAllSnapshots: function(e, cb){
 			_.assertFunction(cb)

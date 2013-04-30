@@ -299,9 +299,13 @@ TopObjectHandle.prototype.replay = function(cb){
 			var subjAt = curObj.asAt(e.editId-1)
 			if(subjAt.has(p.name)){
 				var prevProp = subjAt[p.name]
-				prev = prevProp.asAt(e.editId)
+				prev = prevProp.asAt(e.editId-1)
 			}
-			cb(curObj.asAt(e.editId), 'clear', p.name, e.editId, prev)
+			if(!prev){
+				console.log('WARNING: cannot find prev: ' + JSON.stringify(subjAt.toJson()) + ' ' + p.name)
+			}else{
+				cb(curObj.asAt(e.editId), 'clear', p.name, e.editId, prev)
+			}
 		}else if(e.op === editCodes.setString || e.op === editCodes.setBoolean || e.op === editCodes.setLong || e.op === editCodes.setInt){
 			var beforeValue = curObj.asAt(e.editId-1)[p.name].value()
 			cb(curObj.asAt(e.editId), 'set', p.name, e.editId, e.edit.value, beforeValue)
@@ -320,6 +324,18 @@ TopObjectHandle.prototype.replay = function(cb){
 			}
 			obj.prepare()
 			cb(curObj.asAt(e.editId), 'remove', p.name, e.editId, obj.asAt(e.editId))
+		}else if(e.op === editCodes.moveToAfter || e.op === editCodes.moveToFront || e.op === editCodes.moveToBack){
+			_.assertDefined(sub)
+			console.log('sub: ' + JSON.stringify(sub))
+			var obj  = this.objectApiCache?this.objectApiCache[sub]:undefined
+			if(!obj){
+				obj = this.getObjectApi(sub)
+			}
+			if(!obj){
+				_.errout('cannot locate object: ' + sub)
+			}
+			obj.prepare()
+			cb(curObj.asAt(e.editId), 'move', p.name, e.editId, obj.asAt(e.editId))
 		}else if(e.op === editCodes.putExisting){
 			_.assertDefined(key)
 			var k = key

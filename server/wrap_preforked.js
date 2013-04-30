@@ -186,6 +186,13 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 						}else{
 							//var preforkedChanges = originalIndex.getValueChangesBetween(bindings, preforkId, -1, editId)						
 							var set = [].concat(preforkedValue)
+							
+							if(property.type.members.type === 'object'){
+								set.forEach(function(id,index){
+									if(id.inner) set[index] = innerify(key, id.inner)
+								})
+							}
+							
 							originalChanges.forEach(function(c){
 								if(c.type === 'remove'){
 									if(set.indexOf(c.value) !== -1){
@@ -200,6 +207,7 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 									_.errout('TODO: ' + JSON.stringify(c))
 								}
 							})
+							
 							
 							//console.log('Computed: ' + key + ' ' + JSON.stringify([originalValue, preforkedValue, originalChanges, set]))
 							return set
