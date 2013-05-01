@@ -115,8 +115,8 @@ OlReaders.prototype.syntheticEdit = function(){
 	++this.lastVersionId
 }
 OlReaders.prototype.destroy = function(){
-	this.ol._destroy(this.currentId)//TODO
-	this.currentId = undefined	
+	this.ol._destroy(this.state.top)//TODO
+	//this.currentId = undefined	
 }
 OlReaders.prototype.madeSyncId = function(){
 	++this.manySyncIdsMade
@@ -1029,15 +1029,34 @@ Ol.prototype.getAllIdsOfTypeAt = function(typeCode, endEditId, cb){
 		var editIds = this.creationEditIdsByType[tc]
 		for(var i=0;i<ids.length;++i){
 			var id = ids[i]
-			if(!this.destroyed[id]){
+			//if(!this.destroyed[id]){
 				var editId = editIds[i]
 				if(editId > endEditId){
 					break//creationEditIdsByType is sequential
 				}
 				res.push(id)
+			//}
+		}
+
+		var destroyedEditIds = this.destructionEditIdsByType[tc]
+		if(destroyedEditIds){
+			var dids = this.destructionIdsByType[tc] || [];
+			for(var i=0;i<destroyedEditIds.length;++i){
+				var editId = destroyedEditIds[i]
+				if(editId > endEditId){
+					break//creationEditIdsByType is sequential
+				}
+				var id = dids[i]
+				if(res.indexOf(id) !== -1){
+					res.splice(res.indexOf(id), 1)
+				}
+				//--many
 			}
 		}
 	}
+	
+
+	
 	if(cb) cb(res)
 	return res
 }

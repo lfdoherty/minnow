@@ -189,6 +189,8 @@ exports.make = function(schema, ol){
 						c = {type: 'removeKey', key: key, editId: editId}
 					}else if(op === editCodes.destroy){
 						//do nothing?
+						console.log('destroyed')
+						c = {type: 'destroyed', editId: editId}
 					}else if(op === editCodes.moveToAfter || op === editCodes.moveToFront || op === editCodes.moveToBack){
 						//TODO
 						//for now, do nothing

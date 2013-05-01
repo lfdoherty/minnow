@@ -13,6 +13,8 @@ var editNames = editFp.names
 function editToMatch(c, n, cb){
 	_.assertObject(c)
 	_.assertObject(n)
+	
+	//console.log('editing to match: ' + JSON.stringify([c,n]))
 	//if(!n.property) _.errout('missing property: ' + JSON.stringify(n))
 	//_.assertInt(n.property)
 	if(n.object && c.object !== n.object){

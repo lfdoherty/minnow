@@ -168,3 +168,72 @@ exports.retrieveAfterDel = function(config, done){
 	})
 }
 
+exports.destroyedInIndex = function(config, done){
+	//console.log('destruction config: ' + JSON.stringify(config))
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('byString', ['test'], function(err, c){
+				if(err) throw err
+				
+				var added = false
+				done.poll(function(){
+					if(c.s.size() === 1){
+						//console.log('added')
+						added = true
+					}
+					if(added && c.s.size() === 0){
+						//console.log('deleted')
+						done()
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					//console.log('got client for destroy')
+					otherClient.view('empty', function(err, v){
+						var obj = v.make('entity', {v: 'test'})
+						setTimeout(function(){
+							//console.log('deleted')
+							obj.del()
+						},500)
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.stringsFromDestroyed = function(config, done){
+	//console.log('destruction config: ' + JSON.stringify(config))
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('stringsFrom', function(err, c){
+				if(err) throw err
+				
+				var added = false
+				done.poll(function(){
+					if(!added && c.s.size() === 1){
+						console.log('added')
+						added = true
+					}
+					if(added && c.s.size() === 0){
+						console.log('deleted')
+						done()
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					//console.log('got client for destroy')
+					otherClient.view('empty', function(err, v){
+						var obj = v.make('entity', {v: 'test'})
+						setTimeout(function(){
+							//console.log('deleted')
+							obj.del()
+						},500)
+					})
+				})
+				
+			})
+		})
+	})
+}

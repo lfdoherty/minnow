@@ -93,6 +93,7 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 			return pvChanges
 		},
 		getHistoricalBetween: function(bindings, startEditId, endEditId){
+			//console.log('here')
 			if(startEditId === -1 || startEditId === 0){
 				var changes = context.getHistoricalBetween(bindings, startEditId, endEditId)//, function(changes){
 					//console.log('computing property-single historical changes with context: ' + JSON.stringify(changes))

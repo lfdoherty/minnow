@@ -409,7 +409,7 @@ function createRelHandle(objSchema, relMakers){
 			relMakers.forEach(function(rm){
 				if(rm.getBetween){
 					var relChanges = rm.getBetween(bindings, lastEditId, endEditId)
-					//console.log('got rel changes: ' + JSON.stringify(relChanges) + ' ' + viewId + '.'+ rm.propertyCode + ' ' + lastEditId + ' ' + endEditId + ' ' + JSON.stringify(bindings) + ' ' + rm.name)
+					//console.log('got rel changes: ' + JSON.stringify(relChanges) + ' ' + viewId + '.'+ rm.propertyCode + ' ' + rm.propertyName + ' ' + rm.original + ' ' + lastEditId + ' ' + endEditId + ' ' + JSON.stringify(bindings) + ' ' + rm.name)
 					relChanges.forEach(function(c){
 						var e = rm.changeToEdit(c)
 						if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
@@ -418,6 +418,7 @@ function createRelHandle(objSchema, relMakers){
 						if(!e.state) e.state = {}
 						_.assertInt(rm.propertyCode)
 						e.state.property = rm.propertyCode
+						
 						e.state.top = viewId
 						edits.push(e)
 					})
@@ -1177,11 +1178,21 @@ exports.make = function(schema, ol){
 			Object.keys(viewSchema.rels).forEach(function(relName){
 				var rel = viewSchema.rels[relName];
 				var rm = makeRelHandle(rel, viewParamsStaticBindings)
+				if(rm.propertyCode){
+					rm = _.extend({}, rm)
+				}
+				
 				rm.rel = rel
 				if(!rm.changeToEdit) _.errout('needs changeToEdit: ' + rm.name + ' ' + JSON.stringify(rel) + ' ' + rm.getChangesBetween)
 				rm.propertyCode = viewSchema.rels[relName].code
+				rm.property = viewSchema.rels[relName]
+				rm.propertyName = relName
+				rm.original = true
+				//console.log(viewSchema.code + ' ' + relName + ' ' + rm.propertyCode)
 				if(rm.propertyCode === undefined) _.errout('missing code: ' + JSON.stringify(viewSchema.rels[relName]))
 				_.assertInt(rm.propertyCode)
+				
+				Object.freeze(rm)
 				//relMakers.push(rm)
 				makers[objSchema.code].relMakers.push(rm)
 			})
@@ -1208,7 +1219,14 @@ exports.make = function(schema, ol){
 					//TODO wrap in any containing mutators as well
 					var nrm = relMakers[index] = makeRelHandle(rm.rel,newStaticBindings)
 					//_.assertInt(nrm.propertyCode)
+					if(nrm.propertyCode){
+						//_.errout('TODO?: ' + nrm.propertyCode + ' ' + rm.propertyCode)
+						//_.assertEqual(nrm.propertyCode, rm.propertyCode)
+						nrm = _.extend({}, nrm)
+					}
 					nrm.propertyCode = rm.propertyCode
+					nrm.property = rm.property
+					nrm.propertyName = rm.propertyName
 				})
 				mutatedMakers[viewCodeStr] = createRelHandle(schema._byCode[viewCodeStr], relMakers)
 				
@@ -1269,6 +1287,7 @@ exports.make = function(schema, ol){
 		if(_.isString(id)){
 			//var m = getMakerForViewId(id)
 			getMakerForViewId(id, function(m, pv){
+				//console.log('getEditsBetween: ' + m.getEditsBetween)
 				m.getEditsBetween(pv.rest, lastEditId, endEditId, function(edits){
 					if(!m.analytics) _.errout('missing analytics: ' + m.name)
 					var acc = m.analytics.accumulate()

@@ -191,8 +191,8 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		}
 		//TODO validate results
 		
+		//console.log(editId+' computed sync ' + impl.callSyntax)// + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
 		/*if(impl.callSyntax === 'mapValue(map,key)'){
-			console.log(editId+' computed sync ' + impl.callSyntax)// + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
 			console.log(pr1.name)
 		}*/
 		//console.log(new Error().stack)
@@ -216,63 +216,16 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 	if(rel.schemaType.members && rel.schemaType.members.type === 'object'){
 		handle.getMayHaveChanged = handle.getStateAt
 	}
-/*
-	if(isFullySync){
-		//TODO create custom getStateSync with hardcoded binding mappings and a direct call
-		if(rel.params.length === 1){
-			var getter = paramRels[0].getStateSync
-			var computeSync = impl.computeSync
-			handle.getStateSync = function(bindingValues){
-				var res = computeSync(z, getter(bindingValues))
-				//console.log('computed1 sync state ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(res) + ' ' + impl.callSyntax)
-				return res
-			}
-		}else if(rel.params.length === 2){
-			var getterA = paramRels[0].getStateSync
-			var getterB = paramRels[1].getStateSync
-			var computeSync = impl.computeSync
-			handle.getStateSync = function(bindingValues){
-				var a = getterA(bindingValues)
-				var b = getterB(bindingValues)
-				var res = computeSync(z, a, b)
-				//console.log('computed2 sync state ' + JSON.stringify(bindingValues) + ' ' + a + ' ' + b +  ' -> ' + JSON.stringify(res) + ' ' + impl.callSyntax)
-				return res
-			}
-		}else{
-			handle.getStateSync = function(bindingValues){
-				var paramStates = []
-				for(var i=0;i<paramRels.length;++i){
-					paramStates[i] = paramRels[i].getStateSync(bindingValues)
-				}
-				var cp = [z].concat(paramStates)
-				var result = impl.computeSync.apply(undefined, cp)			
-				//console.log('computed sync state ' + JSON.stringify(bindingValues) + ' -> ' + JSON.stringify(result) + ' ' + impl.callSyntax)
-				return result
-			}
-		}
-	}else{
-		handle.getStateSync = function(bindingValues){
-			paramRels.forEach(function(pr){console.log('pr: ' + pr.name + ' ' + (!!pr.getStateSync) + ' ' + (!!pr.isFullySync))})
-			_.errout('sync operator has non-sync params: ' + JSON.stringify(rel))			
-		}
-	}
-	handle.isFullySync = isFullySync*/
 	
 	if(rel.schemaType.type === 'primitive' || rel.schemaType.type === 'object' || rel.schemaType.type === 'view'){
 		//_.errout('TODO')
 		handle.getBetween = opu.makeSetSyncBetween(handle, ws)
-		//handle.getHistoricalChangesBetween = makeSetHistoricalChangesBetween(handle, ws)
 	}else{
 		handle.getBetween = wu.makeSyncGenericGetChangesBetween(handle, ws, rel, recurseSync, paramRels)//TODO
 		
 	}
 	
 	handle.getHistoricalBetween = opu.makeSyncGeneralOperatorHistoricalChangesBetween(paramRels, handle, ws)
-
-	
-	//makeSyncGenericGetHistoricalChangesBetween(handle, ws, rel, recurse)//TODO
-	
-	//handle.getChangesBetween = makeGenericGetChangesBetween(handle, ws, rel, recurse)
 	
 	return handle
 }

@@ -300,7 +300,7 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 			}
 		}
 		all.sort(function(a,b){return a.editId - b.editId;})
-		//console.log('computed changes 
+		//console.log('computed changes ')
 		return all
 		/*	allChanges = all
 			savingChanges = true
@@ -410,6 +410,11 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			var oldSet = permanentCache[c.old]
 			oldSet.push({type: 'remove', value: id, editId: c.editId})
 			currentValue[id] = undefined
+		}else if(c.type === 'destroyed'){
+			var old = currentValue[id]
+			var oldSet = permanentCache[old]
+			oldSet.push({type: 'remove', value: id, editId: c.editId})
+			currentValue[id] = undefined
 		}else{
 			_.errout('TODO: ' + JSON.stringify(c))
 		}
@@ -438,17 +443,36 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			}
 			
 			var state = []
+			
 			//console.log('changes: ' + JSON.stringify(changes))
+			
+			//here we're pre-masking remove
+			var removed = {}
 			for(var i=0;i<changes.length;++i){
 				var c = changes[i]
 				if(c.editId > editId) break
 				if(c.type === 'add'){
-					state.push(c.value)
-				}else if(c.type === 'remove'){//TODO pre-mask?
+					if(removed[c.value]) removed[c.value] = false
+				}else if(c.type === 'remove'){
+					removed[c.value] = true
+				}else{
+					_.errout('TODO: ' + JSON.stringify(c))
+				}
+			}
+			
+			
+			for(var i=0;i<changes.length;++i){
+				var c = changes[i]
+				if(c.editId > editId) break
+				if(c.type === 'add'){
+					if(!removed[c.value]){
+						state.push(c.value)
+					}
+				}else if(c.type === 'remove'){
 					//console.log(JSON.stringify([c, state]))
-					var index = state.indexOf(c.value)
-					_.assert(index !== -1)
-					state.splice(index, 1)
+					//var index = state.indexOf(c.value)
+					//_.assert(index !== -1)
+					//state.splice(index, 1)
 				}else{
 					_.errout('TODO: ' + JSON.stringify(c))
 				}
