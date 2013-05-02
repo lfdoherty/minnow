@@ -179,7 +179,7 @@ function make(schema, ol){
 			}
 		}else if(op === editCodes.putExisting){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
-		}else if(op === editCodes.addExisting || op === editCodes.unshiftExisting){
+		}else if(op === editCodes.addExisting || op === editCodes.unshiftExisting || op === editCodes.addAfter){
 			_.assert(e.id !== -1)
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.replaceInternalExisting){

@@ -150,6 +150,10 @@ ObjectListHandle.prototype.at = function(index){
 	obj.prepare()
 	return obj;
 }
+ObjectListHandle.prototype.indexOf = function(obj){
+	return this.obj.indexOf(obj)
+}
+
 ObjectListHandle.prototype.get = function(desiredId){
 	_.assertLength(arguments, 1);
 	_.assertInt(desiredId)

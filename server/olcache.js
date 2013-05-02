@@ -142,6 +142,10 @@ exports.make = function(){
 				incr(id)
 			}
 			list.push(edit)
+			/*if(list.length > 1 && list[1].op !== 2){
+				console.log(JSON.stringify(list))
+				_.errout('invalid edit seq')
+			}*/
 		},
 		get: function(id){
 			if(cache[id]){
