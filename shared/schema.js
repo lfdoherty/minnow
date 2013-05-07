@@ -424,6 +424,14 @@ function makeMergeTypes(schema){
 					if(v !== 'string') _.errout('cannot merge string and non-strings: ' + JSON.stringify(types))
 				})
 				return types[0]
+			}else if(prim === 'long'){
+				var foundReal = false
+				primitives.forEach(function(v){
+					if(v === 'real') foundReal = true
+					if(v !== 'int' && v !== 'long' && v !== 'real') _.errout('cannot merge numbers and non-numbers: ' + JSON.stringify(types))
+				})
+				if(foundReal) return {type: 'primitive', primitive: 'real'}
+				return {type: 'primitive', primitive: 'long'}
 			}else{
 				_.errout('TODO: ' + JSON.stringify(types))
 			}

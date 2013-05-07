@@ -588,7 +588,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				
 				var pu = conn.pathFromClientFor[syncId]
 
-				//console.log('^^^^ ' + editNames[op] + ' ' + JSON.stringify(e))
+				console.log('^^^^ ' + editNames[op] + ' ' + JSON.stringify(e))
 
 				if(op === editCodes.selectTopObject){
 					if(conn.currentIdFor[syncId] === e.edit.id){

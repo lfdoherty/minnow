@@ -152,6 +152,16 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 				//console.log('newBindings: ' + JSON.stringify(newBindings))
 				var preforkId = preforkedObjSync.getAt(newBindings, editId)
 				
+				if(key.inner){
+					var nb = shallowCopy(bindings)
+					nb[staticBindings.mutatorImplicit]  = key.top
+					var preforkTopId = preforkedObjSync.getAt(nb, editId)
+					var preforkedInner = innerify(preforkTopId, key.inner)
+					nb[staticBindings.mutatorImplicit]  = preforkedInner
+					preforkId = preforkedObjSync.getAt(nb, editId) || preforkedInner
+					//_.errout('TODO: ' + JSON.stringify([key, preforkTopId]))
+				}
+				
 				if(!preforkId){
 					//console.log(editId + ' returning originalValue because preforkId(' + key + ') null ' + preforkedObjSchema.name+'.'+property.name)
 					return originalValue
@@ -220,7 +230,9 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 			},
 			getValueChangesBetween: function(bindings, key, startEditId, endEditId){
 				_.assertLength(arguments, 4)
-				//_.errout('tODO')				
+				//_.errout('tODO')		
+				
+				if(key.inner) _.errout('TODO: ' + JSON.stringify(key))		
 
 				var originalChanges = originalIndex.getValueChangesBetween(bindings, key, startEditId, endEditId)
 				

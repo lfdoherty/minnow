@@ -3,6 +3,31 @@ var _ = require('underscorem')
 var analytics = require('./../analytics')
 var wu = require('./../wraputil')
 
+function removeInner(arr){
+	var res = []
+	for(var i=0;i<arr.length;++i){
+		var id = arr[i]
+		if(typeof(id) === 'number'){
+			res.push(id)
+		}
+	}
+	return res
+}
+function removeInnerEdits(edits){
+	if(edits.length === 0) return edits
+	
+	var res = []
+	for(var i=0;i<edits.length;++i){
+		var e = edits[i]
+		_.assert(e.type === 'add' || e.type === 'remove')
+		var id = e.value
+		if(typeof(id) === 'number'){
+			res.push(e)
+		}
+	}
+	return res
+}
+
 function makeWithIndex(s, rel, recurseSync, handle, ws, staticBindings, allHandle, objSchema, propertyCode, keysAreBoolean){
 	
 	var a = analytics.make('multimap-optimization-with-index', [])
@@ -20,17 +45,17 @@ function makeWithIndex(s, rel, recurseSync, handle, ws, staticBindings, allHandl
 		name: 'multimap-optimization',
 		analytics: a,
 		getValueStateAt: function(key, bindings, editId, cb){
-			cb(index.getValueAt(bindings, key, editId))
+			cb(removeInner(index.getValueAt(bindings, key, editId)))
 		},
 		getValueAt: function(key, bindings, editId){
-			return index.getValueAt(bindings, key, editId)
+			return removeInner(index.getValueAt(bindings, key, editId))
 		},
 		getValueBetween: function(key, bindings, startEditId, endEditId){
 			//console.log('getting value changes between for: ' + key)
-			return index.getValueChangesBetween(bindings, key, startEditId, endEditId)
+			return removeInnerEdits(index.getValueChangesBetween(bindings, key, startEditId, endEditId))
 		},
 		getValueChangesBetween: function(key, bindings, startEditId, endEditId, cb){
-			cb(index.getValueChangesBetween(bindings, key, startEditId, endEditId))
+			cb(removeInnerEdits(index.getValueChangesBetween(bindings, key, startEditId, endEditId)))
 		},
 		getAt: function(bindings, editId){
 			_.assertLength(arguments, 2)

@@ -22,3 +22,18 @@ schema.addFunction('timestamp', {
 	}
 })
 
+
+schema.addFunction('creationTimestamp', {
+	schemaType: timestampType,
+	minParams: 1,
+	maxParams: 1,
+	callSyntax: 'creationTimestamp(object)',
+	computeSync: function(z, obj){
+		if(obj === undefined){
+			return undefined
+		}else{
+			return z.objectState.getCreationTimestamp(obj)
+		}
+	}
+})
+

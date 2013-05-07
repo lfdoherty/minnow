@@ -232,52 +232,6 @@ ObjectHandle.prototype.propertyTypes = function(propertyName){
 }
 ObjectHandle.prototype.properties = getProperties;
 
-/*
-ObjectHandle.prototype.changeListenerElevated = function(descentCode, op, edit, syncId, editId){
-	if(op === editCodes.setObject || op === editCodes.setViewObject){// || op === editCodes.clearObject){
-		_.assertInt(descentCode)
-		var ps = this.typeSchema.propertiesByCode[descentCode];
-		if(ps === undefined){
-			console.log('WARNING: logic error or removed property, cannot find property with descent code: ' + descentCode)
-			return
-		}
-		_.assertObject(ps)
-		if(op === editCodes.setObject){
-			if(ps.type.type !== 'object'){
-				_.errout('setObject called on non object type, type is: ' + JSON.stringify(ps))
-			}
-			//_.assertEqual(ps.type.type, 'object')
-		}
-		var pv = this[ps.name]//.cachedProperties[ps.name]
-		if(pv && pv.objectId === edit.id){
-			//already done
-			//this.log('setObject redundant (local view object?), skipping')
-		}else{
-			//this.log('set to: ' + edit.id + ' ' + descentCode + ' ' + this.objectId + ' ' + ps.name)
-			var setObj = this.getObjectApi(edit.id)
-			if(setObj === undefined){
-				this.log.warn('object not found, may have been del\'ed: ' + edit.id)
-				this.log(new Error().stack)
-				return
-			}
-
-			this.obj[descentCode] = setObj;
-			setObj.prepare()
-			this[ps.name] = setObj
-			//console.log('EMITTING SET OBJECT ' + ps.name)
-			this.emit(edit, 'set', ps.name, setObj)			
-		}
-	}else if(op === editCodes.clearObject || op === editCodes.clearProperty){
-		var ps = this.typeSchema.propertiesByCode[descentCode];
-		this[ps.name] = undefined
-		this.obj[descentCode] = undefined
-	}else if(op === editCodes.setToNew){
-		_.errout('TODO setToNew: ' + JSON.stringify(arguments))
-	}else{
-		_.errout('TODO: ' + op)
-	}
-}
-*/
 ObjectHandle.prototype.isa = function(name){
 	return this.typeSchema.name === name || (this.typeSchema.superTypes && this.typeSchema.superTypes[name])
 }
@@ -336,71 +290,7 @@ ObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncId){
 		//_.errout('TODO: ' + editNames[op] + ' ' + JSON.stringify(edit))
 		console.log('WARNING: ' + editNames[op] + ' ' + JSON.stringify(edit))
 	}
-	
-	/*
-		setPropertyValue(this.obj, path[0], edit.value);
-		return this.refresh(edit);
-	}else{
-		var ap = this.property(ps.name);
-		var res;
-		_.assertObject(ap);
-		//if(ps.type.type === 'object'){
-		//	res = ap.changeListener(path.slice(1), op, edit, syncId);
-		//}else{
-		this.log('descending into object: ' + JSON.stringify(edit))
-		res = ap.changeListener(path.slice(1), op, edit, syncId);
-		//}
-		_.assertFunction(res);
-		return res;
-	}	*/
 }
-/*
-ObjectHandle.prototype.setPropertyToNew = function(propertyName, newType){
-	var pt = this.typeSchema.properties[propertyName];
-	_.assertDefined(pt);
-	_.assert(pt.type.type === 'object');
-	
-	_.assert(arguments.length >= 1)
-	_.assert(arguments.length <= 2)
-	
-	if(newType) _.assertString(newType)
-	
-	var fullSchema = this.getFullSchema();
-	var objectSchema = fullSchema[pt.type.object];
-
-	var types = recursivelyGetLeafTypes(objectSchema, fullSchema);
-	if(newType === undefined){
-		_.assertLength(types, 1);
-		newType = types[0];
-	}else{
-		_.assertIn(types, newType);
-	}
-	objectSchema = fullSchema[newType];
-
-	var res;	
-	var temporary = u.makeTemporaryId();
-	var newObj;
-	this.log('set property to new: ' + pt.code)
-	
-	if(this.typeSchema.isView){
-		_.errout('invalid operation: cannot create an inner object for a view object')
-	}
-
-	var remaining = this.parent.adjustPath(this.part)
-	if(remaining.length === 0){
-		this.persistEdit('selectProperty', {typeCode: pt.code})
-	}else if(remaining[0] !== pt.code){
-		if(remaining.length > 1) this.ascendBy(remaining.length-1)
-		this.persistEdit('reselectProperty', {typeCode: pt.code})
-	}
-	this.persistEdit('setToNew', {newType: objectSchema.code, temporary: temporary})
-
-
-	delete this.cachedProperties[propertyName]
-	this[propertyName] = this.property(propertyName);
-
-	return this[propertyName];
-}*/
 
 
 ObjectHandle.prototype.replaceObjectHandle = function(oldHandle, newHandle, part){
@@ -409,85 +299,7 @@ ObjectHandle.prototype.replaceObjectHandle = function(oldHandle, newHandle, part
 	_.assertObject(newHandle)
 	this[property.name] = newHandle
 }
-/*
-ObjectHandle.prototype.set = function(objHandle){
-	if(this.isView()){//TODO verify from eventual server->client update
-		//this.log('is view, just setting')
-		//this.parent.cachedProperties[propertyName] = newValue;
-		this.parent.replaceObjectHandle(this, objHandle, this.part)
-		return
-	}
 
-	//TODO re-write parent property stuff
-	
-	var e = {id: objHandle._internalId()}
-	
-	this.parent.adjustPath(this.part[0])
-	this.persistEdit(editCodes.setObject, e)
-
-	this.parent.replaceObjectHandle(this, objHandle, this.part)
-	
-	this.emit({}, 'set', objHandle)
-	
-	this.destroyed = true
-	var local = this
-	Object.keys(this).forEach(function(key){
-		try{
-			var value = local[key]
-			if(_.isFunction(value)){
-				local[key] = function(){_.errout('inner object has been destroyed');}
-			}
-		}catch(e){
-		}
-	})
-
-
-	return objHandle;
-}*/
-/*
-ObjectHandle.prototype.setNew = function(typeName, json){
-	if(_.isObject(typeName)){
-		json = typeName
-		typeName = undefined
-	}
-	
-	json = json || {}
-	var type = u.getOnlyPossibleType(this, typeName);
-	
-	var remaining = this.parent.adjustPath(this.part[0])
-
-	//console.log('setting to new: ' + this.parent.prepared)
-	this.saveEdit(editCodes.setToNew, {typeCode: type.code})
-
-	var temporary = this.makeTemporaryId();
-	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this));
-
-	if(edits.length > 0){
-		this.adjustPathSelf(temporary)
-		for(var i=0;i<edits.length;++i){
-			var e = edits[i]
-			this.persistEdit(e.op, e.edit)
-		}
-	}
-	
-	_.assert(this.part[0] > 0)
-	
-	var n = new ObjectHandle(type, edits, temporary, this.part, this.parent);
-	if(this.objectApiCache === undefined) this.objectApiCache = {}
-	this.objectApiCache[temporary] = n;
-	
-	n.prepare()
-
-	_.assertObject(n)
-
-	this.emit({}, 'set', n)//()
-	
-	//TODO rewrite parent property stuff
-	this.parent.replaceObjectHandle(this, n, this.part)
-	
-	return n
-
-}*/
 
 ObjectHandle.prototype.clearProperty = function(propertyName){
 	_.assertLength(arguments, 1)
@@ -617,6 +429,8 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 		this[propertyName] = n
 		
 		var e = {id: n._internalId(), typeCode: newValue.typeSchema.code}
+		_.assertInt(e.id)
+		if(e.id === -1) _.errout('cannot set object property with a undefined object property - new value is empty')
 		
 		//this.adjustPath(pt.code)
 		//this.adjust

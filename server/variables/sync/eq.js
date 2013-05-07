@@ -12,6 +12,6 @@ exports.nullsOk = true
 var log = require('quicklog').make('eq')
 
 exports.computeSync = function(z, a, b){
-	//console.log('eq: ' + a + ','+b+': ' + (a===b))
+	//if(_.isString(a)) console.log('eq: ' + a + ','+b+': ' + (a===b))
 	return a === b
 }

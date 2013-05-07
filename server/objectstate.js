@@ -923,6 +923,9 @@ exports.make = function(schema, ap, ol){
 		getVersionTimestamp: function(id){
 			return ol.getVersionTimestamp(id)
 		},
+		getCreationTimestamp: function(id){
+			return ol.getVersionTimestamp(ol.getCreationVersion(id))
+		},
 		
 		getInclusionsDuring: function(id, lastEditId, endEditId, cb){//TODO getExclusionsDuring?
 			//_.assertInt(id)

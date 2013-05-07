@@ -125,87 +125,38 @@ function getSnap(dbSchema, cc, st, type, params, cb){
 	_.assertArray(params);
 	var paramsStr = JSON.stringify(params);
 
-	var viewId = st.code+':'+paramsStr//JSON.stringify(params)
+	var viewId = st.code+':'+paramsStr
 	
 	//console.log(require('util').inspect(st));
 	_.assertInt(st.code);
 	//console.log(new Error().stack)
 	
-	//TODO optimize this to a single call
-	/*cc.getSnapshots({typeCode: st.code, params: paramsStr, isHistorical: false}, function(err, res){
+	cc.getAllCurrentSnapshots({typeCode: st.code, params: paramsStr, isHistorical: false}, function(err, snapshotsRes){
+	
 		if(err){
-			console.log('getView error: ' + err)
+			console.log('getAllSnapshots error: ' + err)
 			cb(err)
 			return
 		}
-		var snapshotIds = res.snapshotVersionIds;
-		//console.log(JSON.stringify(snapshotIds));
-		for(var i=0;i<snapshotIds.length;++i){
-			_.assertInt(snapshotIds[i]);
-		}*/
-		cc.getAllCurrentSnapshots({typeCode: st.code, params: paramsStr, /*snapshotVersionIds: snapshotIds, */isHistorical: false}, function(err, snapshotsRes){
+	
+		var snapshots = snapshotsRes.snapshots;
+		if(snapshots === undefined){
+			cb();
+			return;
+		}
 		
-			if(err){
-				console.log('getAllSnapshots error: ' + err)
-				cb(err)
-				return
-			}
+		//TODO impl and use makeSnap
+		var api = syncApi.make(dbSchema, {}, log);
+		api.setEditingId(-2)
 		
-			var snapshots = snapshotsRes.snapshots;
-			if(snapshots === undefined){
-				cb();
-				return;
-			}
-			
-			//TODO impl and use makeSnap
-			var api = syncApi.make(dbSchema, {}, log);
-			api.setEditingId(-2)
-			
-			snapshots.forEach(function(snapshot){
-				api.addSnapshot(snapshot)
-			})
-			
-			cb(undefined, api.getView(viewId))
-		/*
-			//var snapshot = mergeSnapshots(snapshots);
-			//console.log('got snapshots: ' + JSON.stringify(snapshots).slice(0,500));
-
-			//TODO: cache/reuse sync apis?
-			//TODO: they would need to have different syncIds though...
+		snapshots.forEach(function(snapshot){
+			api.addSnapshot(snapshot)
+		})
 		
-			//var api;
-			function readyCb(e){
-				//_.assertInt(e.syncId);
-				//cb()//.getRoot());
-				//log('ready!!!!!!!!!!!!!!!!!!!!!!!1')
-				cb()
-			}
-			
-			snapshots.forEach(function(snapshot){
-				//log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
-				//process.exit(0)
-				api.addSnapshot(snapshot, historicalKey)
-			})
-		
-			//var key = st.isView ? st.code+':'+JSON.stringify(params) : params;
-		
-			//_.errout('TODO')
-		
-			
-			var req = {
-				typeCode: st.code, 
-				params: JSON.stringify(params), 
-				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
-				syncId: syncId,
-				isHistorical: !!historicalKey
-			}
-			if(historicalKey) req.historicalKey = historicalKey
-			//console.log('beginning view')
-			beginView(req, readyCb);*/
-
-		});
-	//});
+		cb(undefined, api.getView(viewId))
+	});
 }
+
 function translateParamObjects(s, params){
 	var viewSchema = s.viewSchema
 	//console.log(JSON.stringify(viewSchema))
@@ -361,7 +312,8 @@ function makeClient(host, port, clientCb){
 		}
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
-			_.assertInt(e.op)
+			if(!_.isInt(e.op)) _.errout('invalid edit: ' + JSON.stringify(e))
+			//_.assertInt(e.op)
 			dsh.persistEdit(e.op, e.edit, listeningSyncId);
 		}
 		if(forget){
@@ -370,19 +322,6 @@ function makeClient(host, port, clientCb){
 		}
 		return edits
 	}	
-
-	/*function doFork(obj, cb){
-
-		var dsh = cc.getDefaultSyncHandle()
-		var requestId = dsh.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()}, listeningSyncId)
-		if(cb){
-			_.assertInt(requestId)
-			_.assertFunction(cb)
-			makeCbsWaiting[requestId] = {cb: cb}
-		}
-		
-		return []
-	}	*/
 
 	var dbSchema
 	

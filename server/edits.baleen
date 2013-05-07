@@ -7,6 +7,7 @@ made 2//what gets broadcast when 'make' happens
 	id int 1
 	typeCode int 2
 	following int 5
+
 makeMapped 3//what gets sent back to the make source syncId (for make and the various *New edits as well for internal ops.)
 	id int 1
 	temporary int 2

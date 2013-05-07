@@ -174,14 +174,39 @@ function establishSocket(appName, schema, host, cb){
 			}
 			return edits
 		},
-		makeFork: function(obj, cb, temporary){
-			sendFacade.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()})
+		copy: function(obj, forget, cb, temporary){
+
+			_.assertLength(arguments, 4)
 			
-			if(cb){
-				_.assertFunction(cb)
+			var st = schema[obj.type()];
+
+			//_.errout('TODO')
+			//var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
+			var edits = []
+			
+			obj.edits.forEach(function(e){
+				if(e.op === editCodes.made || e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) return
+				if(e.op === editCodes.addedNew || e.op === editCodes.addedNewAt || 
+					e.op === editCodes.didPutNew || e.op === editCodes.unshiftedNew || e.op === editCodes.wasSetToNew){
+						_.errout('TODO REMAP? (or something?)')
+				}
+				edits.push(e)
+			})
+
+			sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length})
+
+			if(cb) {
 				makeIdCbListeners[temporary] = cb
+				//console.log('setup cb: ' + temporary)
 			}
-			return []
+
+			edits.forEach(function(e){
+				sendFacade.persistEdit(e.op, e.edit);
+			})
+			if(forget){
+				sendFacade.forgetLastTemporary()
+			}
+			return edits
 		},
 		forgetLastTemporary: function(){
 			//_.errout('TODO')

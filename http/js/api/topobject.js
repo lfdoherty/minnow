@@ -231,7 +231,11 @@ TopObjectHandle.prototype.replay = function(cb){
 			//var curSchema = this.getObjectApi(e.edit.id)
 
 			p = curSchema.propertiesByCode[cp]
-			if(!p) _.errout('cannot find: ' + cp + ' in ' + JSON.stringify(this.typeSchema))
+			if(!p){
+				//_.errout('cannot find: ' + cp + ' in ' + JSON.stringify(this.typeSchema))
+				p = undefined
+				
+			}
 		}else if(e.op === editCodes.selectObject){
 			cur = e.edit.id
 			//_.errout('TODO setup schema')
@@ -264,6 +268,9 @@ TopObjectHandle.prototype.replay = function(cb){
 			}
 			continue
 		}
+		
+		if(!p) continue
+		
 		if(e.op === editCodes.setSyncId){
 		}else if(e.op === editCodes.initializeUuid){
 		}else if(e.op === editCodes.selectProperty){
@@ -283,6 +290,7 @@ TopObjectHandle.prototype.replay = function(cb){
 			}
 			//console.log('skip: ' + skip)
 		}else if(e.op === editCodes.setObject){
+			if(!p) 
 			//_.errout('TODO: ' + e.edit.id)
 			var prev
 			var subjAt = curObj.asAt(e.editId-1)
@@ -312,7 +320,7 @@ TopObjectHandle.prototype.replay = function(cb){
 		}else if(e.op === editCodes.addedNew || e.op === editCodes.addedNewAfter || e.op === editCodes.addedNewAt){
 			var obj = curObj.isInner ? curObj.getTopParent().objectApiCache[e.edit.id] : curObj.objectApiCache[e.edit.id]
 			cb(curObj.asAt(e.editId), 'add', p.name, e.editId, obj.asAt(e.editId), true)
-		}else if(e.op === editCodes.addExisting || e.op === editCodes.addAfter){
+		}else if(e.op === editCodes.addExisting || e.op === editCodes.addAfter || e.op === editCodes.unshiftExisting){
 			var obj = this.getObjectApi(e.edit.id)
 			obj.prepare()
 			cb(curObj.asAt(e.editId), 'add', p.name, e.editId, obj.asAt(e.editId))
@@ -346,7 +354,7 @@ TopObjectHandle.prototype.replay = function(cb){
 			var obj = this.getObjectApi(e.edit.id)
 			obj.prepare()
 			cb(curObj.asAt(e.editId), 'put', p.name, e.editId, k, obj.asAt(e.editId))
-		}else if(e.op === editCodes.putBoolean){
+		}else if(e.op === editCodes.putBoolean || e.op === editCodes.putString){
 			_.assertDefined(key)
 			var k = key
 			if(keyIsObject){
@@ -565,6 +573,42 @@ function samePathCompact(compact, normal){
 }*/
 
 TopObjectHandle.prototype.getImmediateKey = function(){}
+
+TopObjectHandle.prototype._getVersionsSelf = function(source){
+	//_.assert(path.length > 0)
+
+	var madeIndex = getMadeIndex(this)
+
+	var fakeObject = {}
+	var same = false
+	var versions = [this.edits[madeIndex].editId]
+	//console.log('looking over(' + source + '): ' + JSON.stringify(this.edits, null, 2))// + ' ' + path.length)
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
+		//console.log(JSON.stringify([same, versions, e]))
+		if(!did){
+			//if(e.op === editCodes.made){//symbolic of the first, empty state
+			//	versions.push(e.editId)
+			//}
+			
+			//if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){
+			if(same && (versions.length === 0 || versions[versions.length-1] !== e.editId) && i > madeIndex){
+				versions.push(e.editId)
+			}
+		}else{
+			//same = samePathCompact(path, fakeObject.pathEdits)
+			same = 
+				(fakeObject.inputObject === source.getImmediateObject() || (fakeObject.inputObject === undefined && source.getImmediateObject() === source.getTopId())) && 
+				fakeObject.inputProperty === source.getImmediateProperty() &&
+				fakeObject.inputKey === source.getImmediateKey()
+			//console.log(same + '-' + fakeObject.inputObject + ' ' + fakeObject.inputProperty + ' ' + fakeObject.inputKey + ' ' + JSON.stringify(e))
+			//console.log(same + ' ' + source.getImmediateObject()  + ' ' + source.getImmediateProperty() + ' ' + source.getImmediateKey() + ' ' + JSON.stringify(e))
+		}
+	}
+	//console.log('done')
+	return versions
+}
 
 TopObjectHandle.prototype._getVersions = function(source){
 	//_.assert(path.length > 0)
@@ -920,6 +964,33 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
 	
 		res.prepare();
 
+		return res;
+	}
+}
+
+//TODO NOT FINISHED (see minnow_update_websocket copy method)
+TopObjectHandle.prototype.___copy = function(json,cb){
+	if(arguments.length === 1){
+		if(!_.isObject(json)){//_.isFunction(json)){
+			cb = json
+			json = {}
+		}
+	}
+	
+	_.assert(cb === undefined || cb === true || _.isFunction(cb))
+	_.assertObject(json)
+
+	var forget = false;
+	if(cb === true){
+		cb = undefined
+		forget = true
+	}
+	
+	if(forget){
+		this.copyExternalObject(this, forget, undefined)
+	}else{
+		var res = this.copyExternalObject(this, forget, cb)
+		res.prepare();
 		return res;
 	}
 }
@@ -1381,6 +1452,47 @@ TopObjectHandle.prototype.versions = function(){
 	return versions
 }
 
+function getMadeIndex(top){
+	var madeIndex
+	for(var i=top.edits.length-1;i>=0;--i){
+		var e = top.edits[i]
+		if(e.op === editCodes.made){
+			madeIndex = i
+			break
+		}
+	}
+	_.assertInt(madeIndex)
+	return madeIndex
+}
+TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to preforking
+	var fakeObject = {}
+
+	var madeIndex = getMadeIndex(this)
+
+	var versions = [this.edits[madeIndex].editId]
+	
+	//console.log(JSON.stringify(edits))
+	var skip = 0
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
+		if(skip > 0){
+			--skip
+			continue
+		}
+		if(e.op === editCodes.made){
+			skip = e.edit.following
+		}
+		if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){
+			if(e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) continue
+			//if(this.isa('quote')) console.log(this.id() + ' * ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			versions.push(e.editId)
+		}
+	}
+	//console.log(JSON.stringify(versions))
+	//versions.unshift(-1)
+	return versions
+}
 //includes local versions as well as global ones, with local versions having negative edit ids, e.g. -1,-2,-3,...
 //TopObjectHandle.prototype.localVersions = function(){
 //}

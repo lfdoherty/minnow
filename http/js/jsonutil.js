@@ -82,7 +82,7 @@ function primitiveCast(value, type){
 	if(type === 'boolean') return !!type
 	if(type === 'real') return Number(value)
 	if(type === 'long') return Number(value)
-	_.errout('TODO: ' + type)
+	_.errout('TODO: ' + JSON.stringify(type))
 }
 
 //var jsonConverters = {}
@@ -117,23 +117,32 @@ function generatePropertyConverter(p, dbSchema){
 		}
 	}else if(p.type.type === 'map'){
 		
-		var select = editCodes[mapSelect[p.type.key]]
-		//var reselect = editCodes[mapReselect[p.type.key]]
-		var putOp = editCodes[mapPut[p.type.key]]
-		var keyType = p.type.key
-		converter = function(pv, makeTemporaryId, edits){
-			var keys = Object.keys(pv)
-			if(keys.length > 0){
-				var next = select
-				keys.forEach(function(key){
-					var value = pv[key]
-					if(value != undefined){
-						edits.push({op: next, edit: {key: primitiveCast(key,keyType)}})
-						edits.push({op: putOp, edit: {value: value}})
-						//next = reselect
-					}
-				});
-				edits.push({op: editCodes.ascend1, edit: {}})
+		if(p.type.key.type === 'primitive' && p.type.value.type === 'primitive'){
+			if(!mapSelect[p.type.key.primitive]) _.errout('do not know what selector edit to use: ' +p.type.key.primitive)
+			var select = editCodes[mapSelect[p.type.key.primitive]]
+			_.assertInt(select)
+			//var reselect = editCodes[mapReselect[p.type.key]]
+			var putOp = editCodes[mapPut[p.type.key.primitive]]
+			_.assertInt(putOp)
+			var keyType = p.type.key
+			converter = function(pv, makeTemporaryId, edits){
+				var keys = Object.keys(pv)
+				if(keys.length > 0){
+					var next = select
+					keys.forEach(function(key){
+						var value = pv[key]
+						if(value != undefined){
+							edits.push({op: next, edit: {key: primitiveCast(key,keyType.primitive)}})
+							edits.push({op: putOp, edit: {value: value}})
+							//next = reselect
+						}
+					});
+					//edits.push({op: editCodes.ascend1, edit: {}})
+				}
+			}
+		}else{
+			converter = function(pv, makeTemporaryId, edits){
+				_.errout('TODO: ' + JSON.stringify(p))
 			}
 		}
 	}else if(p.type.type === 'set'){

@@ -118,10 +118,13 @@ function applySubsetOptimizationToView(r){
 						for(var i=0;i<expr.params.length;++i){
 							var p = expr.params[i]
 							if(p.view === 'not'){
-								//processNot(r, p, function(propertyExpr){
-									macroPropertyExprs.push(p.params[0])
-									externalParamExprs.push('not')
-								//})
+
+								if(p.params[0].view !== 'property'){
+									failed = true
+									break
+								}
+								macroPropertyExprs.push(p.params[0])
+								externalParamExprs.push('not')
 							}else if(p.view === 'property'){
 								_.assertEqual(p.schemaType.primitive, 'boolean')
 								macroPropertyExprs.push(p)
@@ -240,6 +243,7 @@ function applyAndSubsetOptimization(r, inputExpr, implicit, macroPropertyExprs, 
 	var comboParams = []
 	externalParamExprs.forEach(function(epe, index){
 		var mpe = macroPropertyExprs[index]
+		
 		_.assertEqual(mpe.view, 'property')
 		//_.errout('TODO: ' + JSON.stringify(mpe))
 		if(epe === 'not'){

@@ -176,6 +176,8 @@ function Ol(schema){
 	this.destructionIdsByType = {}
 	this.uuid = {}
 	
+	this.creationEditIds = {}
+	
 	//this.propertyIndexes = {}
 
 	//all int->int maps here	
@@ -266,6 +268,7 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	//console.log(edit.typeCode + ' following: ' + edit.following)
 	this.creationEditIdsByType[edit.typeCode].push(editId+edit.following)
 
+	this.creationEditIds[id] = editId+edit.following
 	
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes.put(this.idCounter, edit.typeCode)
@@ -682,6 +685,9 @@ Ol.prototype.syntheticEditId = function(){
 	this.syncIdsByEditId.put(editId, -5)
 	++this.readers.lastVersionId
 	return editId
+}
+Ol.prototype.getCreationVersion = function(id){
+	return this.creationEditIds[id]
 }
 Ol.prototype.getVersionTimestamp = function(v){
 	_.assert(v > 0)
@@ -1181,15 +1187,13 @@ Ol.prototype.getCreationsOfTypeBetween = function(typeCode, startEditId, endEdit
 		var editIds = this.creationEditIdsByType[tc]
 		for(var i=0;i<ids.length;++i){
 			var id = ids[i]
-			//if(!this.destroyed[id]){
-				var editId = editIds[i]
-				if(editId > endEditId){
-					break
-				}
-				if(editId > startEditId){
-					res.push({id: id, editId: editId})
-				}
-			//}
+			var editId = editIds[i]
+			if(editId > endEditId){
+				break
+			}
+			if(editId > startEditId){
+				res.push({id: id, editId: editId})
+			}
 		}
 	}
 	if(cb) cb(res)

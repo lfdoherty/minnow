@@ -308,20 +308,20 @@ function getTopParent(){
 
 function versions(){
 	var versions =  this.parent._getVersions(this)
-	//if(versions.length === 0 || versions[0] > -1) versions.unshift(-1)
 	return versions
 }
-/*
-function revert(editId){
-	this.adjustPathToSelf()
-	this.persistEdit(editCodes.revert, {version: editId})
-	//_.errout('TODO')
-}*/
+function versionsSelf(){
+	var versions = this.parent._getVersionsSelf(this)
+	return versions
+}
 
 function _getVersions(source){
-	//var fp = [this.part].concat(path)//_.isArray(this.part) ? path.concthis.part[0] : this.part
 	return this.parent._getVersions(source)
 }
+function _getVersionsSelf(source){
+	return this.parent._getVersionsSelf(source)
+}
+
 /*
 function getVersionTimestamps(versions, cb){
 	_.assertArray(versions)
@@ -376,6 +376,8 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.getParent === undefined) classPrototype.getParent = getParent;
 
 	if(classPrototype.createNewExternalObject === undefined) classPrototype.createNewExternalObject = createNewExternalObject;
+	if(classPrototype.copyExternalObject === undefined) classPrototype.copyExternalObject = copyExternalObject;
+	
 	if(classPrototype.reifyExternalObject === undefined) classPrototype.reifyExternalObject = reifyExternalObject;
 	
 	if(classPrototype.prepare === undefined) classPrototype.prepare = prepareStub;
@@ -392,8 +394,10 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.log === undefined) classPrototype.log = log
 
 	if(classPrototype.versions === undefined) classPrototype.versions = versions
+	if(classPrototype.versionsSelf === undefined) classPrototype.versionsSelf = versionsSelf
 	//if(classPrototype.revert === undefined) classPrototype.revert = revert
 	if(classPrototype._getVersions === undefined) classPrototype._getVersions = _getVersions
+	if(classPrototype._getVersionsSelf === undefined) classPrototype._getVersionsSelf = _getVersionsSelf
 	//if(classPrototype.getVersionTimestamps === undefined) classPrototype.getVersionTimestamps = getVersionTimestamps
 	if(classPrototype.getLastEditor === undefined) classPrototype.getLastEditor = getLastEditor
 	if(classPrototype.saveTemporaryForLookup === undefined) classPrototype.saveTemporaryForLookup = saveTemporaryForLookup
@@ -444,6 +448,11 @@ function createNewExternalObject(typeCode, obj, forget, cb){
 	_.assertLength(arguments, 4)
 	_.assertDefined(this.parent);
 	return this.parent.createNewExternalObject(typeCode, obj, forget, cb);
+}
+function copyExternalObject( obj, forget, cb){
+	_.assertLength(arguments, 3)
+	_.assertDefined(this.parent);
+	return this.parent.copyExternalObject( obj, forget, cb);
 }
 function reifyExternalObject(typeCode, temporaryId, realId){
 	_.assertDefined(this.parent);
@@ -754,7 +763,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertInt(op);
 	_.assertInt(editId);
 
-	//console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
+	console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
@@ -899,6 +908,39 @@ SyncApi.prototype.createFork = function(source, cb){
 		return n
 	}
 }*/
+
+SyncApi.prototype.copyExternalObject = function(obj, forget, cb){
+	_.assertLength(arguments, 3)
+	_.assertObject(obj)
+	_.assertBoolean(forget)
+
+	var typeName = obj.type()
+	
+	var temporary = this.makeTemporaryId()
+	
+	var edits = this.sh.copy(obj, forget, cb, temporary)
+	
+	edits = [{op: editCodes.made, edit: {typeCode: this.schema[typeName].code, temporary: temporary}, editId: -2}].concat(edits)
+
+	var oldHandle = this.objectApiCache[this.currentObjectId]
+	if(oldHandle){
+		oldHandle.currentPath = undefined
+	}
+	
+	this.currentObjectId = temporary//TODO only if !forget?
+	
+	//console.log(new Error().stack)
+	
+	if(!forget){
+		var t = this.schema[typeName]
+		var n = new TopObjectHandle(this.schema, t, edits, this, temporary);
+		//console.log('created temporary lookup: ' + temporary)
+		this.objectApiCache[temporary] = n;
+		return n
+	}else{
+		//console.log('forgetting')
+	}
+}
 
 SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	_.assertLength(arguments, 4)

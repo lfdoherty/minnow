@@ -217,7 +217,7 @@ function makeSwitchRelSync(s, context, cases, defaultCase, ws, rel, staticBindin
 		var contextState = context.getAt(bindings, editId)//, function(contextState){
 
 		if(!_.isPrimitive(contextState)) _.errout('TODO: ' + JSON.stringify(state))
-		//console.log('selecting switch match for: ' + JSON.stringify(contextState))
+		//console.log('selecting switch match for: ' + JSON.stringify(contextState) + ' ' + JSON.stringify(staticCaseValues) + ' ' + context.name)
 		
 		for(var i=0;i<staticCaseValues.length;++i){
 			var cv = staticCaseValues[i]
