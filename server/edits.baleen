@@ -1,3 +1,5 @@
+/**/
+
 make 1 //implicitly does a selectTopObject, as does makeViewObject
 	typeCode int 1
 	forget boolean 4
@@ -176,7 +178,19 @@ moveToBack 161
 moveToAfter 162
 	id int 1
 
-//TODO
+addLocalInner 133
+	id int 1
+addLocalInnerAfter 134
+	id int 1
+//	following int 2
+addLocalInnerAt 135
+	id int 1
+	index int 2
+	following int 3
+unshiftLocalInner 136
+	id int 1
+
+
 removeAt 149
 	index int 1
 	many int 2

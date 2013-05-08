@@ -1,4 +1,4 @@
-"use strict";
+//"use strict";
 
 var _ = require('underscorem')
 
@@ -678,16 +678,45 @@ function makeEditConverter(type){
 			}
 		}else if(mt === 'set' || mt === 'list'){
 			var multiType = type.value.members.type
+			function makeMulti(putAdd, putRemove){
+				_.assertInt(putAdd)
+				_.assertInt(putRemove)
+				return function(e){
+					//console.log(JSON.stringify(e))
+					_.assertInt(e.editId)
+					//
+					if(e.type === 'putAdd'){
+						_.assertDefined(e.key)
+						//_.assertString(e.value)
+						return {op: putAdd, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+					}else if(e.type === 'putRemove'){
+						_.assertDefined(e.key)
+						//_.assertString(e.value)
+						return {op: putRemove, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+					}else if(e.type === 'removeKey'){
+						_.assertDefined(e.key)
+						return {op: editCodes.delKey, edit: {}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+					}else{
+						_.errout('TODO')
+					}
+				}
+			}
+			
 			if(multiType === 'primitive'){
+			
+				
+				//editCodes.putAddString, editCodes.putRemoveString
 				var pt = type.value.members.primitive
 				if(pt === 'int'){
-					return function(e){
+					/*return function(e){
 						//_.assertInt(e.editId)
 						//return {op: editCodes.putInt, edit: {value: e.value}, syncId: -1, editId: e.editId}
 						_.errout('TODO')
-					}
+					}*/
+					return makeMulti(editCodes.putAddInt, editCodes.putRemoveInt)
 				}else if(pt === 'string'){
-					return function(e){
+					return makeMulti(editCodes.putAddString, editCodes.putRemoveString)/*function(e){
+					
 						//console.log(JSON.stringify(e))
 						_.assertInt(e.editId)
 						//
@@ -705,21 +734,38 @@ function makeEditConverter(type){
 						}else{
 							_.errout('TODO')
 						}
-					}
+					}*/
 				}else if(pt === 'long'){
-					return function(e){
+					//return function(e){
 						//_.assertInt(e.editId)
 						//return {op: editCodes.addLong, edit: {value: e.value}, syncId: -1, editId: e.editId}
-						_.errout('TODO')
-					}
+//						_.errout('TODO')
+					//}
+					return makeMulti(editCodes.putAddLong, editCodes.putRemoveLong)
 				}else if(pt === 'boolean'){
-					return function(e){
+					return makeMulti(editCodes.putAddBoolean, editCodes.putRemoveBoolean)
+					/*return function(e){
 						//_.assertInt(e.editId)
 						//return {op: editCodes.addBoolean, edit: {value: e.value}, syncId: -1, editId: e.editId}
-						_.errout('TODO')
-					}
+//						_.errout('TODO')
+						if(e.type === 'putAdd'){
+							_.assertDefined(e.key)
+							_.assertString(e.value)
+							return {op: editCodes.putAddBoolean, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+						}else if(e.type === 'putRemove'){
+							_.assertDefined(e.key)
+							_.assertString(e.value)
+							return {op: editCodes.putRemoveBoolean, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+						}else if(e.type === 'removeKey'){
+							_.assertDefined(e.key)
+							return {op: editCodes.delKey, edit: {}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+						}else{
+							_.errout('TODO')
+						}
+					}*/
 				}
 			}else if(multiType === 'object'){
+				//return makeMulti(editCodes.putAddExisting, editCodes.putRemoveExisting)
 				return function(c){
 					if(c.type === 'putAdd'){
 						_.assertDefined(c.key)

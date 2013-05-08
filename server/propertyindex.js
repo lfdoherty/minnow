@@ -163,6 +163,12 @@ exports.make = function(schema, ol){
 							if(edit.value === undefined) _.errout('cannot process edit: ' + editNames[op] + ' ' + JSON.stringify(arguments))
 							c = {type: 'add', value: edit.value, editId: editId}
 						}
+					}else if(op === editCodes.addLocalInner){
+						c = {type: 'add', value: edit.id, editId: editId}
+					}else if(op === editCodes.addLocalInnerAfter){
+						c = {type: 'add', value: edit.id, editId: editId}
+					}else if(op === editCodes.unshiftLocalInner){
+						c = {type: 'add', value: edit.id, editId: editId}
 					}else if(fp.isRemoveCode[op]){
 						if(op === editCodes.remove){
 							var sub = currentSub[id]

@@ -256,6 +256,13 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		this.obj.splice(edit.index, 0, res)
 		res.prepare()
 		return this.emit(edit, 'add', res, edit.index)
+	}else if(op === editCodes.addLocalInner){
+		//var res = this.wrapObject(edit.id, edit.typeCode, [], this)
+		var objHandle = this.getInnerObject(edit.id)//.//this.get(edit.id);
+		//this.saveTemporaryForLookup(temporary, res, this)
+		this.obj.push(objHandle)
+		objHandle.prepare()
+		return this.emit(edit, 'add', objHandle)
 	}else if(op === editCodes.replaceExternalExisting){
 
 		var objHandle = this.getObjectApi(edit.oldId)
@@ -314,6 +321,15 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 	}else if(op === editCodes.unshiftExisting){
 		var addedObj = this.getObjectApi(edit.id)
 		//_.assertDefined(addedObj)
+		if(addedObj === undefined) _.errout('cannot find: ' + edit.id)
+		
+		if(this.obj.indexOf(addedObj) !== -1) return
+		
+		this.obj.unshift(addedObj)
+		addedObj.prepare()
+		return this.emit(edit, 'add', addedObj)
+	}else if(op === editCodes.unshiftLocalInner){
+		var addedObj = this.getInnerObject(edit.id)
 		if(addedObj === undefined) _.errout('cannot find: ' + edit.id)
 		
 		if(this.obj.indexOf(addedObj) !== -1) return
@@ -382,6 +398,25 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		}else{
 			var objHandle = this.wrapObject(edit.id, edit.typeCode, [], this)
 		}
+		
+		var beforeHandle = this.get(subObj);
+		if(beforeHandle === undefined){
+			//console.log('cannot find before(' + descendId+'), falling back to append-add')
+			this.obj.push(objHandle)
+			objHandle.prepare()
+	
+			this.emit(edit, 'add', objHandle)
+		}else{
+			var index = this.obj.indexOf(beforeHandle)
+			this.obj.splice(index+1, 0, objHandle)
+			objHandle.prepare()
+			beforeHandle.prepare()
+	
+			this.emit(edit, 'addAfter', objHandle, beforeHandle)
+		}
+	}else if(op === editCodes.addLocalInnerAfter){
+
+		var objHandle = this.getInnerObject(edit.id)
 		
 		var beforeHandle = this.get(subObj);
 		if(beforeHandle === undefined){
@@ -543,11 +578,21 @@ ObjectListHandle.prototype.shift = function(){
 	return v;
 }
 
-ObjectListHandle.prototype.addNewAfter = function(beforeHandle, typeName, json){
+ObjectListHandle.prototype.addNewAfter = function(beforeHandle, typeName, json, cb){
 	var index = this.obj.indexOf(beforeHandle)
 	if(index === -1) _.errout('before is not a member of the list: ' + beforeHandle)
+	
+	
+	if(arguments.length === 3){
+		if(_.isObject(typeName)){
+			cb = json
+			json = typeName
+			typeName = undefined;
+		}
+	}
+	
 	if(json) _.assertObject(json)
-		
+	
 	json = json || {}
 	
 	var type = u.getOnlyPossibleType(this, typeName);
@@ -566,6 +611,11 @@ ObjectListHandle.prototype.addNewAfter = function(beforeHandle, typeName, json){
 	this.obj.splice(index+1, 0, n)
 	this.emit(e, 'add', n, index+1)
 
+	if(cb){
+		n.once('reify', function(){
+			cb()
+		})
+	}
 	return n	
 }
 
@@ -595,7 +645,7 @@ ObjectListHandle.prototype.addAfter = function(beforeHandle, objHandle){
 	this.obj.splice(index+1, 0, objHandle)
 	this.emit(e, 'add', objHandle, index+1)
 }
-ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
+ObjectListHandle.prototype.addNewAt = function(index, typeName, json, cb){
 
 	_.assertInt(index)
 	if(index > this.obj.length) _.errout('index of out bounds: ' + index + ' > ' + this.obj.length)
@@ -605,6 +655,11 @@ ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
 		if(_.isObject(typeName)){
 			json = typeName
 			typeName = undefined;
+		}
+	}else if(arguments.length === 3){
+		if(_.isFunction(json)){
+			cb = json
+			json = undefined
 		}
 	}
 	
@@ -622,15 +677,26 @@ ObjectListHandle.prototype.addNewAt = function(index, typeName, json){
 	//this.obj.push(n)
 	this.obj.splice(index, 0, n)
 
+	if(cb){
+		n.once('reify', function(){
+			cb()
+		})
+	}
+	
 	return n
 }
 
-ObjectListHandle.prototype.unshiftNew = function(typeName, json){
+ObjectListHandle.prototype.unshiftNew = function(typeName, json, cb){
 
 	if(arguments.length === 1){
 		if(_.isObject(typeName)){
 			json = typeName
 			typeName = undefined;
+		}
+	}else if(arguments.length === 2){
+		if(_.isFunction(json)){
+			cb = json
+			json = undefined
 		}
 	}
 	
@@ -647,17 +713,61 @@ ObjectListHandle.prototype.unshiftNew = function(typeName, json){
 	this.obj.unshift(n)
 	this.emit({}, 'add', n)
 	
+	if(cb){
+		n.once('reify', function(){
+			cb()
+		})
+	}
 	//console.log('addNew done')
 
 	return n
 }
 
-ObjectListHandle.prototype.addNew = function(typeName, json){
+ObjectListHandle.prototype.addInnerAfter = function(beforeHandle, obj){
+	var index = this.obj.indexOf(beforeHandle)
+	if(index === -1) _.errout('before is not a member of the list: ' + beforeHandle)
+
+	this.adjustCurrentObject(this.getImmediateObject())
+	this.adjustCurrentProperty(this.schema.code)
+	this.adjustCurrentSubObject(beforeHandle._internalId())
+	
+	_.assertInt(obj.objectId)
+	var e = {id: obj.objectId}
+	this.persistEdit(editCodes.addLocalInnerAfter, e)
+	
+	this.obj.splice(index+1, 0, obj)
+	this.emit(e, 'add', obj, index+1)
+}
+
+ObjectListHandle.prototype.unshiftInner = function(obj){
+	
+	_.assertInt(obj.objectId)
+	this.saveEdit(editCodes.unshiftLocalInner, {id: obj.objectId})
+
+	this.obj.unshift(obj)
+	this.emit({}, 'add', obj)
+}
+ObjectListHandle.prototype.addInner = function(obj){
+
+	_.assertInt(obj.objectId)
+	
+	this.saveEdit(editCodes.addLocalInner, {id: obj.objectId})
+
+	this.obj.push(obj)
+	this.emit({}, 'add', obj)
+}
+
+ObjectListHandle.prototype.addNew = function(typeName, json, cb){
 
 	if(arguments.length === 1){
 		if(_.isObject(typeName)){
 			json = typeName
 			typeName = undefined;
+		}
+	}else if(arguments.length === 2){
+		if(_.isFunction(json)){
+			cb = json
+			json = undefined
 		}
 	}
 	
@@ -674,6 +784,11 @@ ObjectListHandle.prototype.addNew = function(typeName, json){
 	this.obj.push(n)
 	this.emit({}, 'add', n)
 	
+	if(cb){
+		n.once('reify', function(){
+			cb()
+		})
+	}
 	//console.log('addNew done')
 
 	return n

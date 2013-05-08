@@ -220,23 +220,6 @@ function adjustTopObjectToOwn(){
 	this.parent.adjustTopObjectToOwn()
 }
 function adjustPathToSelf(){
-	/*var remaining = this.parent.adjustPath(_.isArray(this.part) ? this.part[0] : this.part)
-	//console.log('adjusted path to self: ' + JSON.stringify(remaining))
-	if(remaining.length > 0){
-		if(remaining.length === 1){
-			this.persistEdit(editCodes.ascend1, {})
-		}else if(remaining.length === 2){
-			this.persistEdit(editCodes.ascend2, {})
-		}else if(remaining.length === 3){
-			this.persistEdit(editCodes.ascend3, {})
-		}else if(remaining.length === 4){
-			this.persistEdit(editCodes.ascend4, {})
-		}else if(remaining.length === 5){
-			this.persistEdit(editCodes.ascend5, {})
-		}else{
-			this.persistEdit(editCodes.ascend, {many: remaining.length})
-		}
-	}*/
 	this.adjustTopObjectToOwn()
 	this.adjustCurrentObject(this.getImmediateObject())
 	this.adjustCurrentProperty(this.getImmediateProperty())
@@ -250,34 +233,11 @@ function makeTemporaryId(){
 	return this.parent.makeTemporaryId()
 }
 
+function getInnerObject(id){
+	return this.parent.getInnerObject(id)
+}
+
 function _makeAndSaveNew(json, type, source){
-
-	/*var temporary = this.makeTemporaryId();
-	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this));
-
-	if(edits.length > 0){
-		//this.adjustPath(temporary)
-		//this.parent.adjustPath(this.part)
-		this.adjustCurrentProperty(this.part)
-		this.adjustCurrentObject(temporary)
-		//this.persistEdit(editCodes.selectObject, {id: temporary})
-		for(var i=0;i<edits.length;++i){
-			var e = edits[i]
-			this.persistEdit(e.op, e.edit)
-		}
-	}
-	
-	var n = new ObjectHandle(type, edits, temporary, [temporary], this);
-	if(this.objectApiCache === undefined) this.objectApiCache = {}
-	this.objectApiCache[temporary] = n;
-	
-	this.saveTemporaryForLookup(temporary, n, this)
-	
-	//console.log('made and saved new: '+ temporary)
-	
-	n.prepare()
-	
-	return n*/
 	return this.parent._makeAndSaveNew(json, type, source||this)
 }
 
@@ -425,6 +385,8 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.getImmediateKey === undefined) classPrototype.getImmediateKey = getImmediateKey
 	
 	if(classPrototype.adjustTopObjectToOwn === undefined) classPrototype.adjustTopObjectToOwn = adjustTopObjectToOwn
+
+	if(classPrototype.getInnerObject === undefined) classPrototype.getInnerObject = getInnerObject
 }
 
 
@@ -1013,6 +975,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 			//e.local.objectApiCache[realId] = e.n
 			e.n.objectId = realId
 			e.n.reifyParentEdits(temporaryId, realId)
+			e.n.emit({}, 'reify', realId, temporaryId)
 			//console.log('reified temporary: ' + e.n)
 		}else{
 			console.log(JSON.stringify(Object.keys(this.objectApiCache)))

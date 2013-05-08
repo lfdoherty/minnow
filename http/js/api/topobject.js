@@ -388,6 +388,12 @@ TopObjectHandle.prototype.locally = function(f){
 	this.setLocalMode(false)
 }
 
+TopObjectHandle.prototype.getInnerObject = function(id){
+	var obj = this.objectApiCache[id]
+	_.assertObject(obj)
+	return obj
+}
+
 TopObjectHandle.prototype._acceptForkChange = function(subObj, key, op, edit, syncId, editId){//, path){
 
 	console.log('MAINTAINING FORK: ' + op + ' ' + JSON.stringify(edit) + ' on ' + this.objectId + ' ' + syncId + ' ' + this.getEditingId())
