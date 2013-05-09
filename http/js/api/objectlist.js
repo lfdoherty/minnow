@@ -40,6 +40,8 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 	this.log = this.parent.log
 }
 
+ObjectListHandle.prototype.getName = function(){return this.schema.name;}
+
 ObjectListHandle.prototype.prepare = stub
 
 //ObjectListHandle.prototype.adjustPath = u.adjustObjectCollectionPath
@@ -257,9 +259,13 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		res.prepare()
 		return this.emit(edit, 'add', res, edit.index)
 	}else if(op === editCodes.addLocalInner){
-		//var res = this.wrapObject(edit.id, edit.typeCode, [], this)
-		var objHandle = this.getInnerObject(edit.id)//.//this.get(edit.id);
-		//this.saveTemporaryForLookup(temporary, res, this)
+		var objHandle = this.getInnerObject(edit.id)
+		
+		if(!objHandle){
+			console.log('WARNING: cannot find local object: ' + edit.id)
+			return
+		}
+		
 		this.obj.push(objHandle)
 		objHandle.prepare()
 		return this.emit(edit, 'add', objHandle)
@@ -330,7 +336,11 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		return this.emit(edit, 'add', addedObj)
 	}else if(op === editCodes.unshiftLocalInner){
 		var addedObj = this.getInnerObject(edit.id)
-		if(addedObj === undefined) _.errout('cannot find: ' + edit.id)
+		
+		if(!addedObj){
+			console.log('WARNING: cannot find local object: ' + edit.id)
+			return
+		}
 		
 		if(this.obj.indexOf(addedObj) !== -1) return
 		
@@ -417,6 +427,11 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 	}else if(op === editCodes.addLocalInnerAfter){
 
 		var objHandle = this.getInnerObject(edit.id)
+		
+		if(!objHandle){
+			console.log('WARNING: cannot find local object: ' + edit.id)
+			return
+		}
 		
 		var beforeHandle = this.get(subObj);
 		if(beforeHandle === undefined){

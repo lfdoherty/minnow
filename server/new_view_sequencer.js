@@ -16,6 +16,8 @@ var innerify = require('./innerId').innerify
 
 var bw = require("buffered-writer");
 
+exports.viewIdStr = viewIdStr
+
 function remainer(initial, cb){
 	_.assertFunction(cb)
 	
@@ -135,7 +137,7 @@ function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring, syncI
 				return;
 			}
 			
-			//console.log(syncId + ' adding view to queryhandle: ' + id)
+			///console.log(syncId + ' adding view to queryhandle: ' + id)
 			
 			var rem = remainer(1, doneCb)
 			
@@ -611,6 +613,19 @@ function safeSplit(str, delim){
 	return parts
 }
 
+function parseComplexId(ps){
+	var nci = ps.indexOf('_')
+	var a = ps.substr(0,nci)
+	var b = ps.substr(nci+1)
+	var ia = parseInt(a)
+	var ib = parseInt(b)
+	if(isNaN(ia)) _.errout('failed to parse id: ' + id)
+	if(isNaN(ib)) _.errout('failed to parse id: ' + id)
+	return innerify(ia,ib)
+}
+
+exports.parseInnerId = parseComplexId
+
 function parsePart(ps){
 	if(ps.indexOf('[') === 0){
 		return JSON.parse(ps)
@@ -619,14 +634,7 @@ function parsePart(ps){
 	}else if(parseInt(ps)+'' === ps){
 		return parseInt(ps)
 	}else if(ps.indexOf('_') !== -1 && ps.indexOf('"') === -1){
-		var nci = ps.indexOf('_')
-		var a = ps.substr(0,nci)
-		var b = ps.substr(nci+1)
-		var ia = parseInt(a)
-		var ib = parseInt(b)
-		if(isNaN(ia)) _.errout('failed to parse viewId: ' + id)
-		if(isNaN(ib)) _.errout('failed to parse viewId: ' + id)
-		return innerify(ia,ib)
+		return parseComplexId(ps)
 	}else{
 		//console.log('ps: ' + ps)
 		if(ps.indexOf('"') !== 0) _.errout('invalid: ' + ps)
@@ -634,6 +642,19 @@ function parsePart(ps){
 		return ps.substring(1,ps.length-1)
 	}
 }
+
+function parseParams(paramsStr){
+	_.assertEqual(paramsStr.substr(0,1), '[')
+	paramsStr = paramsStr.substr(1, paramsStr.length-2)
+	var parts = safeSplit(paramsStr, ',')
+	var rest = []
+	parts.forEach(function(part){
+		rest.push(parsePart(part))
+	})
+	return rest
+}
+exports.parseParams = parseParams
+
 function parseViewId(id){
 	//console.log('view id: ' + id)
 	var ci = id.indexOf(':')
@@ -665,32 +686,54 @@ function parseViewId(id){
 		//_.errout('TODO: ' + JSON.stringify(mutators))
 		res.mutators = mutators
 	}
+	
+	//console.log(id + ' -> ' + JSON.stringify(res))
 
-	if(res.typeCode === 161 && res.mutators === undefined){//TODO REMOVEME
+	/*if(res.typeCode === 161 && res.mutators === undefined){//TODO REMOVEME
 		_.errout('all childrenMap ids should have mutators: ' + id)
-	}
+	}*/
+	if(res.typeCode === 164 && res.rest[3] === 54) _.errout('should be inner')
 	
 	return res
 }
-function viewIdStr(viewCode,params,mutatorKey){//viewCode+':'+JSON.stringify(params)
-	_.assertLength(arguments, 3)
 
-	if(viewCode === 161 && !mutatorKey){//TODO REMOVEME
-		_.errout('all childrenMap ids should have mutators: ' + JSON.stringify([viewCode, params, mutatorKey]))
-	}
-	
-	var str = viewCode+':['
+exports.parseViewId = parseViewId
+
+function paramsStr(params){
+	var str = '['
 	for(var i=0;i<params.length;++i){
 		if(i>0) str += ','
 		var v = params[i]
 		if(_.isString(v)){
 			v = '"'+v+'"'
 		}
-		if(v+'' === '[object Object]') _.errout('cannot parameterize: ' + JSON.stringify(v))
+		if(_.isArray(v)) _.errout('invalid array type?: ' + viewCode + ' ' + JSON.stringify(params))
+		if(v+'' === '[object Object]') _.errout('cannot parameterize: ' + JSON.stringify(v) + ' ' + v)
+		if((v+'').indexOf('{') !== -1) _.errout('cannot parameterize: ' + JSON.stringify(v) + ' ' + v)
 		str += v
 	}
 	str += ']'
+	return str
+}
+exports.paramsStr = paramsStr
+
+function viewIdStr(viewCode,params,mutatorKey){//viewCode+':'+JSON.stringify(params)
+	_.assertLength(arguments, 3)
+
+	//if(viewCode === 161 && !mutatorKey){//TODO REMOVEME
+	//	_.errout('all childrenMap ids should have mutators: ' + JSON.stringify([viewCode, params, mutatorKey]))
+	//}
+	
+	if(params.length === 4 && params[3] === 54){
+		_.errout("should be inner")
+	}
+	
+	var str = viewCode+':' + paramsStr(params)
+
 	if(mutatorKey !== undefined) str += mutatorKey
+	
+	//console.log(JSON.stringify([viewCode,params]) + ' -> ' + str)
+	
 	return str
 }
 
@@ -738,12 +781,12 @@ exports.make = function(schema, ol){
 			})
 			paramMakers.forEach(function(pm, index){
 				pm.getStateAt(bindings, editId, function(state){
-					if(state === undefined){
+					/*if(state === undefined){
 						//console.log('failed: ' + index + ' ' + editId + ' ' + JSON.stringify(bindings) + ' ' + pm.name)
 						failed = true
-					}else{
+					}else{*/
 						params[index] = state
-					}
+					//}
 					cdl()
 				})
 			})
@@ -753,12 +796,12 @@ exports.make = function(schema, ol){
 			var failed = false
 			paramMakers.forEach(function(pm, index){
 				var state = pm.getAt(bindings, editId)
-				if(state === undefined){
+				/*if(state === undefined){
 					//console.log('failed: ' + index + ' ' + editId + ' ' + JSON.stringify(bindings) + ' ' + pm.name)
 					failed = true
-				}else{
+				}else{*/
 					params[index] = state
-				}
+				//}
 			})
 			//console.log('returning: ' + JSON.stringify([params, failed]))
 			return {params: params, failed: failed}
@@ -1119,7 +1162,8 @@ exports.make = function(schema, ol){
 						}else{
 							//console.log('got binding value: ' + paramName + ' ' + JSON.stringify(bindings[paramName]))
 							//console.log(JSON.stringify(bindings))
-							_.assertDefined(bindings[paramName])
+							//_.assertDefined(bindings[paramName])
+							//if(paramName === 'specialRoot') _.errout('should not exist')
 							return bindings[paramName]
 						}
 					},
@@ -1339,7 +1383,7 @@ exports.make = function(schema, ol){
 	}
 	function getObjectInclusionsDuring(id, lastEditId, endEditId, cb){
 		if(lastEditId === endEditId) _.errout('wasting time')
-		
+		//console.log('id: ' + id)
 		if(_.isString(id)){
 			getMakerForViewId(id, function(m, pv){
 				m.getInclusionsDuring(pv.rest, lastEditId, endEditId, function(ids){
@@ -1738,7 +1782,7 @@ exports.make = function(schema, ol){
 				},
 				//changes before lastEditId will already be known to the client
 				addView: function(id, lastEditId, readyCb){
-					//console.log('adding view task: ' + id + ' ' + lastEditId)
+					//console.log('adding view task: ' + id + ' ' + lastEditId + ' ' + new Error().stack)
 					addViewTasks.push({id: id, lastEditId: lastEditId, cb: readyCb})
 				}
 			}

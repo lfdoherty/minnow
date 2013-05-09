@@ -389,6 +389,7 @@ TopObjectHandle.prototype.locally = function(f){
 }
 
 TopObjectHandle.prototype.getInnerObject = function(id){
+	if(!this.objectApiCache) return
 	var obj = this.objectApiCache[id]
 	_.assertObject(obj)
 	return obj

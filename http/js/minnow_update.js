@@ -58,6 +58,7 @@ function establishSocket(appName, schema, host, cb, errCb){
 				var uid = Math.random()+''
 				viewsBeingSetup[uid] = cb
 				e.uid = uid
+				_.assertString(e.viewId)
 				console.log(syncId + ' sent setup message ' + JSON.stringify(e))
 				sendFacade.send(e)//{type: 'setup view', snapshotVersion: snapshotVersion, uid: uid})
 			},

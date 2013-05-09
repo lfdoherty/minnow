@@ -11,7 +11,10 @@ function RealHandle(typeSchema, obj, part, parent){
 	if(this.isView()){
 		this.set = u.viewReadonlyFunction
 	}
+	this.schema = typeSchema
 }
+
+RealHandle.prototype.getName = function(){return this.schema.name;}
 
 RealHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 

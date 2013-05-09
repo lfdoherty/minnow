@@ -43,6 +43,9 @@ function PrimitiveListHandle(typeSchema, obj, part, parent, isReadonly){
 	//	_.assert(r != null)
 	//})
 }
+
+PrimitiveListHandle.prototype.getName = function(){return this.schema.name;}
+
 PrimitiveListHandle.prototype.prepare = stub
 
 

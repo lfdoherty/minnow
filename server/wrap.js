@@ -840,7 +840,11 @@ exports.makeSync = function(s, rel, recurseSync, getViewHandle, staticBindings){
 		var paramName = rel.name
 		
 		//syncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle)
-		_.assert(rel.expr.sync)
+		/*if(!rel.expr.sync){
+			console.log(JSON.stringify(rel.expr))
+			_.errout('not sync')
+		}*/
+		//_.assert(rel.expr.sync)
 		syncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle, stateCache, historicalChangesCache)
 		
 		var subHandle = recurseSync(rel.rest, newStaticBindings)

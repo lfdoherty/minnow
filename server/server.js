@@ -382,7 +382,9 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 			getSnapshots: function(e, cb){
 				_.assertLength(arguments, 2);
 				var typeCode = e.typeCode;
-				var params = JSON.parse(e.params);
+				//var params = JSON.parse(e.params);
+				//console.log('params: ' + e.params)
+				var params = newViewSequencer.parseParams(e.params)
 				
 				_.assertInt(typeCode);
 
@@ -396,7 +398,9 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 			getAllSnapshots: function(e, cb){
 				_.assertLength(arguments, 2);
 				var typeCode = e.typeCode;
-				var params = JSON.parse(e.params);
+				//var params = JSON.parse(e.params);
+				var params = newViewSequencer.parseParams(e.params)
+				//console.log(e.params + ' - > ' + JSON.stringify(params))
 				var snapshotIds = e.snapshotVersionIds;
 				_.assertArray(snapshotIds);
 
@@ -420,10 +424,17 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 			getSnapshot: function(e, cb){
 				_.assertLength(arguments, 2);
 				
+				
 				var typeCode = e.typeCode;
-				var params = JSON.parse(e.params)
+				//var params = JSON.parse(e.params)
+
+				//console.log('parsing params ' + e.params)
+
+				var params = newViewSequencer.parseParams(e.params)
 				var snapshotId = e.latestVersionId;
 				var previousId = e.previousVersionId;
+
+				//console.log('parsed params ' + e.params + ' -> ' + JSON.stringify(params))
 				
 				_.assert(params.length === schema._byCode[typeCode].viewSchema.params.length);
 				

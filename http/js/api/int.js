@@ -16,7 +16,11 @@ function IntHandle(typeSchema, obj, part, parent){
 	if(this.isView()){
 		this.set = u.viewReadonlyFunction
 	}
+	this.schema = typeSchema
 }
+
+IntHandle.prototype.getName = function(){return this.schema.name;}
+
 IntHandle.prototype.value = function(){
 	return this.obj;
 }

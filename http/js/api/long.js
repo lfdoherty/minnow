@@ -15,7 +15,11 @@ function LongHandle(typeSchema, obj, part, parent){
 		this.set = u.viewReadonlyFunction
 	}
 
+	this.schema = typeSchema
 }
+
+LongHandle.prototype.getName = function(){return this.schema.name;}
+
 LongHandle.prototype.value = function(){
 	//console.log('returning value: ' + this.obj)
 	return this.obj;

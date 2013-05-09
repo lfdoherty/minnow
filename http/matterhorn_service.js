@@ -25,6 +25,7 @@ var matterhorn = require('matterhorn');
 var serviceModule = require('./service')
 
 var log = require('quicklog').make('minnow/matterhorn-service')
+var newViewSequencer = require('./../server/new_view_sequencer')
 
 function sendData(req, res, data, zippedData){
 	var compHeader = req.header('Accept-Encoding');
@@ -178,9 +179,9 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 				vars.snapshotIds = snapshotIds;
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
+				vars.baseId = vars.baseTypeCode+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
 				vars.applicationName = appName
-				vars.mainViewParams = params
+				//vars.mainViewParams = params
 				vars.mainViewHistorical = true
 				//vars.httpPort = local.getPort()
 				//vars.httpsPort = secureLocal.getSecurePort()
@@ -197,10 +198,31 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 		},
 		getViewTags: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
-			
+
 			var viewSchema = minnowClient.schema[viewName]
 			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
 			var viewCode = viewSchema.code
+
+			//TODO convert inner id strings to innerify objects
+			var newParams = []
+			viewSchema.viewSchema.params.forEach(function(p, index){
+				if(p.type.type === 'object'){
+					var id = params[index]
+					if(_.isString(id)){
+						newParams[index] = newViewSequencer.parseInnerId(id)
+					}else{
+						newParams[index] = id
+					}
+				}else{
+					console.log(JSON.stringify(p.type))
+					newParams[index] = params[index]
+				}
+			})
+			//_.errout('TODO')
+			params = newParams
+
+			if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
+			
 			service.getViewFiles(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
 				
 				if(err){
@@ -214,9 +236,9 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 				vars.snapshotIds = snapshotIds;
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = vars.baseTypeCode+':'+JSON.stringify(params);
+				vars.baseId = vars.baseTypeCode+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
 				vars.applicationName = appName
-				vars.mainViewParams = params
+				//vars.mainViewParams = params
 				//vars.httpPort = local.getPort()
 				//vars.httpsPort = secureLocal.getSecurePort()
 				

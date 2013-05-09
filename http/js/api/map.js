@@ -41,6 +41,8 @@ function MapHandle(typeSchema, obj, part, parent){
 	
 }
 
+MapHandle.prototype.getName = function(){return this.typeSchema.name;}
+
 MapHandle.prototype.types = function(){
 	var fullSchema = this.getFullSchema();
 	var objectSchema = fullSchema[this.schema.type.value.object];

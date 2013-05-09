@@ -45,19 +45,19 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 		for(var i=0;i<ps.length;++i){
 			var t = ps[i]
 			if(t.type.type === 'object'){
-				if(!objectState.isTopLevelObject(params[i])){
+				/*if(!objectState.isTopLevelObject(params[i])){
 					var e = new Error('parameters include an invalid object id') 
 					e.code = 'InvalidParamId'
 					errCb(e)
 					return false
-				}else if(objectState.isDeleted(params[i])){
+				}else */if(objectState.isDeleted(params[i])){
 					var e = new Error('parameters include a object id for a deleted object') 
 					e.code = 'InvalidParamId'
 					errCb(e)
 					return false
-				}else{
+				}/*else{
 					//console.log('param is fine: ' + params[i])
-				}
+				}*/
 			}
 		}
 		return true
@@ -69,9 +69,9 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 		beginView: function(e, seq, readyPacketCb){
 			_.assertLength(arguments, 3)
 			
-			var viewId = e.typeCode + ':'+e.params
+			//var viewId = e.typeCode + ':'+e.params
 			//console.log('added view: ' + viewId + ' after ' +  e.latestSnapshotVersionId + ' ' + JSON.stringify(e))
-			seq.addView(viewId, e.latestSnapshotVersionId, readyPacketCb, e.isHistorical)
+			seq.addView(e.viewId, e.latestSnapshotVersionId, readyPacketCb, e.isHistorical)
 			
 		},
 		//TODO: implement halving algorithm
@@ -104,7 +104,7 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 				if(snId === -1) snId = curEditId-1
 				_.assert(snId === -1 || prevSnId <= snId)
 
-				var viewId = typeCode+':'+JSON.stringify(params)
+				var viewId = newViewSequencer.viewIdStr(typeCode, params,'')//TODO mutatorKey?
 				viewSequencer.makeSnapshot(viewId, prevSnId, snId, isHistorical, _.assureOnce(function(snap){
 					//console.log('got snap')
 					_.assertBuffer(snap)
@@ -126,7 +126,7 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 				return
 			}
 			
-			var viewId = typeCode+':'+JSON.stringify(params)
+			var viewId = newViewSequencer.viewIdStr(typeCode, params,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
 			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
 				//console.log('got snap')
 				_.assertBuffer(snap)

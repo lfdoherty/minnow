@@ -626,12 +626,12 @@ function makeEditConverter(type){
 			}
 		}else if(mt === 'primitive'){
 			
-			if(type.value.primitive === 'int'){
-				return function(e){
+			function makePrimitiveMapHandler(putOp){
+				return function primitiveMapHandler(e){
 					_.assertInt(e.editId)
 					if(e.type === 'put'){
 						_.assertDefined(e.key)
-						return {op: editCodes.putInt, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
+						return {op: putOp, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
 					}else if(e.type === 'removeKey'){
 						_.assertDefined(e.key)
 						return {op: editCodes.delKey, edit: {}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
@@ -639,28 +639,16 @@ function makeEditConverter(type){
 						_.errout('TODO: ' + JSON.stringify(e))
 					}
 				}
+			}
+			
+			if(type.value.primitive === 'int'){
+				return makePrimitiveMapHandler(editCodes.putInt)
 			}else if(type.value.primitive === 'string'){
-				return function(e){
-					//console.log(JSON.stringify(e))
-					_.assertInt(e.editId)
-					_.assertString(e.value)
-					_.assertDefined(e.key)
-					return {op: editCodes.putString, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
-				}
+				return makePrimitiveMapHandler(editCodes.putString)
 			}else if(type.value.primitive === 'long'){
-				return function(e){
-					_.assertInt(e.editId)
-					_.assertDefined(e.value)
-					_.assertDefined(e.key)
-					return {op: editCodes.putLong, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
-				}
+				return makePrimitiveMapHandler(editCodes.putLong)
 			}else if(type.value.primitive === 'boolean'){
-				return function(e){
-					_.assertInt(e.editId)
-					_.assertDefined(e.value)
-					_.assertDefined(e.key)
-					return {op: editCodes.putBoolean, edit: {value: e.value}, state: {keyOp: keyOp, key: e.key}, syncId: -1, editId: e.editId}
-				}
+				return makePrimitiveMapHandler(editCodes.putBoolean)
 			}
 			_.errout('TODO: ' + JSON.stringify(type))
 		}else if(mt === 'view'){

@@ -29,6 +29,8 @@ function ObjectSetHandle(typeSchema, obj, part, parent){
 	}
 }
 
+ObjectSetHandle.prototype.getName = function(){return this.schema.name;}
+
 ObjectSetHandle.prototype._forceRemove = function(id, editId){
 	//_.errout('TODO')
 	var res = this.get(id);

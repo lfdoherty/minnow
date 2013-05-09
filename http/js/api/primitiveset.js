@@ -23,6 +23,8 @@ function PrimitiveSetHandle(typeSchema, obj, part, parent){
 	}
 }
 
+PrimitiveSetHandle.prototype.getName = function(){return this.schema.name;}
+
 PrimitiveSetHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 
 PrimitiveSetHandle.prototype.count = function(){

@@ -9,7 +9,7 @@ beginView 7
 	requestId int 1
 	syncId int 5
 	typeCode int 2
-	params string 3
+	viewId string 3
 	latestSnapshotVersionId int 4
 	isHistorical boolean 6
 	

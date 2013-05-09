@@ -38,14 +38,14 @@ function openView(syncId, api, schema, host, appName, viewName, params, sendFaca
         var baseTypeCode = json.baseTypeCode
         var lastId = json.lastId
 
-		openViewWithMeta(syncId, baseTypeCode, lastId, json.snapUrls, host, api, viewName, params, sendFacade, readyCb)
+		openViewWithMeta(syncId, baseTypeCode, lastId, json.snapUrls, host, api, viewName, viewId, sendFacade, readyCb)
 	}, function(err){
 		readyCb(err)
 	})    
 }
 
 
-function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, viewName, params, sendFacade, cb){
+function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, viewName, viewId, sendFacade, cb){
 	_.assertInt(lastId)
 	var snaps = []
 	var remaining = snapUrls.length
@@ -55,7 +55,7 @@ function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, vie
 			snaps[index] = snapJson
 			--remaining
 			if(remaining === 0){
-				openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb)
+				openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, viewId, sendFacade, cb)
 			}
 		}, function(err, json){
 			if(json) cb(json)
@@ -63,16 +63,18 @@ function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, vie
 		})
 	})
 }
-function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, params, sendFacade, cb, historicalKey){
+function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, viewId, sendFacade, cb, historicalKey){
 	_.assertInt(lastId)
 	
-    var viewId = baseTypeCode+':'+JSON.stringify(params)
+   // var viewId = baseTypeCode+':'+JSON.stringify(params)
     
     for(var i=0;i<snaps.length;++i){
 		api.addSnapshot(snaps[i], historicalKey)
 	}
 	var lastSnapshotVersion = snaps[snaps.length-1].endVersion
 
+	_.assertString(viewId)
+	
 	//var opened = false
 	function readyCb(cb){	
 		//if(opened) return
@@ -83,14 +85,17 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, param
 				cb(undefined, api.getView(viewId, historicalKey))
 			},exports.slowGet)
 		}else{
-			cb(undefined, api.getView(viewId, historicalKey))
+			var viewObj = api.getView(viewId, historicalKey)
+			if(!viewObj) _.errout('could not find view object: ' + viewId)
+			cb(undefined, viewObj)
 		}
 	}
 	
 	sendFacade.sendSetupMessage({
 		type: 'setup', 
 		viewName: viewName, 
-		params: JSON.stringify(params),
+		//params: JSON.stringify(params),
+		viewId: viewId,
 		isHistorical: !!historicalKey,
 		version: lastSnapshotVersion}, function(){
 		

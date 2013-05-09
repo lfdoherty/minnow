@@ -113,21 +113,21 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 	_.assertArray(implicits)
 	
 	if(expr.type === 'param'){
-		//console.log('processing param: ' + expr.name)
+		//if(expr.name === 'specialRoot') console.log('processing param: ' + expr.name)
 		if(bindings[expr.name] !== undefined){
 			if(bindings[expr.name].type === 'param'){
-				//console.log('here')
+				//if(expr.name === 'specialRoot') console.log('here')
 				return bindings[expr.name]
 			}else if(leavePartials){
-				//console.log('there: ' + JSON.stringify(bindings[expr.name]))
+				//if(expr.name === 'specialRoot') console.log('there: ' + JSON.stringify(bindings[expr.name]))
 				return bindings[expr.name]
 			}else{
-				//console.log('recursing')
+				//if(expr.name === 'specialRoot') console.log('recursing')
 				return replaceReferencesToParams(bindings[expr.name], viewMap, bindings, implicits)
 			}
 			//console.log('done: ' + expr.name)
 		}else{
-			//console.log('unfound binding: ' + expr.name)
+			//if(expr.name === 'specialRoot') console.log('unfound binding: ' + expr.name)
 			if(expr.name.charAt(0) === '~'){
 				if(expr.name.length === 1){
 					if(implicits[0] === undefined) _.errout('tried to use ~ param outside of macro')
@@ -140,7 +140,7 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 					return {type: 'param', name: implicits[num]}
 				}
 			}else{
-				//_.errout('missing binding: ' + JSON.stringify(expr))
+				if(isNaN(parseInt(expr.name.substr(1,1)))) _.errout('missing binding: ' + JSON.stringify(expr) + '(' + expr.name.substr(1,1) + ')')
 			}
 			
 			return expr;
@@ -182,6 +182,7 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 				var newBindings = _.extend({}, bindings)//due to inlining we should include all bindings, not just the ones passed via the view call
 				gm.params.forEach(function(p, index){
 					newBindings[p.name] = newParams[index]
+					//console.log('bound ' + p.name)
 				})
 				try{
 					var res = replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
@@ -228,7 +229,7 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 				return replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
 			}else if(gm.type === 'macro'){
 				if(expr.params.length > 2) _.errout('TODO allow calling a macro with more than 2 parameters, somehow?')
-				var newBindings = {}
+				var newBindings = {}//_.extend({}, bindings)
 				_.assertUndefined(expr.implicits)
 				var newImplicits = gm.implicits
 				expr.params.forEach(function(dummy,index){
@@ -1054,6 +1055,10 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		_.assertArray(localImplicits)
 		return computeType(relValue, v, schema, viewMap, bindingTypes, localImplicits || implicits, synchronousPlugins)
 	}
+
+	//console.log('param: ' + JSON.stringify(rel))
+	//console.log('binding names: ' + JSON.stringify(Object.keys(bindingTypes)))
+	//console.log('bindings: ' + JSON.stringify(bindingTypes))
 	
 	if(rel.type === 'param' && bindingTypes[rel.name] !== undefined){
 		if(bindingTypes[rel.name].type.type === 'object' && bindingTypes[rel.name].type.object === 'macro') throw new Error()
@@ -1074,6 +1079,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		 var vv = _.detect(v.params, function(p){
 			if(p.name === rel.name) return true;
 		})
+
 		if(vv === undefined){
 			console.log('param: ' + JSON.stringify(rel))
 			console.log('binding names: ' + JSON.stringify(Object.keys(bindingTypes)))

@@ -6,6 +6,8 @@ var _ = require('underscorem');
 
 var log = require('quicklog').make('minnow/service')
 
+var newViewSequencer = require('./../server/new_view_sequencer')
+
 var crypto = require('crypto')
 function computeHash(str){
 	var hash = crypto.createHash('md5');
@@ -17,7 +19,19 @@ function computeHash(str){
 function removeHashPadding(hash){
 	return hash.replace(/=/gi,'').replace(/\+/gi,'_').replace(/\//gi,'_');
 }
+/*
+function parseComplexId(ps){
+	var nci = ps.indexOf('_')
+	var a = ps.substr(0,nci)
+	var b = ps.substr(nci+1)
+	var ia = parseInt(a)
+	var ib = parseInt(b)
+	if(isNaN(ia)) _.errout('failed to parse id: ' + id)
+	if(isNaN(ib)) _.errout('failed to parse id: ' + id)
+	return innerify(ia,ib)
+}*/
 
+var innerify = require('./../server/innerId').innerify
 
 function parseParams(schema, params){
 	var ps = schema.params;
@@ -37,7 +51,11 @@ function parseParams(schema, params){
 				_.errout('TODO: ' + JSON.stringify(p));
 			}
 		}else if(p.type.type === 'object'){
-			pv = parseInt(pv);
+			if(pv.indexOf('_') !== -1){
+				pv = newViewSequencer.parseInnerId(pv)
+			}else{
+				pv = parseInt(pv);
+			}
 		}else{
 			_.errout('TODO: ' + JSON.stringify(p));
 		}
@@ -180,7 +198,7 @@ exports.make = function(schema, cc){
 			var viewCode = s.code;
 			
 			//log('getting snapshots: ' + JSON.stringify(params))
-			var getMsg = {typeCode: viewCode, params: JSON.stringify(params), isHistorical: true}
+			var getMsg = {typeCode: viewCode, params: newViewSequencer.paramsStr(params), isHistorical: true}
 			_.assert(getMsg.params != 'null')
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
@@ -196,7 +214,7 @@ exports.make = function(schema, cc){
 			var viewCode = s.code;
 			
 			//log('getting snapshots: ' + JSON.stringify(params))
-			var getMsg = {typeCode: viewCode, params: JSON.stringify(params)}
+			var getMsg = {typeCode: viewCode, params: newViewSequencer.paramsStr(params)}
 			_.assert(getMsg.params != 'null')
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
@@ -223,7 +241,7 @@ exports.make = function(schema, cc){
 
 			var parsedParams = doParseParams(paramsStr, s)
 			
-			var snapReq = {typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			var snapReq = {typeCode: viewCode, params: newViewSequencer.paramsStr(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
 			cc.getSnapshot(snapReq, function(err, response){
 				if(err){
 					cb(err)
@@ -240,7 +258,7 @@ exports.make = function(schema, cc){
 
 			var parsedParams = doParseParams(paramsStr, s)
 			
-			var snapReq = {isHistorical: true, typeCode: viewCode, params: JSON.stringify(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			var snapReq = {isHistorical: true, typeCode: viewCode, params: newViewSequencer.paramsStr(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
 			cc.getSnapshot(snapReq, function(err, response){
 				if(err){
 					cb(err)
@@ -253,7 +271,7 @@ exports.make = function(schema, cc){
 		
 		beginSync: function(viewCode, params, snapshotId, cb, readyCb){
 			_.assertFunction(readyCb);
-			var req = {typeCode: viewCode, params: JSON.stringify(params), latestSnapshotVersionId: snapshotId};
+			var req = {typeCode: viewCode, params: newViewSequencer.paramsStr(params), latestSnapshotVersionId: snapshotId};
 			cc.beginSync(req, cb, readyCb);
 		},
 		
@@ -263,12 +281,12 @@ exports.make = function(schema, cc){
 			cc.endSync({syncId: syncId});
 		},
 		
-		processEdit: function(id, path, op, edit, syncId){
-			_.assertLength(arguments, 5);
+		processEdit: function(id, op, edit, syncId){
+			_.assertLength(arguments, 4);
 			_.assertInt(syncId);
 			_.assertInt(id);
 			//console.log(arguments);
-			cc.persistEdit({id: id, path: JSON.stringify(path), edit: {type: op, object: edit}, syncId: syncId}, function(result){
+			cc.persistEdit({id: id, /*path: JSON.stringify(path),*/ edit: {type: op, object: edit}, syncId: syncId}, function(result){
 				//_.errout('TODO')
 				//TODO notify the source sync handle of the result
 			});

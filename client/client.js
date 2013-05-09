@@ -32,6 +32,8 @@ var jsonutil = require('./../http/js/jsonutil')
 exports.module = module
 
 
+var newViewSequencer = require('./../server/new_view_sequencer')
+
 var editFp = require('./../server/tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
@@ -47,7 +49,9 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 	var listeningSyncId = syncId
 	
 	_.assertArray(params);
-	var paramsStr = JSON.stringify(params);
+	var paramsStr = newViewSequencer.paramsStr(params)//JSON.stringify(params);
+	
+	//console.log('paramsStr: ' + paramsStr)
 	
 	//console.log(require('util').inspect(st));
 	_.assertInt(st.code);
@@ -102,10 +106,11 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 		
 			//_.errout('TODO')
 		
-			
+			var viewId = st.code+':'+paramsStr
 			var req = {
 				typeCode: st.code, 
-				params: JSON.stringify(params), 
+				//params: JSON.stringify(params), 
+				viewId: viewId,
 				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
 				syncId: syncId,
 				isHistorical: !!historicalKey
@@ -166,6 +171,8 @@ function translateParamObjects(s, params){
 	if(manyParams !== params.length){
 		_.errout('wrong number of params for ' + viewSchema.name + ' view (should be ' + manyParams + ', but is ' + params.length + ')')
 	}	
+	
+	//console.log('translating param objects: ' + JSON.stringify(params))
 	
 	var res = []
 	viewSchema.params.forEach(function(p, i){
@@ -367,8 +374,8 @@ function makeClient(host, port, clientCb){
 					cb(err)
 					return
 				}
-				var viewId = st.code+':'+JSON.stringify(params)
-				//log('calling back with view: ' + viewId + '+++++++++++++++++++++')
+				var viewId = st.code+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params)
+				//console.log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
 				/*
 				if(cb.length === 1){
@@ -463,6 +470,7 @@ function makeClient(host, port, clientCb){
 				var st = dbSchema[type];
 				if(st === undefined){_.errout('unknown view: ' + type);}
 
+				//console.log('getting view ' + type + ' ' + JSON.stringify(params))
 
 				_.assertNot(st.superTypes.abstract);
 				if(arguments.length === 2 && st.isView && st.viewSchema.params.length === 0){

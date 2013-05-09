@@ -15,9 +15,12 @@ function BinaryHandle(typeSchema, obj, part, parent){
 		this.write = u.viewReadonlyFunction
 		this.set = u.viewReadonlyFunction
 	}
+	this.schema = typeSchema
 	
 	this.obj = obj;
 }
+
+BinaryHandle.prototype.getName = function(){return this.schema.name;}
 
 BinaryHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 

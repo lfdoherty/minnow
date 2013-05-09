@@ -387,8 +387,12 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.adjustTopObjectToOwn === undefined) classPrototype.adjustTopObjectToOwn = adjustTopObjectToOwn
 
 	if(classPrototype.getInnerObject === undefined) classPrototype.getInnerObject = getInnerObject
+
+	//if(classPrototype.getName === undefined) classPrototype.getName = getName
 }
 
+//function getName(){
+//}
 
 function getEditingId(){
 	var eId = this.parent.getEditingId();
@@ -687,7 +691,8 @@ SyncApi.prototype.adjustTopObjectTo = function(id){
 SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
-	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, op, edit]))
+	
+	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, editNames[op], edit]))
 	
 	if(this.localMode){
 		return
@@ -725,7 +730,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertInt(op);
 	_.assertInt(editId);
 
-	console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
+	//console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return

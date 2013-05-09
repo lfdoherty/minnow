@@ -101,13 +101,6 @@ global.getRoot = function(){
 
 function loadMinnowView(){
 	console.log('got all snapshot parts, loading minnow');
-	/*
-	var sendFacade = {
-		editBuffer: [],
-		persistEdit: function(typeCode, id, path, edit){
-			sendFacade.editBuffer.push([typeCode, id, path, edit]);
-		}
-	};*/
 	
 	snapshot = mergeSnapshots(snaps);
 	
@@ -117,7 +110,7 @@ function loadMinnowView(){
 	var viewName = schema._byCode[baseTypeCode].name
 
 	update.establishSocket(applicationName, schema, host, function(syncHandle){
-		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, mainViewParams, function(err, root){
+		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, baseId, function(err, root){
 			if(err) _.errout('Error: ' + err)
 
 			getRoot = function(){return root;}

@@ -21,9 +21,13 @@ function BooleanHandle(typeSchema, obj, part, parent){
 		this.toggle = u.viewReadonlyFunction
 		this.set = u.viewReadonlyFunction
 	}
+	this.schema = typeSchema
 
 	this.obj = obj;
 }
+
+BooleanHandle.prototype.getName = function(){return this.schema.name;}
+
 BooleanHandle.prototype.value = function(){
 	return this.obj;
 }

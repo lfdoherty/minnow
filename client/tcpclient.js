@@ -605,11 +605,12 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				_.assertLength(arguments, 2)
 				_.assertFunction(cb)
 
-				_.assertArray(JSON.parse(e.params))
+				//_.assertArray(JSON.parse(e.params))
+				_.assertString(e.viewId)
 
 				e.requestId = makeRequestId();
 				syncReadyCallbacks[e.requestId] = cb;
-				//console.log('tcpclient e.params: ', e.params + ' ' + syncId)
+				//console.log('tcpclient e.viewId: ', e.viewId + ' ' + syncId + ' ' + new Error().stack)
 
 				w.beginView(e);
 			},
@@ -700,6 +701,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		
 		getSnapshots: function(e, cb){
 			_.assertFunction(cb)
+			//console.log(e.params + ' ' + new Error().stack)
 			applyRequestId(e, function(res){
 				res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
 				cb(undefined, res)
@@ -746,7 +748,10 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		getSnapshot: function(e, cb){
 			_.assertFunction(cb)
-			//console.log('get snapshot: ' + e.isHistorical + ' ' + new Error().stack)
+			//console.log('get snapshot: ' + e.params)// + ' ' + new Error().stack)
+			/*if(e.typeCode === 164 && JSON.parse(e.params)[3] === 54){
+				_.errout('should be inner')
+			}*/
 			applyRequestId(e, function(err, res){
 				if(err){
 					cb(err)

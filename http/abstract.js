@@ -6,6 +6,9 @@ exports.module = module
 
 var log = require('quicklog').make('minnow/longpoll')
 
+var newViewSequencer = require('./../server/new_view_sequencer')
+
+
 exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl){
 	_.assertFunction(minnowClient.make)
 	
@@ -93,6 +96,9 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		function doViewSetup(msg){
 			var snapshotId = parseInt(msg.snapshotVersion);
 			
+			//console.log('msg.viewId: ' + msg.viewId + ' ' + JSON.stringify(msg))
+			_.assertString(msg.viewId)
+			
 			//log(JSON.stringify(Object.keys(schema)))
 			var viewCode = schema[msg.viewName].code
 			_.assertInt(viewCode)
@@ -111,6 +117,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 				failed = true
 				return
 			}
+			
+			//console.log('msg.params: ' + msg.params)
 
 			securitySetting(function(passed){
 				if(!passed){
@@ -124,7 +132,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 				var viewReq = {
 					syncId: syncId,
 					typeCode: viewCode,
-					params: msg.params,
+					//params: msg.params,
+					viewId: msg.viewId,
 					latestSnapshotVersionId: msg.version,
 					isHistorical: msg.isHistorical
 				}
@@ -138,7 +147,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 
 					sh.msgs.push({type: 'ready', uid: msg.uid})
 				})
-			}, JSON.parse(msg.params), userToken)
+			}, newViewSequencer.parseViewId(msg.viewId).rest, userToken)
 		}
 
 		var syncHandle = syncHandles[syncId]

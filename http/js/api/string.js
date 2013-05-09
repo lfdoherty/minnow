@@ -31,7 +31,10 @@ function StringHandle(typeSchema, obj, part, parent){
 	if(this.isView()){
 		this.set = u.viewReadonlyFunction
 	}
+	this.schema = typeSchema
 }
+
+StringHandle.prototype.getName = function(){return this.schema.name;}
 
 StringHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 
