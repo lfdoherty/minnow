@@ -96,6 +96,7 @@ exports.make = function(schema, ol){
 		addEdit: function(id, op, edit, editId){
 			//return
 			//if(Math.random() < .0001) console.log(JSON.stringify(propertyChanges).length)
+			//console.log(JSON.stringify([id, editNames[op], edit, editId]))
 
 			var curId = currentObject[id] || id			
 			var cp = currentProperty[curId]

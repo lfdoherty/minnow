@@ -140,6 +140,7 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	
 	propertyIndex.attachIndex(objSchema.code, propertyCode, function(id, c){
 		//if(property.name === 'url' && objSchema.name === 'webpage') console.log('*index update: ' + id + ' ' + JSON.stringify(c) + ' ' + objSchema.name + '.'+property.name)
+		if(property.name === 'form' && property.code === 111 && c.value === true) _.errout('invalid combination: ' + JSON.stringify(c) + ' ' + id)
 		var results = permanentCache[id]
 		if(!results){
 			results = permanentCache[id] = []

@@ -31,7 +31,7 @@ function wrapSingleSingleProperty(s, propertyName, propertyType, contextType, co
 			//console.log(JSON.stringify(bindings) + ' ' + context.name + ' got id at: ' + editId + ' ' + id)
 			if(id !== undefined){
 				var res = index.getValueAt(bindings,id, editId)
-				//if(objSchema.name === 'tab') console.log(objSchema.name + '.' + propertyName + ' got id at: ' + editId + ' ' + id + ' , value: ' + res)
+				//console.log(objSchema.name + '.' + propertyName + ' got id at: ' + editId + ' ' + id + ' , value: ' + res)// + ' ' + index.getValueAt)
 				return res
 			}else{
 				//console.log(editId + ' null id looking for ' + objSchema.name + '.' + propertyName)

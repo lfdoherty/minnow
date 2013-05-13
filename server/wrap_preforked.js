@@ -143,30 +143,50 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 		//var indexOnPreforked = staticBindings.makePropertyIndex(objSchema, property)
 		//_.errout('tODO')
 		var handle = {
-			getValueAt: function(bindings, key, editId){
-				_.assertLength(arguments, 3)
+			getValueAt: function(bindings, key, editId, alreadyInPreforked){
+				if(!alreadyInPreforked) alreadyInPreforked = {}
+				//_.assertLength(arguments, 3)
 				var originalValue = originalIndex.getValueAt(bindings, key, editId)
 				
 				var newBindings = shallowCopy(bindings)
 				newBindings[staticBindings.mutatorImplicit]  = key
 				//console.log('newBindings: ' + JSON.stringify(newBindings))
 				var preforkId = preforkedObjSync.getAt(newBindings, editId)
+				//console.log('preforkId: ' + preforkId + ' ' + key + ' ' + originalValue)
+				if(_.isBoolean(preforkId)) _.errout('bad prefork value: ' + preforkedObjSync.name)
+
+				if(!preforkId){
+					return originalValue
+				}
 				
 				if(key.inner){
 					var nb = shallowCopy(bindings)
 					nb[staticBindings.mutatorImplicit]  = key.top
 					var preforkTopId = preforkedObjSync.getAt(nb, editId)
-					var preforkedInner = innerify(preforkTopId, key.inner)
-					nb[staticBindings.mutatorImplicit]  = preforkedInner
-					preforkId = preforkedObjSync.getAt(nb, editId) || preforkedInner
+					if(preforkTopId){
+						var preforkedInner = innerify(preforkTopId, key.inner)
+						nb[staticBindings.mutatorImplicit]  = preforkedInner
+						preforkId = preforkedObjSync.getAt(nb, editId) || preforkedInner
+						_.assert(_.isInt(preforkId) || _.isInt(preforkId.top))
+					}
 					//_.errout('TODO: ' + JSON.stringify([key, preforkTopId]))
 				}
+
 				
-				if(!preforkId){
-					//console.log(editId + ' returning originalValue because preforkId(' + key + ') null ' + preforkedObjSchema.name+'.'+property.name)
+				//TODO handle longer cycles
+				var selfLoop = preforkId === key || (preforkId.inner && key.inner && preforkId.top === key.top && preforkId.inner === key.inner)
+				
+				if(selfLoop){
+					console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId)
 					return originalValue
 				}
-				var preforkedValue = originalIndex.getValueAt(bindings, preforkId, editId)
+				//console.log('getting preforked value for: ' + preforkId + ' ' + key)
+				if(alreadyInPreforked[preforkId]){
+					console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId + ' ' + JSON.stringify(Object.keys(alreadyInPreforked)))
+					return originalValue
+				}
+				alreadyInPreforked[preforkId] = true
+				var preforkedValue = handle.getValueAt(bindings, preforkId, editId, alreadyInPreforked)
 				var originalChanges = originalIndex.getValueChangesBetween(bindings, key, -1, editId)
 				if(originalChanges.length === 0){
 					//console.log(preforkedObjSchema.name+'.'+property.name)

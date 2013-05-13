@@ -619,8 +619,8 @@ function parseComplexId(ps){
 	var b = ps.substr(nci+1)
 	var ia = parseInt(a)
 	var ib = parseInt(b)
-	if(isNaN(ia)) _.errout('failed to parse id: ' + id)
-	if(isNaN(ib)) _.errout('failed to parse id: ' + id)
+	if(isNaN(ia)) _.errout('failed to parse id: ' + a + ' ' + ps)
+	if(isNaN(ib)) _.errout('failed to parse id: ' + b + ' ' + ps)
 	return innerify(ia,ib)
 }
 
@@ -895,13 +895,19 @@ exports.make = function(schema, ol){
 				}
 			},
 			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				getParams(bindings, startEditId, function(params, failedA){
-					getParams(bindings, endEditId, function(params, failedB){
+				getParams(bindings, startEditId, function(paramsA, failedA){
+					getParams(bindings, endEditId, function(paramsB, failedB){
 						if(failedA && !failedB){
-							var viewId = viewIdStr(viewCode,params,bindings.__mutatorKey)
+							var viewId = viewIdStr(viewCode,paramsB,bindings.__mutatorKey)
 							cb([{type: 'set', value: viewId, editId: endEditId, syncId: -1}])
 						}else{
-							cb([])
+							var va = viewIdStr(viewCode,paramsA,bindings.__mutatorKey)
+							var vb = viewIdStr(viewCode,paramsB,bindings.__mutatorKey)
+							if(va !== vb){
+								return cb([{type: 'set', value: vb, editId: endEditId, syncId: -1}])
+							}else{
+								return cb([])
+							}
 						}
 					})
 				})
@@ -986,7 +992,13 @@ exports.make = function(schema, ol){
 					var viewId = viewIdStr(viewCode,pb.params,bindings.__mutatorKey)
 					return [{type: 'set', value: viewId, editId: endEditId, syncId: -1}]
 				}else{
-					return []
+					var va = viewIdStr(viewCode,pa.params,bindings.__mutatorKey)
+					var vb = viewIdStr(viewCode,pb.params,bindings.__mutatorKey)
+					if(va !== vb){
+						return [{type: 'set', value: vb, editId: endEditId, syncId: -1}]
+					}else{
+						return []
+					}
 				}
 			}
 			handle.getHistoricalBetween = function(bindings, startEditId, endEditId){
@@ -1423,7 +1435,7 @@ exports.make = function(schema, ol){
 	
 	function getSnapshotInner(getObjectInclusionsDuring, getObjectEditsBetween, id, lastEditId, endEditId, readyCb){
 	
-		//console.log('getting snapshot inner ' + lastEditId + ', ' + endEditId)
+		//console.log('getting snapshot inner ' + id + ' ' + lastEditId + ', ' + endEditId)
 
 		if(lastEditId === endEditId){
 			var snap = snapshotSerialization.serializeSnapshot(lastEditId, endEditId, [], [])
@@ -1450,6 +1462,7 @@ exports.make = function(schema, ol){
 					oldState = e.state
 				})
 				//console.log('storing ' + resultEdits.length + ' edits for ' + id + ' between ' + lastEditId + ', ' + endEditId)
+				//console.log(JSON.stringify(resultEdits))
 				viewObjectEditBuffers.push({id: id, edits: resultEdits})
 			}else{
 				objectEditBuffers.push({id: id, edits: edits})
@@ -1649,15 +1662,17 @@ exports.make = function(schema, ol){
 						getObjectEditsBetween(id, -1, endEditId, function(snap){
 							//console.log('view object snap(' + id +'): ' + JSON.stringify(snap))
 							
-							var oldState = {top: id}
+							/*var oldState = {top: id}
 							var resultEdits = []
 							snap.forEach(function(e){
+								if(e.op === editCodes.putLong) _.assertInt(e.state.property)
 								pathmerger.editToMatch(oldState, e.state, function(op, edit){
 									resultEdits.push({op: op, edit: edit, editId: e.editId, syncId: -1})
 								})
 								resultEdits.push(e)
 								oldState = e.state
-							})
+							})*/
+							var resultEdits = computeStateEditsForViewObject(id, snap)
 							
 							//console.log('result edits: ' + JSON.stringify(resultEdits))
 							
@@ -1717,10 +1732,13 @@ exports.make = function(schema, ol){
 				var edits = []
 				var snapshots = []
 				
+				//console.log('adding view ' + id + ' ' + lastEditId + ' ' + endEditId)
+				
 				queryHandle.add(id, lastEditId, function(changedId, changes){
 					//console.log('appending edits: ' + JSON.stringify(changes))
 					edits = edits.concat(changes)
 				}, function inclusion(includedId){
+					//console.log('including: ' + includedId)
 					if(!_.isString(includedId)){
 						//_.errout('TODO')
 //						includeObjectCb(id,function(){})//TODO is this right?
@@ -1728,6 +1746,7 @@ exports.make = function(schema, ol){
 					}
 					rem.increase(1)
 					getObjectEditsBetween(includedId, -1, endEditId, function(snap){
+						//console.log('adding view included object: ' + JSON.stringify(snap))
 						snapshots.push([includedId,snap])
 						rem.decrease(1)
 					})
@@ -1737,7 +1756,7 @@ exports.make = function(schema, ol){
 				})
 				
 				function finish(){
-					//console.log('finishing add view: ' + id)
+					//console.log('finishing add view: ' + id + ' ' + JSON.stringify(snapshots))
 					
 					edits.sort(function(a,b){
 						return a.editId - b.editId
@@ -1750,7 +1769,10 @@ exports.make = function(schema, ol){
 						snap = snap[1]
 						if(_.isString(id)){
 							_.assertObject(snap)
-							sendViewObjectCb(id, snap)
+
+							var resultEdits = computeStateEditsForViewObject(id, snap)
+
+							sendViewObjectCb(id, resultEdits)
 						}else{
 							includeObjectCb(id,function(){})
 						}
@@ -1804,3 +1826,20 @@ exports.make = function(schema, ol){
 	
 	return handle
 }
+
+function computeStateEditsForViewObject(id, edits){
+	var oldState = {top: id}
+	var resultEdits = []
+	edits.forEach(function(e){
+		//if(e.op === editCodes.putLong) _.assertInt(e.state.property)
+		pathmerger.editToMatch(oldState, e.state, function(op, edit){
+			resultEdits.push({op: op, edit: edit, editId: e.editId, syncId: -1})
+		})
+		resultEdits.push(e)
+		oldState = e.state
+	})
+	return resultEdits
+}
+
+
+

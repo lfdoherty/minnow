@@ -511,6 +511,8 @@ function changeOnPath(local, op, edit, syncId, editId){
 		}
 		//console.log('HERERERERER')
 		//console.log('editing ' + editNames[op] + ' ' + (chp.rally = Math.random()))
+		
+		
 		chp.changeListener(local.inputSubObject, local.inputKey, op, edit, syncId, editId)
 	}
 }
@@ -764,7 +766,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	this.prepared = true;
 	var s = this;
 
-	var fakeObject = {}//{state: {}}
+	/*var fakeObject = {}//{state: {}}
 	//var cur = {}
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]
@@ -777,7 +779,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 				keyOp: fakeObject.inputKeyOp
 			}
 		}
-	}
+	}*/
 	
 	var realEdits = [].concat(this.edits)
 
@@ -1078,6 +1080,9 @@ function updateInputPath(local, op, edit, editId){
 	}else if(op === editCodes.made){//op.indexOf('select') === 0 && op.indexOf('Key') === op.length-3){
 		//console.log('updated inputObject: ' + local.inputObject + ' -> ' + edit.id)
 		local.inputObject = undefined//edit.id
+		local.inputSubObject = undefined
+		local.inputProperty = undefined
+		local.inputKey = undefined
 	}else{
 		return false
 	}

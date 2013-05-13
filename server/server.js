@@ -341,6 +341,8 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					
 					//console.log('got edit for object: ' + JSON.stringify(e))
 					
+					//if(e.op === editCodes.putLong) _.assertInt(e.state.property)
+					
 					if(e.state && e.state.key && e.state.keyIsObject){
 						includeObjectCb(e.state.key, function(){//TODO also listen?
 						})

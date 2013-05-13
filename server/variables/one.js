@@ -18,6 +18,7 @@ schema.addFunction('one', {
 	callSyntax: 'one(collection)',
 	computeSync: function(z, set){
 		//console.log('computed one ' + set[0] + ' from ' + JSON.stringify(set))
+		//console.log(new Error().stack)
 		return set[0]
 	}
 })

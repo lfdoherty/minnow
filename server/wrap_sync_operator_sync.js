@@ -173,7 +173,7 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		}
 		//TODO validate results
 		
-		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
+		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify([pr1.getAt(bindings, editId)]))
 		//console.log(new Error().stack)
 		a.computeSync(rel.view)
 		stackCount.record(probeName, 1000)
@@ -191,7 +191,7 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		}
 		//TODO validate results
 		
-		//console.log(editId+' computed sync ' + impl.callSyntax)// + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
+		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
 		/*if(impl.callSyntax === 'mapValue(map,key)'){
 			console.log(pr1.name)
 		}*/
