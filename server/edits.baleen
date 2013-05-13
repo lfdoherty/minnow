@@ -72,6 +72,10 @@ setBoolean 78
 setReal 141
 	value string 1
 	
+insertString 49
+	value string 1
+	index int 2
+
 setObject 21 
 	id int 1
 clearObject 73

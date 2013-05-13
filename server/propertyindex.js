@@ -140,6 +140,8 @@ exports.make = function(schema, ol){
 								c = {type: 'set', value: edit.value, editId: editId}
 							}
 						//}
+					}else if(op === editCodes.insertString){
+						c = {type: 'insert', value: edit.value, editId: editId}
 					}else if(op === editCodes.wasSetToNew){
 						c = {type: 'set', value: innerify(id, edit.id), editId: editId}
 					}else if(op === editCodes.replacedNew || op === editCodes.replaceExternalExisting || op === editCodes.replaceInternalExisting){
@@ -196,7 +198,7 @@ exports.make = function(schema, ol){
 						c = {type: 'removeKey', key: key, editId: editId}
 					}else if(op === editCodes.destroy){
 						//do nothing?
-						console.log('destroyed')
+						//console.log('destroyed')
 						c = {type: 'destroyed', editId: editId}
 					}else if(op === editCodes.moveToAfter || op === editCodes.moveToFront || op === editCodes.moveToBack){
 						//TODO

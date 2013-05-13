@@ -127,10 +127,18 @@ exports.primitiveChangeListener = function changeListener(subObj, key, op, edit,
 	_.assertInt(op)
 	
 	if(lookup.isSetCode[op]){//op.indexOf('set') === 0){
+		if(syncId === this.getEditingId()) return
+
 		if(this.obj === edit.value) return
 		this.obj = edit.value;
 		//console.log('primitive value set to: ' + this.obj)
 		this.emit(edit, 'set', edit.value, editId)
+	}else if(op === editCodes.insertString){
+		if(syncId === this.getEditingId()) return
+		
+		//console.log('inserting: ' + edit.value)
+		this.obj = this.obj.substr(0, edit.index) + edit.value + this.obj.substr(edit.index)
+		this.emit(edit, 'set', this.obj, editId)
 	}else{
 		_.errout('-TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(lookup.isSetCode));
 	}

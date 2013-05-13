@@ -148,17 +148,6 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 				//_.assertLength(arguments, 3)
 				var originalValue = originalIndex.getValueAt(bindings, key, editId)
 				
-				var newBindings = shallowCopy(bindings)
-				newBindings[staticBindings.mutatorImplicit]  = key
-				//console.log('newBindings: ' + JSON.stringify(newBindings))
-				var preforkId = preforkedObjSync.getAt(newBindings, editId)
-				//console.log('preforkId: ' + preforkId + ' ' + key + ' ' + originalValue)
-				if(_.isBoolean(preforkId)) _.errout('bad prefork value: ' + preforkedObjSync.name)
-
-				if(!preforkId){
-					return originalValue
-				}
-				
 				if(key.inner){
 					var nb = shallowCopy(bindings)
 					nb[staticBindings.mutatorImplicit]  = key.top
@@ -170,14 +159,27 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 						_.assert(_.isInt(preforkId) || _.isInt(preforkId.top))
 					}
 					//_.errout('TODO: ' + JSON.stringify([key, preforkTopId]))
+				}else{
+					var newBindings = shallowCopy(bindings)
+					newBindings[staticBindings.mutatorImplicit]  = key
+					//console.log('newBindings: ' + JSON.stringify(newBindings))
+					var preforkId = preforkedObjSync.getAt(newBindings, editId)
+					if(_.isBoolean(preforkId)) _.errout('bad prefork value: ' + preforkedObjSync.name)
 				}
+				//console.log('preforkId: ' + preforkId + ' ' + key + ' ' + originalValue)
+
+				if(!preforkId){
+					return originalValue
+				}
+				
+				
 
 				
 				//TODO handle longer cycles
 				var selfLoop = preforkId === key || (preforkId.inner && key.inner && preforkId.top === key.top && preforkId.inner === key.inner)
 				
 				if(selfLoop){
-					console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId)
+					console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId + ' -- ' + JSON.stringify(originalValue))
 					return originalValue
 				}
 				//console.log('getting preforked value for: ' + preforkId + ' ' + key)
@@ -214,7 +216,7 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 						if(originalValue === undefined){
 							_.errout('tODO: ' + key + ' ' + JSON.stringify([originalValue, preforkedValue, originalChanges]))
 						}else{
-							//var preforkedChanges = originalIndex.getValueChangesBetween(bindings, preforkId, -1, editId)						
+							var preforkedChanges = originalIndex.getValueChangesBetween(bindings, preforkId, -1, editId)						
 							var set = [].concat(preforkedValue)
 							
 							if(property.type.members.type === 'object'){

@@ -47,6 +47,28 @@ exports.setBoolean = makeWrapper(
 exports.setString = makeWrapper(
 	function(c){return c.v.stringValue.value() === 'test'}, 
 	function(obj){obj.stringValue.set('test')})
+
+
+exports.insertStringBack = makeWrapper(
+	function(c){return c.v.stringValue.value() === 'testB'}, 
+	function(obj){
+		obj.stringValue.set('test')
+		obj.stringValue.set('testB')
+	})
+exports.insertStringFront = makeWrapper(
+	function(c){return c.v.stringValue.value() === 'Btest'}, 
+	function(obj){
+		obj.stringValue.set('test')
+		obj.stringValue.set('Btest')
+	})
+
+exports.insertStringMiddle = makeWrapper(
+	function(c){return c.v.stringValue.value() === 'teBst'}, 
+	function(obj){
+		obj.stringValue.set('test')
+		obj.stringValue.set('teBst')
+	})
+
 	/*
 exports.setTimestamp = makeWrapper(
 	function(c){return _.isNumber(c.v.timestampValue.value())}, 
