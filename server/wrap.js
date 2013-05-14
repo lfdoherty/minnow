@@ -890,7 +890,7 @@ function syncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle){
 			if(stateCache[key]){
 				return stateCache[key]
 			}
-			//console.log('expr: ' + exprHandle.name + ' ' + rel.name)
+			//console.log(editId + ' expr: ' + exprHandle.name + ' ' + rel.name)
 			var state = exprHandle.getAt(bindings, editId)
 			stateCache[key] = state
 			return state
@@ -902,7 +902,7 @@ function syncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle){
 			}
 			var changes = exprHandle.getBetween(bindings, startEditId, endEditId)
 			changesCache[key] = changes
-			//console.log('between let: ' + JSON.stringify([startEditId, endEditId, changes]))
+			console.log('between let: ' + JSON.stringify([startEditId, endEditId, changes]))
 			return changes
 		},
 		getHistoricalBetween: function(bindings, startEditId, endEditId){

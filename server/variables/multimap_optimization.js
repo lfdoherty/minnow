@@ -4,6 +4,9 @@ var analytics = require('./../analytics')
 var wu = require('./../wraputil')
 
 function removeInner(arr){
+
+	return arr
+	/*
 	var res = []
 	for(var i=0;i<arr.length;++i){
 		var id = arr[i]
@@ -11,9 +14,13 @@ function removeInner(arr){
 			res.push(id)
 		}
 	}
-	return res
+	return res*/
 }
 function removeInnerEdits(edits){
+
+	return edits
+	/*
+
 	if(edits.length === 0) return edits
 	
 	var res = []
@@ -25,7 +32,7 @@ function removeInnerEdits(edits){
 			res.push(e)
 		}
 	}
-	return res
+	return res*/
 }
 
 function makeWithIndex(s, rel, recurseSync, handle, ws, staticBindings, allHandle, objSchema, propertyCode, keysAreBoolean){

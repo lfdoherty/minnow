@@ -1024,10 +1024,12 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 	}
 	if(this.objectApiCache && this.objectApiCache[temporaryId]){
 		this.objectApiCache[realId] = this.objectApiCache[temporaryId]
-		delete this.objectApiCache[temporaryId]
+		this.objectApiCache[temporaryId] = undefined
 	}
+	
 
-	for(var i=0;i<this.edits.length;++i){
+	var i=this.lastReificationIndex||0
+	for(;i<this.edits.length;++i){
 		var e = this.edits[i]
 		if(e.op === editCodes.addNew){
 			if(temporaryId !== e.edit.temporary) continue
@@ -1038,6 +1040,8 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 			e.edit.id = realId
 		}
 	}
+
+	this.lastReificationIndex = this.edits.length-1
 }
 
 TopObjectHandle.prototype.adjustTopObjectToOwn = function(){

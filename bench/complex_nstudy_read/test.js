@@ -1,8 +1,8 @@
 "use strict";
 
 /* 
-	Time to beat (N, ms): 	(50000, 520)
-							(100000,1023)
+	Time to beat (N, ms): 	(50000, 266)
+							(100000,535)
 */
 
 

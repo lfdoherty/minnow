@@ -44,7 +44,7 @@ function establishSocket(appName, schema, host, cb){
 
 	var wsHost = 'ws'+host.substr(4)
 	var url = wsHost//+'/websocket'
-	//console.log('url: ' + url)
+	console.log('url: ' + url)
 	var ws = new WebSocket(url);
 	
 	var msgBuf = []

@@ -14,6 +14,7 @@ function shallowCopy(b){
 	return nb
 }
 
+
 function makePreforkedRel(s, rel, recurseSync, staticBindings){
 	_.assertLength(arguments, 4)
 	_.assertObject(staticBindings)
@@ -335,14 +336,17 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 		
 		//var indexOnPreforked = staticBindings.makeReversePropertyIndex(preforkedObjSchema, property)
 		
-		//_.errout('tODO')
+
+		
 		var handle = {
 			getValueAt: function(bindings, key, editId){
 				_.assertLength(arguments, 3)
 				
 				//_.errout('TODO')
 				
+				
 				if(keysAreBoolean) key = !!key
+
 				
 				var result = []
 				
@@ -391,6 +395,7 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 				}
 				
 				//console.log('preforked computed result: ' + key + ' -> ' + JSON.stringify(result))
+
 				
 				return result
 				/*
