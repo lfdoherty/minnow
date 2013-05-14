@@ -119,6 +119,16 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		}
 		//TODO validate results
 		
+		/*
+		if(rel.view === 'map' || rel.view === 'multimap' || rel.view === 'each'){
+			
+			if(cp[1].length > 50){
+				console.log(nameStr)
+				console.log('WARNING: uncached ' + rel.view + ' iteration N='+cp[1].length + ' ' + new Error().stack)
+			}
+		}
+		*/
+		
 		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(cp.slice(1)))
 		a.computeSync(rel.view)
 		stackCount.record(probeName, 1000)
@@ -151,6 +161,9 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 			result = defaultValue
 		}
 		//TODO validate results
+		
+	
+		
 		
 		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
 		//console.log(new Error().stack)

@@ -422,6 +422,37 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				oldSet.push({type: 'remove', value: id, editId: c.editId})
 			}
 			currentValue[id] = c.value
+		}else if(c.type === 'insert'){
+			var value = c.value
+			_.assertDefined(value)
+			
+			var old = currentValue[id]
+			var newValue = old.substr(0, c.index)+c.value+old.substr(c.index)
+
+			var newSet = permanentCache[newValue]
+			if(!newSet) newSet = permanentCache[newValue] = []
+			newSet.push({type: 'add', value: id, editId: c.editId})
+
+			var oldSet = permanentCache[old]
+			oldSet.push({type: 'remove', value: id, editId: c.editId})
+			currentValue[id] = newValue
+			
+			/*if(keysAreBoolean) value = !!value
+
+			var newSet = permanentCache[value]
+			if(!newSet) newSet = permanentCache[value] = []
+			newSet.push({type: 'add', value: id, editId: c.editId})
+		
+			var old = currentValue[id]
+
+			if(old !== undefined){
+				var oldSet = permanentCache[old]
+				oldSet.push({type: 'remove', value: id, editId: c.editId})
+			}else if(keysAreBoolean){
+				var oldSet = permanentCache['false']
+				oldSet.push({type: 'remove', value: id, editId: c.editId})
+			}
+			currentValue[id] = c.value*/
 		}else if(c.type === 'clear'){
 			_.assertDefined(c.old)
 			var oldSet = permanentCache[c.old]

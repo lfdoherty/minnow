@@ -162,7 +162,7 @@ schema.addFunction('multimap', {
 	computeSync: function(z, set, keyMacro, valueMacro){
 		var map = {}
 		var hasMap = {}
-
+		
 		function putAdd(key, value){
 			if(z.schemaType.key.primitive === 'boolean'){
 				key = !!key

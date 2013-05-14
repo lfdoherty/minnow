@@ -75,7 +75,7 @@ schema.addFunction('each', {
 		})
 	},
 	computeSync: function(z, input, macro){
-	
+		
 		var results = []
 
 		for(var i=0;i<input.length;++i){

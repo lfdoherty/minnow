@@ -141,7 +141,7 @@ exports.make = function(schema, ol){
 							}
 						//}
 					}else if(op === editCodes.insertString){
-						c = {type: 'insert', value: edit.value, editId: editId}
+						c = {type: 'insert', index: edit.index, value: edit.value, editId: editId}
 					}else if(op === editCodes.wasSetToNew){
 						c = {type: 'set', value: innerify(id, edit.id), editId: editId}
 					}else if(op === editCodes.replacedNew || op === editCodes.replaceExternalExisting || op === editCodes.replaceInternalExisting){

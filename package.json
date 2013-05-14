@@ -1,6 +1,6 @@
 {
   "name": "minnow",
-  "version": "0.3.22",
+  "version": "0.3.23",
   "description": "An auto-syncing, in-memory-canonical relational database",
   "main": "./index",
   "author": "Liam Doherty",

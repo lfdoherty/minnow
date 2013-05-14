@@ -61,7 +61,16 @@ function tryIncrementalUpdate(handle, a, b){
 
 		//console.log(JSON.stringify([firstChange, lastChangeInB, i, a, b]))
 
-		if(lastChangeInB - firstChange === b.length - a.length){//is a pure insertion
+		if(lastChangeInB <= firstChange && b.length - a.length === 1){
+			var inserted = b.substr(firstChange, 1)
+			
+			var e = {index: firstChange, value: inserted}
+			handle.saveEdit(editCodes.insertString, e);
+			handle.emit(e, 'set', b)
+			
+			return true
+		
+		}else if(lastChangeInB - firstChange === b.length - a.length){//is a pure insertion
 			var inserted = b.substring(firstChange, lastChangeInB)
 			
 			//_.assertDefined(this.obj)
@@ -71,7 +80,9 @@ function tryIncrementalUpdate(handle, a, b){
 			
 			return true
 		}
+		return
 	}
+	return
 }
 
 StringHandle.prototype.set = function(str){

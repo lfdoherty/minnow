@@ -234,6 +234,8 @@ function noReduceCompute(z, input, keyMacro, valueMacro){
 	var state = {}
 	_.assertArray(input)
 	
+	//console.log(new Error().stack)
+	
 	input.forEach(function(v){
 		var key = keyMacro.get(v)
 		var value = valueMacro.get(v)
@@ -242,6 +244,7 @@ function noReduceCompute(z, input, keyMacro, valueMacro){
 			state[key] = value
 		}
 	})
+	
 	//console.log('state: ' + JSON.stringify(state) + ' from ' + JSON.stringify(input))
 	return state
 }
