@@ -195,6 +195,22 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		}else if(lastChange.type === 'clear'){
 			//omit the value
 			return undefined
+		}else if(lastChange.type === 'insert'){
+			var value = ''
+			for(var i=0;i<changes.length;++i){
+				var c = changes[i]
+				if(c.editId > editId) break
+				if(c.type === 'clear'){
+					value = ''
+				}else if(c.type === 'set'){
+					value = c.value
+				}else if(c.type === 'insert'){
+					_.assertInt(c.index)
+					value = value.substr(0, c.index) + c.value + value.substr(c.index)
+				}else{
+					_.errout('tODO: ' + JSON.stringify(lastChange))
+				}
+			}
 		}else{
 			_.errout('tODO: ' + JSON.stringify(lastChange))
 		}
