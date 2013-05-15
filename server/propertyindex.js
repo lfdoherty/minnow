@@ -99,10 +99,10 @@ exports.make = function(schema, ol){
 			//console.log(JSON.stringify([id, editNames[op], edit, editId]))
 
 			var curId = currentObject[id] || id			
-			var cp = currentProperty[curId]
+			var cp = currentProperty[curId.top||curId]
 			
 			if(op === editCodes.selectProperty){
-				currentProperty[curId] = edit.typeCode
+				currentProperty[curId.top||curId] = edit.typeCode
 			}else if(op === editCodes.selectObject){
 				currentObject[id] = edit.id !== id ? innerify(id, edit.id) : id
 			}else if(op === editCodes.selectSubObject){

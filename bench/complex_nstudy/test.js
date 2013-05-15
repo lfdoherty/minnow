@@ -22,9 +22,9 @@ u.reset(run)
 
 function setupSidebarForm(c, v, cb){
 
-	var h = v.make('user', {email: 'admin'}, function(){
+	var h = v.make('user', {email: 'admin', hash: 'DUMMY'}, function(){
 		
-		var contact = h.make('contact', {userId: h.id(), name: h.email.value()})
+		var contact = h.make('contact', {userId: h.id(), name: h.email.value(), displayName: h.email.value()})
 		
 		h.admin.set(true)
 		var webGroup = v.make('group', {name: 'web', creator: contact, doNotDisplayChatContacts: true, settings: {}}, function(){
@@ -33,50 +33,55 @@ function setupSidebarForm(c, v, cb){
 			
 			var contactsField = v.make('contacts', {name: 'Contacts', creator: contact})
 			
-			var quoteForm = v.make('nest', {elements: [
-				{type: 'text', name: 'Comments'}
+			var quoteForm = v.make('nest', {name: '', elements: [
+				{type: 'text', name: 'Comments', text: '', placeholder: 'insert text here...'}
 			]})
 
-			var bookmarkForm = v.make('webpage', {elements: [
-				{type: 'tags', name: 'Tags'},
-				{type: 'text', name: 'Notes'},
-				{type: 'quotes', name: 'Quotes'},
-				{type: 'snippets', name: 'Snippets'}
-			]})
-			var snippetForm = v.make('snippet', {elements: [
-				{type: 'slider', name: 'Rate your mastery from 1 to 5:'}
+			var bookmarkForm = v.make('webpage', {
+				url: '',
+				title: '',
+				name: '',
+				elements: [
+					{type: 'tags', name: 'Tags'},
+					{type: 'text', name: 'Notes', text: '', placeholder: 'insert text here...'},
+					{type: 'quotes', name: 'Quotes', many: 8},
+					{type: 'snippets', name: 'Snippets'}
+				]
+			})
+			var snippetForm = v.make('snippet', {domId: '', text: '', offset: -1, name: '', elements: [
+				{type: 'slider', name: 'Rate your mastery from 1 to 5:', minValue: 1, maxValue: 5, step: 1},
 			]})
 			
-			var noteSection = v.make('nest', {creator: contact, elements: [
+			var noteSection = v.make('nest', {creator: contact, name: '', elements: [
 				jot
 			]})
-			var fieldSection = v.make('nest', {creator: contact, elements: [
-				h.make('text'),
+			/*var fieldSection = v.make('nest', {creator: contact, name: '', elements: [
+				h.make('text', {text: '', placeholder: 'insert text here...'}),
 				v.make('checklist'),
 				v.make('radio'),
 				v.make('tags'),
 				v.make('collection'),
 				v.make('slider')
 			]})
-			var advancedFieldSection = v.make('nest', {creator: contact, elements: [
+			var advancedFieldSection = v.make('nest', {creator: contact, name: '', elements: [
 				v.make('contacts'),
 				v.make('history'),
 				v.make('quotes'),
 				v.make('snippets')
 			]})
-			var advancedObjectSection = v.make('nest', {creator: contact, elements: [
+			var advancedObjectSection = v.make('nest', {creator: contact, name: '', elements: [
 				v.make('userSet', {name: 'User Set'})
-			]})
+			]})*/
 			
 			var sidebar = v.make('sidebar', {name: 'DefaultWebSidebar', creator: contact, hideHeader: true, elements: [
-					{type: 'history', hideHeader: true, elements: [
+					{type: 'history', hideHeader: true, many: 8, name: '', elements: [
 						contactsField
 					]}
 				],
 				quoteForm: quoteForm,
 				bookmarkForm: bookmarkForm,
 				snippetForm: snippetForm,
-				contextMenu: [noteSection, fieldSection, advancedFieldSection, advancedObjectSection]
+				contextMenu: []//noteSection, fieldSection, advancedFieldSection, advancedObjectSection]
 			})
 			
 			webGroup.sidebars.add(sidebar)
@@ -87,23 +92,23 @@ function setupSidebarForm(c, v, cb){
 }
 function setupUserStuff(c, v, cb){
 
-	var sidebarInstance = v.make('sidebar', {})
+	var sidebarInstance = v.make('sidebar', {name: ''})
 	var userData = v.make('userData', {sidebar: sidebarInstance})
 	var settings = v.make('settings')
-	var u = v.make('user', {email: 'test', data: userData, settings: settings}, function(){
+	var u = v.make('user', {email: 'test', data: userData, settings: settings, hash: 'DUMMY'}, function(){
 		
 		
-		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value()})
+		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value(), name: u.email.value()})
 		u.setProperty('contact', contact)
 		
 		setupSidebarForm(c, v, function(webGroup){
 		
 			webGroup.members.add(u.contact)
 		
-			var session = v.make('userSession', {user: u.id()})
+			var session = v.make('userSession', {user: u.id(), syncId: -1})
 			var tab = v.make('tab', {url: tabUrl}, function(){
 			
-				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title'}, function(){
+				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
 				
 					makeSidebar(c, u, function(){
 						cb(u, session, tab, webpage)
@@ -122,7 +127,7 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.make('sidebar', {})
+				candidateSidebar = v.make('sidebar', {name: ''})
 				console.log(v.candidateSidebarForm._internalId())
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
@@ -178,7 +183,11 @@ function run(){
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
 							for(var i=0;i<N;++i){
-								var quote = c.make('quote', {creator: um.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, true)
+								var quote = c.make('quote', {creator: um.contact, 
+									text: 'test quote text', originalOffset: 10, 
+									prefix: '', postfix: '', originalUrlTitle: 'dummy',
+									name: '',
+									url: tabUrl}, true)
 							}
 							
 							var quotesMade = Date.now()
@@ -192,7 +201,7 @@ function run(){
 								var quotesField = localWebpage.elements.at(2)
 								_.assertDefined(quotesField)
 								var set = childMap.get(quotesField.id())
-								if(set && set.count() === Math.min(20,N) && v.quoteCount.value() === N){
+								if(set && set.count() === Math.min(8,N) && v.quoteCount.value() === N){
 									console.log('done: ' + (Date.now()-start))
 									console.log('after write: ' + (Date.now()-quotesMade))
 									process.exit(0)

@@ -5,18 +5,18 @@ webpageVersion 6
 	hash string 3
 
 user 301
-	data userData 11
-	admin boolean 15
-	settings settings 55
-	contact contact 56
+	data userData 11 optional
+	admin boolean 15 optional
+	settings settings 55 optional
+	contact contact 56 optional
 
 userData 5
 	contacts set:contact 14
-	sidebarForm sidebar 57
-	sidebar sidebar 56
+	sidebarForm sidebar 57 optional
+	sidebar sidebar 56 optional
 	expansionToggles string:boolean 58
 	settingsToggles string:boolean 61
-	sidebarWidth int 59
+	sidebarWidth int 59 optional
 	quoteExpansionToggles int:boolean 62
 	panelIsVisible boolean 7
 	sidebarsByForked sidebar:sidebar 8//key is original 'form' sidebar, value is the user's fork
@@ -25,9 +25,9 @@ userSession 19
 	user int 1
 	syncId int 2
 	tabsOpen set:webpage 3
-	searchQuery string 4
-	activeUrl string 5
-	activeTitle string 7
+	searchQuery string 4 optional
+	activeUrl string 5 optional
+	activeTitle string 7 optional
 	isExtensionSession boolean 6
 	
 settings 13
@@ -37,7 +37,7 @@ settings 13
 	widgetDisabled boolean 45
 	formEditingDisabled boolean 48
 	groupAdminEnabled boolean 47
-	role role 50
+	role role 50 optional
 	usePrompts boolean 51
 	
 role 21

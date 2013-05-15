@@ -159,10 +159,10 @@ function make(schema, ol){
 		_.assertNumber(timestamp)
 		//_.assertInt(id)
 
-		if(op !== editCodes.make){// && op !== editCodes.makeFork){
+		/*if(op !== editCodes.make){// && op !== editCodes.makeFork){
 			_.assertInt(state.topTypeCode)
 			_.assertInt(state.objTypeCode)
-		}	
+		}	*/
 		
 		var stateTop = state.top
 		

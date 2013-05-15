@@ -130,8 +130,10 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		*/
 		
 		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(cp.slice(1)))
+
 		a.computeSync(rel.view)
-		stackCount.record(probeName, 1000)
+		//stackCount.record(probeName, 1000)
+		
 		return result
 	}
 	var handle = {
@@ -168,7 +170,7 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify(paramStates))
 		//console.log(new Error().stack)
 		a.computeSync(rel.view)
-		stackCount.record(probeName, 1000)
+		//stackCount.record(probeName, 1000)
 		return result
 	}
 
@@ -189,7 +191,7 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		//console.log(editId+' computed sync ' + impl.callSyntax + ': ' + JSON.stringify(result) +' at ' + editId + ' from ' + JSON.stringify([pr1.getAt(bindings, editId)]))
 		//console.log(new Error().stack)
 		a.computeSync(rel.view)
-		stackCount.record(probeName, 1000)
+		//stackCount.record(probeName, 1000)
 		return result
 	}
 		
@@ -210,7 +212,7 @@ function makeSyncOperatorSyncRel(s, rel, paramRels, impl, viewName, ws, recurseS
 		}*/
 		//console.log(new Error().stack)
 		a.computeSync(rel.view)
-		stackCount.record(probeName, 1000)
+		//stackCount.record(probeName, 1000)
 		return result
 	}
 	

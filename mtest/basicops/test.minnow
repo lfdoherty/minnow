@@ -2,8 +2,8 @@
 empty() 120
 
 entity 1
-	age int 1
-	name string 2
+	age int 1 optional
+	name string 2 optional
 	numbers set:int 3
 
 idtest() 119

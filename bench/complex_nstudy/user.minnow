@@ -1,8 +1,8 @@
 
 user 301
-	createdTime long 1
-	emailChangedTime long 2
-	passwordChangedTime long 3
+	createdTime long 1 optional
+	emailChangedTime long 2 optional
+	passwordChangedTime long 3 optional
 	email string 5
 	hash string 7
 

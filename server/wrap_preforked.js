@@ -14,6 +14,13 @@ function shallowCopy(b){
 	return nb
 }
 
+function propertyIsNotOptional(property){
+	var isOptional = property.tags && property.tags.optional
+	isOptional = isOptional||property.type.type==='set'||property.type.type==='list'||property.type.type==='map'
+	isOptional = isOptional||property.type.primitive==='boolean'
+	//if(!isOptional) console.log('not optional: ' + JSON.stringify(property))
+	return !isOptional
+}
 
 function makePreforkedRel(s, rel, recurseSync, staticBindings){
 	_.assertLength(arguments, 4)
@@ -131,6 +138,14 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 		//console.log(JSON.stringify(preforkedObjSchema))
 
 		var originalIndex = staticBindings.makePropertyIndex(objSchema, property)
+		
+		//var isOptional = property.tags && property.tags.optional
+		//isOptional = isOptional||property.type.type==='set'||property.type.type==='list'||property.type.type==='map'
+		
+		var isNotOptional = propertyIsNotOptional(property)
+		
+		//if(isNotOptional) return originalIndex
+		
 
 		/*if(((!preforkedObjSchema.subTypes || !preforkedObjSchema.subTypes[objSchema.name]) && preforkedObjSchema !== objSchema)){// || !preforkedObjSchema.propertiesByCode[property.code]){
 			//no need to prefork this index since it concerns an object type which is never preforked
@@ -149,6 +164,11 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 				//_.assertLength(arguments, 3)
 				var originalValue = originalIndex.getValueAt(bindings, key, editId)
 				
+				/*if(isNotOptional){
+					console.log('not optional:' + JSON.stringify(property))
+					return originalValue
+				}*/
+					
 				if(key.inner){
 					var nb = shallowCopy(bindings)
 					nb[staticBindings.mutatorImplicit]  = key.top
@@ -161,6 +181,14 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 					}
 					//_.errout('TODO: ' + JSON.stringify([key, preforkTopId]))
 				}else{
+					
+					//we may still have prefork inheritance even on non-optional properties
+					//if the property is of an inner object which comes from the preforked object.
+					if(isNotOptional){
+						//console.log('not optional:' + JSON.stringify(property))
+						return originalValue
+					}
+					
 					var newBindings = shallowCopy(bindings)
 					newBindings[staticBindings.mutatorImplicit]  = key
 					//console.log('newBindings: ' + JSON.stringify(newBindings))
@@ -318,6 +346,10 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 		//console.log(JSON.stringify(preforkedObjSchema))
 
 		var originalIndex = staticBindings.makeReversePropertyIndex(objSchema, property)
+
+		//if(propertyIsNotOptional(property)){
+		//	return originalIndex
+		//}
 
 		var forwardIndex = staticBindings.makePropertyIndex(objSchema, property)
 		

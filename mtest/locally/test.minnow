@@ -2,7 +2,7 @@
 entity 1
 	name string 1
 	friends set:entity 2
-	alias string 3
+	alias string 3 optional
 	
 general() 100
 	e one(*entity) 1

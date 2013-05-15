@@ -1,10 +1,9 @@
 
 entity 1
-	intValue int 1
-	stringValue string 2
-	booleanValue boolean 3
-	longValue long 4
-	//timestampValue timestamp 5
+	intValue int 1 optional
+	stringValue string 2 optional
+	booleanValue boolean 3 optional
+	longValue long 4 optional
 	
 general() 100
 	v one(*entity) 1

@@ -1,10 +1,10 @@
 
 entity 1
-	also membrance 11
+	also membrance 11 optional
 	v string 21
 	
 membrance 2
-	other entity 81
+	other entity 81 optional
 	v string 82
 	flag boolean 83
 	

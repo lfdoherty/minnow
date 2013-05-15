@@ -3,7 +3,7 @@ obj 1
 	data set:entity 1
 	
 entity 2
-	v string 1
+	v string 1 optional
 	
 general() 100
 	s one(*obj) 1

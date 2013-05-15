@@ -1,11 +1,11 @@
 
 entity 1
-	other membrance 11
-	v string 21
+	other membrance 11 optional
+	v string 21 optional
 
 membrance 2
-	other entity 81
-	v string 82
+	other entity 81 optional
+	v string 82 optional
 	
 wrapper(entity entity) 101
 	wrappedValue entity.v 41

@@ -879,20 +879,36 @@ exports.makeSync = function(s, rel, recurseSync, getViewHandle, staticBindings){
 }
 
 function syncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle){
-	var stateCache = {}
-	var historicalChangesCache = {}
+	//_.assertLength(arguments, 5)
+	
+	//var stateCache = {}
+	//var historicalChangesCache = {}
 
+	//TODO have cache 'jump ahead' to current editId whenever updating
+	//if the value doesn't change between T and T+K, we should compute that fact *once*.
+	
+	//var bindingsUsed = Object.keys(newStaticBindings)
+	
 	var staticHandle = newStaticBindings[rel.name] = {
 		name: 'static-let-param:'+rel.name + ' --> ' + exprHandle.name,
 		analytics: staticAnalytics,
 		getAt: function(bindings, editId){
-			var key = editId+bindings.__key
+		
+			/*var key = editId+':'
+			for(var i=0;i<bindingsUsed.length;++i){
+				key += bindings[bindingsUsed[i]]+','
+			}*/
+			
+			/*var key = editId+':'+bindings.__key
 			if(stateCache[key]){
 				return stateCache[key]
-			}
-			//console.log(editId + ' expr: ' + exprHandle.name + ' ' + rel.name)
+			}*/
+			//console.log(JSON.stringify([bindingsUsed,stateCache]))
+			//console.log(editId + ' expr: ' + exprHandle.name + ' ' + rel.name + ' ' + key + ' ' + JSON.stringify(bindings) + ' ' + JSON.stringify(Object.keys(newStaticBindings)))
+			//console.log(new Error().stack)
 			var state = exprHandle.getAt(bindings, editId)
-			stateCache[key] = state
+			//console.log(key + ' -> ' + state)
+			//stateCache[key] = state
 			return state
 		},
 		getBetween: function(bindings, startEditId, endEditId){
@@ -920,8 +936,8 @@ function syncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle){
 	staticHandle.getValueAt = exprHandle.getValueAt
 }
 function asyncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle){
-	var stateCache = {}
-	var historicalChangesCache = {}
+	//var stateCache = {}
+	//var historicalChangesCache = {}
 	var staticHandle = newStaticBindings[rel.name] = {
 		name: 'static-let-param:'+rel.name,
 		analytics: staticAnalytics,
@@ -929,12 +945,12 @@ function asyncStaticLetExpr(rel, newStaticBindings, staticAnalytics, exprHandle)
 		//isFullySync: exprHandle.isFullySync,
 		getStateAt: function(bindings, editId, cb){
 			var key = editId+bindings.__key
-			if(stateCache[key]){
+			/*if(stateCache[key]){
 				cb(stateCache[key])
 				return
-			}
+			}*/
 			exprHandle.getStateAt(bindings, editId, function(state){
-				stateCache[key] = state
+				//stateCache[key] = state
 				cb(state)
 			})
 		},

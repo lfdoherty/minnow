@@ -1,7 +1,7 @@
 /**/
 
 entry 31
-	creator contact 100
+	creator contact 100 optional
 	name string 1
 	hideHeader boolean 4
 	lockToParent boolean 5
@@ -23,10 +23,10 @@ slider 55 field
 	minValue int 11
 	maxValue int 12
 	step int 13
-	v int 14
+	v int 14 optional
 
 snippets 57 field
-	inclusionMode string 10
+	inclusionMode string 10 optional
 		
 quotes 35 field
 	multiline boolean 11
@@ -64,9 +64,9 @@ tags 59 nest field
 contacts 53 nest field
 
 sidebar 45 nest
-	quoteForm quote 10 fork
-	bookmarkForm webpage 11 fork
-	snippetForm snippet 12 fork
+	quoteForm quote 10 optional
+	bookmarkForm webpage 11 optional
+	snippetForm snippet 12 optional
 	contextMenu list:nest 13
 	
 quote 44 nest
@@ -104,19 +104,19 @@ group 12 nest
 	settings settings 54
 	genericPrompts list:string 56
 	roles list:role 57
-	userSet userSet 15
+	userSet userSet 15 optional
 	sidebars list:sidebar 17
 
 
 tab 29
-	lastQuoteFocused quote 14	
-	url string 10
-	focusedOn int 11
+	lastQuoteFocused quote 14 optional
+	url string 10 optional
+	focusedOn int 11 optional
 	
 webpage 20 nest
 	url string 10
 	title string 13
-	lastOpened long 14
+	lastOpened long 14 optional
 	snippets list:snippet 16
 	
 snippet 56 nest
@@ -124,7 +124,7 @@ snippet 56 nest
 	text string 12
 	classes list:string 13
 	offset int 14
-	parentPage webpage 20
+	parentPage webpage 20 optional
 	
 getBookmarkFor(user user, url string){
 	one(subset(*webpage, {and(eq(user.contact,~.creator),eq(url,~.url))}))
@@ -274,23 +274,21 @@ computeSnippetStates(user user, tabUrl string){
 
 wrapInForms(u user, rest macro){
 	mutate(1,{
-			preforked(
-				switch(type(~),
-					case('webpage',u.data.sidebarForm.bookmarkForm),
-					case('quote',u.data.sidebarForm.quoteForm),
-					case('snippet',u.data.sidebarForm.snippetForm),
-					case('sidebar', u.data.sidebarForm),
-					default(nil)
-			))}, 
+		preforked(
+			switch(type(~),
+				case('webpage',u.data.sidebarForm.bookmarkForm),
+				case('quote',u.data.sidebarForm.quoteForm),
+				case('snippet',u.data.sidebarForm.snippetForm),
+				case('sidebar', u.data.sidebarForm),
+				default(nil)
+			)
+		)}, 
 		rest)
 }
 
 computeChildren(user user){
 	map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)})
 }
-
-statsPage(user user) 168
-	webpagesQuoted count(subset(*webpage,{and(eq(user.contact, ~.creator), greaterThan(count(userQuotesForPage(user,~.url)),0))})) 3
 
 //a bookmark object for the given URL will already have been created by the time this view is requested
 overlayPage(user user, session userSession, tab tab) 160
@@ -306,20 +304,16 @@ overlayPage(user user, session userSession, tab tab) 160
 	root user.data.sidebar 212
 	
 	userData user.data 25
+	///children map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)}) 13
 	children wrapInForms(user,{computeChildren(user)}) 13
-	historyData keysByValues(topByValues(20,map(userBookmarks(user),{~},{add(0,~.lastOpened)}))) 231
-
-	
 	session session 16
 		
 	contacts user.data.contacts 230
 	//tab tab 21
-	//sourceQuery session.searchQuery 23
+	sourceQuery session.searchQuery 23
 	groups userGroups(user) 24
 	
 	snippetStates computeSnippetStates(user, tab.url) 26
-
-userStoryPage(user user) 189
-	session user.currentSession 3
-	overlay overlayPage(user, user.currentSession, user.currentSession.currentTab) 4
+	
+	quoteCount count(*quote) 27
 

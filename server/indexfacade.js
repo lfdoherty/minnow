@@ -2,6 +2,7 @@
 var _ = require('underscorem')
 
 exports.make = function(schema, propertyIndex){
+	_.assertLength(arguments, 2)
 
 	var basic = {}
 	var reverse = {}
@@ -130,6 +131,7 @@ function indexOfRawId(arr, id){
 }
 
 function makePropertyIndex(objSchema, property, propertyIndex){
+	_.assertLength(arguments, 3)
 	
 	var permanentCache = {}
 	var ids = []
@@ -138,15 +140,26 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	var allChanges
 	var savingChanges = false
 	
+	var isSetProperty = property.type.type === 'list' || property.type.type === 'set'
+	
 	propertyIndex.attachIndex(objSchema.code, propertyCode, function(id, c){
 		//if(property.name === 'url' && objSchema.name === 'webpage') console.log('*index update: ' + id + ' ' + JSON.stringify(c) + ' ' + objSchema.name + '.'+property.name)
-		if(property.name === 'form' && property.code === 111 && c.value === true) _.errout('invalid combination: ' + JSON.stringify(c) + ' ' + id)
+		//if(property.name === 'form' && property.code === 111 && c.value === true) _.errout('invalid combination: ' + JSON.stringify(c) + ' ' + id)
+		
+		if(c.type === 'set' && isSetProperty){
+			_.errout('invalid change for set property: ' + JSON.stringify(c) + ' ' + JSON.stringify(property))
+		}
+		
 		var results = permanentCache[id]
 		if(!results){
 			results = permanentCache[id] = []
 			ids.push(id)
 		}
 		results.push(c)
+
+		//lastEditIdCache[id] = c.editId		
+		//currentValueCache[id] = computeValueAt(id, c.editId+1)
+		
 		/*
 		if(savingChanges){
 			if(c.type === 'set'){
@@ -162,10 +175,23 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	//var nameStr = 'map-optimization-with-index['+objSchema.name+'.'+property.name+']'
 	//var a = analytics.make(nameStr, [])
 	
+	/*function getSingleValueAtForSingle(bindings, id, editId){
+		if(editId
+	}*/
+	
+	var currentValueCache = {}
+	var lastEditIdCache = {}
 	
 	function getValueAtForSingle(bindings, id, editId){
 		_.assertLength(arguments, 3)
-
+		if(editId === -1) return
+		
+		/*if(editId >= lastEditIdCache[id]){
+			return currentValueCache[id]
+		}*/
+		return computeValueAt(id, editId)
+	}
+	function computeValueAt(id, editId){
 		var changes = permanentCache[id]
 		//console.log('indexed single property: ' + id + ' ' + JSON.stringify(changes) + ' ' + editId + ' ' + objSchema.name + '.'+property.name)
 		//console.log(JSON.stringify(permanentCache))
@@ -211,6 +237,7 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 					_.errout('tODO: ' + JSON.stringify(lastChange))
 				}
 			}
+			return value
 		}else{
 			_.errout('tODO: ' + JSON.stringify(lastChange))
 		}
@@ -369,7 +396,7 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	if(property.type.type === 'object' || property.type.type === 'primitive'){
 		handle.getValueAt = getValueAtForSingle
 		handle.getChangesBetween = getChangesBetweenForSingle
-	}else if(property.type.type === 'list' || property.type.type === 'set'){
+	}else if(isSetProperty){
 		handle.getValueAt = getValueAtForSet
 		handle.getChangesBetween = getChangesBetweenForSet
 	}else if(property.type.type === 'map'){

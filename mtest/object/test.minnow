@@ -8,11 +8,11 @@ specific(entityId int) 101
 	object container(entityId) 1
 
 container 2
-	e entity 1
+	e entity 1 optional
 	
 recursive 3
-	p recursive 100
-	name string 2
+	p recursive 100 optional
+	name string 2 optional
 	
 deep() 102
 	deepName one(*recursive.p.p.name) 12

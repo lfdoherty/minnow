@@ -1,7 +1,7 @@
 
 entity 1
 	v string 1
-	e entity 2
+	e entity 2 optional
 	
 empty() 103
 

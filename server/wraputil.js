@@ -171,6 +171,8 @@ function makeSyncGenericGetChangesBetween(handle, ws, rel){
 	function syncGenericGetChangesBetween(bindings, startEditId, endEditId){
 		_.assertLength(arguments, 3)
 		
+		//console.log('computing difference between ' + startEditId+', '+endEditId)
+		
 		var startState = handle.getAt(bindings, startEditId)
 		//if(rel.schemaType.type === 'map') _.assertObject(startState)
 		var state = handle.getAt(bindings, endEditId)

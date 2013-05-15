@@ -244,6 +244,8 @@ function generatePropertyConverter(p, dbSchema){
 	//process.exit(0)
 	converter.code = p.code
 	converter.propertyName = p.name
+	converter.isOptional = (p.tags?!!p.tags.optional:false)||p.type.primitive === 'boolean'
+	converter.isOptional = converter.isOptional||p.type.type ==='set'||p.type.type==='list'||p.type.type==='map'
 	
 	//console.log('conv.name: ' + converter.name)
 	
@@ -289,12 +291,12 @@ function generateJsonConverter(dbSchema, type){
 			var pc = propertyConverters[i]
 			var pv = json[pc.propertyName]
 			if(pv != undefined){
-				//if(edits.length === 0){
-					edits.push({op: editCodes.selectProperty, edit: {typeCode: pc.code}})
-				//}else{
-				//	edits.push({op: editCodes.reselectProperty, edit: {typeCode: pc.code}})
-				//}
+				edits.push({op: editCodes.selectProperty, edit: {typeCode: pc.code}})
 				pc(pv, makeTemporaryId, edits, topTemporaryId)
+			}else{
+				if(!pc.isOptional){
+					_.errout('json to create ' + type + ' object missing required attribute: ' + pc.propertyName)
+				}
 			}
 		}
 		
@@ -308,6 +310,10 @@ function generateJsonConverter(dbSchema, type){
 			e.editId = -2
 		})
 
+		/*console.log(type + ' -> ')
+		edits.forEach(function(e){
+			console.log(editNames[e.op] + ' ' + JSON.stringify(e))
+		})*/
 				
 		return edits
 	}

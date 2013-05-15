@@ -1065,6 +1065,12 @@ exports.make = function(schema, ol){
 		return handle
 	}
 	
+	var makingSync = {}
+	var makingAsync = {}
+	var syncHits = 0
+	var asyncHits = 0
+	var relHits = 0
+	
 	var count = 0
 	function makeRelHandle(rel, staticBindings, syncOnly){
 		function recurse(rel, newStaticBindings){
@@ -1072,9 +1078,10 @@ exports.make = function(schema, ol){
 				_.errout('must recurseSync within a sync handle')
 			}
 			++count
-			if(count > 50000){
+			if(count > 15000){
 				_.errout('overcall')
-			}		
+			}
+			//rel.makingAsync = true
 			if(newStaticBindings){
 				//console.log('recursing with new bindings: ' + JSON.stringify(Object.keys(newStaticBindings)))
 				var newStaticBindings = _.extend({}, staticBindings, newStaticBindings)
@@ -1089,7 +1096,7 @@ exports.make = function(schema, ol){
 		}
 		function recurseSync(rel, newStaticBindings){
 			++count
-			if(count > 50000){
+			if(count > 15000){
 				_.errout('overcall')
 			}		
 			if(newStaticBindings){
@@ -1104,18 +1111,45 @@ exports.make = function(schema, ol){
 				return makeRelHandle(rel, nsb, true)
 			}
 		}
+
+		if(!rel.uid){
+			rel.uid = ''+Math.random()
+			++relHits
+			//console.log('many query expression nodes: ' + relHits)
+			//console.log(rel.type + ' ' + rel.view)
+		}
+		
+		var key = rel.uid + staticBindings.isMutated//+':'+staticBindings.__mutatorKey//+ JSON.stringify(Object.keys(staticBindings))
+		//
+		//console.log('sync: ' + Object.keys(makingSync).length + ' ' + syncHits)
+		//console.log('async: ' + Object.keys(makingAsync).length + ' ' + asyncHits)
 		
 		if(syncOnly || rel.sync){
+			if(makingSync[key]){
+				++syncHits
+				return makingSync[key]
+			}
+			//console.log('key: ' + key)
+			var making = makingSync[key] = {}
 			var wrapped = wrap.makeSync(s, rel, recurseSync, function(viewName, viewCall){
 				return getViewCallHandle(viewName, viewCall, staticBindings, true)
 			}, staticBindings)
-			return wrapped
+			_.extend(making, wrapped)
+			return making
 		}else{
 			//_.errout('rel: ' + JSON.stringify(rel))
+			if(makingAsync[key]){
+				++asyncHits
+				return makingAsync[key]
+			}
+			//console.log('akey: ' + key)
+			var making = makingAsync[key] = {}
 			var wrapped = wrap.make(s, rel, recurse, recurseSync, function(viewName, viewCall){
 				return getViewCallHandle(viewName, viewCall, staticBindings)
 			}, staticBindings)
-			return wrapped
+
+			_.extend(making, wrapped)
+			return making
 		}
 	}
 	
@@ -1582,6 +1616,7 @@ exports.make = function(schema, ol){
 			afters.forEach(function(cb){
 				cb()
 			})
+			afters = undefined
 		},
 		makeStream: function(includeObjectCb, editCb, sendViewObjectCb, syncId){
 		

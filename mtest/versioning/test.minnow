@@ -1,7 +1,7 @@
 
 entity 1
-	text string 1
-	description string 2
+	text string 1 optional
+	description string 2 optional
 	values string:string 3
 empty() 100
 

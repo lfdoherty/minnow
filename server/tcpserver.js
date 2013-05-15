@@ -121,7 +121,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		return temporaryGeneratorsBySyncId[syncId] = temporaryGenerator
 	}
 
-	var liveConnections = {}//index for reconnection	
+	//var liveConnections = {}//index for reconnection	
 
 	var isClosed = false
 	
@@ -159,7 +159,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 		c.destroy()
 	}
 	
-	var cf = makeClientFunc(s, appSchema, addConnection, removeConnection, liveConnections, getTemporaryGenerator, lastTemporaryId)
+	var cf = makeClientFunc(s, appSchema, addConnection, removeConnection, getTemporaryGenerator, lastTemporaryId)
 	var tcpServer = net.createServer(cf);
 
 	//tcpServer.on('close', function(){
@@ -184,7 +184,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			//Object.keys(liveConnections).forEach(function(k){
 			//	liveConnections[k].destroy()
 			//})
-			liveConnections = undefined
+			//liveConnections = undefined
 			
 			//apparently you cannot close a server until you've destroyed all its connections
 			//even if those connections were closed remotely???
@@ -207,7 +207,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 	});
 }
 
-function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConnections, getTemporaryGenerator, lastTemporaryId){
+function makeClientFunc(s, appSchema, addConnection, removeConnection, getTemporaryGenerator, lastTemporaryId){
 	function clientFunc(c){
 
 		/*if(isClosed){
@@ -517,10 +517,10 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 			
 				//console.log('got original connection')
 				
-				if(!liveConnections){
+				/*if(!liveConnections){
 					console.log('ERROR: tried to open connection to already closed server, how is this possible')
 					return
-				}
+				}*/
 
 				conn = setupConnection()
 
@@ -533,7 +533,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 				conn.w.setup({serverInstanceUid: s.serverInstanceUid(), connectionId: connectionId});
 				conn.w.flush()
 		
-				liveConnections[connectionId] = conn
+				//liveConnections[connectionId] = conn
 
 				//startAck(deser, c)
 
@@ -624,11 +624,11 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 					return
 				}
 				
-				if(op === editCodes.make || op === editCodes.makeFork) currentId = -1
-
 				var tg = getTemporaryGenerator(syncId)
 				
-				if(op === editCodes.make || op === editCodes.makeFork){
+				if(op === editCodes.make){
+				
+					currentId = -1
 
 					if(pu) pu.reset()
 					
@@ -665,7 +665,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getAll(), e.edit, syncId])
 						c.destroy()
 					}else{
-						try{
+						//try{
 							var state = pu.getAll()
 							//state.top = currentId
 							//_.assertInt(state.top)
@@ -673,12 +673,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, liveConne
 							if(!state.object) state.object = state.top
 							//console.log('persisting with state: ' + JSON.stringify(state))
 							s.persistEdit(op, state, e.edit, syncId, tg, reifyCb)
-						}catch(e){
-							//if there's an error during persistence, do not permit reconnection (the edit stream is likely invalid)
-							//TODO handle async as well
-							delete liveConnections[connectionId]
+						/*}catch(e){
 							throw e
-						}
+						}*/
 					}
 				}
 			},

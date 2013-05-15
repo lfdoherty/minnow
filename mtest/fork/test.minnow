@@ -1,6 +1,6 @@
 
 entity 1
-	name string 1
+	name string 1 optional
 	reallyAFork boolean 2
 
 container 2

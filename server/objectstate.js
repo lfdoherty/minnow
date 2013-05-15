@@ -835,14 +835,14 @@ exports.make = function(schema, ap, ol){
 			//_.assertLength(arguments, 7);
 
 			//console.log('adding edit: ' + JSON.stringify(arguments))
-			if(op !== editCodes.make && op !== editCodes.makeFork && op !== editCodes.forgetTemporary){
+			if(op !== editCodes.make && op !== editCodes.forgetTemporary){
 				_.assertInt(state.object);
 			}
 			_.assertInt(syncId);
 			_.assertInt(op)
 			//TODO support merge models
 			
-			if(op === editCodes.make || op === editCodes.makeFork){
+			if(op === editCodes.make){
 				return ap.persistEdit({}, op, edit, syncId, computeTemporary, Date.now())//TODO this timestamp is inconsistent with what will be serialized
 			}else{
 				_.assertInt(state.top)
@@ -883,11 +883,11 @@ exports.make = function(schema, ap, ol){
 					ap.saveEdit(handle.getObjectType(state.top), state.top, state.keyOp, {key: state.key}, syncId, Date.now())
 				}
 				
-				var objId = state.object
-				if(objId < 0) objId = ap.translateTemporaryId(state.object, syncId)
+				//var objId = state.object
+				//if(objId < 0) objId = ap.translateTemporaryId(state.object, syncId)
 				
-				state.topTypeCode = handle.getObjectType(state.top)
-				state.objTypeCode = handle.getObjectType(objId||id)
+				//state.topTypeCode = handle.getObjectType(state.top)
+				//state.objTypeCode = handle.getObjectType(objId||id)
 				//state.top = id 
 				_.assertInt(state.object)
 				
@@ -931,6 +931,8 @@ exports.make = function(schema, ap, ol){
 			//_.assertInt(id)
 			if(_.isObject(id)) id = id.top
 			_.assertInt(id)
+			ol._getForeignIdsDuring(id, lastEditId, endEditId, cb)
+			/*
 			ol._getForeignIds(id, lastEditId-1, function(a){
 				ol._getForeignIds(id, endEditId, function(b){
 				//	console.log('during: ' + lastEditId+' ' + endEditId + ' ' + JSON.stringify([id,a,b]))
@@ -946,7 +948,7 @@ exports.make = function(schema, ap, ol){
 					})
 					cb(res)
 				})
-			})
+			})*/
 		},
 		getInclusionsAt: function(id, editId, cb){
 			_.assertInt(id)

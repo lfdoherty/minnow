@@ -37,9 +37,9 @@ var tabUrl = 'http://test.com'
 
 function setupSidebarForm(c, v, cb){
 
-	var h = v.make('user', {email: 'admin'}, function(){
+	var h = v.make('user', {email: 'admin', hash: 'dummy'}, function(){
 		
-		var contact = h.make('contact', {userId: h.id(), name: h.email.value()})
+		var contact = h.make('contact', {userId: h.id(), name: h.email.value(), displayName: h.email.value()})
 		
 		h.admin.set(true)
 		var webGroup = v.make('group', {name: 'web', creator: contact, doNotDisplayChatContacts: true, settings: {}}, function(){
@@ -49,22 +49,22 @@ function setupSidebarForm(c, v, cb){
 			
 			var contactsField = v.make('contacts', {name: 'Contacts', creator: contact})
 			
-			var quoteForm = v.make('nest', {elements: [
-				{type: 'text', name: 'Comments'}
+			var quoteForm = v.make('nest', {name: '', elements: [
+				{type: 'text', name: 'Comments', text: '', placeholder: ''}
 			]})
 
-			var bookmarkForm = v.make('webpage', {elements: [
+			var bookmarkForm = v.make('webpage', {url:'', title: '', name: '', elements: [
 				{type: 'tags', name: 'Tags'},
-				{type: 'text', name: 'Notes'},
-				{type: 'quotes', name: 'Quotes'},
+				{type: 'text', name: 'Notes', text: '', placeholder: ''},
+				{type: 'quotes', name: 'Quotes', many: 8},
 				{type: 'snippets', name: 'Snippets'}
 				//{type: 'history'}
 			]})
-			var snippetForm = v.make('snippet', {elements: [
-				{type: 'slider', name: 'Rate your mastery from 1 to 5:'}
+			var snippetForm = v.make('snippet', {domId: '', text: '', offset: -1, name: '', elements: [
+				{type: 'slider', name: 'Rate your mastery from 1 to 5:', minValue: 1, maxValue: 5, step: 1}
 			]})
 			
-			var noteSection = v.make('nest', {creator: contact, elements: [
+			/*var noteSection = v.make('nest', {creator: contact, elements: [
 				jot
 			]})
 			var fieldSection = v.make('nest', {creator: contact, elements: [
@@ -83,10 +83,10 @@ function setupSidebarForm(c, v, cb){
 			]})
 			var advancedObjectSection = v.make('nest', {creator: contact, elements: [
 				v.make('userSet', {name: 'User Set'})
-			]})
+			]})*/
 			
 			var sidebar = v.make('sidebar', {name: 'DefaultWebSidebar', creator: contact, hideHeader: true, elements: [
-					{type: 'history', hideHeader: true, elements: [
+					{type: 'history', hideHeader: true, many: 8, name: '', elements: [
 						//newMenu,
 						contactsField
 					]}
@@ -94,7 +94,7 @@ function setupSidebarForm(c, v, cb){
 				quoteForm: quoteForm,
 				bookmarkForm: bookmarkForm,
 				snippetForm: snippetForm,
-				contextMenu: [noteSection, fieldSection, advancedFieldSection, advancedObjectSection]
+				contextMenu: []//noteSection, fieldSection, advancedFieldSection, advancedObjectSection]
 			})
 			
 			webGroup.sidebars.add(sidebar)
@@ -105,27 +105,27 @@ function setupSidebarForm(c, v, cb){
 }
 function setupUserStuff(c, v, cb){
 
-	var sidebarInstance = v.make('sidebar', {})
+	var sidebarInstance = v.make('sidebar', {name: 'name'})
 	var userData = v.make('userData', {sidebar: sidebarInstance})
 	var settings = v.make('settings')
-	var u = v.make('user', {email: 'test', data: userData, settings: settings}, function(){
+	var u = v.make('user', {email: 'test', data: userData, settings: settings, hash: 'dummy'}, function(){
 		
 		
-		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value()})
+		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value(), name: u.email.value()})
 		u.setProperty('contact', contact)
 		
 		setupSidebarForm(c, v, function(webGroup){
 		
 			webGroup.members.add(u.contact)
 		
-			var session = v.make('userSession', {user: u.id()})
-			u.setProperty('currentSession', session)
+			var session = v.make('userSession', {user: u.id(), syncId: -5})
+			//u.setProperty('currentSession', session)
 
 			var tab = v.make('tab', {url: tabUrl}, function(){
 
-				session.setProperty('currentTab', tab)
+				//session.setProperty('currentTab', tab)
 				
-				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title'}, function(){
+				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
 				
 					makeSidebar(c, u, function(){
 						cb(u, session, tab, webpage)
@@ -144,7 +144,7 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.make('sidebar', {})//v.candidateSidebarForm.fork()
+				candidateSidebar = v.make('sidebar', {name: 'name'})//v.candidateSidebarForm.fork()
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
 			console.log('forked sidebar')
@@ -178,7 +178,7 @@ exports.openOverlayPage = function(config, done){
 		})
 	})
 }
-
+/*
 exports.openOverlayPageHistory = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -209,7 +209,7 @@ exports.openOverlayPageHistory = function(config, done){
 		})
 	})
 }
-
+*/
 exports.checkHistory = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -237,7 +237,7 @@ exports.checkHistory = function(config, done){
 							console.log('history: ' + v.sidebar.elements.at(0).id())
 							console.log('history parent: ' + v.sidebar.elements.at(0).getTopParent().id())
 							console.log(childMap.toJson())
-							console.log(JSON.stringify(v.historyData.toJson()))
+							//console.log(JSON.stringify(v.historyData.toJson()))
 							//console.log(JSON.stringify(v.sidebar.elements.at(0).elements.toJson()))
 
 							var set = childMap.get(v.sidebar.elements.at(0).id())
@@ -300,7 +300,7 @@ exports.checkQuote = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -346,7 +346,7 @@ exports.checkQuoteCount = function(config, done){
 						otherClient.view('statsPage', [u], function(err, v){
 							if(err) throw err
 							
-							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								_.assertEqual(v.webpagesQuoted.value(), 1)
 								done()
@@ -392,7 +392,7 @@ exports.checkQuoteRemoval = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -463,7 +463,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -482,7 +482,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 								//done()
 								//quote.removed.set(true)
 								
-								v.make('quote', {creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
+								v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
 									_.assert(set.count() === 2)
 									
 									done()

@@ -366,6 +366,22 @@ Ol.prototype.getPathTo = function(id, cb){
 		cb(this.innerParentIndex[id])
 	}
 }*/
+
+Ol.prototype._getForeignIdsDuring = function(id, startEditId, endEditId, cb){
+	if(endEditId === -1){
+		cb([])
+		return
+	}
+	if(_.isObject(id)) id = id.top
+	_.assertInt(id)
+	
+	var local = this
+	this.get(id, startEditId, endEditId, function(edits){
+		//console.log('getting foreign ids: ' + id + ' ' + editId + ' ' + JSON.stringify(edits))
+		cb(computeForeignIds(local, edits))
+	})
+}
+
 Ol.prototype._getForeignIds = function(id, editId, cb){
 	if(editId === -1){
 		cb([])
@@ -377,53 +393,44 @@ Ol.prototype._getForeignIds = function(id, editId, cb){
 	var local = this
 	this.get(id, -1, editId, function(edits){
 		//console.log('getting foreign ids: ' + id + ' ' + editId + ' ' + JSON.stringify(edits))
-		var de = edits//deserializeEdits(edits)
-		var ids = []
-		var has = {}
-
-		/*if(edits.length > 0 && edits[1].op === editCodes.madeFork){
-			ids.push(edits[1].edit.sourceId)
-			has[edits[1].edit.sourceId] = true
-		}*/
-		
-		//console.log('getting foreign edits in: ' + JSON.stringify(edits))
-		for(var i=0;i<de.length;++i){
-			var e = de[i]
-			if(e.op === editCodes.setExisting || e.op === editCodes.addExisting ||  e.op === editCodes.unshiftExisting || e.op === editCodes.setObject || 
-					e.op === editCodes.putExisting || e.op === editCodes.addAfter){
-				var id = e.edit.id
-				if(!has[id]){
-					ids.push(id)
-					has[id] = true
-					//console.log('*id: ' + id + ' ' +e.op)
-				}
-			}else if(e.op === editCodes.replaceExternalExisting || e.op === editCodes.replaceInternalExisting){
-				var id = e.edit.newId
-				if(!has[id]){
-					ids.push(id)
-					has[id] = true
-					//console.log('**id: ' + id)
-				}
-			}else if(e.op === editCodes.selectObjectKey /*|| e.op === editCodes.reselectObjectKey*/){
-				var id = e.edit.key
-				if(!has[id] && local.isTopLevelObject(id)){
-					ids.push(id)
-					has[id] = true
-					//console.log('***id: ' + id)
-				}
-			}/*else if(e.op === editCodes.refork){
-			//	console.log('sourceId: ' + e.sourceId)
-				_.assert(e.edit.sourceId > 0)
-				var id = e.edit.sourceId
-				if(!has[id]){
-					ids.push(id)
-					has[id] = true
-				}
-			}*/
-		}
-		//console.log('got: ' + JSON.stringify(ids))
-		cb(ids)
+		cb(computeForeignIds(local, edits))
 	})
+}
+
+function computeForeignIds(local, edits){
+	var de = edits//deserializeEdits(edits)
+	var ids = []
+	var has = {}
+
+	//console.log('getting foreign edits in: ' + JSON.stringify(edits))
+	for(var i=0;i<de.length;++i){
+		var e = de[i]
+		if(e.op === editCodes.setExisting || e.op === editCodes.addExisting ||  e.op === editCodes.unshiftExisting || e.op === editCodes.setObject || 
+				e.op === editCodes.putExisting || e.op === editCodes.addAfter){
+			var id = e.edit.id
+			if(!has[id]){
+				ids.push(id)
+				has[id] = true
+				//console.log('*id: ' + id + ' ' +e.op)
+			}
+		}else if(e.op === editCodes.replaceExternalExisting || e.op === editCodes.replaceInternalExisting){
+			var id = e.edit.newId
+			if(!has[id]){
+				ids.push(id)
+				has[id] = true
+				//console.log('**id: ' + id)
+			}
+		}else if(e.op === editCodes.selectObjectKey /*|| e.op === editCodes.reselectObjectKey*/){
+			var id = e.edit.key
+			if(!has[id] && local.isTopLevelObject(id)){
+				ids.push(id)
+				has[id] = true
+				//console.log('***id: ' + id)
+			}
+		}
+	}
+	//console.log('got: ' + JSON.stringify(ids))
+	return ids//cb(ids)
 }
 
 Ol.prototype.close = function(cb){//TODO wait for writing to sync
@@ -583,7 +590,7 @@ Ol.prototype.getPartially = function(id, filter, eachCb, doneCb){
 			var typeCode = this.objectTypeCodes.get(id)
 			console.log('getting type of id: ' + id)
 			if(typeCode === undefined){
-				_.errout('cannot find id(' + id + '), got: ' + JSON.stringify(Object.keys(this.objectTypeCodes)))
+				_.errout('cannot find id(' + id + '), got: ' + JSON.stringify(Object.keys(this.objectTypeCodes.data)))
 			}
 			console.log('failed on type: ' + this.schema._byCode[typeCode].name)
 			throw e
@@ -647,7 +654,7 @@ Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 			var typeCode = this.objectTypeCodes.get(id)
 			console.log('getting type of id: ' + id)
 			if(typeCode === undefined){
-				_.errout('cannot find id(' + id + '), got: ' + JSON.stringify(Object.keys(this.objectTypeCodes)))
+				_.errout('cannot find id(' + id + '), got: ' + JSON.stringify(Object.keys(this.objectTypeCodes.data)))
 			}
 			console.log('failed on type: ' + this.schema._byCode[typeCode].name)
 			throw e
