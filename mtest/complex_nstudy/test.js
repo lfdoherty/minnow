@@ -126,7 +126,7 @@ function setupUserStuff(c, v, cb){
 				//session.setProperty('currentTab', tab)
 				
 				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
-				
+					console.log('webpage id: ' + webpage.id())
 					makeSidebar(c, u, function(){
 						cb(u, session, tab, webpage)
 					})
@@ -288,7 +288,7 @@ exports.checkQuote = function(config, done){
 							var historyField = v.sidebar.elements.at(0)
 							var set = childMap.get(historyField.id())
 							
-							console.log('looking for: ' + historyField.id())
+							console.log('looking for: ' + historyField.id() + ' in ' + historyField.getEditingId())
 							_.assert(set)
 							
 							var localWebpage
@@ -300,7 +300,7 @@ exports.checkQuote = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -343,12 +343,12 @@ exports.checkQuoteCount = function(config, done){
 				setupUserStuff(client, c, function(u, session, tab, webpage){
 
 					minnow.makeClient(config.port, function(otherClient){
-						otherClient.view('statsPage', [u], function(err, v){
+						otherClient.view('computeCounts', [u], function(err, v){
 							if(err) throw err
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
-								_.assertEqual(v.webpagesQuoted.value(), 1)
+								_.assertEqual(v.quote.value(), 1)
 								done()
 							})
 						})
@@ -392,7 +392,7 @@ exports.checkQuoteRemoval = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -463,7 +463,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -482,7 +482,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 								//done()
 								//quote.removed.set(true)
 								
-								v.make('quote', {prefix: '', postfix: '', offset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
+								v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
 									_.assert(set.count() === 2)
 									
 									done()

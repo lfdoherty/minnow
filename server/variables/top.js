@@ -68,7 +68,7 @@ schema.addFunction('pageByValues', {
 		pairs.forEach(function(p){
 			result[p[0]] = p[1]
 		})
-		//console.log('topByValues(' + many + ','+JSON.stringify(map)+') -> ' + JSON.stringify(result))
+		//console.log('pageByValues(' + many + ','+JSON.stringify(map)+') -> ' + JSON.stringify(result))
 		return result
 	}
 })

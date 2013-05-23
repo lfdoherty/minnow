@@ -19,7 +19,7 @@
     "xmlhttprequest": ">=1.4.2",
     "ws": ">=0.4.21",
     "buffered-writer": "~0.2.3",
-    "intintmap": "*",
+    "primitivemap": "*",
     "stack-count": "*"
   },
   "devDependencies": {

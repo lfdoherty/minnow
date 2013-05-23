@@ -804,6 +804,9 @@ exports.make = function(schema, ap, ol){
 		getCurrentEditId: function(){
 			return ol.getLatestVersionId()
 		},
+		getObjectEdits: function(id){
+			return ol.getObjectEdits(id)
+		},
 		forgetTemporary: function(temporary, syncId){
 			ap.forgetTemporary(temporary, syncId)
 			//var real = ap.translateTemporaryId(temporary, syncId)
@@ -908,14 +911,15 @@ exports.make = function(schema, ap, ol){
 		getSyncIds: function(id, cb){
 			ol.getSyncIds(id, cb)
 		},
-		getVersions: function(id, cb){
-			ol.getVersions(id, cb)
+		getVersions: function(id){//, cb){
+			return ol.getVersions(id)//, cb)
 		},
 		getVersionsAt: function(id, editId, cb){
 			ol.getVersionsAt(id, editId, cb)
 		},
-		getLastVersion: function(id, cb){
-			cb(ol.getLastVersion(id))
+		getLastVersion: function(id){//, cb){
+			//cb(ol.getLastVersion(id))
+			return ol.getLastVersion(id)
 		},
 		getLastVersionAt: function(id, editId, cb){
 			ol.getLastVersionAt(id, editId, cb)
@@ -926,7 +930,10 @@ exports.make = function(schema, ap, ol){
 		getCreationTimestamp: function(id){
 			return ol.getVersionTimestamp(ol.getCreationVersion(id))
 		},
-		
+		getObjectRefers: function(id){
+			//return ol._getForeignIds(id, ol.getLatestVersionId())
+			return ol.propertyIndex.foreignIndex.get(id)
+		},
 		getInclusionsDuring: function(id, lastEditId, endEditId, cb){//TODO getExclusionsDuring?
 			//_.assertInt(id)
 			if(_.isObject(id)) id = id.top
@@ -1056,6 +1063,15 @@ exports.make = function(schema, ap, ol){
 			//}		
 		},
 		
+		getObjectState: function(id, cb){
+			_.assertLength(arguments, 2)
+			//_.assertInt(startEditId)
+			//_.assertInt(endEditId)
+			//_.assertObject(already)
+			_.assert(id > 0)
+
+			ol.getObjectState(id, cb)
+		},
 
 		streamObjectState: function(already, id, startEditId, endEditId, cb, endCb){
 			_.assertLength(arguments, 6)
@@ -1127,8 +1143,8 @@ exports.make = function(schema, ap, ol){
 				cdl()
 			})
 		},
-		getAllIdsOfType: function(typeCode, cb){
-			ol.getAllIdsOfType(typeCode, cb)
+		getAllIdsOfType: function(typeCode){
+			return ol.getAllIdsOfType(typeCode)
 		},
 		getAllIdsOfTypeAt: function(typeCode, editId, cb){
 			return ol.getAllIdsOfTypeAt(typeCode, editId, cb)

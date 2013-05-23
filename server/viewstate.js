@@ -104,7 +104,7 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 				if(snId === -1) snId = curEditId-1
 				_.assert(snId === -1 || prevSnId <= snId)
 
-				var viewId = newViewSequencer.viewIdStr(typeCode, params,'')//TODO mutatorKey?
+				var viewId = newViewSequencer.viewIdStr(typeCode, params)//,'')//TODO mutatorKey?
 				viewSequencer.makeSnapshot(viewId, prevSnId, snId, isHistorical, _.assureOnce(function(snap){
 					//console.log('got snap')
 					_.assertBuffer(snap)
@@ -126,7 +126,7 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 				return
 			}
 			
-			var viewId = newViewSequencer.viewIdStr(typeCode, params,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
+			var viewId = newViewSequencer.viewIdStr(typeCode, params)//,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
 			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
 				//console.log('got snap')
 				_.assertBuffer(snap)

@@ -130,9 +130,54 @@ function indexOfRawId(arr, id){
 	return -1
 }
 
+function makeSinglePropertyIndex(objSchema, property, propertyIndex){
+
+	var index = {}
+	
+	var changeIndex = {}
+	
+	propertyIndex.attachIndex(objSchema.code, property.code, function(id, c){
+	
+		if(!changeIndex[id]) changeIndex[id] = []
+		changeIndex[id].push(c)
+		
+		if(c.type === 'set'){
+			index[id] = c.value
+		}else if(c.type === 'clear' || c.type === 'destroyed'){
+			index[id] = undefined
+		}else if(c.type === 'insert'){
+			var old = index[id]
+			_.assertInt(c.index)
+			index[id] = old.substr(0, c.index) + c.value + old.substr(c.index)
+		}else{
+			_.errout('TODO?: '  + JSON.stringify(c))
+		}
+	})
+	
+	var handle = {}
+	
+	handle.getStateAt = function(){_.errout('TODO?')}
+	handle.getPartialStateAt = function(){_.errout('TODO?')}
+	
+	handle.getValueAt = function(bindings, id){
+		return index[id]
+	}
+	
+	handle.getValueChangesBetween = function(bindings, id){//, startEditId, endEditId){
+		return changeIndex[id] || []
+	}
+
+	return handle
+}
+
+
 function makePropertyIndex(objSchema, property, propertyIndex){
 	_.assertLength(arguments, 3)
-	
+
+	if(property.type.type === 'object' || property.type.type === 'primitive'){
+		return makeSinglePropertyIndex(objSchema, property, propertyIndex)
+	}
+		
 	var permanentCache = {}
 	var ids = []
 	var propertyCode = property.code
@@ -238,6 +283,8 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 				}
 			}
 			return value
+		}else if(lastChange.type === 'destroyed'){
+			return undefined
 		}else{
 			_.errout('tODO: ' + JSON.stringify(lastChange))
 		}
@@ -279,15 +326,15 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		return result
 	}
 	
-	function getValueAtForSet(bindings, id, editId){
-		_.assertLength(arguments, 3)
+	function getValueAtForSet(bindings, id){//, editId){
+		_.assertLength(arguments, 2)
 
 		var changes = permanentCache[id]
 		if(!changes) return []
 		var set = []
 		for(var i=0;i<changes.length;++i){
 			var c = changes[i]
-			if(c.editId > editId) break
+			//if(c.editId > editId) break
 			if(c.type === 'add'){
 				set.push(c.value)
 			}else if(c.type === 'remove'){
@@ -304,15 +351,15 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		//console.log('got indexed set property: ' + id + '.' + property.name + ' ' + JSON.stringify(set))
 		return set
 	}
-	function getValueAtForMap(bindings, id, editId){
-		_.assertLength(arguments, 3)
+	function getValueAtForMap(bindings, id){//, editId){
+		_.assertLength(arguments, 2)
 
 		var changes = permanentCache[id]
 		if(!changes) return {}
 		var res = {}
 		for(var i=0;i<changes.length;++i){
 			var c = changes[i]
-			if(c.editId > editId) break
+			//if(c.editId > editId) break
 			if(c.type === 'put'){
 				res[c.key] = c.value
 			}else if(c.type === 'removeKey'){
@@ -505,8 +552,8 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 	})
 	
 	var handle = {
-		getValueAt: function(bindings, key, editId){
-			_.assertLength(arguments, 3)
+		getValueAt: function(bindings, key){//, editId){
+			_.assertLength(arguments, 2)
 			_.assertObject(bindings)
 			
 			if(keysAreBoolean){key = !!key}
@@ -525,7 +572,7 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			var removed = {}
 			for(var i=0;i<changes.length;++i){
 				var c = changes[i]
-				if(c.editId > editId) break
+				//if(c.editId > editId) break
 				if(c.type === 'add'){
 					if(removed[c.value]) removed[c.value] = false
 				}else if(c.type === 'remove'){
@@ -538,7 +585,7 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			
 			for(var i=0;i<changes.length;++i){
 				var c = changes[i]
-				if(c.editId > editId) break
+				//if(c.editId > editId) break
 				if(c.type === 'add'){
 					if(!removed[c.value]){
 						state.push(c.value)
@@ -555,8 +602,8 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			//console.log(key + ' computed value: ' + JSON.stringify(state) + ' ' + editId)
 			return state
 		},
-		getValueChangesBetween: function(bindings, key, startEditId, endEditId){
-			_.assertLength(arguments, 4)
+		getValueChangesBetween: function(bindings, key){//, startEditId, endEditId){
+			_.assertLength(arguments, 2)
 			
 			if(keysAreBoolean){key = !!key}
 		
@@ -565,7 +612,8 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				//console.log('no changes' + JSON.stringify([key, startEditId, endEditId, realChanges, changes, permanentCache]))
 				return []
 			}
-			var realChanges = []//TODO optimize to slice
+			return changes
+			/*var realChanges = []//TODO optimize to slice
 			for(var i=0;i<changes.length;++i){
 				var c = changes[i]
 				if(c.editId > endEditId) break
@@ -574,7 +622,7 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				}
 			}
 			//console.log('value changes: ' + JSON.stringify([key, startEditId, endEditId, realChanges, changes, permanentCache]))
-			return realChanges
+			return realChanges*/
 		}
 	}
 	

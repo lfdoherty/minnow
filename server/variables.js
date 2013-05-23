@@ -21,7 +21,7 @@ require('./variables/versions')
 require('./variables/lastVersion')
 require('./variables/timestamps')
 require('./variables/timestamp')
-require('./variables/isOfType')
+require('./variables/isa')
 require('./variables/preforked')
 require('./variables/mutate')
 

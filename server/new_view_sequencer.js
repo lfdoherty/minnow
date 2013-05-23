@@ -18,6 +18,26 @@ var bw = require("buffered-writer");
 
 exports.viewIdStr = viewIdStr
 
+var vcModule = require('./viewfacade')
+
+var pollFunctions = []
+var pollHandle = setInterval(function(){
+	for(var i=0;i<pollFunctions.length;++i){
+		var f = pollFunctions[i]
+		f()
+	}
+}, 100)
+
+function addPollFunction(f){
+	pollFunctions.push(f)
+}
+function removePollFunction(f){
+	var index = pollFunctions.indexOf(f)
+	if(index !== -1){
+		pollFunctions.splice(index, 1)
+	}
+}
+
 function remainer(initial, cb){
 	_.assertFunction(cb)
 	
@@ -46,7 +66,7 @@ function remainer(initial, cb){
 
 var analyticsLog = require('quicklog').make('analytics')
 
-function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring, syncId){
+function makeQueryHandle(/*getObjectEditsBetween, getObjectInclusionsDuring, */syncId, viewCache){
 	var qhEditId=-1//this will always get a moveTo current call before the first add call happens anyway
 	var alreadyGot = {}
 	var gotIds = []
@@ -58,9 +78,107 @@ function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring, syncI
 		
 	*/
 	
+	var gotObjectIds = []
+	var gotViewObjectIds = []
+	
+	var addedViewObjects = []
+	var addedObjects = []
+	
+	var lastCache = {}
+	
 	return {
+		got: alreadyGot,
 		moveTo: function(editId, changesCb, inclusionsCb, doneCb){
-			var inclusionsDuring = []
+			
+			//viewCache.update(
+			if(gotIds.length === 0 && addedViewObjects.length === 0 && editId === qhEditId){
+				//console.log(syncId + ' none: ' +  editId + ' ' + qhEditId)
+				doneCb()
+			}else{
+			
+				/*if(addedObjects.length === 0 && addedViewObjects.length === 0 && editId === qhEditId){
+					doneCb()
+					return
+				}*/
+				
+				
+				//console.log(syncId+' adding(' + qhEditId+'->'+editId + '): ' + JSON.stringify([addedObjects, addedViewObjects]))
+				//console.log(syncId+' updating: ' + JSON.stringify([gotObjectIds, gotViewObjectIds]))
+				//console.log(syncId+' got: ' + JSON.stringify(alreadyGot))
+				
+				//TODO make added-but-already-got a error condition?
+				for(var i=0;i<addedObjects.length;++i){
+					var addedId = addedObjects[i]
+					if(alreadyGot[addedId]){
+						gotObjectIds.push(addedId)
+						addedObjects.splice(i, 1)
+					}
+				}
+				for(var i=0;i<addedViewObjects.length;++i){
+					var addedId = addedViewObjects[i]
+					if(alreadyGot[addedId]){
+						gotViewObjectIds.push(addedId)
+						addedViewObjects.splice(i, 1)
+					}
+				}
+
+				//_.errout(JSON.stringify(gotIds))
+				var newCache = {}
+				
+				var diff = viewCache.update(addedObjects, addedViewObjects, gotObjectIds, gotViewObjectIds, qhEditId, alreadyGot, lastCache, newCache)
+				
+				lastCache = newCache
+
+				console.log('diff: ' + qhEditId + ' -> ' + editId + ' for ' + syncId)
+				
+				/*
+				
+				diff.edits.forEach(function(e){
+					console.log(editNames[e.op] + ' ' + JSON.stringify(e))
+				})
+				*/
+				
+				//console.log(JSON.stringify(diff))
+				//console.log(JSON.stringify(diff.addedViewObjects))
+				
+				
+				//gotViewObjectIds = gotViewObjectIds
+				diff.addedViewObjects.forEach(function(v){
+					_.assertString(v.id)
+					gotViewObjectIds.push(v.id)
+				})//.concat(diff.addedViewObjects)
+				diff.addedObjects.forEach(function(v){
+					_.assertInt(v.id)
+					gotObjectIds.push(v.id)
+				})
+				//gotObjectIds = gotObjectIds.concat(diff.addedObjects)
+				
+				if(diff.edits.length > 0 || diff.addedObjects.length > 0 || diff.addedViewObjects.length > 0){
+					changesCb(diff.edits)
+					diff.addedObjects.forEach(function(v){
+						_.assertInt(v.id)
+						_.assertArray(v.edits)
+						inclusionsCb(v.id, v.edits)//TODO use snap directly
+					})
+					diff.addedViewObjects.forEach(function(v){
+						_.assertString(v.id)
+						_.assertArray(v.edits)
+						inclusionsCb(v.id, v.edits)//TODO use snap directly
+					})					
+				}
+				
+				addedViewObjects.forEach(function(avo){
+					avo.cb()
+				})
+				addedViewObjects = []
+				addedObjects = []
+				
+				qhEditId = editId
+				
+				doneCb()
+			}
+			
+			/*var inclusionsDuring = []
 			//console.log(syncId + ' moving to: ' + editId + ' from ' + qhEditId)
 			var rem = remainer(1, finish)
 			//console.log('checking for changes to all: ' + JSON.stringify(gotIds))
@@ -116,30 +234,48 @@ function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring, syncI
 				qhEditId = editId
 				gotIds = gotIds.concat(inclusionsDuring)
 				doneCb()
-			}
+			}*/
 		},
-		addObject: function(id, cb){
+		addObject: function(id){//, cb){
+			//_.errout('TODO DO NOT DO THIS')
+			//_.errout('TODO: ' + id)
+			
 			_.assertInt(id)
 			if(alreadyGot[id]){
-				cb()
+				
+				//cb()
 				return
 			}else{
 				//console.log('adding object: ' + id)
 				alreadyGot[id] = true
-				gotIds.push(id)
-				cb()
+				//gotIds.push(id)
+				_.assertInt(id)
+				addedObjects.push(id)
+				//cb()
 			}
 			//TODO include foreign ids?  might not be checked for later... edits maybe too?
 		},
 		add: function(id, lastEditId, changesCb, inclusionsCb, doneCb){
+		
+			//console.log('adding: ' + id + ' at ' + lastEditId)
+			
 			if(alreadyGot[id]){
 				doneCb();
 				return;
+			}else{
+				addedViewObjects.push({id: id, lastEditId: lastEditId, cb: doneCb})
+				//doneCb()
 			}
+			
+			
+			
+			//var diff = viewCache.addViewObject(id, lastEditId, gotObjectIds, gotViewObjectIds, alreadyGot)
+			
+			//viewIdsToAdd.push(id)
 			
 			///console.log(syncId + ' adding view to queryhandle: ' + id)
 			
-			var rem = remainer(1, doneCb)
+			/*var rem = remainer(1, doneCb)
 			
 			getObjectInclusionsDuring(id, -1, lastEditId, function(ids){
 				//console.log(lastEditId + ' *got object inclusions at: ' + id + ': ' + JSON.stringify(ids))
@@ -179,28 +315,15 @@ function makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring, syncI
 				}
 				ids.forEach(recurseInclusions)
 				rem.decrease(1)
-			})
+			})*/
 			
-			/*if(lastEditId === qhEditId){
-				rem.decrease(1)
-			}else{
-				getObjectInclusionsDuring(id, lastEditId, qhEditId, function(ids){
-					ids.forEach(function(includedId){
-						if(alreadyGot[includedId]) return
-						alreadyGot[includedId] = true
-						gotIds.push(includedId)
-						//console.log('^^^^^^^^^^^^^^^^^7 new inclusions: ' + includedId)
-						inclusionsCb(includedId)
-					})
-					rem.decrease(1)
-				})
-			}*/
+			
 		}
 	}
 }
 
 var log = require('quicklog').make('minnow/new_view_sequencer')
-
+/*
 function createRelHandle(objSchema, relMakers){
 	var viewSchema = objSchema.viewSchema
 	
@@ -589,7 +712,7 @@ function makeObjectCallHandle(getParams, getParamsSync){
 	}
 	return handle
 }
-
+*/
 function safeSplit(str, delim){
 	var depth = 0
 	var parts = []
@@ -657,11 +780,12 @@ exports.parseParams = parseParams
 
 function parseViewId(id){
 	//console.log('view id: ' + id)
-	var ci = id.indexOf(':')
-	var typeCodeStr = id.substr(0, ci)
+	var ci = id.indexOf('[')
+	var typeCodeStr = id.substring(1, ci)
 	
-	var restStr = id.substring(ci+2,id.indexOf(']'))//id.length-1)
-	var mutateStr = id.substr(id.indexOf(']')+1)
+	var restStr = id.substring(ci+1,id.length-1)//id.indexOf(']'))//id.length-1)
+	
+	//var mutateStr = id.substr(id.indexOf(']')+1)
 	
 	var parts = safeSplit(restStr, ',')
 	var rest = []
@@ -669,7 +793,10 @@ function parseViewId(id){
 		rest.push(parsePart(part))
 	})
 	var res = {typeCode: parseInt(typeCodeStr), rest: rest}
-	if(mutateStr && mutateStr.length > 0){
+
+	//console.log(JSON.stringify([id, ci, typeCodeStr, restStr,res]))
+
+	/*if(mutateStr && mutateStr.length > 0){
 		var mutatorParts = mutateStr.split(';')
 		mutatorParts = mutatorParts.slice(1)
 		var mutators = []
@@ -685,14 +812,14 @@ function parseViewId(id){
 		})
 		//_.errout('TODO: ' + JSON.stringify(mutators))
 		res.mutators = mutators
-	}
+	}*/
 	
 	//console.log(id + ' -> ' + JSON.stringify(res))
 
 	/*if(res.typeCode === 161 && res.mutators === undefined){//TODO REMOVEME
 		_.errout('all childrenMap ids should have mutators: ' + id)
 	}*/
-	if(res.typeCode === 164 && res.rest[3] === 54) _.errout('should be inner')
+	//if(res.typeCode === 164 && res.rest[3] === 54) _.errout('should be inner')
 	
 	return res
 }
@@ -717,757 +844,124 @@ function paramsStr(params){
 }
 exports.paramsStr = paramsStr
 
-function viewIdStr(viewCode,params,mutatorKey){//viewCode+':'+JSON.stringify(params)
-	_.assertLength(arguments, 3)
+function viewIdStr(viewCode,params){//,mutatorKey){//viewCode+':'+JSON.stringify(params)
+	_.assertLength(arguments, 2)
 
 	//if(viewCode === 161 && !mutatorKey){//TODO REMOVEME
 	//	_.errout('all childrenMap ids should have mutators: ' + JSON.stringify([viewCode, params, mutatorKey]))
 	//}
 	
-	if(params.length === 4 && params[3] === 54){
+	/*if(params.length === 4 && params[3] === 54){
 		_.errout("should be inner")
-	}
+	}*/
 	
-	var str = viewCode+':' + paramsStr(params)
+	var str = ':'+viewCode+/*+':' + */paramsStr(params)
 
-	if(mutatorKey !== undefined) str += mutatorKey
+	//if(mutatorKey !== undefined) str += mutatorKey
 	
 	//console.log(JSON.stringify([viewCode,params]) + ' -> ' + str)
 	
 	return str
 }
 
+var syncView = require('./sync_view')
+
 exports.make = function(schema, ol){
 
+	var baseStaticBindings = {
+		makePropertyIndex: ol.propertyIndex.facade.makePropertyIndex,
+		makeReversePropertyIndex: ol.propertyIndex.facade.makeReversePropertyIndex
+	}
+	
+	function makeViewRelFunction(viewSchema, rel){
+		//_.errout('TODO: ' + JSON.stringify(rel))
+		return syncView.makeRelFunction(s, baseStaticBindings, rel)
+	}
+	
+	function makeViewStateFunction(viewSchema){
+		var relFuncs = []
+		Object.keys(viewSchema.rels).forEach(function(relName){
+			var rel = viewSchema.rels[relName]
+			relFuncs.push({code: rel.code, func: makeViewRelFunction(viewSchema, rel)})
+		})
+		function makeViewBindings(parsedViewId){
+			var bindings = {}
+			_.assertObject(parsedViewId)
+
+			//console.log(JSON.stringify([parsedViewId, viewSchema.params]))
+			//_.assertEqual(parsedViewId.rest.length, viewSchema.params.length)
+			
+			for(var i=0;i<viewSchema.params.length;++i){
+				var p = viewSchema.params[i]
+				bindings[p.name] = parsedViewId.rest[i]
+			}
+			return bindings
+		}
+		return function(parsedViewId){
+			var state = {}
+			var bindings = makeViewBindings(parsedViewId)
+			
+			for(var i=0;i<relFuncs.length;++i){
+				var rf = relFuncs[i]
+				state[rf.code] = rf.func(bindings)
+			}
+			return state
+		}
+	}
+
+	
+	
 	//console.log('making new view sequencer...')
 	var facade = require('./objectfacade').make(schema, ol)
 	var objectState
 	
 	var afters = []
 	var s = {
-		//objectState: objectState,
 		facade: facade,
 		schema: schema,
-		getEditsBetween: getObjectEditsBetween,
-		getInclusionsDuring: getObjectInclusionsDuring,
 		propertyIndex: ol.propertyIndex,
 		//indexes: ol.propertyIndex.facade,
 		after: function(cb){
 			afters.push(cb)
 		}
 	}
-	function getViewCallHandle(viewName, viewCall, staticBindings, isSync){
-		_.assertObject(staticBindings)
-		
-		var viewCode = schema[viewName].code
-		var handle = makers[viewCode]
-		
-		var viewSchema = schema[viewName].viewSchema
-		
-		//if(!isSync) _.errout('why?')
-
-		//_.errout(JSON.stringify(viewCall))
-		var paramMakers = []
-		viewCall.params.forEach(function(expr){
-			paramMakers.push(makeRelHandle(expr, staticBindings, isSync))//, handle.viewParamsStaticBindings))
-		})
-		function getParams(bindings, editId, cb){
-			_.assertNot(isSync)
-			
-			var params = []
-			var failed = false
-			var cdl = _.latch(paramMakers.length, function(){
-				cb(params, failed)
-			})
-			paramMakers.forEach(function(pm, index){
-				pm.getStateAt(bindings, editId, function(state){
-					/*if(state === undefined){
-						//console.log('failed: ' + index + ' ' + editId + ' ' + JSON.stringify(bindings) + ' ' + pm.name)
-						failed = true
-					}else{*/
-						params[index] = state
-					//}
-					cdl()
-				})
-			})
+	
+	var viewStateFuncs = {}
+	_.each(schema, function(objSchema){
+		if(objSchema.isView){
+			viewStateFuncs[objSchema.code] = makeViewStateFunction(objSchema.viewSchema)
 		}
-		function getParamsSync(bindings, editId, cb){
-			var params = []
-			var failed = false
-			paramMakers.forEach(function(pm, index){
-				var state = pm.getAt(bindings, editId)
-				/*if(state === undefined){
-					//console.log('failed: ' + index + ' ' + editId + ' ' + JSON.stringify(bindings) + ' ' + pm.name)
-					failed = true
-				}else{*/
-					params[index] = state
-				//}
-			})
-			//console.log('returning: ' + JSON.stringify([params, failed]))
-			return {params: params, failed: failed}
-		}
-
-		function getParamValues(bindingValues){
-			//console.log('computing param values: ' + JSON.stringify([viewCall.params, bindingValues]))
-			var params = []
-			for(var i=0;i<viewCall.params.length;++i){
-				var p = viewCall.params[i]
-				if(bindingValues[p.name] === undefined) return undefined
-				params[i] = bindingValues[p.name]
-			}
-			return params
-		}
-		
-		if(!viewSchema){ 
-			//_.errout('TODO?: ' + JSON.stringify(viewCall))
-			return makeObjectCallHandle(getParams, isSync?getParamsSync:undefined)
-		}
-		
-		var a = analytics.make('view-call', [])
-
-		var handle = {
-			name: 'view-call',
-			analytics: a,
-			getStateSync: function(bindingValues){
-				var params = getParamValues(bindingValues)
-				if(!params) return undefined
-				var viewId = viewIdStr(viewCode,params,bindingValues.__mutatorKey)
-				return viewId
-			},
-			getAt: function(bindings, editId){
-				var res = getParamsSync(bindings, editId)//, function(params, failed){
-				if(res.failed){
-					return
-				}else{
-					var viewId = viewIdStr(viewCode,res.params,bindings.__mutatorKey)
-					/*if(){
-						//_.errout('tODO: ' + JSON.stringify(bindings))
-					}*/
-					return viewId
-				}
-			},
-
-			getStateAt: function(bindings, editId, cb){
-				getParams(bindings, editId, function(params, failed){
-					if(failed){
-						cb(undefined)
-					}else{
-						var viewId = viewIdStr(viewCode,params,bindings.__mutatorKey)
-						/*if(){
-							//_.errout('tODO: ' + JSON.stringify(bindings))
-						}*/
-						cb(viewId)
-					}
-				})
-			},
-			changeToEdit: function(c){
-				//_.errout('no?')
-				if(c.type === 'set'){
-					return {op: editCodes.setViewObject, edit: {id: c.value}, editId: c.editId}
-				}else if(c.type === 'clear'){
-					return {op: editCodes.clearProperty, edit: {}, editId: c.editId}
-				}else{
-					_.errout('TODO: ' + JSON.stringify(c))
-				}
-			},
-			extractInclusions: function(changes){
-				if(changes.length === 1 && changes[0].type === 'set'){
-					_.assertDefined(changes[0].value)
-					return [changes[0].value]
-				}else{
-					//_.errout('TODO: ' + JSON.stringify(changes))
-					var inclusions = []
-					var has = {}
-					for(var i=0;i<changes.length;++i){
-						var c = changes[i]
-						if(c.type === 'set'){
-							var v = c.value
-							_.assertDefined(v)
-							if(has[v]) continue
-							has[v] = true
-							inclusions.push(v)
-						}else if(c.type === 'clear'){
-						}else{
-							_.errout('TODO: ' + JSON.stringify(c))
-						}
-					}
-					return inclusions
-				}
-			},
-			getChangesBetween: function(bindings, startEditId, endEditId, cb){
-				getParams(bindings, startEditId, function(paramsA, failedA){
-					getParams(bindings, endEditId, function(paramsB, failedB){
-						if(failedA && !failedB){
-							var viewId = viewIdStr(viewCode,paramsB,bindings.__mutatorKey)
-							cb([{type: 'set', value: viewId, editId: endEditId, syncId: -1}])
-						}else{
-							var va = viewIdStr(viewCode,paramsA,bindings.__mutatorKey)
-							var vb = viewIdStr(viewCode,paramsB,bindings.__mutatorKey)
-							if(va !== vb){
-								return cb([{type: 'set', value: vb, editId: endEditId, syncId: -1}])
-							}else{
-								return cb([])
-							}
-						}
-					})
-				})
-			},
-			getHistoricalChangesBetween: function(bindings, startEditId, endEditId, cb){
-
-				var paramChanges = []
-				var keyEditIds = {}
-				var cdl = _.latch(paramMakers.length, function(){
-					//_.errout('TODO: ' + JSON.stringify(paramChanges))
-					var realEditIds = []
-					Object.keys(keyEditIds).forEach(function(key){
-						var editId = parseInt(key)
-						realEditIds.push(editId)
-					})
-					realEditIds.sort(function(a,b){return a - b;})
-					
-					var states = []
-					var cdl = _.latch(realEditIds.length, function(){
-						//_.errout('TODO: ' + JSON.stringify(states) + ' ' + JSON.stringify(realEditIds))
-						getParams(bindings, startEditId, function(params){
-							var curViewId = viewIdStr(viewCode,params,bindings.__mutatorKey)
-							var changes = []
-							for(var i=0;i<states.length;++i){
-								var state = states[i]
-								if(state === undefined){
-									if(curViewId){
-										changes.push({type: 'clear', editId: realEditIds[i]})
-										curViewId = undefined
-									}
-								}else{
-									var viewId = viewIdStr(viewCode,state,bindings.__mutatorKey)
-									if(viewId !== curViewId){
-										changes.push({type: 'set', value: viewId, editId: realEditIds[i]})
-										curViewId = viewId
-									}
-								}
-							}
-							cb(changes)
-						})
-					})
-					//console.log('getting for all realEditIds: ' + JSON.stringify(realEditIds))
-					realEditIds.forEach(function(editId, index){
-						getParams(bindings, editId, function(params, failed){
-							states[index] = failed?undefined:params
-							cdl()
-						})
-					})
-				})
-				
-				paramMakers.forEach(function(pm, index){
-					if(pm.getHistoricalBetween){
-						var changes = pm.getHistoricalBetween(bindings, startEditId, endEditId)
-						//paramChanges[index] = changes
-						//console.log(index + ' ' + JSON.stringify(changes))
-						for(var i=0;i<changes.length;++i){
-							keyEditIds[changes[i].editId] = true
-						}
-						cdl()
-					}else{
-						pm.getHistoricalChangesBetween(bindings, startEditId, endEditId, function(changes){
-							//paramChanges[index] = changes
-							//console.log(index + ' ' + JSON.stringify(changes))
-							for(var i=0;i<changes.length;++i){
-								keyEditIds[changes[i].editId] = true
-							}
-							cdl()
-						})
-					}
-				})
-				
-				//_.errout('TODO')
-				//look through all the versions of the params
-			}
-		}
-		
-		if(isSync){
-			handle.getBetween = function(bindings, startEditId, endEditId){
-				var pa = getParamsSync(bindings, startEditId)
-				var pb = getParamsSync(bindings, endEditId)
-				if(pa.failed && !pb.failed){
-					var viewId = viewIdStr(viewCode,pb.params,bindings.__mutatorKey)
-					return [{type: 'set', value: viewId, editId: endEditId, syncId: -1}]
-				}else{
-					var va = viewIdStr(viewCode,pa.params,bindings.__mutatorKey)
-					var vb = viewIdStr(viewCode,pb.params,bindings.__mutatorKey)
-					if(va !== vb){
-						return [{type: 'set', value: vb, editId: endEditId, syncId: -1}]
-					}else{
-						return []
-					}
-				}
-			}
-			handle.getHistoricalBetween = function(bindings, startEditId, endEditId){
-
-				var paramChanges = []
-				var keyEditIds = {}
-				
-				_.assert(isSync)
-				
-				paramMakers.forEach(function(pm, index){
-					if(!pm.getHistoricalBetween) _.errout('missing getHistoricalBetween: ' + pm.name)
-					_.assertFunction(pm.getHistoricalBetween)
-					var changes = pm.getHistoricalBetween(bindings, startEditId, endEditId)
-					//paramChanges[index] = changes
-					//console.log(index + ' ' + JSON.stringify(changes))
-					for(var i=0;i<changes.length;++i){
-						keyEditIds[changes[i].editId] = true
-					}
-				})
-				
-				//_.errout('TODO: ' + JSON.stringify(paramChanges))
-				var realEditIds = []
-				Object.keys(keyEditIds).forEach(function(key){
-					var editId = parseInt(key)
-					realEditIds.push(editId)
-				})
-				realEditIds.sort(function(a,b){return a - b;})
-				
-				var states = []
-				
-				//console.log('getting for all realEditIds: ' + JSON.stringify(realEditIds))
-				realEditIds.forEach(function(editId, index){
-					var p = getParamsSync(bindings, editId)//, function(params, failed){
-					states[index] = p.failed?undefined:p.params
-				})
-				
-				//_.errout('TODO: ' + JSON.stringify(states) + ' ' + JSON.stringify(realEditIds))
-				var p = getParamsSync(bindings, startEditId)
-				var curViewId = viewIdStr(viewCode,p.params,bindings.__mutatorKey)
-				var changes = []
-				for(var i=0;i<states.length;++i){
-					var state = states[i]
-					if(state === undefined){
-						if(curViewId){
-							changes.push({type: 'clear', editId: realEditIds[i]})
-							curViewId = undefined
-						}
-					}else{
-						var viewId = viewIdStr(viewCode,state,bindings.__mutatorKey)
-						if(viewId !== curViewId){
-							changes.push({type: 'set', value: viewId, editId: realEditIds[i]})
-							curViewId = viewId
-						}
-					}
-				}
-				
-				return changes
-				
-				//_.errout('TODO')
-				//look through all the versions of the params
-			}
-		}
-		//handle.getHistoricalChangesBetween = handle.getChangesBetween
-		return handle
+	})
+	
+	function getViewState(viewId){
+		var id = parseViewId(viewId)
+		return viewStateFuncs[id.typeCode](id)
+		//_.errout('TODO: ' + JSON.stringify(id))
 	}
 	
-	var makingSync = {}
-	var makingAsync = {}
-	var syncHits = 0
-	var asyncHits = 0
-	var relHits = 0
+	function getSnapshotInner(id, lastEditId, endEditId, readyCb){
 	
-	var count = 0
-	function makeRelHandle(rel, staticBindings, syncOnly){
-		function recurse(rel, newStaticBindings){
-			if(syncOnly){
-				_.errout('must recurseSync within a sync handle')
-			}
-			++count
-			if(count > 15000){
-				_.errout('overcall')
-			}
-			//rel.makingAsync = true
-			if(newStaticBindings){
-				//console.log('recursing with new bindings: ' + JSON.stringify(Object.keys(newStaticBindings)))
-				var newStaticBindings = _.extend({}, staticBindings, newStaticBindings)
-				//Object.freeze(newStaticBindings)
-				return makeRelHandle(rel, newStaticBindings, syncOnly)
+		var result = viewCache.snap(id, {})
+
+		var objectEditBuffers = []
+		var viewObjectEditBuffers = []
+		
+		result.forEach(function(r){
+			if(_.isString(r.id)){
+				viewObjectEditBuffers.push(r)
 			}else{
-				//console.log('recursing with same bindings')//: ' + JSON.stringify(Object.keys(staticBindings)))
-				var nsb = _.extend({}, staticBindings)
-				//Object.freeze(nsb)
-				return makeRelHandle(rel, nsb, syncOnly)
-			}
-		}
-		function recurseSync(rel, newStaticBindings){
-			++count
-			if(count > 15000){
-				_.errout('overcall')
-			}		
-			if(newStaticBindings){
-				//console.log('recursing with new bindings: ' + JSON.stringify(Object.keys(newStaticBindings)))
-				var newStaticBindings = _.extend({}, staticBindings, newStaticBindings)
-				//Object.freeze(newStaticBindings)
-				return makeRelHandle(rel, newStaticBindings, true)
-			}else{
-				//console.log('recursing with same bindings')//: ' + JSON.stringify(Object.keys(staticBindings)))
-				var nsb = _.extend({}, staticBindings)
-				//Object.freeze(nsb)
-				return makeRelHandle(rel, nsb, true)
-			}
-		}
-
-		if(!rel.uid){
-			rel.uid = ''+Math.random()
-			++relHits
-			//console.log('many query expression nodes: ' + relHits)
-			//console.log(rel.type + ' ' + rel.view)
-		}
-		
-		var key = rel.uid + staticBindings.isMutated//+':'+staticBindings.__mutatorKey//+ JSON.stringify(Object.keys(staticBindings))
-		//
-		//console.log('sync: ' + Object.keys(makingSync).length + ' ' + syncHits)
-		//console.log('async: ' + Object.keys(makingAsync).length + ' ' + asyncHits)
-		
-		if(syncOnly || rel.sync){
-			if(makingSync[key]){
-				++syncHits
-				return makingSync[key]
-			}
-			//console.log('key: ' + key)
-			var making = makingSync[key] = {}
-			var wrapped = wrap.makeSync(s, rel, recurseSync, function(viewName, viewCall){
-				return getViewCallHandle(viewName, viewCall, staticBindings, true)
-			}, staticBindings)
-			_.extend(making, wrapped)
-			return making
-		}else{
-			//_.errout('rel: ' + JSON.stringify(rel))
-			if(makingAsync[key]){
-				++asyncHits
-				return makingAsync[key]
-			}
-			//console.log('akey: ' + key)
-			var making = makingAsync[key] = {}
-			var wrapped = wrap.make(s, rel, recurse, recurseSync, function(viewName, viewCall){
-				return getViewCallHandle(viewName, viewCall, staticBindings)
-			}, staticBindings)
-
-			_.extend(making, wrapped)
-			return making
-		}
-	}
-	
-	//TODO set up variable constructors for each view
-	var makers = {}
-	_.each(schema, function(objSchema){
-		if(objSchema.isView){
-			
-			var relMakers = []
-
-			var viewSchema = objSchema.viewSchema
-			
-			makers[objSchema.code] = createRelHandle(objSchema, relMakers)
-			makers[objSchema.code].relMakers = relMakers
-		}
-	})
-	
-	var viewParamsStaticBindings = {
-		getPropertyValueAt: function(){
-			_.errout('tODO')
-		},
-		getPropertyChangesDuring: function(id, propertyCode, startEditId, endEditId, cb){
-			//_.errout('tODO')
-			return s.objectState.getPropertyChangesDuring(id, propertyCode, startEditId, endEditId, cb)
-		},
-		getHistoricalPropertyChangesDuring: function(id, propertyCode, startEditId, endEditId, cb){
-			//_.errout('tODO')
-			return s.objectState.getHistoricalPropertyChangesDuring(id, propertyCode, startEditId, endEditId, cb)
-		},
-		makeGetPropertyAt: function(typeCode, propertyCode){
-			return facade.makeGetPropertyAt(typeCode, propertyCode)
-		},
-		getLastVersion: function(id, cb){
-			s.objectState.getLastVersion(id, cb)			
-		},
-		makePropertyIndex: ol.propertyIndex.facade.makePropertyIndex,
-		makeReversePropertyIndex: ol.propertyIndex.facade.makeReversePropertyIndex
-	}
-	
-	_.each(schema, function(objSchema){
-		if(objSchema.isView){
-
-			var viewSchema = objSchema.viewSchema
-			
-			viewSchema.params.forEach(function(p){
-				var paramName = p.name
-				var f
-				var nameStr = 'view-param:'+p.name
-				var a = analytics.make(nameStr, [])				
-				var vpHandle = {
-					name: nameStr,
-					analytics: a,
-					getAt: function(bindings, editId){
-						if(editId === -1){
-							return undefined
-						}else{
-							//console.log('got binding value: ' + paramName + ' ' + JSON.stringify(bindings[paramName]))
-							//console.log(JSON.stringify(bindings))
-							//_.assertDefined(bindings[paramName])
-							//if(paramName === 'specialRoot') _.errout('should not exist')
-							return bindings[paramName]
-						}
-					},
-					getStateAt: function(bindings, editId, cb){
-						if(editId === -1){
-							cb(undefined)
-						}else{
-							//console.log('got binding value: ' + paramName + ' ' + JSON.stringify(bindings[paramName]))
-							cb(bindings[paramName])
-						}
-					},
-					isFullySync: true,
-					getStateSync: function(bindings, editId){
-						if(editId === -1){
-							//console.log('here')
-							return
-						}else{
-							//console.log('computed getStateSync: ' + JSON.stringify([paramName, bindings[paramName], editId]))
-							return bindings[paramName]
-						}
-					},
-					getChangesBetween: function(bindings, startEditId, endEditId, cb){
-						if(startEditId === -1 && endEditId >= 0){
-							var value = bindings[paramName]
-							//console.log('changes ' + startEditId + ' ' + endEditId + ' ' + value)
-							cb([{type: 'set', value: value, editId: 0}])
-						}else{
-							cb([])
-						}
-					},
-					getBetween: function(bindings, startEditId, endEditId){
-						if(startEditId === -1 && endEditId >= 0){
-							var value = bindings[paramName]
-							//console.log('changes ' + startEditId + ' ' + endEditId + ' ' + value)
-							return [{type: 'set', value: value, editId: 0}]
-						}else{
-							return []
-						}
-					}				
-				}
-				vpHandle.getHistoricalChangesBetween = vpHandle.getChangesBetween
-				vpHandle.getHistoricalBetween = vpHandle.getBetween
-				
-				viewParamsStaticBindings[p.name] = vpHandle
-			})
-		}
-	})
-
-	Object.freeze(viewParamsStaticBindings)
-			
-	_.each(schema, function(objSchema){
-		if(objSchema.isView){
-
-			var viewSchema = objSchema.viewSchema
-			
-			Object.keys(viewSchema.rels).forEach(function(relName){
-				var rel = viewSchema.rels[relName];
-				var rm = makeRelHandle(rel, viewParamsStaticBindings)
-				if(rm.propertyCode){
-					rm = _.extend({}, rm)
-				}
-				
-				rm.rel = rel
-				if(!rm.changeToEdit) _.errout('needs changeToEdit: ' + rm.name + ' ' + JSON.stringify(rel) + ' ' + rm.getChangesBetween)
-				rm.propertyCode = viewSchema.rels[relName].code
-				rm.property = viewSchema.rels[relName]
-				rm.propertyName = relName
-				rm.original = true
-				//console.log(viewSchema.code + ' ' + relName + ' ' + rm.propertyCode)
-				if(rm.propertyCode === undefined) _.errout('missing code: ' + JSON.stringify(viewSchema.rels[relName]))
-				_.assertInt(rm.propertyCode)
-				
-				Object.freeze(rm)
-				//relMakers.push(rm)
-				makers[objSchema.code].relMakers.push(rm)
-			})
-			makers[objSchema.code].analytics = analytics.make('view['+viewSchema.name+']', makers[objSchema.code].relMakers)
-			makers[objSchema.code].viewParamsStaticBindings = viewParamsStaticBindings
-			
-		}
-	})
-
-	var haveMade = false
-	var mutatorAppliers = {}
-	function makeMutatorAppliers(){
-		haveMade = true
-		if(!s.mutators) return
-		Object.keys(s.mutators).forEach(function(codeStr){
-			var code = parseInt(codeStr)
-			var mut = s.mutators[code]
-			var newStaticBindings = _.extend({}, viewParamsStaticBindings, mut.staticBindings)
-			var mutatedMakers = {}
-			Object.keys(makers).forEach(function(viewCodeStr){
-				var m = makers[viewCodeStr]
-				var relMakers = []
-				m.relMakers.forEach(function(rm, index){
-					//TODO wrap in any containing mutators as well
-					var nrm = relMakers[index] = makeRelHandle(rm.rel,newStaticBindings)
-					//_.assertInt(nrm.propertyCode)
-					if(nrm.propertyCode){
-						//_.errout('TODO?: ' + nrm.propertyCode + ' ' + rm.propertyCode)
-						//_.assertEqual(nrm.propertyCode, rm.propertyCode)
-						nrm = _.extend({}, nrm)
-					}
-					nrm.propertyCode = rm.propertyCode
-					nrm.property = rm.property
-					nrm.propertyName = rm.propertyName
-				})
-				mutatedMakers[viewCodeStr] = createRelHandle(schema._byCode[viewCodeStr], relMakers)
-				
-			})
-			mutatorAppliers[code] = function(pv, mutatorParams, cb){
-				var m = mutatedMakers[pv.typeCode]//viewCode]
-				var npv = {typeCode: pv.typeCode, rest: [].concat(pv.rest)}
-				var mutatorBindings = mut.createBindings(mutatorParams)
-				npv.rest.__extra = mutatorBindings
-				npv.rest.__mutatorKey = ';'+code+'{'//JSON.stringify(mutatorBindings)
-				mutatorParams.forEach(function(p, index){
-					if(index > 0) npv.rest.__mutatorKey += ','
-					npv.rest.__mutatorKey += JSON.stringify(p)
-				})
-				npv.rest.__mutatorKey += '}'
-				
-				//console.log('applied mutator: ' + JSON.stringify(mutatorParams) + ' to ' + JSON.stringify(pv))
-				cb(m, npv)
+				objectEditBuffers.push(r)
 			}
 		})
-	}
-	
-	makeMutatorAppliers()
-	
-	function getMakerForViewId(id, cb){
-		var pv = parseViewId(id)
-		var m
-		//console.log('pv: ' + JSON.stringify(pv))
-		if(pv.mutators){
-			//console.log('getting mutated maker for view id: ' + id)
-			//console.log('TODO: ' + JSON.stringify(pv))
-			if(!haveMade) makeMutatorAppliers()
-			var lastMutator = pv.mutators[pv.mutators.length-1]
-			mutatorAppliers[lastMutator.code](pv, lastMutator.params, cb)
-			return
-		}else{
-			//console.log('getting normal maker for view id: ' + id)
-			m = makers[pv.typeCode]
-		}
-		if(!m){ 
-			_.errout('cannot find maker for: ' + id)
-		}
-		if(!m.getEditsBetween){
-			_.errout('missing getEditsBetween: ' + m.name + ' ' + m.getSnapshotAt)
-		}
-		if(!m.getHistoricalEditsBetween){
-			_.errout('missing getHistoricalEditsBetween: ' + m.name)// + ' ' + makers[pv.typeCode].getSnapshotAt)
-		}
-		if(!m.getInclusionsDuring){
-			_.errout('missing getInclusionsDuring: ' + m.name + ' ' + m.getSnapshotAt)
-		}
-		//return m
-		cb(m, pv)
-	}
-	function getObjectEditsBetween(id, lastEditId, endEditId, cb){	
-		if(lastEditId === endEditId) _.errout('wasting time')
 		
-		if(_.isString(id)){
-			//var m = getMakerForViewId(id)
-			getMakerForViewId(id, function(m, pv){
-				//console.log('getEditsBetween: ' + m.getEditsBetween)
-				m.getEditsBetween(pv.rest, lastEditId, endEditId, function(edits){
-					if(!m.analytics) _.errout('missing analytics: ' + m.name)
-					var acc = m.analytics.accumulate()
-					if(acc){
-						analyticsLog(JSON.stringify(acc, null, 2))
-					}else{
-						analyticsLog('\n--no analytics--\n')
-					}
-					m.analytics.reset()
-					cb(edits)
-				})
-			})
-		}else{
-			objectState.getEditsBetween(id, lastEditId, endEditId, function(edits){
-				if(edits.length === 0){
-					cb(edits)
-					return
-				}
-				//_.errout('TODO: ' + JSON.stringify(edits))
-				cb(edits)
-			})
-		}
-	}
-	function getHistoricalObjectEditsBetween(id, lastEditId, endEditId, cb){	
-		if(lastEditId === endEditId) _.errout('wasting time')
-
-		if(_.isString(id)){
-			getMakerForViewId(id, function(m, pv){
-
-				m.getHistoricalEditsBetween(pv.rest, lastEditId, endEditId, cb)
-				var acc = m.analytics.accumulate()
-				if(acc){
-					analyticsLog(JSON.stringify(acc, null, 2))
-				}else{
-					analyticsLog('\n--no analytics--\n')
-				}
-				m.analytics.reset()
-			})
-		}else{
-			objectState.getEditsBetween(id, lastEditId, endEditId, function(edits){
-				if(edits.length === 0){
-					cb(edits)
-					return
-				}
-				//_.errout('TODO: ' + JSON.stringify(edits))
-				cb(edits)
-			})
-		}
-	}
-	function getObjectInclusionsDuring(id, lastEditId, endEditId, cb){
-		if(lastEditId === endEditId) _.errout('wasting time')
-		//console.log('id: ' + id)
-		if(_.isString(id)){
-			getMakerForViewId(id, function(m, pv){
-				m.getInclusionsDuring(pv.rest, lastEditId, endEditId, function(ids){
-					_.assertArray(ids)
-					//console.log('got inclusions ' + JSON.stringify(ids) + ' from ' + makers[pv.typeCode].name)//getInclusionsDuring)
-					cb(ids)
-				})
-			})
-		}else{
-			//_.assertInt(id)
-			objectState.getInclusionsDuring(id, lastEditId, endEditId, cb)
-		}
-	}
-	function getHistoricalObjectInclusionsDuring(id, lastEditId, endEditId, cb){
-		if(lastEditId === endEditId) _.errout('wasting time')
-		_.assertDefined(id)
+		//console.log(id + ' ' + lastEditId + ' ' + endEditId + ' ' + JSON.stringify(result))
 		
-		if(_.isString(id)){
-			/*var pv = parseViewId(id)
-			if(makers[pv.typeCode] === undefined) _.errout('no view maker for code: ' + pv.typeCode + ' from id: ' + id)
-			if(!makers[pv.typeCode].getHistoricalInclusionsDuring){
-				_.errout('missing getHistoricalInclusionsDuring: ' + makers[pv.typeCode].name)// + ' ' + makers[pv.typeCode].getSnapshotAt)
-			}
-			makers[pv.typeCode]*/
-			getMakerForViewId(id, function(m, pv){
-				m.getHistoricalInclusionsDuring(pv.rest, lastEditId, endEditId, function(ids){
-					_.assertArray(ids)
-					//console.log('got inclusions ' + JSON.stringify(ids) + ' from ' + makers[pv.typeCode].getInclusionsDuring)
-					cb(ids)
-				})
-			})
-		}else{
-			//_.assertInt(id)
-			objectState.getInclusionsDuring(id, lastEditId, endEditId, cb)
-		}
-	}
-	
-	function getSnapshotInner(getObjectInclusionsDuring, getObjectEditsBetween, id, lastEditId, endEditId, readyCb){
+		var snap = snapshotSerialization.serializeSnapshot(lastEditId, endEditId, objectEditBuffers, viewObjectEditBuffers)
+		readyCb(snap)
+
+		return
+		_.errout('tODO: ' + id + ' ' + lastEditId + ' ' + endEditId + ' ' + JSON.stringify(result))
+		
 	
 		//console.log('getting snapshot inner ' + id + ' ' + lastEditId + ', ' + endEditId)
 
@@ -1607,22 +1101,35 @@ exports.make = function(schema, ol){
 			readyCb(snap)
 		}
 	}
+	
+	var viewCache
 		
 
 	var handle = {
 		initialize: function(objs){
 			objectState = objs
 			s.objectState = objs
+
+			console.log('initialized new_view_sequencer')
+			//_.errout('here')
+			
 			afters.forEach(function(cb){
 				cb()
 			})
 			afters = undefined
+			
+			var queryHandle = {
+				get: function(viewId){
+					return getViewState(viewId)
+				}
+			}
+			viewCache = vcModule.make(schema, objectState, queryHandle)
 		},
 		makeStream: function(includeObjectCb, editCb, sendViewObjectCb, syncId){
 		
 			//console.log('making stream')
 	
-			var queryHandle = makeQueryHandle(getObjectEditsBetween, getObjectInclusionsDuring, syncId)
+			var queryHandle = makeQueryHandle(syncId, viewCache)
 
 			var lastEditId = -1
 			var paused = false
@@ -1639,26 +1146,21 @@ exports.make = function(schema, ol){
 					var copy = [].concat(addObjectTasks)
 					addObjectTasks = []
 					
-					var cdl = _.latch(copy.length, function(){
-						//console.log('done adding ' + copy.length + ' objects')
-						maintain(endEditId)
-					})
 					copy.forEach(function(task){
-						queryHandle.addObject(task, cdl)
+						queryHandle.addObject(task)
 					})
+					maintain(endEditId)
 				}else if(addViewTasks.length > 0){
 					//console.log('processing view tasks: ' + addViewTasks.length)
 					var copy = [].concat(addViewTasks)
 					addViewTasks = []
 					
-					var cdl = _.latch(copy.length, function(){maintain(endEditId)})
 					copy.forEach(function(task){
-						addView(task.id, task.lastEditId, endEditId, function(){
-							task.cb()
-							cdl()
-						})
+						addView(task.id, task.lastEditId, endEditId, task.cb)
 					})
+					maintain(endEditId)
 				}else{
+					//console.log('done polling ' + endEditId)
 					lastEditId = endEditId
 					paused = false
 				}
@@ -1666,7 +1168,7 @@ exports.make = function(schema, ol){
 			
 			function poll(){
 				if(paused){
-					//console.log('already in polling')
+					console.log('already in polling')//: ' + JSON.stringify(queryHandle.got))
 					return
 				}
 				paused = true
@@ -1674,39 +1176,37 @@ exports.make = function(schema, ol){
 				//console.log('polling...')
 				
 				var endEditId = objectState.getCurrentEditId()-1
-				if(endEditId === lastEditId){
+				/*if(endEditId === lastEditId){
 					//console.log('no need to move: ' + lastEditId + ' === ' + endEditId)
 					//maintain(endEditId)
 					finish()
 					return
-				}
+				}*/
 				
-				var rem = remainer(1, finish)
+				//var rem = remainer(1, finish)
 				
 				var edits = []
 				//console.log('moving to: ' + endEditId + ' from ' + lastEditId)
-				queryHandle.moveTo(endEditId, function(id, changes){
+				queryHandle.moveTo(endEditId, function(changes){
 					//console.log('moving')
 					edits = edits.concat(changes)
 					//console.log('moving changes: ' + id + ' ' + JSON.stringify(changes))
 				},
-				function(id){
-					rem.increase(1)
+				function(id, snap){
+					//rem.increase(1)
 					//console.log('moving adds: ' + id)
+					//console.log('edits: ' + JSON.stringify(snap))
+					_.assertDefined(snap)
 					if(_.isString(id)){
+						sendViewObjectCb(id, snap)
+					}else{
+						includeObjectCb(id, snap)
+					}
+					/*if(_.isString(id)){
 						getObjectEditsBetween(id, -1, endEditId, function(snap){
 							//console.log('view object snap(' + id +'): ' + JSON.stringify(snap))
 							
-							/*var oldState = {top: id}
-							var resultEdits = []
-							snap.forEach(function(e){
-								if(e.op === editCodes.putLong) _.assertInt(e.state.property)
-								pathmerger.editToMatch(oldState, e.state, function(op, edit){
-									resultEdits.push({op: op, edit: edit, editId: e.editId, syncId: -1})
-								})
-								resultEdits.push(e)
-								oldState = e.state
-							})*/
+
 							var resultEdits = computeStateEditsForViewObject(id, snap)
 							
 							//console.log('result edits: ' + JSON.stringify(resultEdits))
@@ -1727,18 +1227,35 @@ exports.make = function(schema, ol){
 							})//, snap)
 							rem.decrease(1)
 						//})
-					}
+					}*/
 				}, function(){
 					//console.log(endEditId + ' (' + objectState.getCurrentEditId() + ') moving done: ' + JSON.stringify(edits))
 					//console.log(''+editCb)
 
-					edits.sort(function(a,b){return a.editId - b.editId;})
+					//edits.sort(function(a,b){return a.editId - b.editId;})
+					
+					
+					//TODO does this matter?
+					/*if(edits.length > 0){
+						var curEditId = edits[0].editId
+						edits.forEach(function(e){
+							if(e.editId > curEditId) curEditId = e.editId
+							if(curEditId > e.editId){
+								console.log(JSON.stringify(edits))
+								_.errout('ordering problem')
+							}
+						})
+					}*/
+
+					//console.log(endEditId + ' (' + objectState.getCurrentEditId() + ') moving done: ' + JSON.stringify(edits))
 					
 					edits.forEach(function(e){
 						editCb(e)
 					})
-					rem.decrease(1)
+					//rem.decrease(1)
 				})
+				
+				finish()
 
 				function finish(){
 					//console.log('finishing poll')
@@ -1756,7 +1273,8 @@ exports.make = function(schema, ol){
 					
 				}
 			}
-			var pollHandle = setInterval(poll, 100)
+
+			addPollFunction(poll)
 			
 			function addView(id, lastEditId, endEditId, readyCb, isHistorical){
 
@@ -1825,7 +1343,8 @@ exports.make = function(schema, ol){
 				end: function(){
 					//console.log('ended new view sequencer')
 					//clearInterval(analyticsLogIntervalHandle)
-					clearInterval(pollHandle)
+					//clearInterval(pollHandle)
+					removePollFunction(poll)
 					
 					//analyticsLog.close()
 					//_.errout('TODO')
@@ -1852,9 +1371,9 @@ exports.make = function(schema, ol){
 		*/
 		makeSnapshot: function(id, lastEditId, endEditId, isHistorical, readyCb){
 			if(isHistorical){
-				getSnapshotInner(getHistoricalObjectInclusionsDuring, getHistoricalObjectEditsBetween, id, lastEditId, endEditId, readyCb)
+				getSnapshotInner(/*getHistoricalObjectInclusionsDuring, getHistoricalObjectEditsBetween,*/ id, lastEditId, endEditId, readyCb)
 			}else{
-				getSnapshotInner(getObjectInclusionsDuring, getObjectEditsBetween, id, lastEditId, endEditId, readyCb)
+				getSnapshotInner(/*getObjectInclusionsDuring, getObjectEditsBetween, */id, lastEditId, endEditId, readyCb)
 			}
 		}
 	}

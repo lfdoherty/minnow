@@ -27,12 +27,6 @@ var totalBytesSent = 0
 
 var WriteFlushInterval = 10
 
-/*
-var RandomFailureDelay = 100000
-exports.setRandomConnectionFailureDelay = function(newDelay){
-	RandomFailureDelay = newDelay
-}*/
-
 var ReconnectPeriod = 1000*60//a client may reconnect within 1 minute
 
 function makeServer(appSchema, appMacros, dataDir, port, readyCb){
@@ -71,10 +65,10 @@ function serializeAllSnapshots(snapshots){
 		s.copy(buf,off)
 		off += s.length
 	}
-	var str = ''
+	/*var str = ''
 	for(var i=0;i<snapshots[0].length;++i){
 		str += ' ' + snapshots[0][i]
-	}
+	}*/
 
 	return buf
 }
@@ -145,7 +139,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			return
 		}
 		connections.push(c)
-		//console.log('connections: ' + connectionCount)
+		console.log('connections: ' + connectionCount)
 	}
 	function removeConnection(c){
 		--connectionCount
@@ -155,7 +149,7 @@ function createTcpServer(appSchema, port, s, readyCb){
 			return
 		}
 		connections.splice(connections.indexOf(c), 1)
-		//console.log('connections: ' + connectionCount)
+		console.log('connections: ' + connectionCount)
 		c.destroy()
 	}
 	
@@ -198,6 +192,8 @@ function createTcpServer(appSchema, port, s, readyCb){
 				//console.log('closed rest')
 				cdl()
 			})
+			
+			clearInterval(cf.flushHandle)
 		}
 	}
 
@@ -208,6 +204,16 @@ function createTcpServer(appSchema, port, s, readyCb){
 }
 
 function makeClientFunc(s, appSchema, addConnection, removeConnection, getTemporaryGenerator, lastTemporaryId){
+
+	var writersToFlush = []
+	var flushHandle = setInterval(function(){
+		//w.flush()
+		for(var i=0;i<writersToFlush.length;++i){
+			var w = writersToFlush[i]
+			w.flush()
+		}
+	},WriteFlushInterval)
+
 	function clientFunc(c){
 
 		/*if(isClosed){
@@ -220,27 +226,15 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		
 		c.on('error', function(e){
 			console.log('tcp server error: ' + e + ' ' + require('util').inspect(e))
-			//if((''+e) === 'Error: This socket is closed.'){
-				//_.assert(isDead)
-			//	if(!isDe
-			//}
-			//_.assert(isDead)
 		})
-		
-		/*var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
-		var randomHandle = setTimeout(function(){
-			console.log('server randomly destroyed tcp connection: ' + connectionId)
-			c.destroy()
-		},randomFailureDelay)*/
+
 
 		var ws = quicklog.make('minnow/tcp server->client.' + (++logCounter))
 	
 		log('tcp server got connection')
 		
-		//connections.push(c)
 		addConnection(c)
 		
-		//var w
 		var rrk = fparse.makeRs()
 
 		function setupConnection(){
@@ -307,20 +301,21 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		
 			var w = wfs.fs
 		
-			//wfs.beginFrame()
 			w.flush = function(){
-				//if(wfs.hasWritten()){
 				if(wfs.shouldWriteFrame()){
 					wfs.endFrame()
-					//wfs.beginFrame()
 				}
-				//}
 			}
 			w.end = function(){}
 				
-			var flushHandle = setInterval(function(){
-				w.flush()
-			},WriteFlushInterval)
+			writersToFlush.push(w)
+			
+			function flushHandle(){
+				var index = writersToFlush.indexOf(w)
+				if(index !== -1){
+					writersToFlush.splice(index, 1)
+				}
+			}
 		
 			//these are the *incoming* edit's path state
 			var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
@@ -402,9 +397,6 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				currentIdFor: {},
 				pathFromClientFor: {},
 				reifications: {},
-				//lastAck: 0,
-				//lastOutgoingAck: 0,
-				//outgoingAckHistory: 0,
 				w: w,
 				openSyncIds: [syncId]
 			}
@@ -420,124 +412,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			conn.w.reifyObject(msg);
 		}	
 		
-		/*function increaseAck(frameCount){
-			//console.log('server got ack: ' + frameCount)
-			if(frameCount > conn.lastAck){
-				conn.wfs.discardReplayableFrames(frameCount - conn.lastAck)
-				conn.lastAck = frameCount
-			}
-		}*/	
-		
-		//var lastAck = 0
 		var reader = {
-			/*increaseAck: function(e){
-				//console.log(e.frameCount + ' -> ' + conn.lastAck)
-				if(e.frameCount > conn.lastAck){
-					conn.wfs.discardReplayableFrames(e.frameCount - conn.lastAck)
-					conn.lastAck = e.frameCount
-				}
-			},*/
-			/*reconnect: function(e){
-				if(isDead) throw new Error('tried to reconnect via dead client?')
-				
-				connectionId = e.connectionId
-				
-				console.log('server got reconnect request: ' + e.connectionId)
-				conn = liveConnections[e.connectionId]
-				if(conn){
-					conn.wfs.wHandle.c = c//adjust writer to send to the new socket
-					conn.w = conn.wfs.fs
-					
-					
-					//TODO replay server->client messages
-					if(e.manyServerMessagesReceived > conn.lastAck){
-						console.log('discarding frames: ' + (e.manyServerMessagesReceived - conn.lastAck) + ' (' + conn.lastAck + ')')
-						conn.wfs.discardReplayableFrames(e.manyServerMessagesReceived - conn.lastAck)
-						conn.lastAck = e.manyServerMessagesReceived
-					}
-					conn.wfs.replay()
-					
-
-					//inform client how many messages the server has received from them so far					
-					console.log('server confirming reconnect: ' + (conn.deser.getFrameCount() + conn.outgoingAckHistory)+' '+conn.deser.getFrameCount()+' '+ conn.outgoingAckHistory)
-					conn.w.confirmReconnect({
-						manyClientMessagesReceived: conn.deser.getFrameCount() + conn.outgoingAckHistory
-					})
-					conn.w.flush()
-
-					conn.lastOutgoingAck = conn.deser.getFrameCount() + conn.outgoingAckHistory
-
-					conn.deser = deser
-
-					//conn.lastOutgoingAck += conn.deser.getFrameCount()
-					
-					//setIntervalf()
-					conn.flushHandle = setInterval(function(){
-						conn.w.flush()
-					},10)
-
-					//if(conn.randomHandle !== undefined){
-					//	clearTimeout(conn.randomHandle)
-					//}
 			
-					//var randomFailureDelay = Math.floor(Math.random()*1000*RandomFailureDelay)+1000
-					//conn.randomHandle = setTimeout(function(){
-					//	console.log('*server randomly destroyed tcp connection')
-					//	c.destroy()
-					//},randomFailureDelay)
-					
-					conn.outgoingAckHistory = conn.lastOutgoingAck - 1//the -1 is to adjust for the reconnect which the new deser will be counting, but the client won't
-					
-					startAck(deser, c)
-
-				}else{
-					//_.errout('TODO')
-					//conn = setupConnection()
-					var wHandle = {
-						write: function(buf){
-							this.c.write(buf);
-						},
-						end: function(){
-							//TODO?
-						},
-						c: c
-					}
-					var wfs = fparse.makeReplayableWriteStream(shared.serverResponses, wHandle)
-					//wfs.beginFrame()
-					wfs.fs.reconnectExpired()
-					wfs.endFrame()
-					//wfs.end()
-					setTimeout(function(){
-						c.end()
-						console.log('server: reconnect expired')
-					},100)
-				}
-			},*/
-			originalConnection: function(){
-			
-				//console.log('got original connection')
-				
-				/*if(!liveConnections){
-					console.log('ERROR: tried to open connection to already closed server, how is this possible')
-					return
-				}*/
-
-				conn = setupConnection()
-
-				conn.deser = deser
-				
-				//conn.randomHandle = randomHandle
-				//randomHandle = undefined
-
-				connectionId = 'r'+Math.random()
-				conn.w.setup({serverInstanceUid: s.serverInstanceUid(), connectionId: connectionId});
-				conn.w.flush()
-		
-				//liveConnections[connectionId] = conn
-
-				//startAck(deser, c)
-
-			},
 			beginSync: function(e){
 				var syncId = s.makeSyncId()
 				conn.openSyncIds.push(syncId)
@@ -821,27 +697,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			})
 		}
 		
-		/*function startAck(deser, c){
-			//last = last || 0
-			//console.log('started ack')
-			conn.ackHandle = setInterval(function(){
-				if(!conn) return
-				
-				if(isDead) _.errout('should have cancelled ack handle')
-				
-				var v = deser.getFrameCount() + conn.outgoingAckHistory
-				if(v > conn.lastOutgoingAck){
-					//conn.w.increaseAck({frameCount: v})
-					conn.wfs.writeAck(v)
-					//console.log('server increased ack: ' + v + ' -> ' + conn.lastOutgoingAck + ' (' + deser.getFrameCount() + ' ' +conn.outgoingAckHistory+')')
-					conn.lastOutgoingAck = v
-				}else{
-					_.assertEqual(v, conn.lastOutgoingAck)
-					//console.log('same: ' + v + ' ' + conn.lastOutgoingAck)
-				}
-			},100)
-		}*/
 		c.on('data', function(buf){
+			//console.log('server got buf: ' + buf.length)
 			try{
 				deser(buf);
 				totalBytesReceived += buf.length
@@ -852,11 +709,25 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes received: ' + totalBytesReceived)
 		})
 		
+		function beginConnectionSetup(){
+			conn = setupConnection()
+
+			conn.deser = deser
+
+			connectionId = 'r'+Math.random()
+			conn.w.setup({serverInstanceUid: s.serverInstanceUid(), connectionId: connectionId});
+			conn.w.flush()
+		}
+		
+		beginConnectionSetup()
 		//console.log('writing setup')
 		
 		
 		//console.log('flushed setup')
 	}
+	
+	clientFunc.flushHandle = flushHandle
+	
 	return clientFunc
 }
 exports.make = makeServer;

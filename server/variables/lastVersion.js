@@ -19,6 +19,26 @@ schema.addFunction('lastVersion', {
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'lastVersion(object/s)',
+	computeSync: function(z, input){//TODO move this internal so that we can accurately getLastVersion given editId
+		if(input === undefined){
+			return
+		}
+		
+		if(_.isArray(input)){
+			var versions = []
+			//console.log('getting input versions')
+			
+			input.forEach(function(id){
+				var v = z.objectState.getLastVersion(id)
+				if(versions.indexOf(v) === -1){
+					versions.push(v)
+				}
+			})
+			return versions
+		}else{
+			return z.objectState.getLastVersion(input)
+		}
+	},/*
 	computeAsync: function(z, cb, input){//TODO move this internal so that we can accurately getLastVersion given editId
 		if(input === undefined){
 			cb(undefined)
@@ -42,6 +62,6 @@ schema.addFunction('lastVersion', {
 		}else{
 			cb(z.objectState.getLastVersion(input))
 		}
-	}
+	}*/
 })
 

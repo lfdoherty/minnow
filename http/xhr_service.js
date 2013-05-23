@@ -28,8 +28,8 @@ var log = require('quicklog').make('minnow/xhr')
 
 var urlModule = require('url')
 
-exports.make = function(appName, schema, local, secureLocal, minnowClient, authenticator, viewSecuritySettings){//, clientInfoBySyncId){
-	_.assertLength(arguments, 7)
+exports.make = function(appName, prefix, schema, local, secureLocal, minnowClient, authenticator, viewSecuritySettings){//, clientInfoBySyncId){
+	_.assertLength(arguments, 8)
 
 	_.assertString(appName)
 	_.assertFunction(authenticator)
@@ -62,13 +62,13 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	}
 	console.log('providing service: ' + '/mnw/schema/'+appName)
 	local.get('/mnw/schema/'+appName, aa, function(req, httpRes){
-		var url= 'http://'+req.headers.host+schemaUrl
+		var url= 'http://'+req.headers.host+prefix+schemaUrl
 		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
 		
 		httpRes.redirect(url)
 	})
 	secureLocal.get('/mnw/schema/'+appName, aa, function(req, httpRes){
-		var url= 'https://'+req.headers.host+schemaUrl
+		var url= 'https://'+req.headers.host+prefix+schemaUrl
 		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
 		
 		httpRes.redirect(url)

@@ -140,10 +140,10 @@ userContact(user user) 166
 	contact getContact(user) 1
 
 isExpanded(p node, n node, u user){
-	switch(isOfType(n, 'field'),
+	switch(isa(n, 'field'),
 		case(true, not(mapValue(u.data.expansionToggles, concat(p.id,'|',n.id)))),//field expansion defaults to true
 		default(
-			switch(isOfType(n,'node'),
+			switch(isa(n,'node'),
 				case(true, mapValue(u.data.expansionToggles, concat(p.id,'|',n.id))),//non-field expansion defaults to false
 				default(false)//if it's not a node, it has no expansion state anyway
 			)
@@ -185,7 +185,7 @@ bookmarkForm(u user){
 }
 
 computeElements(f node, u user){
-	switch(isOfType(f, 'nest'),
+	switch(isa(f, 'nest'),
 		case(false,list()),
 		default(
 			/*switch(type(f),
@@ -200,7 +200,7 @@ computeElements(f node, u user){
 	)
 }
 mapChildren(source node, u user){
-	switch(isOfType(source, 'nest'),
+	switch(isa(source, 'nest'),
 		case(false, nil),
 		default(
 			multimap(
@@ -213,7 +213,7 @@ mapChildren(source node, u user){
 }
 
 childrenMap(source node, u user) 161
-	children mapChildren(source,u) 1
+	children wrapInForms(u,{mapChildren(source,u)}) 1
 
 getOtherExpandedChildren(source node, f entry, u user){
 	subset(union(computeElements(f, u),computeSpecialChildren(source,f,u)),{isExpanded(f,~,u)})

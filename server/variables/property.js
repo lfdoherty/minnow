@@ -62,6 +62,8 @@ function propertyType(rel, ch){
 		if(st.members.type === 'object'){
 			if(propertyName === 'id'){
 				return {type: 'set', members: {type: 'primitive', primitive: 'int'}}
+			}else if(propertyName === 'uuid'){
+				return {type: 'set', members: {type: 'primitive', primitive: 'string'}}
 			}else{
 				var objName = st.members.object
 				var objSchema = ch.schema[objName]

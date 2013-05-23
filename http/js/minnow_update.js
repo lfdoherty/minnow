@@ -7,7 +7,7 @@ var clearTimeout = timers.clearTimeout
 
 var _ = require('underscorem')
 
-var xhrHttp = require('./xhr')
+var xhrHttp = require('./bxhr')
 
 var postJson = xhrHttp.postJson
 var getJson = xhrHttp.getJson
@@ -148,10 +148,14 @@ function establishSocket(appName, schema, host, cb, errCb){
 				msgs.forEach(takeMessage)
 				pollServer()
 			}, function(status){
-				if(errCb){
-					var giveUp = errCb(status)
-					if(giveUp){
-						return
+				if(status === 504){
+					//just a timeout, no problem for long polling
+				}else{
+					if(errCb){
+						var giveUp = errCb(status)
+						if(giveUp){
+							return
+						}
 					}
 				}
 				setTimeout(pollServer, 2000)//TODO use backoff?

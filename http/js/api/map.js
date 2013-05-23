@@ -106,8 +106,6 @@ MapHandle.prototype.each = function(cb){
 			Object.keys(this.obj).forEach(function(key){
 				var idOrValue = local.obj[key];
 				
-				//var k = local.apiCache[key];
-				//if(k === undefined) k = local.getObjectApi(key);
 				var k = local.getObjectApi(parseInt(key));
 				k.prepare()
 
@@ -118,6 +116,22 @@ MapHandle.prototype.each = function(cb){
 					cb(k, a);
 				}else{
 					cb(k, idOrValue)
+				}
+			})
+		}else if(this.schema.type.value.type === 'object'){
+			Object.keys(this.obj).forEach(function(key){
+				var idOrValue = local.obj[key];
+				//console.log(key + ' ' + JSON.stringify(Object.keys(local.obj)))
+				_.assertDefined(idOrValue)
+				if(typeof(idOrValue) === 'number'){
+					var a = local.apiCache[idOrValue];
+					if(a === undefined) a = local.getObjectApi(id);
+					a.prepare()
+					cb(key, a);
+				}else{
+					//_.errout('TODO: ' + JSON.stringify(local.schema));
+					idOrValue.prepare()
+					cb(key, idOrValue)
 				}
 			})
 		}else{
@@ -139,83 +153,15 @@ MapHandle.prototype.each = function(cb){
 }
 
 MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
-	//this.log('adjust map path ' + key)
-	//console.log('adjust map path ' + key)
+
 	_.assertDefined(key)
-	/*var remainingCurrentPath = this.parent.adjustPath(this.part)
-	if(remainingCurrentPath.length === 0){
-		//this.log('zero')
-		//console.log('zero')
-		this.persistEdit(this.keyOp, {key: key})
-		return []
-	}else if(remainingCurrentPath[0] !== key){
-		//this.log('different')
-		//console.log('different')
-		if(remainingCurrentPath.length > 1){
-			if(remainingCurrentPath.length < 6){
-				//this.log('primitive ascending ' + remainingCurrentPath[0])
-				this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-1)], {})
-			}else{
-				this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
-			}
-		}else{
-			//this.log('reselecting')
-			//console.log('reselecting')
-		}
-		this.persistEdit(this.keyReOp, {key: key})
-		return []
-	}else{
-		//this.log('same')
-		return remainingCurrentPath.slice(1)
-	}*/
+
 	
 	this.adjustTopObjectToOwn()
 	this.adjustCurrentObject(this.getImmediateObject())
 	this.adjustCurrentProperty(this.part)
 	this.adjustCurrentKey(key, this.keyOp)
 }
-/*
-MapHandle.prototype.adjustPath = function adjustMapPath(key){
-	if(this.schema.type.value.type === 'primitive'){
-		_.assertDefined(key)
-		var remainingCurrentPath = this.parent.adjustPath(this.part)
-		if(remainingCurrentPath.length === 0){
-			//this.log('zero')
-			//console.log('zero')
-			this.persistEdit(this.keyOp, {key: key})
-			return []
-		}else if(remainingCurrentPath[0] !== key){
-			//this.log('different')
-			//console.log('different')
-			if(remainingCurrentPath.length > 1){
-				if(remainingCurrentPath.length < 6){
-					//this.log('primitive ascending ' + remainingCurrentPath[0])
-					this.persistEdit(editCodes['ascend'+(remainingCurrentPath.length-1)], {})
-				}else{
-					this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length-1})
-				}
-			}else{
-				//this.log('reselecting')
-				//console.log('reselecting')
-			}
-		
-			this.persistEdit(editCodes['re'+this.keyOp], {key: key})
-			return []
-		}else{
-			//this.log('same')
-			return remainingCurrentPath.slice(1)
-		}
-	}else{
-		//this.log('adjust map path ' + key)
-		//console.log('adjust map path ' + key)
-
-		var remainingCurrentPath = this.parent.adjustPath(this.part)
-		if(remainingCurrentPath.length !== 0){
-			this.persistEdit(editCodes.ascend, {many: remainingCurrentPath.length})
-		}
-		return []
-	}
-}*/
 MapHandle.prototype.del = function(key){
 
 	this.adjustPathLocal(key)
@@ -298,7 +244,7 @@ MapHandle.prototype.has = function(desiredKey){
 	if(this.obj === undefined) return false;
 	return this.obj[desiredKey] !== undefined;
 }
-
+/*
 MapHandle.prototype.values = function(){
 	_.assertLength(arguments, 0)
 	var keys = Object.keys(this.obj)
@@ -311,7 +257,7 @@ MapHandle.prototype.values = function(){
 		}
 	}
 	return values
-}
+}*/
 
 MapHandle.prototype.getObjectValue = function(id){
 	_.assert(this.schema.type.value.type === 'object')
@@ -339,6 +285,7 @@ MapHandle.prototype.get = function(desiredKey){
 	if(this.schema.type.value.type === 'object'){
 		if(_.isInteger(idOrValue)){
 			var a = this.getObjectApi(idOrValue, this);
+			a.prepare()
 			return a;
 		}else{
 			idOrValue.prepare()

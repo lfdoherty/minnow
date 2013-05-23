@@ -14,6 +14,7 @@ exports.index = function(config, done){
 					var values = c.index.value('tall')
 					var v2 = c.index.value('old')
 					var v3 = c.index.value('young')
+					
 
 					if(values === undefined || v2 === undefined || v3 === undefined) return
 					
@@ -54,7 +55,7 @@ exports.removeValue = function(config, done){
 					
 					if(!gotFull) return
 					
-					//console.log('count: ' + c.index.count())
+					console.log('count: ' + c.index.count())
 					//console.log(JSON.stringify(c.toJson()))
 					if(c.index.count() !== 2) return
 
@@ -153,3 +154,42 @@ exports.reverseIndexDedup = function(config, done){
 	})
 }
 
+
+exports.objectMultimap = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+				if(err) throw err
+			
+				done.poll(function(){
+				
+					console.log(JSON.stringify(c.objectIndex.keys()) + ' ' + JSON.stringify(c.toJson()))
+					
+					if(c.objectIndex.count() === 2){
+						var worked = false
+						c.objectIndex.get('sue').each(function(e){
+							if(e.name.value() === 'jim'){
+								_.assertEqual(e.tags.count(), 2)
+								worked = true
+							}
+						})
+						if(!worked) return
+						//_.assertEqual(c.objectIndex.get('sue').tags.count(), 2)
+						done()
+						return true
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+
+						var a = v.make('entity', {name: 'jim', tags: ['young', 'tall']})
+						var b = v.make('entity', {name: 'mary', tags: ['old', 'tall'], refs: [a]})
+						v.make('entity', {name: 'sue', tags: ['young', 'short'], refs: [a,b]})
+					})
+				})
+				
+			})
+		})
+	})
+}

@@ -53,7 +53,7 @@ reconnect 10
 	connectionId string 1
 	manyServerMessagesReceived int 2
 	*/
-originalConnection 11
+//originalConnection 11
 
 
 syncIdUpTo 12

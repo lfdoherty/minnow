@@ -105,8 +105,8 @@ function serializeViewObject(w, codes, writersByCode, list){
 		var e = list[j]
 		_.assertInt(e.op)
 		w.putByte(e.op)//codes[e.op])
-		_.assertInt(e.editId)
-		w.putInt(e.editId)
+		//_.assertInt(e.editId)
+		w.putInt(1010)//e.editId)
 		try{
 			//console.log(JSON.stringify(writersByCode))
 			writersByCode[e.op](w, e.edit)

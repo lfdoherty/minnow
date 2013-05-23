@@ -50,30 +50,6 @@ schema.addFunction('each', {
 	minParams: 2,
 	maxParams: 2,
 	callSyntax: 'each(collection,macro)',
-	macros: {1: 1},
-	computeAsync: function(z, cb, input, macro){
-		_.assertFunction(cb)
-		
-		var results = []
-		var cdl = _.latch(input.length, function(){
-		//	console.log('each done: ' + JSON.stringify(results) + ' from ' + JSON.stringify(input))
-			cb(macro.mergeResults(results))
-		})
-		//var n = 0
-		//var t = 0
-		input.forEach(function(v){
-			//console.log('getting macro value: ' + v)
-			//++n
-			macro.get(v, function(vs){
-				//++t
-				//console.log(v + ': ' + vs)
-				if(vs !== undefined){
-					results.push(vs)
-				}
-				cdl()
-			})
-		})
-	},
 	computeSync: function(z, input, macro){
 		
 		var results = []
@@ -86,7 +62,9 @@ schema.addFunction('each', {
 				results.push(vs)
 			}
 		}
-		return macro.mergeResults(results)
+		var res = macro.mergeResults(results)
+		//console.log('each ' + JSON.stringify(input) + '-> ' + JSON.stringify(res))
+		return res
 	}
 })
 

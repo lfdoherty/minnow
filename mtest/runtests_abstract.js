@@ -300,7 +300,7 @@ function moreCont(doneCb){
 		
 		var polls = []
 		done.poll = function(f){
-			var ci=setInterval(wf,10);
+			var ci=setInterval(wf,50);
 			function wf(){
 				try{
 					var res = f()

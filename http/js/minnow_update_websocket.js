@@ -36,8 +36,8 @@ if(WebSocket === undefined){
 }
 
 
-function establishSocket(appName, schema, host, cb){
-	if(arguments.length !== 4) throw new Error(arguments.length)
+function establishSocket(appName, schema, host, cb, errCb, closeCb){
+	if(arguments.length !== 6) throw new Error(arguments.length)
 	
 	var closed = false
 	var connected = false
@@ -59,6 +59,13 @@ function establishSocket(appName, schema, host, cb){
 		msgBuf = undefined
 	}
 	
+	function heartbeat(){
+		ws.send('heartbeat');
+	}
+	
+	var heartbeatHandle = setInterval(function(){
+		heartbeat()
+	}, 30000);
 	
 	function send(msg){
 		msg = JSON.stringify(msg)
@@ -72,6 +79,12 @@ function establishSocket(appName, schema, host, cb){
 	
 	ws.onerror = function(err) {
 		console.log('error: ' + err)
+		errCb(err)
+	}
+	
+	ws.onclose = function(){
+		console.log('websocket closed')
+		closeCb()
 	}
 	
 	var api

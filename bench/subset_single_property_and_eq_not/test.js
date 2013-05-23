@@ -40,17 +40,10 @@ function testAgeThreshold(minnow, port, done){
 				if(err) throw err
 				
 				makePartially(v)
-				//makeFully(v)
 				console.log('done making')
 			})
 		})
 		
-	}
-}
-
-function makeFully(v){
-	for(var i=0;i<N;++i){
-		v.make('person', {age: rand(Math.round(1/RATIO))}, true)
 	}
 }
 
@@ -86,6 +79,6 @@ function run(){
 		})
 	})
 	
-	//},15000)
+	//},30000)
 }
 

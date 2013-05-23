@@ -846,35 +846,6 @@ SyncApi.prototype.getFullSchema = function(){return this.schema;}
 SyncApi.prototype.setEditingId = function(editingId){
 	this.editingId = editingId;
 }
-/*
-SyncApi.prototype.createFork = function(source, cb){
-	_.assertLength(arguments, 2)
-	_.assertObject(source)
-
-	var temporary = this.makeTemporaryId()
-	
-	var edits = this.sh.makeFork(source, cb, temporary)
-	
-//	console.log('edits: ' + JSON.stringify(edits))
-
-	var oldHandle = this.objectApiCache[this.currentObjectId]
-	if(oldHandle){
-		oldHandle.currentPath = undefined
-	}
-	
-	this.currentObjectId = temporary//TODO only if !forget?
-
-	var forget = false//TODO forgettable forks?
-		
-	if(!forget){
-		var t = source.typeSchema//this.schema[typeName]
-		var n = new TopObjectHandle(this.schema, t, edits, this, temporary, source);
-		//source.maintainFork(n) //TODO
-		//console.log('created temporary lookup: ' + temporary)
-		this.objectApiCache[temporary] = n;
-		return n
-	}
-}*/
 
 SyncApi.prototype.copyExternalObject = function(obj, forget, cb){
 	_.assertLength(arguments, 3)

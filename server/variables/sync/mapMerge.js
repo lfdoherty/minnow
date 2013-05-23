@@ -31,9 +31,12 @@ var log = require('quicklog').make('map-merge')
 
 exports.compute = function(paramValues){
 
+	console.log('mapMerge ' + JSON.stringify([paramValues]))
+
 	var results = {}
 	for(var i=paramValues.length-1;i>=0;--i){//we go backwards so that the first map overrides later maps
 		var a = paramValues[i]
+		if(!a) continue
 		var keys = Object.keys(a)
 		for(var j=0;j<keys.length;++j){
 			var k = keys[j]
@@ -41,7 +44,7 @@ exports.compute = function(paramValues){
 		}
 	}
 
-	log('mapMerge ' + JSON.stringify(results))
+	console.log('mapMerge ' + JSON.stringify([paramValues, results]))
 	return results
 }
 

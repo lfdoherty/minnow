@@ -17,7 +17,10 @@ schema.addFunction('now', {
 	//implementation: nowMaker,
 	minParams: 1,
 	maxParams: 1,
-	callSyntax: 'now(refresh-macro)'
+	callSyntax: 'now(refresh-macro)',
+	computeSync: function(){
+		_.errout('tODO')
+	}
 })
 
 function stub(){}

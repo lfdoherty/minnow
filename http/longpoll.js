@@ -15,14 +15,14 @@ var abstract = require('./abstract')
 var longpollImpl = require('./longpoll_impl')
 
 
-exports.load = function(app, appName, schema, identifier, viewSecuritySettings, minnowClient, syncHandleCreationListener){
+exports.load = function(app, appName, prefix, schema, identifier, viewSecuritySettings, minnowClient, syncHandleCreationListener){
 
 	_.assertString(appName)
 	_.assertFunction(minnowClient.make)
 	
 	if(syncHandleCreationListener !== undefined) _.assertFunction(syncHandleCreationListener)
 
-	var impl = longpollImpl.make(app, appName, identifier)
+	var impl = longpollImpl.make(app, appName, prefix, identifier)
 
 	abstract.load(schema, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl)//app, appName, schema, identifier, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl)
 

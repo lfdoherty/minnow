@@ -1,7 +1,9 @@
 
+var _ = require('underscorem')
 var log = require('quicklog').make('minnow/longpoll')
 
-exports.make = function(app, appName, identifier){
+exports.make = function(app, appName, prefix, identifier){
+	_.assertLength(arguments, 4)
 
 	var userTokenBySyncId = {}
 

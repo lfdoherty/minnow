@@ -16,10 +16,10 @@ genc() 101
 	s one(*container) 1
 	
 valuesView() 102
-	vs each(*entity,{~.data.values}) 1
+	vs each(*entity,{values(~.data)}) 1
 
 innerCv(c container){
-	each(c.members.values, {~.data.values})
+	each(values(c.members), {values(~.data)})
 }
 containerValuesView() 104
 	vs each(*container, {innerCv(~)}) 100

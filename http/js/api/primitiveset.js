@@ -107,9 +107,13 @@ PrimitiveSetHandle.prototype.changeListener = function(subObj, key, op, edit, sy
 		return this.emit(edit, 'add')
 	}else if(lookup.isPrimitiveRemoveCode[op]){//op.indexOf('remove') === 0){
 		var i = this.obj.indexOf(edit.value)
-		this.obj.splice(i, 1)
+		if(i !== -1){
+			this.obj.splice(i, 1)
 
-		return this.emit(edit, 'remove', edit.value)
+			return this.emit(edit, 'remove', edit.value)
+		}else{
+			console.log('WARNING: got remove for value not in set: ' + edit.value)
+		}
 	}else{
 		_.errout('@TODO implement op: ' + op + ' ' + JSON.stringify(edit));
 	}

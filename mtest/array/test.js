@@ -7,9 +7,10 @@ exports.emptyArray = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('general', function(err, c){
+				console.log('got general view')
 			
 				done.poll(function(){
-					//console.log(JSON.stringify(c.toJson()))
+					console.log(JSON.stringify(c.toJson()))
 					if(c.has('names') && c.names.size() === 2){
 						done()
 						return true
@@ -18,6 +19,8 @@ exports.emptyArray = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('empty', function(err, v){
+						console.log('got empty view')
+						//_.errout('here')
 						v.make('entity')
 						var n = v.make('blah')
 						n.names.add('Bill')

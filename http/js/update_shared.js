@@ -1,7 +1,7 @@
 
 var _ = require('underscorem')
 
-var getJson = require('./xhr').getJson
+var getJson = require('./bxhr').getJson
 
 exports.openView = openView
 exports.openViewWithSnapshots = openViewWithSnapshots
@@ -11,7 +11,7 @@ function openView(syncId, api, schema, host, appName, viewName, params, sendFaca
 	//_.assertArray(params)
 
 	var typeCode = schema[viewName].code
-	var viewId = typeCode+':'+JSON.stringify(params)
+	var viewId = ':'+typeCode+JSON.stringify(params)//TODO use real param stringification
 	if(api.hasView(viewId)){
 		//api.getView(viewId)
 		readyCb(undefined, api.getView(viewId))

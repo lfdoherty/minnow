@@ -42,15 +42,15 @@ function sendData(req, res, data, zippedData){
 	}
 }
 
-exports.make = function(appName, schema, local, secureLocal, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
-	_.assertLength(arguments, 8)
+exports.make = function(prefix, appName, schema, local, secureLocal, minnowClient, authenticator, viewSecuritySettings, clientInfoBySyncId){
+	_.assertLength(arguments, 9)
 	_.assertString(appName)
 	_.assertFunction(authenticator)
 	
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
-	var snapPath = '/mnw/snaps/' + appName + '/';
-	var snapPathHistorical = '/mnw/snaps_historical/' + appName + '/';
+	var snapPath = prefix+'/mnw/snaps/' + appName + '/';
+	//var snapPathHistorical = '/mnw/snaps_historical/' + appName + '/';
 	
 	var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))
 	Object.keys(simplifiedSchema).forEach(function(key){
@@ -147,15 +147,15 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 	}
 	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
 	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
-	local.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
-	secureLocal.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
+	//local.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
+	//secureLocal.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
 
 	
 	//local.serveJavascriptFile(exports, 
 	//	__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
 	
 	return {
-		getViewTagsHistorical: function(viewName, params, vars, res, cb){
+		/*getViewTagsHistorical: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
 			
 			console.log('getting view tags historical')
@@ -179,10 +179,12 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 				vars.snapshotIds = snapshotIds;
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = vars.baseTypeCode+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
+				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)//vars.baseTypeCode+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
 				vars.applicationName = appName
 				//vars.mainViewParams = params
 				vars.mainViewHistorical = true
+				
+				vars.UrlPrefix = prefix
 				//vars.httpPort = local.getPort()
 				//vars.httpsPort = secureLocal.getSecurePort()
 				
@@ -195,7 +197,7 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 			
 				cb(vars, result);
 			});
-		},
+		},*/
 		getViewTags: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
 
@@ -236,8 +238,9 @@ exports.make = function(appName, schema, local, secureLocal, minnowClient, authe
 				vars.snapshotIds = snapshotIds;
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = vars.baseTypeCode+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
+				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)//+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
 				vars.applicationName = appName
+				vars.UrlPrefix = prefix
 				//vars.mainViewParams = params
 				//vars.httpPort = local.getPort()
 				//vars.httpsPort = secureLocal.getSecurePort()

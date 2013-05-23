@@ -106,7 +106,8 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 		
 			//_.errout('TODO')
 		
-			var viewId = st.code+':'+paramsStr
+			//var viewId = ':'st.code+paramsStr
+			var viewId = newViewSequencer.viewIdStr(st.code,params)
 			var req = {
 				typeCode: st.code, 
 				//params: JSON.stringify(params), 
@@ -128,9 +129,11 @@ function getSnap(dbSchema, cc, st, type, params, cb){
 	_.assertFunction(cb)
 	
 	_.assertArray(params);
-	var paramsStr = JSON.stringify(params);
+	//var paramsStr = JSON.stringify(params);
 
-	var viewId = st.code+':'+paramsStr
+	//var viewId = ':'+st.code+paramsStr
+	var viewId = newViewSequencer.viewIdStr(st.code,params)
+	var paramsStr = newViewSequencer.paramsStr(params)
 	
 	//console.log(require('util').inspect(st));
 	_.assertInt(st.code);
@@ -374,7 +377,7 @@ function makeClient(host, port, clientCb){
 					cb(err)
 					return
 				}
-				var viewId = st.code+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params)
+				var viewId = newViewSequencer.viewIdStr(st.code,params)//':'+st.code+newViewSequencer.paramsStr(params)//JSON.stringify(params)
 				//console.log('calling back with view: ' + viewId + '+++++++++++++++++++++')
 				api.onEdit(changeListener)
 				/*
@@ -427,20 +430,20 @@ function makeClient(host, port, clientCb){
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
-			setupService: function(name, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener){
+			setupService: function(name, urlPrefix, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener){
 				//_.assertLength(arguments, 5)
-				_.assert(arguments.length >= 6)
-				_.assert(arguments.length <= 7)
+				_.assert(arguments.length >= 7)
+				_.assert(arguments.length <= 8)
 				_.assertFunction(identifier)
 				_.assert(_.isObject(viewSecuritySettings) || _.isFunction(viewSecuritySettings))
 				_.assertNot(serviceIsSetup);
 				serviceIsSetup = true;
-				var lp = longpoll.load(local, name, dbSchema, identifier, viewSecuritySettings, handle, syncHandleCreationListener)
+				var lp = longpoll.load(local, name, urlPrefix, dbSchema, identifier, viewSecuritySettings, handle, syncHandleCreationListener)
 
 				var ws = websocket.load(local, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
 				
-				xhrService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings);
-				return matterhornService.make(name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);
+				xhrService.make(name, urlPrefix, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings);
+				return matterhornService.make(urlPrefix, name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);
 			},
 			snap: function(type, params, cb){
 				var st = dbSchema[type];

@@ -17,6 +17,31 @@ schema.addFunction('versions', {
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'versions(object/s)',
+	computeSync: function(z, input){
+		if(input === undefined){
+			return []
+		}
+		
+		if(_.isArray(input)){
+	
+			var results = []
+			var has = {}
+			/*var cdl = _.latch(input.length, function(){
+				cb(results)
+			})*/
+			input.forEach(function(id){
+				var vs = z.objectState.getVersions(id)
+				vs.forEach(function(v){
+					if(has[v]) return
+					has[v] = true
+					results.push(v)
+				})
+			})
+			return results
+		}else{
+			return z.objectState.getVersions(input)
+		}
+	}/*,
 	computeAsync: function(z, cb, input){
 		if(input === undefined){
 			cb([])
@@ -45,6 +70,6 @@ schema.addFunction('versions', {
 				cb(vs)
 			})
 		}
-	}
+	}*/
 })
 

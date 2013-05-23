@@ -15,6 +15,7 @@ schema.addFunction('filter', {
 	maxParams: 2,
 	callSyntax: 'filter(any,boolean)',
 	computeSync: function(z, v, state){
+		//console.log('filter ' + v + ' ' + state)
 		return state?v:undefined
 	}
 })

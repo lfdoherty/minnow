@@ -44,11 +44,11 @@ macroParameter(minAge3 int) 105
 doIt(minAge2 int,it macro){it(minAge2)}
 macroParameterAgain(minAgeA int) 106
 	oldEnough doIt(minAgeA, allOfIt<*entity>) 1
-
+/*
 
 nowTest() 107
 	beat sub(now({1000}),now({1500})) 1
-
+*/
 tagging 2
 	tags list:string 1
 taggingView(tag string) 110

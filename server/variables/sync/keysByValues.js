@@ -31,10 +31,8 @@ function compute(m){
 		resultKeys.push(kv[0])
 	})
 	
-	//if(resultKeys.length > 5){
-	//	console.log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
-	//	console.log(new Error().stack)
-	//}
+	//console.log('keysByValues('+JSON.stringify(m)+') -> ' + JSON.stringify(resultKeys))
+	//console.log(new Error().stack)
 	
 	return resultKeys
 }

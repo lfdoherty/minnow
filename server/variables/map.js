@@ -110,6 +110,8 @@ schema.addFunction('map', {
 function reduceCompute(z, input, keyMacro, valueMacro, reduceMacro){
 	
 	var state = {}
+	if(!input) return state
+
 	_.assertArray(input)
 	
 	//console.log('reducing map')
@@ -232,6 +234,7 @@ function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
 
 function noReduceCompute(z, input, keyMacro, valueMacro){
 	var state = {}
+	if(!input) return state
 	_.assertArray(input)
 	
 	//console.log(new Error().stack)

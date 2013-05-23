@@ -160,7 +160,14 @@ schema.addFunction('multimap', {
 		})
 	},
 	computeSync: function(z, set, keyMacro, valueMacro){
+		
 		var map = {}
+
+		if(!set){
+			console.log('multimap undefined -> {}')
+			return map
+		}
+
 		var hasMap = {}
 		
 		function putAdd(key, value){
@@ -203,7 +210,7 @@ schema.addFunction('multimap', {
 				}
 			}
 		})
-	//	console.log('map: ' + JSON.stringify(map))
+		//console.log('multimap: ' + JSON.stringify(set) + ' -> ' + JSON.stringify(map))
 		return map
 	}
 })

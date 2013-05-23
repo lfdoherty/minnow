@@ -159,7 +159,7 @@ exports.max = function(config, done){
 			client.view('general', function(err, c){
 			
 				done.poll(function(){
-					//console.log('json: ' + JSON.stringify(c.toJson()))
+					console.log('json: ' + JSON.stringify(c.toJson()))
 					if(c.oldestAge.value() === 22){
 						done()
 						return true
@@ -439,7 +439,7 @@ exports.singlePairedFilterTest = function(config, done){
 						done.poll(function(){
 							var json = pc.adults.toJson()
 							
-							//console.log(JSON.stringify(pc.toJson()))
+							console.log(gotTeenager + ' ' + lostTeenager + ' ' + JSON.stringify(pc.toJson()))
 
 							if(_.detect(json, function(e){return e.name === 'teenager' && e.age === 18})){
 								gotTeenager = true

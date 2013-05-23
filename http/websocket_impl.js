@@ -23,7 +23,7 @@ exports.make = function(authenticateByToken, local, secureLocal){
 		},
 		exposeBeginSync: function(cb, endCb){
 
-			wss = new WebSocketServer({server: local.getSecureServer()/*, path: '/websocket'*/})
+			wss = new WebSocketServer({server: local.getSecureServer(), path: '/dev/ws/'})
 			
 			wss.on('error', function(err){
 				console.log('ERROR: ' + err)
@@ -69,11 +69,21 @@ exports.make = function(authenticateByToken, local, secureLocal){
 
 								senders[syncId] = send
 
-								ws.send(JSON.stringify([{syncId: syncId}]))
-								authBuffer.forEach(send)
+								try{
+									ws.send(JSON.stringify([{syncId: syncId}]))
+									authBuffer.forEach(send)
+								}catch(e){
+									console.log('send error: ' + e)
+									console.log('shutting down websocket connection')
+									try{
+										ws.close()
+									}catch(e){
+									}
+								}
 							})
 						})
 					}else{
+						if(data === 'heartbeat') return
 						var msg = JSON.parse(data)
 						//console.log('data: ' + data)
 						receive(msg)

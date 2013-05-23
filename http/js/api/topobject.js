@@ -674,6 +674,8 @@ TopObjectHandle.prototype.setForked = function fork(objHandle){
 	//this.adjustTopObjectToOwn()
 	//this.persistEdit(editCodes.refork, {sourceId: sourceId})
 	
+	//console.log('set forked for ' + this.objectId + ' to ' + sourceId)
+	
 	//this._rebuild()
 	this._applyRefork(sourceId)
 }
@@ -787,6 +789,9 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	s.inputSyncId=-1
 	s.inputObject = undefined
 	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
+	
+	//console.log('realEdits: ' + JSON.stringify(realEdits))
+	
 	realEdits.forEach(function(e, index){
 		if(e.op === editCodes.setSyncId){
 			s.inputSyncId = e.edit.syncId
@@ -1023,25 +1028,38 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 		this.inputSubObject = realId
 	}
 	if(this.objectApiCache && this.objectApiCache[temporaryId]){
-		this.objectApiCache[realId] = this.objectApiCache[temporaryId]
+		var obj = this.objectApiCache[temporaryId]
+		obj.objectId = realId
+		this.objectApiCache[realId] = obj
 		this.objectApiCache[temporaryId] = undefined
+		//console.log('found object for reification in top object ' + obj.type() + ' ' + this.objectId + ' cache: ' + temporaryId + ' -> ' + realId)
 	}
 	
 
 	var i=this.lastReificationIndex||0
+	var lastReified=i//the reification position should always be monotonically increasing
 	for(;i<this.edits.length;++i){
 		var e = this.edits[i]
 		if(e.op === editCodes.addNew){
 			if(temporaryId !== e.edit.temporary) continue
 			e.op = editCodes.addedNew
 			e.edit = {id: realId, typeCode: e.edit.typeCode}
+			lastReified = i
 		}else if(e.op === editCodes.selectObject){
-			if(e.edit.id  !== temporaryId) continue
+			if(e.edit.id !== temporaryId) continue
 			e.edit.id = realId
+			lastReified = i
 		}
 	}
+	
+	/*if(this.objectId === 21){
+		console.log(this.lastReificationIndex + ' ' + JSON.stringify(this.edits.slice(0, this.lastReificationIndex)))
+		console.log(JSON.stringify(this.edits.slice(this.lastReificationIndex)))
+	}*/
 
-	this.lastReificationIndex = this.edits.length-1
+	//TODO optimize by also skipping non-reifiable edits after the last reification
+	
+	this.lastReificationIndex = lastReified//this.edits.length-1
 }
 
 TopObjectHandle.prototype.adjustTopObjectToOwn = function(){

@@ -14,12 +14,13 @@ exports.addNewFromJson = function(config, done){
 				
 				var added = false
 				done.poll(function(){
+					console.log(JSON.stringify(c.toJson()))
 					if(c.s.size() === 1){
-						//console.log('added')
+						console.log('added')
 						added = true
 					}
 					if(added && c.s.size() === 0){
-						//console.log('deleted')
+						console.log('deleted')
 						done()
 					}
 				})

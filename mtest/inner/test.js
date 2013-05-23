@@ -44,14 +44,14 @@ exports.innerToggle = function(config, done){
 					if(c.has('s') && c.s.size() === 1){
 						var d;
 						c.s.each(function(dd){d = dd;})
-						//console.log(tog + ' ' + wasOff + ' ' + JSON.stringify(c.toJson()))
+						console.log(tog + ' ' + wasOff + ' ' + JSON.stringify(c.toJson()))
 						if(!d.has('also')) return
 						//console.log('here')
 						if(tog){
 							if(!d.also.flag.value()){
 								wasOff = true
 							}
-							if(!wasOff){
+							if(wasOff && !d.also.flag.value()){
 								done()
 								return true
 							}

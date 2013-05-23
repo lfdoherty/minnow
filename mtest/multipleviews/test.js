@@ -17,6 +17,9 @@ exports.updateMadeObject = function(config, done){
 					//console.log('MADE ENTITY USING BILL')
 					//_.assertDefined(e1)
 					done.poll(function(){
+					
+						console.log(JSON.stringify([bill.toJson(),e1.toJson()]))
+						
 						if(bill !== e1.ref){
 							throw new Error('invalid handle duplication')
 						}
@@ -32,7 +35,7 @@ exports.updateMadeObject = function(config, done){
 					minnow.makeClient(config.port, function(otherClient){
 						otherClient.view('specific', [e1], function(err, v){
 							_.assert(v.has('e'))
-							console.log(JSON.stringify(v.e.toJson()))
+							console.log('in specific: ' + JSON.stringify(v.e.toJson()))
 							_.assert(v.e.has('ref'))
 							v.e.ref.name.set('ted')
 						})

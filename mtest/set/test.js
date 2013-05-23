@@ -71,6 +71,7 @@ exports.removeNonexistent = function(config, done){
 			
 				var hasRemoved = false
 				done.poll(function(){
+					console.log(JSON.stringify(c.toJson()))
 					if(c.has('s') && c.s.data.size() === 2){
 						c.s.data.remove('test')
 						hasRemoved = true

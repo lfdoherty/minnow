@@ -22,6 +22,9 @@ function makeGetDefaultValue(schema, typeCode, propertyCode){
 
 exports.make = function(schema, ol){
 	
+	
+	var foreignIndex = require('./foreignindex').make()
+	
 	var currentProperty = {}//current property for each object
 	var currentObject = {}
 	var currentSub = {}
@@ -57,6 +60,7 @@ exports.make = function(schema, ol){
 	var attachingEnded
 	
 	var handle = {
+		foreignIndex: foreignIndex,
 		attachIndex: function(typeCode, propertyCode, callback, creationCallback){
 			if(attachingEnded){
 				_.errout('too late to attach an index')
@@ -97,6 +101,8 @@ exports.make = function(schema, ol){
 			//return
 			//if(Math.random() < .0001) console.log(JSON.stringify(propertyChanges).length)
 			//console.log(JSON.stringify([id, editNames[op], edit, editId]))
+			
+			foreignIndex.addEdit(id, op, edit, editId)
 
 			var curId = currentObject[id] || id			
 			var cp = currentProperty[curId.top||curId]

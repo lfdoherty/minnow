@@ -342,7 +342,6 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 		return handle
 	}
 	newStaticBindings.makeReversePropertyIndex = function(objSchema, property){
-		//_.errout('TODO')
 		//console.log(JSON.stringify(preforkedObjSchema))
 
 		var originalIndex = staticBindings.makeReversePropertyIndex(objSchema, property)
@@ -430,26 +429,6 @@ function makePreforkedRel(s, rel, recurseSync, staticBindings){
 
 				
 				return result
-				/*
-				var original = originalIndex.getValueAt(bindings, key, editId)
-				//var preforked = originalIndex.getValueAt(bindings, key, editId)
-				
-				_.assert(key !== 'undefined')
-
-				if(JSON.stringify(preforked) !== JSON.stringify(original)){
-					if(_.isArray(preforked) && original.length === 0){
-						console.log('[] original, returning preforked ' + preforkedObjSchema.name+'.'+property.name + ': ' + JSON.stringify(preforked))
-						return preforked
-					}else if(_.isArray(preforked) && preforked.length === 0){
-						console.log('[] preforked, returning original ' + preforkedObjSchema.name+'.'+property.name + ': ' + JSON.stringify(original))
-						return original
-					}else{
-						_.errout('tODO ' + preforkedObjSchema.name+'.'+property.name + ' ' + key + ' ' + JSON.stringify([original, preforked]))
-					}
-				}
-				
-				console.log('same, returning original ' + preforkedObjSchema.name+'.'+property.name + ': ' + JSON.stringify(original))
-				return original*/
 			},
 			getValueChangesBetween: function(bindings, key, startEditId, endEditId){
 				_.assertLength(arguments, 4)

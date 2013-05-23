@@ -1,8 +1,5 @@
 /* 
-	Time to beat (N,K,T ms): (200000,10,21219)
-	
-	since QER:
-	(200*1000,10,22376)
+	Time to beat (N,K,T ms): (200000,10,14959)
 */
 
 var N = 200000

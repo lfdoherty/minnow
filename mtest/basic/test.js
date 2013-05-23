@@ -134,7 +134,7 @@ exports.longConnection = function(config, done){
 					if(N === madeCount){
 						setTimeout(function(){
 							if(handle.objects.size() !== N){
-								done.fail('too many objects (replay error?): ' + handle.objects.size())
+								done.fail('wrong number of objects (replay error?): ' + handle.objects.size())
 							}else{
 								done()
 							}

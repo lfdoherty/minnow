@@ -12,6 +12,21 @@ schema.addFunction('max', {
 	minParams: 1,
 	maxParams: -1,
 	callSyntax: 'max(number|collection:number,...)',
+	computeSync: function(z){
+		var rest = Array.prototype.slice.call(arguments, 1)
+		var max
+		rest.forEach(function(ns){
+			if(_.isArray(ns)){
+				ns.forEach(function(v){
+					if(max === undefined || max < v) max = v
+				})
+			}else{
+				if(max === undefined || max < ns) max = ns
+			}
+		})
+		//console.log('max: ' + max + ' ' + JSON.stringify(rest))
+		return max
+	},
 	computeAsync: function(z, cb){
 		var rest = Array.prototype.slice.call(arguments, 2)
 		
@@ -49,6 +64,21 @@ schema.addFunction('min', {
 			}
 		})
 		cb(min)
+	},
+	computeSync: function(z){
+		var rest = Array.prototype.slice.call(arguments, 1)
+		
+		var min
+		rest.forEach(function(ns){
+			if(_.isArray(ns)){
+				ns.forEach(function(v){
+					if(min === undefined || min > v) min = v
+				})
+			}else{
+				if(min === undefined || min > ns) min = ns
+			}
+		})
+		return min
 	}
 })
 

@@ -116,7 +116,6 @@ schema.addFunction('traverse', {
 			if(pv === undefined) return []
 		}
 		
-		//console.log('computing traverse: ' + JSON.stringify([rest, maxDepth]))
 		
 		var results = []
 		var has = {}
@@ -162,6 +161,9 @@ schema.addFunction('traverse', {
 				}
 			}
 		}
+
+		//console.log('computing traverse: ' + JSON.stringify([rest, maxDepth, results]))
+
 		return results
 	}
 })

@@ -5,8 +5,8 @@ u.reset(run)
 
 var N = 1*1000*1000
 
-//N=100K in 8082ms
-//N=1M in 98252ms
+//N=100K in 7609ms
+//N=1M in 73674ms
 
 try{
 var agent = require('webkit-devtools-agent');

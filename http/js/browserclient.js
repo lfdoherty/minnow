@@ -106,7 +106,7 @@ function loadMinnowView(){
 	
 	console.log('version loaded: ' + snapshot.version);
 
-	var host = window.location.protocol + '//' + window.location.host// + ':' + minnowSocketPort
+	var host = window.location.protocol + '//' + window.location.host + UrlPrefix+'/ws/'// + ':' + minnowSocketPort
 	var viewName = schema._byCode[baseTypeCode].name
 
 	update.establishSocket(applicationName, schema, host, function(syncHandle){
@@ -126,6 +126,12 @@ function loadMinnowView(){
 			//});
 
 		}, window.mainViewHistorical?1:undefined)
+	}, function(err){
+	}, function(){
+		//window.location.reload()
+		setTimeout(function(){
+			window.document.body.innerHTML = '<h3>Lost Connection to Server</h3>'
+		},5000)
 	})
 }
 

@@ -20,6 +20,7 @@ exports.plugins = {
 	intersection: require('./intersection'),
 	relativeComplement: require('./relativeComplement'),
 	mapValue: require('./mapValue'),
+	values: require('./values'),
 	cast: require('./cast'),
 	concat: require('./concat'),
 	length: require('./length'),

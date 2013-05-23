@@ -128,19 +128,21 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 			//console.log('done: ' + expr.name)
 		}else{
 			//if(expr.name === 'specialRoot') console.log('unfound binding: ' + expr.name)
-			if(expr.name.charAt(0) === '~'){
+			if(_.isString(expr.name) && expr.name.charAt(0) === '~'){
 				if(expr.name.length === 1){
 					if(implicits[0] === undefined) _.errout('tried to use ~ param outside of macro')
-					_.assertString(implicits[0])
+					//_.assertString(implicits[0])
 					return {type: 'param', name: implicits[0]}
 				}else{
 					var num = parseInt(expr.name.substr(1))
 					--num
-					_.assertString(implicits[num])
+					//_.assertString(implicits[num])
 					return {type: 'param', name: implicits[num]}
 				}
 			}else{
-				if(isNaN(parseInt(expr.name.substr(1,1)))) _.errout('missing binding: ' + JSON.stringify(expr) + '(' + expr.name.substr(1,1) + ')')
+				if(_.isString(expr.name) && isNaN(parseInt(expr.name.substr(1,1)))){
+					_.errout('missing binding: ' + JSON.stringify(expr) + '(' + expr.name.substr(1,1) + ')')
+				}
 			}
 			
 			return expr;
@@ -288,10 +290,12 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 	}
 }
 
+var implicitCounter = 1
 function makeImplicits(){
 	var newImplicits = []
 	for(var i=0;i<10;++i){
-		newImplicits.push('p'+(i+1)+'_'+Math.random())
+		newImplicits.push(implicitCounter)//'p'+(i+1)+'_'+Math.random())
+		++implicitCounter
 	}
 	return newImplicits
 }
@@ -1520,9 +1524,9 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 		var str = ''
 		if(rel.type === 'view'){
 			if(rel.view === 'property' && rel.params[1].type === 'param'){
-				str += tabs(tabDepth) + stringizeType(rel.params[1].schemaType)+'^'+rel.params[1].name + '.' + rel.params[0].value + ' ' + (rel.sync?'s':'a') + '\n'
+				str += tabs(tabDepth) + stringizeType(rel.params[1].schemaType)+'^'+rel.params[1].name + '.' + rel.params[0].value + ' ' /*+ (rel.sync?'s':'a') */+ '\n'
 			}else{
-				str += tabs(tabDepth) + rel.view + ' ' + (rel.sync?'s':'a') + '\n'
+				str += tabs(tabDepth) + rel.view/* + ' ' + (rel.sync?'s':'a')*/ + '\n'
 				rel.params.forEach(function(p, index){
 					str += /*tabs(tabDepth) + */stringizeView(p, tabDepth+1,viewSchema)// + //'\n'
 				})
@@ -1541,7 +1545,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 					if(i > 0) str += ', '
 					str += rel.implicits[i]
 				}
-				str += '] ' + (rel.sync?'s':'a') + '\n'
+				str += '] '/* + (rel.sync?'s':'a')*/ + '\n'
 				//while(body.charAt(0) === '\t') body = body.substr(1)
 				str += body
 				//str += '}'
@@ -1549,7 +1553,7 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 		}else if(rel.type === 'param'){
 			str += tabs(tabDepth) + stringizeType(rel.schemaType)+'^'+rel.name+'\n'
 		}else if(rel.type === 'let'){
-			str += tabs(tabDepth) + 'let ' + rel.name + ' be ' + (rel.sync?'s':'a') + '\n'
+			str += tabs(tabDepth) + 'let ' + rel.name + ' be '/* + (rel.sync?'s':'a')*/ + '\n'
 			str += stringizeView(rel.expr, tabDepth+1, viewSchema)
 			//str += tabs(tabDepth) + 'for\n'
 			str += stringizeView(rel.rest, tabDepth+1, viewSchema)

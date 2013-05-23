@@ -1,0 +1,8 @@
+#!/bin/bash
+K=200;
+for (( c=1; c<=$K; c++ ))
+do
+	wget --no-check-certificate --header "Cookie: SID=hGBAAPtip1BxtRVdvvrkkB|42" "https://localhost:8385/mnw/snaps/nstudy2/7iEFJpBn01GVNJ6X_JLTVg/160/9301/-1/42;260;262" -O /dev/null &
+done
+
+

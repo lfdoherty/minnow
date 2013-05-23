@@ -3,6 +3,8 @@ var _ = require('underscorem')
 
 var minnow = require('./../../client/client')//this is the minnow include
 
+/*
+
 exports.getOriginal = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(c){
@@ -285,3 +287,5 @@ exports.mappingObjectKeys = function(config, done){
 		})
 	})
 }
+
+*/

@@ -292,25 +292,45 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					}
 				}
 				
-				function includeObjectCb(id, cb){
+				function includeObjectCb(id, edits){//cb){
 					_.assertInt(id)
-					_.assertFunction(cb)
+					//_.assertArray(edits)
+					//_.assertBuffer(objEditsBuffer)
+					
+					if(alreadySent[id]){
+						return;
+					}
+					
+					var pointer = {got: false, edits: []}
+					sentBuffer.push(pointer)
+					/*objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
+						pointer.edits.push({id: objId, edits: objEditsBuffer})
+						//pointer.got = true
+						//advanceSentBuffer()
+					}, function(){
+						
+							//cb()
+							pointer.got = true
+							advanceSentBuffer()
+						})*/
+						
+					objectState.getObjectState(id, function(objEditsBuffer){
+						pointer.edits.push({id: id, edits: objEditsBuffer})
+						pointer.got = true
+						advanceSentBuffer()
+					})
+					
+					/*_.assertFunction(cb)
 					_.assert(id >= 0)
 					if(alreadySent[id]){
 						//console.log('already sent: ' + id)
 						cb()
 						return;
 					}else{
-						//console.log('including: ' + id)
 						_.assert(objectState.isTopLevelObject(id))
-						//log(syncId + ' including object: ' + id + ' editId: ' + editId)
-						//TODO buffer for streaming all the edits for the object and any objects it depends on
 						var pointer = {got: false, edits: []}
 						sentBuffer.push(pointer)
-						//_.assertInt(editId)
 						_.assertInt(id)
-						//process.nextTick(function(){
-						//	if(ended) return
 						
 						//console.log('streaming versions: ' + id)
 						objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
@@ -325,7 +345,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 							pointer.got = true
 							advanceSentBuffer()
 						})
-					}				
+					}*/				
 				}
 				function alreadyHasCb(id, editId){
 					alreadySent[id] = true

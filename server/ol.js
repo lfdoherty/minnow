@@ -13,7 +13,8 @@ var pathsplicer = require('./pathsplicer')
 var bin = require('./../util/bin')
 var olcache = require('./olcache')
 
-var IntIntMap = require('intintmap').IntIntMap
+var IntIntMap = require('primitivemap').IntIntMap
+var IntLongMap = require('primitivemap').IntLongMap
 
 function serializeEdits(fp, edits){
 	var w = fparse.makeSingleBufferWriter()
@@ -178,31 +179,28 @@ function Ol(schema){
 	
 	this.creationEditIds = {}
 	
-	//this.propertyIndexes = {}
-
 	//all int->int maps here	
+
 	/*
-	this.objectCurrentSyncId = {}
-	this.objectTypeCodes = {}
-	this.syncIdsByEditId = {}
-	this.lastEditId = {}
-	*/
-	/*
-	this.objectCurrentSyncId = new IntIntMap()
 	this.objectTypeCodes = new IntIntMap()
-	this.syncIdsByEditId = new IntIntMap()
-	this.lastEditId = new IntIntMap()
+	
 	*/
-	this.objectCurrentSyncId = new FakeIntIntMap()
+	
+	this.syncIdsByEditId = new IntIntMap()
+	this.timestamps = new IntLongMap()
+	this.objectCurrentSyncId = new IntIntMap()
+	this.lastEditId = new IntIntMap()
+	
+	//this.objectCurrentSyncId = new FakeIntIntMap()
 	this.objectTypeCodes = new FakeIntIntMap()
-	this.syncIdsByEditId = new FakeIntIntMap()
-	this.lastEditId = new FakeIntIntMap()
+	//this.syncIdsByEditId = new FakeIntIntMap()
+	//this.lastEditId = new FakeIntIntMap()
 	
 	//this.innerParentIndex = {}
 	
 	this.schema = schema
 	
-	this.timestamps = {}//TODO optimize
+	//this.timestamps = {}//TODO optimize
 	
 	//this.forks = {}
 	
@@ -222,9 +220,11 @@ function Ol(schema){
 	}
 	
 	var tcst = this.typeCodeSubTypes = {}
+	var superTypes = this.typeCodeSuperTypes = {}
 	var local = this
 	_.each(schema._byCode, function(objSchema){
 		var list = tcst[objSchema.code] = [objSchema.code]
+		var superList = superTypes[objSchema.code] = [objSchema.code]
 		local.idsByType[objSchema.code] = []
 		local.creationEditIdsByType[objSchema.code] = []
 		local.destructionEditIdsByType[objSchema.code] = []
@@ -233,6 +233,13 @@ function Ol(schema){
 			Object.keys(objSchema.subTypes).forEach(function(stName){
 				if(schema[stName]){//might be a contract keyword like 'readonly'
 					list.push(schema[stName].code)
+				}
+			})
+		}
+		if(objSchema.superTypes){
+			Object.keys(objSchema.superTypes).forEach(function(stName){
+				if(schema[stName]){//might be a contract keyword like 'readonly'
+					superList.push(schema[stName].code)
 				}
 			})
 		}
@@ -263,12 +270,20 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	this.objectCurrentSyncId.put(id,syncId)
 	_.assertInt(edit.typeCode)
 	//console.log('edit.typeCode: ' + edit.typeCode)
-	this.idsByType[edit.typeCode].push(this.idCounter)
+	//this.idsByType[edit.typeCode].push(this.idCounter)
 	_.assertInt(edit.following)
 	//console.log(edit.typeCode + ' following: ' + edit.following)
 	this.creationEditIdsByType[edit.typeCode].push(editId+edit.following)
 
 	this.creationEditIds[id] = editId+edit.following
+	
+	var sts = this.typeCodeSuperTypes[edit.typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		this.idsByType[tc].push(id)
+	}	
+	
+	//console.log(JSON.stringify(this.idsByType))
 	
 	this.readers.currentId = this.idCounter
 	this.objectTypeCodes.put(this.idCounter, edit.typeCode)
@@ -354,6 +369,14 @@ Ol.prototype._destroy = function(id,editId){
 	var typeCode = this.objectTypeCodes.get(id)
 	this.destructionEditIdsByType[typeCode].push(editId)
 	this.destructionIdsByType[typeCode].push(id)
+	
+	var sts = this.typeCodeSubTypes[typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		var arr = this.idsByType[tc]
+		arr.splice(arr.indexOf(id), 1)
+		//console.log('removed ' + id + ' ' + JSON.stringify(arr))
+	}
 }
 /*
 Ol.prototype.getPathTo = function(id, cb){
@@ -383,6 +406,16 @@ Ol.prototype._getForeignIdsDuring = function(id, startEditId, endEditId, cb){
 }
 
 Ol.prototype._getForeignIds = function(id, editId, cb){
+
+	if(!cb){
+		var local = this
+		var edits
+		this.get(id, -1, editId, function(es){
+			edits = es
+		})
+		return computeForeignIds(local, edits)
+	}
+		
 	if(editId === -1){
 		cb([])
 		return
@@ -408,6 +441,7 @@ function computeForeignIds(local, edits){
 		if(e.op === editCodes.setExisting || e.op === editCodes.addExisting ||  e.op === editCodes.unshiftExisting || e.op === editCodes.setObject || 
 				e.op === editCodes.putExisting || e.op === editCodes.addAfter){
 			var id = e.edit.id
+			_.assertInt(id)
 			if(!has[id]){
 				ids.push(id)
 				has[id] = true
@@ -415,6 +449,7 @@ function computeForeignIds(local, edits){
 			}
 		}else if(e.op === editCodes.replaceExternalExisting || e.op === editCodes.replaceInternalExisting){
 			var id = e.edit.newId
+			_.assertInt(id)
 			if(!has[id]){
 				ids.push(id)
 				has[id] = true
@@ -422,6 +457,7 @@ function computeForeignIds(local, edits){
 			}
 		}else if(e.op === editCodes.selectObjectKey /*|| e.op === editCodes.reselectObjectKey*/){
 			var id = e.edit.key
+			_.assertInt(id)
 			if(!has[id] && local.isTopLevelObject(id)){
 				ids.push(id)
 				has[id] = true
@@ -436,7 +472,7 @@ function computeForeignIds(local, edits){
 Ol.prototype.close = function(cb){//TODO wait for writing to sync
 	this.olc.close(cb)
 }
-
+/*
 Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertLength(arguments, 4)
 	_.assertInt(startEditId)
@@ -445,6 +481,8 @@ Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optim
 	_.assert(id >= 0)
 
 	++this.stats.getAsBuffer
+	
+	_.errout('here')
 
 	if(startEditId === -1 && endEditId >= this.lastEditId.get(id)){
 		var buf = this.olc.getBinary(id)
@@ -456,6 +494,28 @@ Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optim
 	var buf = w.finish()
 
 	cb(did?buf:undefined)
+}*/
+
+Ol.prototype.getObjectState = function(id, cb){
+	_.assertLength(arguments, 2)
+	//_.assertInt(startEditId)
+	//_.assertInt(endEditId)
+	_.assertInt(id)
+	_.assert(id >= 0)
+
+	++this.stats.getAsBuffer
+	
+	//_.errout('here')
+
+	var buf = this.olc.getBinary(id)
+	cb(buf)
+/*	return
+	}
+	var w = fparse.makeSingleBufferWriter(100)
+	var did = this.olc.serializeBinaryRange(id, startEditId, endEditId, w)
+	var buf = w.finish()
+
+	cb(did?buf:undefined)*/
 }
 
 Ol.prototype.getAll = function(id, cb){//TODO optimize away
@@ -477,15 +537,9 @@ Ol.prototype.getAllIncludingForked = function(id, cb){//TODO optimize away
 	
 	var edits = this.olc.get(id)
 
-	//console.log('getting all including forked')
-	
-	/*if(this.forks[id]){
-		this.getAllIncludingForked(this.forks[id], function(moreEdits){
-			cb(moreEdits.concat(edits))
-		})
-	}else{*/
+
 		cb(edits)
-	//}
+	
 }
 
 Ol.prototype.getPartiallyIncludingForked = function(id, filter, eachCb, doneCb){
@@ -611,6 +665,11 @@ Ol.prototype.getPartially = function(id, filter, eachCb, doneCb){
 	}
 }
 
+Ol.prototype.getObjectEdits = function(id){
+	_.assertInt(id)
+	var edits = this.olc.get(id)
+	return [].concat(edits)
+}
 Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertLength(arguments, 4)
 	_.assertInt(startEditId)
@@ -741,9 +800,9 @@ Ol.prototype.getSyncIds = function(id, cb){
 
 var isPathOp = require('./editutil').isPathOp
 
-Ol.prototype.getVersions = function(id, cb){
+Ol.prototype.getVersions = function(id){//, cb){
+	var versions = []
 	this.get(id, -1, -1, function(edits){
-		var versions = []
 		var has = {}
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
@@ -755,8 +814,9 @@ Ol.prototype.getVersions = function(id, cb){
 				versions.push(version)
 			}
 		}
-		cb(versions, id)
+		//cb(versions, id)
 	})
+	return versions
 }
 Ol.prototype.getVersionsAt = function(id, editId, cb){
 	this.get(id, -1, editId, function(edits){
@@ -778,7 +838,7 @@ Ol.prototype.getVersionsAt = function(id, editId, cb){
 Ol.prototype.getLastVersion = function(id){
 	return this.lastEditId.get(id.top||id)
 }
-
+/*
 Ol.prototype.getLastVersionAt = function(id, editId, cb){//, cb){
 	var last = this.lastEditId.get(id)
 	if(last < editId){
@@ -796,7 +856,7 @@ Ol.prototype.getLastVersionAt = function(id, editId, cb){//, cb){
 			cb(version)
 		})
 	}
-}
+}*/
 
 //note that 'path' is only required for edits that are not path updates
 Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
@@ -824,7 +884,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	//_.assertInt(state.top)
 	//_.assert(state.top > 0)
 	
-	var newEdits = []
+	//var newEdits = []
 	
 	var objCurrentSyncId = this.objectCurrentSyncId.get(id)
 
@@ -841,7 +901,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	this.syncIdsByEditId.put(resEditId, syncId)
 	++this.readers.lastVersionId
 
-	//console.log('PERSISTING(' + id + ') PERSISTING(' + resEditId + '): ' + editNames[op] + ' ' + JSON.stringify(arguments))
+	//console.log(resEditId + ' PERSISTING (' + id + '): ' + editNames[op] + ' ' + JSON.stringify(arguments))
 
 	this.timestamps[resEditId]  = timestamp
 
@@ -1004,6 +1064,7 @@ Ol.prototype.getLatestVersionId = function(){
 Ol.prototype.getMany = function(typeCode){
 	return (this.idsByType[typeCode] || []).length
 }
+/*
 Ol.prototype.getManyAt = function(typeCode, endEditId, cb){
 	var many = 0
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -1032,7 +1093,8 @@ Ol.prototype.getManyAt = function(typeCode, endEditId, cb){
 	}
 	if(cb) cb(many)
 	return many
-}
+}*/
+/*
 Ol.prototype.getAllIdsOfTypeAt = function(typeCode, endEditId, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -1091,7 +1153,7 @@ Ol.prototype.getHistoricalCreationsOfType = function(typeCode, cb){
 	if(cb) cb(res)
 	return res
 }
-
+*/
 function binarySearchNext(arr, value){
   var low = 0, high = arr.length - 1,
       i, comparison;
@@ -1132,6 +1194,7 @@ function selectIdsForEvents(startEditId, endEditId, editIds, ids, res){
 		res.push(id)
 	}
 }
+/*
 Ol.prototype.getIdsDestroyedOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -1146,6 +1209,7 @@ Ol.prototype.getIdsDestroyedOfTypeBetween = function(typeCode, startEditId, endE
 	if(cb) cb(res)
 	return res
 }
+
 Ol.prototype.getIdsCreatedOfTypeBetween = function(typeCode, startEditId, endEditId, cb){
 	var res = []
 	var sts = this.typeCodeSubTypes[typeCode]
@@ -1226,17 +1290,7 @@ Ol.prototype.getExistedAtAndMayHaveChangedDuring = function(typeCode, startEditI
 				res.push(id)
 			}else{
 				//var cid = id
-				/*while(true){
-					var fid = this.forks[cid]
-					if(!fid) break;*/
-					/*lastEditId = this.lastEditId[fid]
-					if(lastEditId > startEditId){
-						res.push(id)
-						break
-					}*//*else{
-						cid = fid
-					}*/
-				//}
+				
 			}
 		}
 	}
@@ -1290,25 +1344,15 @@ Ol.prototype.getSubsetThatChangesBetween = function(ids, startEditId, endEditId,
 	--rem
 	if(rem === 0) cb(subset)	
 }
+*/
 
-Ol.prototype.getAllIdsOfType = function(typeCode, cb){
+Ol.prototype.getAllIdsOfType = function(typeCode){
 	
-	var res = []
-	var sts = this.typeCodeSubTypes[typeCode]
-	for(var j=0;j<sts.length;++j){
-		var tc = sts[j]
-		var ids = this.idsByType[tc] || [];
-		for(var i=0;i<ids.length;++i){
-			var id = ids[i]
-			//if(!this.destroyed[id]){
-				res.push(id)
-			//}
-		}
-	}
-	if(cb) cb(res)
+	var res = this.idsByType[typeCode]//[].concat(this.idsByType[typeCode])
+	//console.log('got by type: ' + typeCode + ': ' + JSON.stringify(res))
 	return res
 }
-
+/*
 Ol.prototype.getAllOfType = function(typeCode, cb){//gets a read-only copy of all objects of that type
 	_.assertLength(arguments, 2)
 	//_.errout('TODO')
@@ -1362,7 +1406,7 @@ Ol.prototype.getAllObjectsOfType = function(typeCode, cb, doneCb){
 		});
 	}
 }
-
+*/
 Ol.prototype.getInitialManySyncIdsMade = function(){
 	return this.readers.manySyncIdsMade
 }

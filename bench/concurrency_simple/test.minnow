@@ -1,0 +1,8 @@
+
+entity 1
+	
+	
+general() 100
+	count count(*entity) 1
+
+

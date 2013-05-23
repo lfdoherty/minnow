@@ -2,10 +2,12 @@
 entity 1
 	tags list:string 1
 	name string 2
-	
+	refs set:entity 3
+
 general() 100
 	index multimap(*entity,{~.tags},{~.name}) 1
 	reverseIndex multimap(*entity,{~.name},{~.tags}) 2
+	objectIndex multimap(*entity,{~.name},{~.refs}) 3
 	//s one(*entity) 1
 	
 empty() 101
