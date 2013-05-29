@@ -179,12 +179,18 @@ TopObjectHandle.prototype.makeHistorical = function(historicalKey){
 
 TopObjectHandle.prototype.asAt = function(editId){
 	//_.errout('TODO')
-	var allowedEdits = []
+	var allowedEdits// = []
+	
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]
-		if(e.editId > editId) break
-		allowedEdits.push(e)
+		if(e.editId > editId){
+			allowedEdits = this.edits.slice(0, i)//.push(e)
+			break
+		}
 	}
+	
+	if(!allowedEdits) allowedEdits = [].concat(this.edits)
+	
 	var copy = new TopObjectHandle(this.schema, this.typeSchema, allowedEdits, this.parent, this.objectId)
 	copy.prepare()
 	copy._isAtCopy = true
@@ -220,6 +226,10 @@ TopObjectHandle.prototype.replay = function(cb){
 	var curObj = this
 	var skip = 0
 	var lastMade
+	
+	//TODO index all properties so that we can retrieve previous values
+	
+	var propertyIndex = {}
 	
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]
@@ -271,6 +281,8 @@ TopObjectHandle.prototype.replay = function(cb){
 		
 		if(!p) continue
 		
+		var pkey = curObj.id()+':'+p.code
+		
 		if(e.op === editCodes.setSyncId){
 		}else if(e.op === editCodes.initializeUuid){
 		}else if(e.op === editCodes.selectProperty){
@@ -292,38 +304,52 @@ TopObjectHandle.prototype.replay = function(cb){
 		}else if(e.op === editCodes.setObject){
 			if(!p) 
 			//_.errout('TODO: ' + e.edit.id)
-			var prev
+			/*var prev
 			var subjAt = curObj.asAt(e.editId-1)
 			if(subjAt.has(p.name)){
 				var prevProp = subjAt[p.name]
 				prev = prevProp.asAt(e.editId-1)
-			}
+			}*/
+			var prev = propertyIndex[pkey]
 			
 			var obj = this.getObjectApi(e.edit.id)
 			obj.prepare()
-			cb(curObj.asAt(e.editId), 'set', p.name, e.editId, obj.asAt(e.editId), prev)
+			propertyIndex[pkey] = obj
+			cb(curObj,'set', p.name, e.editId, obj, prev)
 		}else if(e.op === editCodes.clearProperty){
-			var prev
+			var prev = propertyIndex[pkey]
+			/*var prev
 			var subjAt = curObj.asAt(e.editId-1)
 			if(subjAt.has(p.name)){
 				var prevProp = subjAt[p.name]
 				prev = prevProp.asAt(e.editId-1)
-			}
+			}*/
+			propertyIndex[pkey] = undefined
 			if(!prev){
-				console.log('WARNING: cannot find prev: ' + JSON.stringify(subjAt.toJson()) + ' ' + p.name)
+				console.log('WARNING: cannot find prev: ' + pkey + ' ' + JSON.stringify(Object.keys(propertyIndex)))//subjAt.toJson()) + ' ' + p.name)
 			}else{
-				cb(curObj.asAt(e.editId), 'clear', p.name, e.editId, prev)
+				cb(curObj, 'clear', p.name, e.editId, prev)
 			}
 		}else if(e.op === editCodes.setString || e.op === editCodes.setBoolean || e.op === editCodes.setLong || e.op === editCodes.setInt){
-			var beforeValue = curObj.asAt(e.editId-1)[p.name].value()
-			cb(curObj.asAt(e.editId), 'set', p.name, e.editId, e.edit.value, beforeValue)
+			var beforeValue = propertyIndex[pkey]//curObj.asAt(e.editId-1)[p.name].value()
+			propertyIndex[pkey] = e.edit.value
+			cb(curObj, 'set', p.name, e.editId, e.edit.value, beforeValue)
+		}else if(e.op === editCodes.insertString){
+			var beforeValue = propertyIndex[pkey]//curObj.asAt(e.editId-1)[p.name].value()
+			if(beforeValue === undefined){
+				console.log('SERIOUS WARNING: cannot find prev for insert ' + pkey)
+			}else{
+				var newValue = beforeValue.substr(0, e.edit.index) + e.edit.value + beforeValue.substr(e.edit.index)
+				propertyIndex[pkey] = newValue
+				cb(curObj, 'insert', p.name, e.editId, e.edit.index, e.edit.value, beforeValue, newValue)
+			}
 		}else if(e.op === editCodes.addedNew || e.op === editCodes.addedNewAfter || e.op === editCodes.addedNewAt){
 			var obj = curObj.isInner ? curObj.getTopParent().objectApiCache[e.edit.id] : curObj.objectApiCache[e.edit.id]
-			cb(curObj.asAt(e.editId), 'add', p.name, e.editId, obj.asAt(e.editId), true)
+			cb(curObj, 'add', p.name, e.editId, obj, true)
 		}else if(e.op === editCodes.addExisting || e.op === editCodes.addAfter || e.op === editCodes.unshiftExisting){
 			var obj = this.getObjectApi(e.edit.id)
 			obj.prepare()
-			cb(curObj.asAt(e.editId), 'add', p.name, e.editId, obj.asAt(e.editId))
+			cb(curObj, 'add', p.name, e.editId, obj.asAt(e.editId))
 		}else if(e.op === editCodes.remove){
 			_.assertDefined(sub)
 			var obj  = this.objectApiCache?this.objectApiCache[sub]:undefined
@@ -331,7 +357,7 @@ TopObjectHandle.prototype.replay = function(cb){
 				obj = this.getObjectApi(sub)
 			}
 			obj.prepare()
-			cb(curObj.asAt(e.editId), 'remove', p.name, e.editId, obj.asAt(e.editId))
+			cb(curObj/*.asAt(e.editId)*/, 'remove', p.name, e.editId, obj)//.asAt(e.editId))
 		}else if(e.op === editCodes.moveToAfter || e.op === editCodes.moveToFront || e.op === editCodes.moveToBack){
 			_.assertDefined(sub)
 			console.log('sub: ' + JSON.stringify(sub))
@@ -343,7 +369,7 @@ TopObjectHandle.prototype.replay = function(cb){
 				_.errout('cannot locate object: ' + sub)
 			}
 			obj.prepare()
-			cb(curObj.asAt(e.editId), 'move', p.name, e.editId, obj.asAt(e.editId))
+			cb(curObj, 'move', p.name, e.editId, obj)//.asAt(e.editId))
 		}else if(e.op === editCodes.putExisting){
 			_.assertDefined(key)
 			var k = key
@@ -353,15 +379,15 @@ TopObjectHandle.prototype.replay = function(cb){
 			}
 			var obj = this.getObjectApi(e.edit.id)
 			obj.prepare()
-			cb(curObj.asAt(e.editId), 'put', p.name, e.editId, k, obj.asAt(e.editId))
-		}else if(e.op === editCodes.putBoolean || e.op === editCodes.putString){
+			cb(curObj, 'put', p.name, e.editId, k, obj)//.asAt(e.editId))
+		}else if(e.op === editCodes.putBoolean || e.op === editCodes.putString || e.op === editCodes.putInt || e.op === editCodes.putLong){
 			_.assertDefined(key)
 			var k = key
 			if(keyIsObject){
 				k = this.getObjectApi(key)
 				k.prepare()
 			}
-			cb(curObj.asAt(e.editId), 'put', p.name, e.editId, k, e.edit.value)
+			cb(curObj, 'put', p.name, e.editId, k, e.edit.value)
 		}else{
 			_.errout('TODO: ' + JSON.stringify([editNames[e.op], e]))
 		}
@@ -792,7 +818,9 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	
 	//console.log('realEdits: ' + JSON.stringify(realEdits))
 	
-	realEdits.forEach(function(e, index){
+	//realEdits.forEach(function(e, index){
+	for(var i=0;i<realEdits.length;++i){
+		var e = realEdits[i]
 		if(e.op === editCodes.setSyncId){
 			s.inputSyncId = e.edit.syncId
 		}else if(e.op === editCodes.madeViewObject){
@@ -801,7 +829,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 			s.changeListener(s.inputSubObject, s.inputKey, e.op, e.edit, s.inputSyncId, e.editId||-3, true)
 			s.lastEditId = e.editId
 		}
-	})
+	}
 	
 	if(!s._destroyed){
 		if(s.typeSchema.properties){

@@ -61,7 +61,7 @@ function serializeSnapshot(startEditId, endEditId, objectEditBuffers, viewObject
 	}
 	
 	w.putInt(realObjBufs.length)
-	//console.log('put objs count: ' + realObjBufs.length)
+	console.log('put objs count: ' + realObjBufs.length)
 
 	for(var i=0;i<realObjBufs.length;++i){
 		var e = realObjBufs[i]

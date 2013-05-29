@@ -166,7 +166,10 @@ function getTypeAndSubtypeCodes(schema, name){
 }
 
 function recursivelyGetLeafTypes(objType, schema){
-	if(!objType.subTypes || _.size(objType.subTypes) === 0){
+
+	return objType.subTypes || [objType.name]
+
+	/*if(!objType.subTypes || _.size(objType.subTypes) === 0){
 		return [objType.name];
 	}
 	
@@ -175,7 +178,7 @@ function recursivelyGetLeafTypes(objType, schema){
 	_.each(objType.subTypes, function(v, subType){
 		res = res.concat(recursivelyGetLeafTypes(schema[subType], schema));
 	});
-	return res;
+	return res;*/
 }
 /*
 ObjectHandle.prototype.getPath = function(){

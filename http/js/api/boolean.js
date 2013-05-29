@@ -17,10 +17,10 @@ function BooleanHandle(typeSchema, obj, part, parent){
 		else if(typeSchema.tags && typeSchema.tags['default:false']) obj = true;
 	}
 	
-	if(this.isView()){
+	/*if(this.isView()){
 		this.toggle = u.viewReadonlyFunction
 		this.set = u.viewReadonlyFunction
-	}
+	}*/
 	this.schema = typeSchema
 
 	this.obj = obj;

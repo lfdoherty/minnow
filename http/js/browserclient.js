@@ -52,6 +52,12 @@ global.gotSnapshot = function(snap){
 	tryLoad();
 }
 
+if(window.minnowSnap){
+	//snaps.push(minnowSnap)
+	minnowSnap.id = lastId
+	global.gotSnapshot(minnowSnap)
+}
+
 global.gotSchema = function(s){
 
 	schema = s;
@@ -99,6 +105,31 @@ global.getRoot = function(){
 	_.errout('too soon to getRoot - minnow is not finished loading.  Use listenForMinnow(function(root){...}) to get it as soon as it is loaded.');
 }
 
+var fullFunc
+var waitingFunc
+
+var host = window.location.protocol + '//' + window.location.host + UrlPrefix+'/ws/'// + ':' + minnowSocketPort
+console.log('opening websocket... ' + Date.now())
+var hasStarted = false
+function start(){
+	hasStarted = true
+	update.openSocket(applicationName, host, function(fullFuncParam){
+			console.log('socket opened: ' + Date.now())
+			fullFunc = fullFuncParam
+			if(waitingFunc){
+				waitingFunc()
+				waitingFunc = undefined
+			}
+		}, function(err){
+		}, function(){
+			//window.location.reload()
+			setTimeout(function(){
+				window.document.body.innerHTML = '<h3>Lost Connection to Server</h3>'
+			},5000)
+		})
+}
+start()
+
 function loadMinnowView(){
 	console.log('got all snapshot parts, loading minnow');
 	
@@ -106,10 +137,33 @@ function loadMinnowView(){
 	
 	console.log('version loaded: ' + snapshot.version);
 
-	var host = window.location.protocol + '//' + window.location.host + UrlPrefix+'/ws/'// + ':' + minnowSocketPort
 	var viewName = schema._byCode[baseTypeCode].name
+	
+	function finish(syncHandle){
+		console.log('beginning sync handle setup: ' + Date.now())
+		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, baseId, function(err, root){
+			if(err) _.errout('Error: ' + err)
 
-	update.establishSocket(applicationName, schema, host, function(syncHandle){
+			getRoot = function(){return root;}
+		
+			console.log('got main view api: ' + Date.now())
+			api = root
+	
+			listeners.forEach(function(listener){
+				listener(root);
+			});
+
+		}, window.mainViewHistorical?1:undefined)
+	}
+	if(fullFunc){
+		fullFunc(schema, finish)
+	}else{
+		waitingFunc = function(){
+			fullFunc(schema, finish)
+		}
+	}
+
+	/*update.establishSocket(applicationName, schema, host, function(syncHandle){
 		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, baseId, function(err, root){
 			if(err) _.errout('Error: ' + err)
 
@@ -132,7 +186,7 @@ function loadMinnowView(){
 		setTimeout(function(){
 			window.document.body.innerHTML = '<h3>Lost Connection to Server</h3>'
 		},5000)
-	})
+	})*/
 }
 
 

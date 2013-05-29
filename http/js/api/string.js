@@ -6,6 +6,66 @@ var _ = require('underscorem')
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
 
+
+
+//produces a *partial* update - call and apply repeatedly until a===b to get all the changes
+function partiallyDiffText(a,b){
+	if(b.length >= a.length){
+		for(var i=0;i<a.length;++i){
+			if(a[i] !== b[i]) break
+		}
+		var fi = i
+		
+		if(fi === a.length){
+			return {type: 'add', index: fi, value: b.substr(fi)}
+		}else{
+
+			var ea = a.substr(fi)
+			var eb = b.substr(fi)
+		
+			for(var i=0;i<ea.length;++i){
+				if(ea[ea.length-i-1] !== eb[eb.length-i-1]){
+					break
+				}
+			}
+
+			var tailLength = i
+			
+			if(b.length-tailLength-fi > b.length-a.length){//if the changed region is larger than the difference in length	
+				var manyToRemove = (b.length-tailLength-fi)-(b.length-a.length)
+				return {type: 'remove', index: fi, many: manyToRemove}
+			}else{
+				return {type: 'add', index: fi, value: b.substring(fi,b.length-tailLength)}
+			}
+		}
+	}else{
+		var c = partiallyDiffText(b,a)
+		if(c.type === 'remove'){
+			return {type: 'add', index: c.index, value: b.substr(c.index,c.many)}
+		}else{
+			return {type: 'remove', index: c.index, many: c.value.length}
+		}
+	}
+}
+
+//produces one or two changes that succinctly describe the changes to the text
+function diffText(a,b){
+	var changes = []
+	var text = a
+	while(text !== b){
+		var c = partiallyDiffText(text,b)
+		if(c.type === 'add'){
+			text = text.substr(0,c.index)+c.value+text.substr(c.index)
+		}else{
+			text = text.substr(0,c.index)+text.substr(c.index+c.many)
+		}
+		changes.push(c)
+	}
+	
+	return changes
+}
+
+
 function StringHandle(typeSchema, obj, part, parent){
 
 	this.part = part;
@@ -28,9 +88,9 @@ function StringHandle(typeSchema, obj, part, parent){
 	}
 	this.obj = obj;
 
-	if(this.isView()){
-		this.set = u.viewReadonlyFunction
-	}
+	//if(this.isView()){
+	//	this.set = u.viewReadonlyFunction
+	//}
 	this.schema = typeSchema
 }
 
@@ -41,8 +101,32 @@ StringHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;
 StringHandle.prototype.adjustPathToSelf = u.adjustPathToPrimitiveSelf
 
 function tryIncrementalUpdate(handle, a, b){
+
+	var changes = diffText(a,b)
+
+	var bad = false
+	changes.forEach(function(c){
+		if(c.type !== 'add') bad = true
+	})
+	if(bad) return
+
+	changes.forEach(function(c){
+		if(c.type === 'add'){
+		
+			//var e = {index: firstChange, value: inserted}
+			handle.saveEdit(editCodes.insertString, c);
+			handle.emit(c, 'set', b)
+		}else{
+			//var e = {index: firstChange, many: inserted}
+			handle.saveEdit(editCodes.removeString, c);//TODO impl removeString
+			handle.emit(c, 'set', b)
+		}
+	})
+	
+	return true
+		
 	//console.log('trying: "' + a + '" "' + b+'"')
-	if(b.length > a.length){
+	/*if(b.length > a.length){
 		for(var i=0;i<a.length;++i){
 			if(a[i] !== b[i]){
 				break
@@ -82,12 +166,14 @@ function tryIncrementalUpdate(handle, a, b){
 		}
 		return
 	}
-	return
+	return*/
 }
 
 StringHandle.prototype.set = function(str){
 	
 	if(this.obj === str) return;
+	
+	//console.log('setting to ' + str.length + ' from ' + this.obj.length)
 
 	var did	
 

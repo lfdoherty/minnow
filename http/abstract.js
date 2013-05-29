@@ -94,6 +94,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		var failed = false
 		
 		function doViewSetup(msg){
+			var start = Date.now()
 			var snapshotId = parseInt(msg.snapshotVersion);
 			
 			//console.log('msg.viewId: ' + msg.viewId + ' ' + JSON.stringify(msg))
@@ -128,6 +129,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 					failed = true
 					return
 				}
+				
+				var beginTime = Date.now()
 			
 				var viewReq = {
 					syncId: syncId,
@@ -144,6 +147,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 						return
 					}
 					//log(syncId + ' BEGAN VIEW(' + viewCode + ')' + msg.params + ': ' + msg.uid + ' ' + msg.version)
+					
+					console.log('view setup for sync handle ' + syncId + ' took ' + (Date.now()-start) + 'ms - ' + (beginTime-start)+ 'ms was in security')
 
 					sh.msgs.push({type: 'ready', uid: msg.uid})
 				})

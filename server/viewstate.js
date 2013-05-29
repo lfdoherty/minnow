@@ -113,6 +113,12 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 				}));
 			})
 		},
+		getFullSnapshot: function(typeCode, params, cb, errCb){
+			var endEditId = objectState.getCurrentEditId()-1
+			handle.getSnapshotState(typeCode, params, -1, endEditId, false, function(res){
+				cb(res, endEditId)
+			}, errCb)
+		},
 		getSnapshotState: function(typeCode, params, snapshotId, previousSnapshotId, isHistorical, cb, errCb){
 			_.assertFunction(errCb)
 			

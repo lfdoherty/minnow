@@ -38,6 +38,11 @@ getAllCurrentSnapshots 13
 	params string 3
 	isHistorical int 5
 
+getFullSnapshot 14
+	requestId int 1
+	typeCode int 2
+	params string 3
+	
 getSnapshot 6
 	requestId int 1
 	typeCode int 2

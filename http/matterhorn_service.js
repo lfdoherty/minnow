@@ -198,7 +198,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				cb(vars, result);
 			});
 		},*/
-		getViewTags: function(viewName, params, vars, res, cb){
+		getViewState: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
 
 			var viewSchema = minnowClient.schema[viewName]
@@ -225,6 +225,53 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 
 			if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
 			
+			service.getViewState(viewName, params, function(err, baseTypeCode, snap, lastSeenVersionId){
+			
+				if(err){
+					console.log('view files error: ' + JSON.stringify(err))
+					res.send(500)
+					return
+				}
+				
+				var result = [];
+			
+				vars.snapshotIds = [lastSeenVersionId]
+				vars.lastId = lastSeenVersionId;
+				vars.baseTypeCode = viewCode;
+				vars.baseId = newViewSequencer.viewIdStr(baseTypeCode,params)
+				vars.applicationName = appName
+				vars.UrlPrefix = prefix
+				vars.minnowSnap = snap//JSON.parse(snap)
+			
+				cb(vars, [schemaUrl])
+			})
+		},
+		getViewTags: function(viewName, params, vars, res, cb){
+			_.assertLength(arguments, 5);
+
+			var viewSchema = minnowClient.schema[viewName]
+			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
+			var viewCode = viewSchema.code
+
+			var newParams = []
+			viewSchema.viewSchema.params.forEach(function(p, index){
+				if(p.type.type === 'object'){
+					var id = params[index]
+					if(_.isString(id)){
+						newParams[index] = newViewSequencer.parseInnerId(id)
+					}else{
+						newParams[index] = id
+					}
+				}else{
+					console.log(JSON.stringify(p.type))
+					newParams[index] = params[index]
+				}
+			})
+
+			params = newParams
+
+			if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
+			
 			service.getViewFiles(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
 				
 				if(err){
@@ -238,12 +285,9 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.snapshotIds = snapshotIds;
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)//+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
+				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)
 				vars.applicationName = appName
 				vars.UrlPrefix = prefix
-				//vars.mainViewParams = params
-				//vars.httpPort = local.getPort()
-				//vars.httpsPort = secureLocal.getSecurePort()
 				
 				for(var i=0;i<paths.length;++i){
 					var p = paths[i];
@@ -254,6 +298,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 			
 				cb(vars, result);
 			});
+			
 		}
 	};
 }

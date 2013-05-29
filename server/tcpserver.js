@@ -51,6 +51,10 @@ function serializeSnapshotVersionList(versionList){
 }
 function serializeAllSnapshots(snapshots){
 	_.assertArray(snapshots)
+	
+	/*if(snapshots.length === 1){
+		return snapshots[0]
+	}*/
 
 	var len = 1
 	for(var i=0;i<snapshots.length;++i){
@@ -59,6 +63,7 @@ function serializeAllSnapshots(snapshots){
 	var buf = new Buffer(len)
 	buf[0] = snapshots.length
 	var off = 1
+	console.log('copying ' + snapshots.length + ' into bytes ' + buf.length)
 	for(var i=0;i<snapshots.length;++i){
 		var s = snapshots[i]
 		_.assertBuffer(s)
@@ -434,7 +439,12 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				conn.w.flush();
 			},
 			beginView: function(e){
-				s.beginView(e, conn.sendReady.bind(undefined, e));
+				//console.log('beginning view
+				var start = Date.now()
+				s.beginView(e, function(){
+					console.log('beginning view ' + e.viewId + ' took: ' + (Date.now()-start)+'ms')
+					conn.sendReady(e)
+				})
 			},
 			endView: function(e){
 			},
@@ -588,6 +598,18 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 					conn.w.flush();
 				});
 			},
+			getFullSnapshot: function(e){
+				s.getFullSnapshot(e, function(err, snapBuffer, versionId){
+					if(err){
+						_.errout('TODO: ' + err)
+					}
+					
+					var res = {versionId: versionId, snapshot: snapBuffer}
+					res.requestId = e.requestId;
+					conn.w.gotFullSnapshot(res);
+					conn.w.flush();
+				});
+			},
 			getAllSnapshots: function(e){
 				e.snapshotVersionIds = deserializeSnapshotVersionIds(e.snapshotVersionIds)
 				//console.log('params: ' + e.params)
@@ -617,6 +639,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 							return
 						}
 						res.requestId = e.requestId;
+						console.log('serializing all snapshots for ' + JSON.stringify(e))
 						res.snapshots = serializeAllSnapshots(res.snapshots)
 						res.isHistorical = e.isHistorical
 						conn.w.gotAllSnapshots(res);

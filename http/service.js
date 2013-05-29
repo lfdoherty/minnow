@@ -140,6 +140,20 @@ function schemaHash(schema){
 	return s
 }
 
+function computeSnapParamsKey(s, params){
+	var key = ''
+	if(s.isView){
+		key = '';
+		if(params.length === 0) key = '-'
+		for(var i=0;i<params.length;++i){
+			if(i > 0) key += ';';
+			key += querystring.escape(params[i]);
+		}
+	}else{
+		key = params+'';
+	}
+	return key
+}
 function makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb){
 	return function(err, e){
 		if(err){
@@ -154,19 +168,8 @@ function makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefi
 		//console.log(JSON.stringify(e))
 		_.assertInt(lastVersionId)
 
-		var key;
+		var key = computeSnapParamsKey(s, params)
 
-		if(s.isView){
-			key = '';
-			if(params.length === 0) key = '-'
-			for(var i=0;i<params.length;++i){
-				if(i > 0) key += ';';
-				key += querystring.escape(params[i]);
-			}
-		}else{
-			key = params+'';
-		}
-	
 		var paths = [];
 		for(var i=0;i<snapshotIds.length;++i){
 			var id = snapshotIds[i];
@@ -188,7 +191,7 @@ exports.make = function(schema, cc){
 		makeSyncId: function(cb){
 			cc.makeSyncId(cb);
 		},
-		getViewFilesHistorical: function(viewName, params, cb){
+		/*getViewFilesHistorical: function(viewName, params, cb){
 			_.assertLength(arguments, 3)
 			_.assertDefined(params)
 			
@@ -201,8 +204,11 @@ exports.make = function(schema, cc){
 			var getMsg = {typeCode: viewCode, params: newViewSequencer.paramsStr(params), isHistorical: true}
 			_.assert(getMsg.params != 'null')
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
-			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
-		},
+			
+			var key = computeSnapParamsKey(params)
+			var url = pathPrefix + '-1/-1/' + key
+			//cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
+		},*/
 		//returns the paths for the snapshots for the view
 		getViewFiles: function(viewName, params, cb){
 			_.assertLength(arguments, 3)
@@ -218,6 +224,24 @@ exports.make = function(schema, cc){
 			_.assert(getMsg.params != 'null')
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
+		},
+		
+		getViewState: function(viewName, params, cb){
+			_.assertDefined(params)
+			
+			var s = schema[viewName];
+			if(s === undefined) _.errout('unknown view: ' + viewName)
+			
+			var viewCode = s.code;
+
+			var pathPrefix = serverStateUid + '/' + viewCode + '/'
+			
+			var req = {typeCode: viewCode, params: newViewSequencer.paramsStr(params)}
+			cc.getFullSnapshot(req, function(err, resp){
+				if(err) throw err
+				
+				cb(err, viewCode, resp.snapshot, resp.versionId)
+			})
 		},
 		
 		//returns the javascript string content of the view file

@@ -46,6 +46,11 @@ gotAllSnapshots 5
 	requestId int 1
 	snapshots binary 2//structure is like gotSnapshot.snap, with each snap prefixed with a byte length
 
+gotFullSnapshot 18
+	requestId int 1
+	snapshot binary 2//just a JSON string, utf8, in a buffer
+	versionId int 3
+
 gotSnapshot 6
 	requestId int 1
 	snap binary 3 //structure is 4-byte latestVersionId, followed by update objects

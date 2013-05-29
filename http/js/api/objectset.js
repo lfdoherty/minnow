@@ -89,7 +89,8 @@ ObjectSetHandle.prototype.get = function(desiredId){
 }
 
 ObjectSetHandle.prototype.each = function(cb, endCb){
-	_.each(this.obj, function(obj){
+	//_.each(this.obj, function(obj){
+	this.obj.forEach(function(obj){
 		if(!obj.isDestroyed()){
 			obj.prepare()
 			cb(obj)

@@ -166,7 +166,7 @@ function make(schema, ol){
 		
 		var stateTop = state.top
 		
-		//console.log('persisting: ' + JSON.stringify([state, editNames[op], edit]))
+		//console.log('persisting: ' + JSON.stringify([state, editNames[op], e]))
 		
 		_.assertInt(op)
 		

@@ -300,7 +300,8 @@ exports.make = function(schema, objectState, query){
 	function includeObjectInSnap(id, got, res){
 		_.assertInt(id)
 		if(got[id]) return
-		res.push({id: id, edits: objectState.getObjectEdits(id)})
+		res.push({id: id, edits: objectState.getObjectBinary(id)})
+		//_.assertBuffer(res[res.length-1].edits)
 		got[id] = true
 		var referenced = objectState.getObjectRefers(id)
 		//console.log('including in snap: ' + id + ' ' + JSON.stringify(referenced))

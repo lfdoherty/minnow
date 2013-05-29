@@ -443,6 +443,37 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					_.errout('ERROR')
 				}			
 			},
+			getFullSnapshot: function(e, cb){
+				_.assertLength(arguments, 2);
+				
+				
+				var typeCode = e.typeCode;
+				//var params = JSON.parse(e.params)
+
+				//console.log('parsing params ' + e.params)
+
+				var params = newViewSequencer.parseParams(e.params)
+				//var snapshotId = e.latestVersionId;
+				//var previousId = e.previousVersionId;
+
+				//console.log('parsed params ' + e.params + ' -> ' + JSON.stringify(params))
+				
+				//_.assert(params.length === schema._byCode[typeCode].viewSchema.params.length);
+				
+				//console.log('getting snapshot: ' + e.isHistorical)
+				//console.log(new Error().stack)
+			
+				if(schema._byCode[typeCode].isView){
+					_.assertArray(params);
+					viewState.getFullSnapshot(typeCode, params, function(res, endEditId){
+						cb(undefined, res, endEditId)
+					}, function(e){
+						cb(e)
+					});
+				}else{
+					_.errout('ERROR')
+				}
+			},
 			getSnapshot: function(e, cb){
 				_.assertLength(arguments, 2);
 				

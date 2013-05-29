@@ -91,15 +91,16 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, viewI
 		}
 	}
 	
+	console.log('sending setup message: ' + Date.now())
 	sendFacade.sendSetupMessage({
 		type: 'setup', 
 		viewName: viewName, 
-		//params: JSON.stringify(params),
 		viewId: viewId,
 		isHistorical: !!historicalKey,
 		version: lastSnapshotVersion}, function(){
 		
 		//readyCb()
+		console.log('got setup message: ' + Date.now())
 		if(api.viewsBeingGotten === undefined || api.viewsBeingGotten[viewId] === undefined){
 			readyCb(cb)
 			return

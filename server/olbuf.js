@@ -91,6 +91,7 @@ function appendSerializeFrame(rest, edits, w){
 	for(var i=0;i<edits.length;++i){
 		var e = edits[i]
 		w.putByte(e.op)
+		//console.log('put int: ' + e.editId)
 		w.putInt(e.editId)
 		fp.writersByCode[e.op](w, e.edit)
 	}

@@ -27,7 +27,8 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 	_.assertNot(obj === null);
 	
 	this.readonly = isReadonly;
-	if(this.isView()){
+	
+	/*if(this.isView()){
 		this.remove = readonlyError;
 		this.add = readonlyError;
 		this.unshift = readonlyError;
@@ -36,7 +37,7 @@ function ObjectListHandle(typeSchema, obj, part, parent, isReadonly){
 		this.shift = readonlyError;
 		this.addNew = readonlyError;
 		this.addNewExternal = readonlyError;
-	}
+	}*/
 	this.log = this.parent.log
 }
 

@@ -72,7 +72,7 @@ function deserializeSnapshotInternal(readers, readersByCode, names, rs){
 			//console.log('getting name(' + code + '): ' + name + ' ' + editId)
 			//_.assertString(name)
 			var e = readersByCode[code](rs)
-			//console.log('got e: ' + JSON.stringify(e))
+			//console.log('got e: ' +code+' ' + editId + ' ' +  JSON.stringify(e))
 			edits.push({op: code, edit: e, editId: editId})
 		}
 	}
@@ -273,6 +273,11 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			cb(undefined, e);
 		},
 		gotSnapshot: function(e){
+			var cb = getRequestCallback(e);
+			//console.log('tcpclient got response gotSnapshot')//: ' + JSON.stringify(e))
+			cb(undefined, e);
+		},
+		gotFullSnapshot: function(e){
 			var cb = getRequestCallback(e);
 			//console.log('tcpclient got response gotSnapshot')//: ' + JSON.stringify(e))
 			cb(undefined, e);
@@ -601,6 +606,21 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				cb(undefined, res)
 			});
 			w.getSnapshots(e);
+			//log('tcpclient: getSnapshots: ' + JSON.stringify(e))
+		},
+		getFullSnapshot: function(e, cb){
+			_.assertFunction(cb)
+			//console.log(e.params + ' ' + new Error().stack)
+			applyRequestId(e, function(err, res){
+				if(err){
+					cb(err)
+				}else{
+					//res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
+					res.snapshot = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snapshot)
+					cb(undefined, res)
+				}
+			});
+			w.getFullSnapshot(e);
 			//log('tcpclient: getSnapshots: ' + JSON.stringify(e))
 		},
 		getAllCurrentSnapshots: function(e, cb){

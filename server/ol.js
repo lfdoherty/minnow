@@ -668,7 +668,14 @@ Ol.prototype.getPartially = function(id, filter, eachCb, doneCb){
 Ol.prototype.getObjectEdits = function(id){
 	_.assertInt(id)
 	var edits = this.olc.get(id)
+	//_.assertBuffer(edits)
 	return [].concat(edits)
+}
+Ol.prototype.getObjectBinary = function(id){
+	_.assertInt(id)
+	var edits = this.olc.getBinary(id)
+	//_.assertBuffer(edits)
+	return edits
 }
 Ol.prototype.get = function(id, startEditId, endEditId, cb){//TODO optimize away
 	_.assertLength(arguments, 4)

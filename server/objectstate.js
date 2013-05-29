@@ -805,7 +805,14 @@ exports.make = function(schema, ap, ol){
 			return ol.getLatestVersionId()
 		},
 		getObjectEdits: function(id){
-			return ol.getObjectEdits(id)
+			var res = ol.getObjectEdits(id)
+			_.assertArray(res)
+			return res
+		},
+		getObjectBinary: function(id){
+			var res = ol.getObjectBinary(id)
+			_.assertBuffer(res)
+			return res
 		},
 		forgetTemporary: function(temporary, syncId){
 			ap.forgetTemporary(temporary, syncId)

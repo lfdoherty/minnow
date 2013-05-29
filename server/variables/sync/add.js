@@ -39,7 +39,7 @@ exports.compute = function(paramValues){
 			v += paramValues[i]
 		}
 	}
-	log(JSON.stringify(paramValues) + ' ' + v)
+	//log(JSON.stringify(paramValues) + ' ' + v)
 	return v
 }
 
