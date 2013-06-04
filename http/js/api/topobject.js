@@ -1198,7 +1198,7 @@ TopObjectHandle.prototype.adjustCurrentObject = function(id){
 		if(id === this.objectId){
 			this.persistEdit(editCodes.clearObject, {})
 		}else{
-			if(id === 36) _.errout('TODO FIXME: ' + this.objectId)
+			//if(id === 36) _.errout('TODO FIXME: ' + this.objectId)
 			this.persistEdit(editCodes.selectObject, {id: id})
 		}
 		//this.edits.push({op: editCodes.selectObject, edit: {id: id}})

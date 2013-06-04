@@ -457,6 +457,35 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	return handle
 }
 
+function PrimitiveSet(){
+	this.list = []
+	this.removed = {}
+	this.dirty = true
+}
+PrimitiveSet.prototype.add = function(v){
+	//if(this.list.indexOf(v) !== -1) _.errout('invalid already has: ' + v)
+	this.list.push(v)
+}
+PrimitiveSet.prototype.remove = function(v){
+	this.removed[v] = true
+	this.dirty = true
+}
+PrimitiveSet.prototype.getRaw = function(){
+	if(this.dirty){
+		var newList = []
+		for(var i=0;i<this.list.length;++i){
+			var v = this.list[i]
+			if(!this.removed[v]){
+				newList.push(v)
+			}
+		}
+		this.list = newList
+		this.removed = {}
+		this.dirty = false
+	}
+	return this.list
+}
+
 function makeReversePropertyIndex(objSchema, property, propertyIndex){
 
 	if(property.type.type === 'set' || property.type.type === 'map' || property.type.type === 'list'){
@@ -465,7 +494,18 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 	
 	var keysAreBoolean = property.type.primitive === 'boolean'
 	
-	var permanentCache = {}
+	//var permanentCache = {}
+	var stateCache = {}
+	
+	function removeStateValue(key, value){
+		var oldSetValue = stateCache[key]
+		/*var index = oldSetValue.indexOf(value)
+		_.assert(index !== -1)
+		console.log('removing state value: ' + key + ' ' + value)
+		oldSetValue.splice(index, 1)*/
+		oldSetValue.remove(value)
+	}
+	
 
 	//in order to know the old value when a value is reset, we need to store the current value
 	//TODO optimize this somehow, given that it will likely be rare for values to be reset?
@@ -482,20 +522,34 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			_.assertDefined(value)
 			if(keysAreBoolean) value = !!value
 
-			var newSet = permanentCache[value]
-			if(!newSet) newSet = permanentCache[value] = []
-			newSet.push({type: 'add', value: id, editId: c.editId})
 		
 			var old = currentValue[id]
 
-			if(old !== undefined){
-				var oldSet = permanentCache[old]
-				oldSet.push({type: 'remove', value: id, editId: c.editId})
-			}else if(keysAreBoolean){
-				var oldSet = permanentCache['false']
-				oldSet.push({type: 'remove', value: id, editId: c.editId})
+			if(keysAreBoolean) old = !!old
+			
+			if(old !== value){
+
+				//var newSet = permanentCache[value]
+				var newSetValue = stateCache[value]
+				if(!newSetValue){
+					//newSet = permanentCache[value] = []
+					newSetValue = stateCache[value] = new PrimitiveSet()
+				}
+				//newSet.push({type: 'add', value: id, editId: c.editId})
+
+				if(old !== undefined){
+					//var oldSet = permanentCache[old]
+					//oldSet.push({type: 'remove', value: id, editId: c.editId})
+					removeStateValue(old, id)
+				}else if(keysAreBoolean){
+					//var oldSet = permanentCache['false']
+					//console.log(id + ' ' + value + ' ' + JSON.stringify(stateCache))
+					//oldSet.push({type: 'remove', value: id, editId: c.editId})
+					removeStateValue('false', id)
+				}
+				newSetValue.add(id)
+				currentValue[id] = c.value
 			}
-			currentValue[id] = c.value
 		}else if(c.type === 'insert'){
 			var value = c.value
 			_.assertDefined(value)
@@ -503,13 +557,20 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			var old = currentValue[id]
 			var newValue = old.substr(0, c.index)+c.value+old.substr(c.index)
 
-			var newSet = permanentCache[newValue]
-			if(!newSet) newSet = permanentCache[newValue] = []
-			newSet.push({type: 'add', value: id, editId: c.editId})
+			//var newSet = permanentCache[newValue]
+			var newSetValue = stateCache[newValue]
+			if(!newSetValue){
+				//newSet = permanentCache[newValue] = []
+				newSetValue = stateCache[newValue] = new PrimitiveSet()
+			}
+			//newSet.push({type: 'add', value: id, editId: c.editId})
+			newSetValue.add(id)
 
-			var oldSet = permanentCache[old]
-			oldSet.push({type: 'remove', value: id, editId: c.editId})
+			//var oldSet = permanentCache[old]
+			//oldSet.push({type: 'remove', value: id, editId: c.editId})
 			currentValue[id] = newValue
+			removeStateValue(old, id)
+			
 			
 			/*if(keysAreBoolean) value = !!value
 
@@ -529,23 +590,31 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			currentValue[id] = c.value*/
 		}else if(c.type === 'clear'){
 			_.assertDefined(c.old)
-			var oldSet = permanentCache[c.old]
-			oldSet.push({type: 'remove', value: id, editId: c.editId})
+			//var oldSet = permanentCache[c.old]
+			//oldSet.push({type: 'remove', value: id, editId: c.editId})
 			currentValue[id] = undefined
+			removeStateValue(c.old, id)
 		}else if(c.type === 'destroyed'){
 			var old = currentValue[id]
-			var oldSet = permanentCache[old]
-			oldSet.push({type: 'remove', value: id, editId: c.editId})
+			//var oldSet = permanentCache[old]
+			//oldSet.push({type: 'remove', value: id, editId: c.editId})
 			currentValue[id] = undefined
+			removeStateValue(old, id)
 		}else{
 			_.errout('TODO: ' + JSON.stringify(c))
 		}
 		//if(pn === 'webpage.creator') console.log(JSON.stringify(permanentCache))
 	}, function(typeCode, id, editId){
 		if(keysAreBoolean){
-			var newSet = permanentCache['false']
-			if(!newSet) newSet = permanentCache['false'] = []
-			newSet.push({type: 'add', value: id, editId: editId})
+			//var newSet = permanentCache['false']
+			var newSetValue = stateCache['false']
+			if(!newSetValue){
+				//newSet = permanentCache['false'] = []
+				newSetValue = stateCache['false'] = new PrimitiveSet()
+			}
+			//newSet.push({type: 'add', value: id, editId: editId})
+			newSetValue.add(id)
+			
 		}else{
 			//TODO?
 		}
@@ -557,8 +626,14 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			_.assertObject(bindings)
 			
 			if(keysAreBoolean){key = !!key}
+
+			//console.log('getting ' + key + ' from ' + JSON.stringify(stateCache))
+			
+			var state = stateCache[key]
+			if(!state) return []
+			return state.getRaw()
 		
-			var changes = permanentCache[key]
+			/*var changes = permanentCache[key]
 			if(!changes){
 			//	console.log(editId + ' no changes: ' + key + ' ' + objSchema.name+'.'+property.name)
 				return []
@@ -600,10 +675,11 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				}
 			}
 			//console.log(key + ' computed value: ' + JSON.stringify(state) + ' ' + editId)
-			return state
-		},
+			return state*/
+		}/*,
 		getValueChangesBetween: function(bindings, key){//, startEditId, endEditId){
 			_.assertLength(arguments, 2)
+			_.assert('TODO?')
 			
 			if(keysAreBoolean){key = !!key}
 		
@@ -613,17 +689,8 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				return []
 			}
 			return changes
-			/*var realChanges = []//TODO optimize to slice
-			for(var i=0;i<changes.length;++i){
-				var c = changes[i]
-				if(c.editId > endEditId) break
-				if(c.editId > startEditId){
-					realChanges.push(c)
-				}
-			}
-			//console.log('value changes: ' + JSON.stringify([key, startEditId, endEditId, realChanges, changes, permanentCache]))
-			return realChanges*/
-		}
+			
+		}*/
 	}
 	
 	return handle

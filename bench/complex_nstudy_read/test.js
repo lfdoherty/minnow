@@ -1,13 +1,12 @@
 "use strict";
 
-/* 
-	Time to beat (N, ms): 	(50000, 251)
-							(100000,257)
-							(250000,269)
+/*  N,K: ms		
+	50000,100: 22049
 */
 
 
-var N = 1000*100
+var N = 1000*50
+var K = 100
 
 var minnow = require('./../../client/client')//this is the minnow include
 
@@ -21,36 +20,39 @@ var minnow = require('./../../client/client')
 var u = require('./../util')
 u.reset(run)
 
+
 function setupSidebarForm(c, v, cb){
 
 	var h = v.make('user', {email: 'admin', hash: 'DUMMY'}, function(){
 		
-		var contact = h.make('contact', {userId: h.id(), name: h.email.value(), displayName: h.email.value()})
+		var contact = h.make('contact', {userId: h.id(), displayName: h.email.value()})//, name: h.email.value()})
 		
 		h.admin.set(true)
 		var webGroup = v.make('group', {name: 'web', creator: contact, doNotDisplayChatContacts: true, settings: {}}, function(){
 			
-			var jot = v.make('nest', {name: 'jot'})
+			var jot = v.make('nest', {creator: contact, name: 'jot'})
 			
 			var contactsField = v.make('contacts', {name: 'Contacts', creator: contact})
 			
-			var quoteForm = v.make('nest', {name: '', elements: [
-				{type: 'text', name: 'Comments', text: '', placeholder: 'insert text here...'}
-			]})
+			var quoteForm = v.make('quote', {name: '', creator: contact, elements: [
+				{type: 'text', creator: contact, name: 'Comments', text: '', placeholder: 'insert text here...'}
+				], url: '', prefix: '', postfix: '', text: '', originalUrlTitle: '', originalOffset: -1, removed: false
+			})
 
 			var bookmarkForm = v.make('webpage', {
 				url: '',
 				title: '',
 				name: '',
+				creator: contact,
 				elements: [
-					{type: 'tags', name: 'Tags'},
-					{type: 'text', name: 'Notes', text: '', placeholder: 'insert text here...'},
-					{type: 'quotes', name: 'Quotes', many: 8},
-					{type: 'snippets', name: 'Snippets'}
+					{creator: contact, type: 'tags', name: 'Tags'},
+					{creator: contact, type: 'text', name: 'Notes', text: '', placeholder: 'insert text here...'},
+					{creator: contact, type: 'quotes', name: 'Quotes', many: 8},
+					{creator: contact, type: 'snippets', name: 'Snippets'}
 				]
 			})
-			var snippetForm = v.make('snippet', {domId: '', text: '', offset: -1, name: '', elements: [
-				{type: 'slider', name: 'Rate your mastery from 1 to 5:', minValue: 1, maxValue: 5, step: 1},
+			var snippetForm = v.make('snippet', {creator: contact, domId: '', text: '', offset: -1, name: '', elements: [
+				{creator: contact, type: 'slider', name: 'Rate your mastery from 1 to 5:', minValue: 1, maxValue: 5, step: 1},
 			]})
 			
 			var noteSection = v.make('nest', {creator: contact, name: '', elements: [
@@ -75,7 +77,7 @@ function setupSidebarForm(c, v, cb){
 			]})*/
 			
 			var sidebar = v.make('sidebar', {name: 'DefaultWebSidebar', creator: contact, hideHeader: true, elements: [
-					{type: 'history', hideHeader: true, many: 8, name: '', elements: [
+					{creator: contact, type: 'history', hideHeader: true, many: 8, name: '', elements: [
 						contactsField
 					]}
 				],
@@ -93,14 +95,17 @@ function setupSidebarForm(c, v, cb){
 }
 function setupUserStuff(c, v, cb){
 
-	var sidebarInstance = v.make('sidebar', {name: ''})
-	var userData = v.make('userData', {sidebar: sidebarInstance})
 	var settings = v.make('settings')
-	var u = v.make('user', {email: 'test', data: userData, settings: settings, hash: 'DUMMY'}, function(){
-		
-		
-		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value(), name: u.email.value()})
+	var u = v.make('user', {email: 'test', /*data: userData, */settings: settings, hash: 'DUMMY'}, function(){
+
+		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value()})//, name: u.email.value()})
 		u.setProperty('contact', contact)
+
+		var sidebarInstance = v.make('sidebar', {creator: contact, name: ''})
+		var userData = v.make('userData', {sidebar: sidebarInstance})
+		u.setProperty('data', userData)
+		
+		
 		
 		setupSidebarForm(c, v, function(webGroup){
 		
@@ -128,7 +133,7 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.make('sidebar', {name: ''})
+				candidateSidebar = v.make('sidebar', {creator: user.contact, name: ''})
 				console.log(v.candidateSidebarForm._internalId())
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
@@ -143,6 +148,8 @@ function makeSidebar(c, user, cb){
 function run(){
 
 	var start = Date.now()
+	
+	
 
 	minnow.makeServer(u.config, function(){
 		minnow.makeClient(u.config.port, function(client){
@@ -160,16 +167,31 @@ function run(){
 							/*for(var i=0;i<N;++i){
 								var quote = c.make('quote', {creator: um.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, true)
 							}*/
+							/**/
+
 							for(var i=0;i<N;++i){
 								var quote = c.make('quote', {creator: um.contact, 
 									text: 'test quote text', originalOffset: 10, 
-									prefix: '', postfix: '', originalUrlTitle: 'dummy',
+									prefix: '', postfix: '', originalUrlTitle: 'dummy', removed: false,
 									name: '',
 									url: tabUrl}, true)
 							}
 							
 							setTimeout(function(){//TODO fix bug that makes this necessary
-								readSeparately(um, session, tab, webpage)
+								console.log('beginning read...')
+								var begun = Date.now()
+								
+								/*JSON.stringify = function(){
+									_.errout('TODO REMOVE')
+								}*/
+								
+								var cdl = _.latch(K, function(){
+									console.log('done: ' + (Date.now()-begun))
+									process.exit(0)
+								})
+								for(var i=0;i<K;++i){
+									readSeparately(um, session, tab, webpage, cdl)
+								}
 							},4000)
 						})
 					})
@@ -209,7 +231,7 @@ function prepareOverlayPage(v){
 
 	return localWebpage
 }
-function readSeparately(um, session, tab, webpage){
+function readSeparately(um, session, tab, webpage, doneCb){
 	var begun = Date.now()
 	minnow.makeClient(u.config.port, function(otherClient){
 		otherClient.view('overlayPage', [um, session, tab], function(err, v){
@@ -225,11 +247,13 @@ function readSeparately(um, session, tab, webpage){
 				var quotesField = localWebpage.elements.at(2)
 				_.assertDefined(quotesField)
 				var set = childMap.get(quotesField.id())
-				if(set && set.count() === Math.min(8,N) && v.quoteCount.value() === N){
+				if(set && set.count() === Math.min(8,N) && v.quoteCount.value() === N+1){
 					console.log('done: ' + (Date.now()-begun))
-					process.exit(0)
+					//process.exit(0)
+					doneCb()
+					return true
 				}else if(set){
-					console.log('count: ' + set.count())
+					console.log('count: ' + set.count() + ' ' + v.quoteCount.value())
 				}else{
 					//console.log(JSON.stringify(childMap.toJson()))
 				}

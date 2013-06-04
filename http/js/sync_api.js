@@ -692,7 +692,7 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
 	
-	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, editNames[op], edit]))
+//	console.log('persistEdit: ' + JSON.stringify([typeCode, id, editNames[op], edit]))
 	
 	if(this.localMode){
 		return

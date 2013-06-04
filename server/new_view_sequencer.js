@@ -26,7 +26,7 @@ var pollHandle = setInterval(function(){
 		var f = pollFunctions[i]
 		f()
 	}
-}, 250)
+}, 250)//250)
 
 function addPollFunction(f){
 	pollFunctions.push(f)
@@ -484,9 +484,13 @@ exports.make = function(schema, ol){
 				
 				var edits = []
 				//console.log('moving to: ' + endEditId + ' from ' + lastEditId)
+				var start = Date.now()
+				
 				queryHandle.moveTo(endEditId, function(changes){
 					//console.log('moving')
 					edits = edits.concat(changes)
+	
+					console.log('poll took: ' + (Date.now()-start))
 					//console.log('moving changes: ' + id + ' ' + JSON.stringify(changes))
 				},
 				function(id, snap){

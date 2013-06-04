@@ -6,7 +6,7 @@ var u = require('./../util')
 u.reset(run)
 
 var Concurrency = 400
-var Steps = 1000
+var Steps = 100
 
 /*
 try{

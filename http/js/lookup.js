@@ -18,15 +18,10 @@ var lookup = {
 
 var isKeyCode = {}
 isKeyCode[codes.selectStringKey] = true
-isKeyCode[codes.reselectStringKey] = true
 isKeyCode[codes.selectIntKey] = true
-isKeyCode[codes.reselectIntKey] = true
 isKeyCode[codes.selectLongKey] = true
-isKeyCode[codes.reselectLongKey] = true
 isKeyCode[codes.selectBooleanKey] = true
-isKeyCode[codes.reselectBooleanKey] = true
 isKeyCode[codes.selectObjectKey] = true
-isKeyCode[codes.reselectObjectKey] = true
 lookup.isKeyCode = isKeyCode
 
 var isKeySelectCode = {}
@@ -36,14 +31,6 @@ isKeySelectCode[codes.selectLongKey] = true
 isKeySelectCode[codes.selectBooleanKey] = true
 isKeySelectCode[codes.selectObjectKey] = true
 lookup.isKeySelectCode = isKeySelectCode
-
-var isKeyReselectCode = {}
-Object.keys(isKeyCode).forEach(function(key){
-	if(!isKeySelectCode[key]){
-		isKeyReselectCode[key] = true
-	}
-})
-lookup.isKeyReselectCode = isKeyReselectCode
 
 var isPrimitiveSetCode = {}
 isPrimitiveSetCode[codes.setString] = true
@@ -141,24 +128,5 @@ isSetAt[codes.setBooleanAt] = true
 isSetAt[codes.setRealAt] = true
 lookup.isSetAt = isSetAt
 
-var flipType = {}
-flipType[codes.selectObject] = codes.reselectObject
-flipType[codes.selectProperty] = codes.reselectProperty
-flipType[codes.reselectObject] = codes.selectObject
-flipType[codes.reselectProperty] = codes.selectProperty
-
-flipType[codes.selectStringKey] = codes.reselectStringKey
-flipType[codes.selectIntKey] = codes.reselectIntKey
-flipType[codes.selectLongKey] = codes.reselectLongKey
-flipType[codes.selectBooleanKey] = codes.reselectBooleanKey
-flipType[codes.selectObjectKey] = codes.reselectObjectKey
-
-flipType[codes.reselectStringKey] = codes.selectStringKey
-flipType[codes.reselectIntKey] = codes.selectIntKey
-flipType[codes.reselectLongKey] = codes.selectLongKey
-flipType[codes.reselectBooleanKey] = codes.selectBooleanKey
-flipType[codes.reselectObjectKey] = codes.selectObjectKey
-
-lookup.flipType = flipType
 
 module.exports = lookup

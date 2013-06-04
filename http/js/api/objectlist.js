@@ -907,6 +907,8 @@ ObjectListHandle.prototype.unshift = function(objHandle){
 ObjectListHandle.prototype.add = function(objHandle){
 	_.assertLength(arguments, 1);
 	
+	if(!objHandle) _.errout('cannot add undefined')
+	
 	if(!_.isObject(objHandle)) _.errout('add param 0 must be a minnow object, is a: ' + typeof(objHandle))
 	
 	if(objHandle.isInner()) _.errout('TODO implement hoist to top: ' + objHandle);

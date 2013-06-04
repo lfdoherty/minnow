@@ -19,13 +19,28 @@ var WebSocket = global.WebSocket
 var lookup = require('./lookup')
 var editCodes = lookup.codes
 
-
+function processCookieToMap(cookie){
+	var parts = cookie.split(';')
+	var partMap = {}
+	parts.forEach(function(p){
+		var key = p.substr(0, p.indexOf('='))
+		key = key.trim()
+		var value = p.substr(p.indexOf('=')+1)
+		partMap[key] = value
+	})
+	if(partMap.LOGGEDOUT){
+		loggedOut()
+		return
+	}
+	return partMap
+}
 function getCookieToken(){
-	var si = document.cookie.indexOf('SID=')
+	//var si = document.cookie.indexOf('SID=')
+	var map = processCookieToMap(document.cookie)
 	console.log('token: ' + document.cookie)
-	var cookieToken = document.cookie.substring(si+4,document.cookie.indexOf('|',si))
-	console.log('*token: ' + cookieToken)
-	return cookieToken
+	//var cookieToken = document.cookie.substring(si+4,document.cookie.indexOf('|',si))
+	console.log('*token: ' + map.SID)
+	return map.SID.substr(0, map.SID.indexOf('|'))
 }
 
 if(WebSocket === undefined){

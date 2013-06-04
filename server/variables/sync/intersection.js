@@ -31,12 +31,33 @@ exports.computeSync = function(z){
 		}
 	}
 	
-	var original = [].concat(params)
+	//var original = [].concat(params)
 	
 	params.sort(function(a,b){return a.length - b.length})
 
-	var ma
+	var ma = {}
 	var cur = params[0]
+	for(var j=0;j<cur.length;++j){
+		ma[cur[j]] = 1
+	}
+	for(var i=1;i<params.length;++i){
+		var next = params[i]
+		//var res = []
+		for(var j=0;j<next.length;++j){
+			var v = next[j]
+			if(ma[v] === i) ++ma[v]//res.push(v)
+		}
+		//cur = next
+	}
+	cur = params[0]
+	var res = []
+	var many = params.length
+	for(var j=0;j<cur.length;++j){
+		var v = cur[j]
+		if(ma[v] === many){
+			res.push(v)
+		}
+	}/*
 	for(var i=1;i<params.length;++i){
 		ma = {}
 		for(var j=0;j<cur.length;++j){
@@ -49,7 +70,7 @@ exports.computeSync = function(z){
 			if(ma[v]) res.push(v)
 		}
 		cur = res
-	}
+	}*/
 
 	//console.log(JSON.stringify(params))
 	//console.log('intersection of ' + JSON.stringify(_.map(original, function(p){return p.length})) + ' -> ' + res.length)

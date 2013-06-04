@@ -10,6 +10,11 @@ var syncPreforked = require('./sync_preforked')
 var syncMultimapOptimization = require('./sync_multimap_optimization')
 var mapValueOptimization = require('./sync_map_value_optimization')
 
+var syncCompute = require('./sync_compute')
+var syncIsa = require('./sync_isa')
+var syncMutate = require('./sync_mutate')
+var syncType = require('./sync_type')
+
 var opu = require('./oputil')
 
 var nvs = require('./new_view_sequencer')
@@ -24,7 +29,6 @@ function shallowCopy(b){
 	return nb
 }
 
-
 exports.makeRelFunction = function(s, staticBindings, rel){
 	_.assertLength(arguments, 3)
 	_.assertObject(s)
@@ -38,16 +42,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		return exports.makeRelFunction(s, st, rel)
 	}
 	
-	var z
 	
-	function setupZ(){
-		z = {//TODO deprecate & remove
-			schemaType: rel.schemaType,
-			objectState: s.objectState,
-			schema: s.schema
-		}
-	}
-	s.after(setupZ)
 	/*function setupZ(){
 		_.assertDefined(s.objectState)
 		z = {
@@ -160,14 +155,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 			return syncSwitch.make(s, staticBindings, rel, recurse)
 		}else if(rel.view === 'type'){
 			//return syncSwitch.make(ns, staticBindings, rel)
-			var paramFunc = recurse(rel.params[0])
-			return function(bindings){
-				var v = paramFunc(bindings)
-				if(v !== undefined){
-					var typeCode = s.objectState.getObjectType(v)
-					return s.schema._byCode[typeCode].name
-				}
-			}
+			return syncType.make(s, staticBindings, rel, recurse)
 		}else if(rel.view === 'preforked'){
 			//_.errout('TODO')
 			return syncPreforked.make(s, staticBindings, rel, recurse)
@@ -175,88 +163,11 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		}else if(rel.view === 'mutate'){
 			//_.errout('TODO')
 
-			if(!s.mutators) s.mutators = {}
-
-			var mutatorTypeCode = rel.params[0].value
-			var mutateExpr = rel.params[1]
-			var restExpr = rel.params[2]
-			
-			var implicit = mutateExpr.implicits[0]
-			var mutatorStaticBindings = {}
-			mutatorStaticBindings.mutatorImplicit = implicit
-			mutatorStaticBindings[implicit] = function(bindings){
-				return bindings[implicit]
-			}
-			
-			var mut = recurse(mutateExpr.expr, mutatorStaticBindings)
-	
-			var restStaticBindings = {
-				isMutated: true,
-				makePropertyIndex: mut.newStaticBindings.makePropertyIndex,
-				makeReversePropertyIndex: mut.newStaticBindings.makeReversePropertyIndex
-			}
-			
-			var rest = recurse(restExpr.expr, restStaticBindings)
-			
-			s.mutators[mutatorTypeCode] = {
-				createBindings: function(mutatorParams){
-					var localBindings = {}
-					bindingsUsed.forEach(function(b, index){
-						localBindings[b] = mutatorParams[index]
-					})
-					var created = mutateBindings(localBindings)
-					//console.log('created bindings: ' + JSON.stringify([mutatorParams, localBindings, created, Object.keys(created)]))
-					return created
-				},
-				staticBindings: restStaticBindings
-			}
-	
-			var bindingsUsed = Object.keys(mutateExpr.bindingsUsed)
-			mutateExpr.implicits.forEach(function(imp){
-				if(bindingsUsed.indexOf(imp) !== -1){
-					bindingsUsed.splice(bindingsUsed.indexOf(imp), 1)
-				}
-			})
-			
-			function mutateBindings(bindings){
-				var newBindings = shallowCopy(bindings)
-				newBindings.__mutatorKey = (bindings.__mutatorKey||'')+';'+mutatorTypeCode+'{'
-				bindingsUsed.forEach(function(b,index){
-					if(index > 0) newBindings.__mutatorKey += ','
-					newBindings.__mutatorKey += JSON.stringify(bindings[b])
-				})
-				newBindings.__mutatorKey += '}'
-				//console.log('mutated bindings: ' + JSON.stringify([bindings, bindingsUsed, newBindings.__mutatorKey]))
-				//newBindings.getMutatorPropertyAt = getMutatorPropertyAt.bind(undefined, bindings)
-				return newBindings
-			}
-			
-			return function(bindings){
-				return rest(mutateBindings(bindings))
-			}
+			return syncMutate.make(s, staticBindings, rel, recurse)
 			
 		}else if(rel.view === 'isa'){
 			
-			var expr = recurse(rel.params[0])
-			var nameExpr = recurse(rel.params[1])//TODO optimize case where nameExpr is static
-			
-			return function(bindings){
-				var id = expr(bindings)
-				
-				if(id === undefined){
-					//console.log('isa undefined -> false')		
-					return
-				}
-
-				var name = nameExpr(bindings)
-				
-				var objSchema = s.schema._byCode[s.objectState.getObjectType(id)]
-
-				var result = objSchema.name === name || (objSchema.superTypes && objSchema.superTypes[name])
-				result = !!result
-				//console.log('isa ' + id + ','+name + ' ' + result + ' (' + objSchema.name + ')')
-				return result
-			}
+			return syncIsa.make(s, staticBindings, rel, recurse)
 		}else if(rel.view === 'multimap' && rel.isSubsetOptimizationMultimap){
 
 			return syncMultimapOptimization.make(s, rel, recurse, staticBindings)
@@ -265,71 +176,43 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 			return mapValueOptimization.make(s, rel, recurse, staticBindings)
 		}else{
 		
-			var impl = schemaModule.getImplementation(rel.view)
-			_.assertDefined(impl)
-			var paramRels = []
-			//console.log(JSON.stringify(rel, null, 2))
-			for(var i=0;i<rel.params.length;++i){
-				var p = rel.params[i]
-				var pr = recurse(p)//recurseSync(p)
-				//console.log(JSON.stringify(p))
-				if(p.schemaType === undefined) _.errout('missing schemaType: ' + JSON.stringify(p))
-				_.assertObject(p.schemaType)
-				pr.schemaType = p.schemaType
-				paramRels.push(pr)
-			}
-			
-			if(!_.isFunction(impl.computeSync)) _.errout('missing computeSync: ' + impl.callSyntax)
-			
-			//handle = makeOperatorRelSync(s, rel, paramRels, impl, rel.view, ws, recurseSync, staticBindings)
-			if(paramRels.length === 1){
-				var paramRel = paramRels[0]
-				var compute = impl.computeSync
-				return function(bindings){
-					//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
-					return compute(z, paramRel(bindings))
-					//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
-					//return result
-				}
-			}else if(paramRels.length === 2){
-				var pa = paramRels[0]
-				var pb = paramRels[1]
-				var compute = impl.computeSync
-				return function(bindings){
-					//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
-					return compute(z, pa(bindings), pb(bindings))
-					//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
-					//return result
-				}
-			}else{
-				return function(bindings){
-					//_.errout('TODO: ' + JSON.stringify(rel))
-					var cp = [z]
-					for(var index=0;index<paramRels.length;++index){
-						var pr = paramRels[index]
-						var f = pr(bindings)
-						cp[index+1] = f
-					}
-				
-					//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
-					var result = impl.computeSync.apply(undefined, cp)
-					//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
-					return result
-				}
-			}
+			return syncCompute.make(s, staticBindings, rel, recurse)
 		}
 	}else if(rel.type === 'value'){
-		return function(){return rel.value}
+		function valueFunc(){return rel.value}
+		valueFunc.isStatic = true
+		return valueFunc
 	}else if(rel.type === 'int'){
-		return function(){return rel.value}
+		function intFunc(){return rel.value}
+		intFunc.isStatic = true
+		return intFunc
 	}else if(rel.type === 'param'){
+
 		var bindingKey = rel.name
-		return function(bindings){
+		function paramFunc(bindings){
 			var v = bindings[bindingKey]
 			//console.log('got param ' + rel.name + ': ' + v)
 			return v
 			//_.errout('TODO: ' + JSON.stringify([bindings, rel]))
 		}
+		paramFunc.specializeByType = function(typeBindings){
+			function nf(bindings){
+				var v = bindings[bindingKey]
+				//console.log('got param ' + rel.name + ': ' + v)
+				//console.log('found type bindings for param: ' + v + ' ' + bindingKey + ' ' + JSON.stringify(typeBindings[bindingKey]))
+				return v
+			}
+			if(typeBindings[bindingKey]){
+				//console.log('found type bindings for param: ' + bindingKey + ' ' + JSON.stringify(typeBindings[bindingKey]))
+				nf.resultType = typeBindings[bindingKey]
+				return nf
+			}//else{
+			//	console.log('wrong type bindings for param')
+			//}
+			return paramFunc
+		}
+		paramFunc.resultType = rel.schemaType
+		return paramFunc
 	}else if(rel.type === 'macro'){
 		var exprFunc = recurse(rel.expr)
 		var merger = opu.makeMerger(rel.schemaType)
@@ -390,13 +273,18 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		var rest = recurse(rel.rest)//, newStaticBindings)
 		
 		return function(bindings){
-			var newBindings = _.extend({}, bindings)
+			/*var newBindings = shallowCopy(bindings)
 			newBindings[rel.name] = expr(bindings)
-			return rest(newBindings)
+			return rest(newBindings)*/
+			bindings[rel.name] = expr(bindings)
+			return rest(bindings)
 		}
 		//return rest
 	}else if(rel.type === 'nil'){
-		return function(){}
+		function nilFunc(){}
+		nilFunc.isStatic = true
+		nilFunc.isNil = true
+		return nilFunc
 	}
 	
 	_.errout('TODO: ' + JSON.stringify(rel))

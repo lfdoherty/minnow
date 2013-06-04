@@ -6,8 +6,8 @@ u.reset(run)
 var N = 1*1000*1000
 
 /*
-N=1M: 119348ms
-N=100K: 10123ms
+N=1M: 91247ms
+N=100K: 9233ms
 */
 
 try{

@@ -1,7 +1,7 @@
 /**/
 
 entry 31
-	creator contact 100 optional
+	creator contact 100// optional
 	name string 1
 	hideHeader boolean 4
 	lockToParent boolean 5
@@ -76,9 +76,9 @@ quote 44 nest
 	postfix string 18
 	originalUrlTitle string 11
 	originalOffset int 12
-	removed boolean 19
+	removed boolean 19 required
 	
-contact 50 nest
+contact 50
 	userId int 10
 	displayName string 116
 
@@ -174,7 +174,7 @@ computeSpecialChildren(source node, f entry, u user){
 		case('quotes', computeQuotes(webpage:source, quotes:f, u)),
 		case('header', list()),
 		case('collection', collection:f.children),
-		case('contacts', computeContacts(contacts:f, u)),
+		//case('contacts', computeContacts(contacts:f, u)),
 		default(list())
 	)
 }
@@ -195,7 +195,7 @@ computeElements(f node, u user){
 					nest:f
 				)
 			).elements*/
-			f.elements
+			nest:f.elements
 		)
 	)
 }

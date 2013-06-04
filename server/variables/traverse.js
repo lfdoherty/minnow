@@ -26,12 +26,26 @@ function traverseType(rel, ch){
 		_.assertEqual(JSON.stringify(inputParams[i].schemaType), JSON.stringify(inputType))
 	}
 
-	var realValueType = ch.computeMacroType(macroParam, ch.bindingTypes, newBindings, implicits)
-	var valueType = realValueType
-	
+	var valueType = ch.computeMacroType(macroParam, ch.bindingTypes, newBindings, implicits)
+	//var valueType = realValueType
+
 	if(valueType.type === 'set' || valueType.type === 'list'){
 		valueType = valueType.members;
 	}
+	//console.log(JSON.stringify([inputType, valueType]))
+	var realMacroParamType = this.mergeTypes([inputType, valueType])
+	
+	for(var i=0;i<inputParams.length;++i){
+		newBindings[implicits[i]] = realMacroParamType
+		_.assertEqual(JSON.stringify(inputParams[i].schemaType), JSON.stringify(inputType))
+	}
+	
+	//console.log
+
+	ch.computeMacroType(macroParam, ch.bindingTypes, newBindings, implicits)
+	//var valueType = realValueType
+	
+	
 	return {type: 'set', members: valueType}
 }
 schema.addFunction('traverse', {

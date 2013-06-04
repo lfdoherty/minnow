@@ -78,11 +78,12 @@ function make(schema, ol){
 	
 	var temporaryIdsBySync = {};
 	function translateTemporary(temp, syncId){
+		//console.log('translating ' + temp + ' (' + syncId + ')')
 		_.assertInt(temp)
 		_.assertInt(syncId)
 		_.assert(temp < -1)
-		var real = temporaryIdsBySync[syncId].temporaryIds[temp];
 		//console.log('translating ' + temp + ' -> ' + real + ' (' + syncId + ')')
+		var real = temporaryIdsBySync[syncId].temporaryIds[temp];
 		//console.log(JSON.stringify(temporaryIdsBySync[syncId]))
 		_.assertInt(real)
 		return real;
@@ -126,7 +127,7 @@ function make(schema, ol){
 		}else if(op === editCodes.selectSubObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.selectObjectKey){
-			console.log('key: ' + e.key)
+			//console.log('key: ' + e.key)
 			if(e.key < 0) e.key = translateTemporary(e.key, syncId)
 		}
 

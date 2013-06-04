@@ -20,9 +20,11 @@ schema.addFunction('topByValues', {
 	description: "Takes a map and produces a map with at most 'many' values, based on selecting the highest-valued key-value pairs.  The map's values must be primitive for comparison purposes.",
 	computeSync: function(z, many, map){
 		var pairs = []
-		Object.keys(map).forEach(function(key){
+		var keys = Object.keys(map)
+		for(var i=0;i<keys.length;++i){
+			var key = keys[i]
 			pairs.push([key, map[key]])
-		})
+		}
 		pairs.sort(function(a,b){
 			return b[1] - a[1]
 		})
@@ -30,9 +32,10 @@ schema.addFunction('topByValues', {
 			pairs = pairs.slice(0, many)
 		}
 		var result = {}
-		pairs.forEach(function(p){
+		for(var i=0;i<pairs.length;++i){
+			var p = pairs[i]
 			result[p[0]] = p[1]
-		})
+		}
 		//console.log('topByValues(' + many + ','+JSON.stringify(map)+') -> ' + JSON.stringify(result))
 		return result
 	}

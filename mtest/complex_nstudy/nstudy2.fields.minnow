@@ -76,7 +76,7 @@ quote 44 nest
 	postfix string 18
 	originalUrlTitle string 11
 	originalOffset int 12
-	removed boolean 19
+	removed boolean 19 required
 	
 contact 50 nest
 	userId int 10
@@ -200,7 +200,7 @@ computeElements(f node, u user){
 					nest:f
 				)
 			).elements*/
-			f.elements
+			nest:f.elements
 		)
 	)
 }

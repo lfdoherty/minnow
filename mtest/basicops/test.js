@@ -59,7 +59,7 @@ exports.countMapWithRemoval = function(config, done){
 			
 				var first
 				done.poll(function(){
-					//console.log('count: ' + c.c.value())
+					console.log('count: ' + c.c.value())
 					if(c.c.value() === 1){
 						first = true
 					}else if(first && c.c.value() === 0){

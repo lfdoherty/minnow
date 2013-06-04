@@ -377,6 +377,7 @@ function makeMergeTypes(schema){
 	_.assertObject(schema)
 	
 	function f(types){
+		_.assertArray(types)
 	
 		//_.errout('TODO')
 		
@@ -539,7 +540,7 @@ exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb)
 	var osp = synchronousPlugins
 	synchronousPlugins = {}
 	_.each(osp, function(plugin, pluginName){
-		log('plugin: ' + JSON.stringify(Object.keys(plugin)))
+		//log('plugin: ' + JSON.stringify(Object.keys(plugin)))
 		if(plugin.computeSync === undefined && plugin.computeAsync === undefined) _.errout('plugin ' + pluginName + ' must define a computeSync or computeAsync function!')
 		if(plugin.type === undefined) _.errout('plugin ' + pluginName + ' must define a "type" function describing its output type.')
 		if(plugin.minParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
@@ -1309,6 +1310,7 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 		try{
 			p.type = computeType(rel, v, schema, viewMap, bindingTypes, [], synchronousPlugins);
 		}catch(e){
+			console.log('error: ' + e)
 			require('fs').createWriteStream('schema_error.log').write(JSON.stringify(rel, null, 2))
 			throw e
 		}

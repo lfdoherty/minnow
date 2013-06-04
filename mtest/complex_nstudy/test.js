@@ -49,9 +49,10 @@ function setupSidebarForm(c, v, cb){
 			
 			var contactsField = v.make('contacts', {name: 'Contacts', creator: contact})
 			
-			var quoteForm = v.make('nest', {name: '', elements: [
+			var quoteForm = v.make('quote', {name: '', elements: [
 				{type: 'text', name: 'Comments', text: '', placeholder: ''}
-			]})
+				], url: '', text: '', prefix: '', postfix: '', originalUrlTitle: '', originalOffset: -1, removed: false
+			})
 
 			var bookmarkForm = v.make('webpage', {url:'', title: '', name: '', elements: [
 				{type: 'tags', name: 'Tags'},
@@ -300,7 +301,7 @@ exports.checkQuote = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -346,7 +347,7 @@ exports.checkQuoteCount = function(config, done){
 						otherClient.view('computeCounts', [u], function(err, v){
 							if(err) throw err
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								_.assertEqual(v.quote.value(), 1)
 								done()
@@ -392,7 +393,7 @@ exports.checkQuoteRemoval = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -463,7 +464,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -482,7 +483,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 								//done()
 								//quote.removed.set(true)
 								
-								v.make('quote', {prefix: '', postfix: '', name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
+								v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
 									_.assert(set.count() === 2)
 									
 									done()

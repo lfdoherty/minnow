@@ -250,7 +250,7 @@ ObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncId){
 	_.assertInt(op)
 	_.assertObject(edit)
 	
-	console.log('%%%' + editNames[op] + ' ' + JSON.stringify(edit));
+	//console.log('%%%' + editNames[op] + ' ' + JSON.stringify(edit));
 	//var ps = this.typeSchema.propertiesByCode[path[0]];
 	//_.assertObject(ps);
 	
@@ -434,6 +434,7 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 		var e = {id: n._internalId(), typeCode: newValue.typeSchema.code}
 		_.assertInt(e.id)
 		if(e.id === -1) _.errout('cannot set object property with a undefined object property - new value is empty')
+		if(e.id < 0) _.assert(e.id < -1)
 		
 		//this.adjustPath(pt.code)
 		//this.adjust

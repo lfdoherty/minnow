@@ -218,6 +218,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			w.flush()
 		}
 	},WriteFlushInterval)
+	
+	var schemaStr = JSON.stringify(appSchema)
 
 	function clientFunc(c){
 
@@ -269,7 +271,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 
 			s.beginSync(syncId, wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
-			var setupStr = JSON.stringify({syncId: syncId, schema: appSchema})
+			var setupStr = '{"syncId": '+syncId+', "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
 			var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
 			var setupBuffer = new Buffer(setupByteLength+8)
 			bin.writeInt(setupBuffer, 0, setupByteLength)
@@ -279,7 +281,10 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 
 			var wHandle = {
 				write: function(buf){
-					if(this.c.isDead) _.errout('should not be writing to a dead socket')
+					if(this.c.isDead){
+						console.log('WARNING: should not be writing to a dead socket')
+						return
+					}
 					this.c.write(buf);
 					//console.log('wfs writing to c: ' + buf.length)
 					totalBytesSent += buf.length
@@ -695,7 +700,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		c.on('end', function(){
 			cleanupClient()
 			
-			console.log('server ending the connection stream: ' + JSON.stringify(conn.openSyncIds))
+			//console.log('server ending the connection stream: ' + JSON.stringify(conn.openSyncIds))
 			//console.log(new Error().stack)
 			
 			//end all sync handles

@@ -493,7 +493,7 @@ function makeClient(host, port, clientCb){
 				_.assertArray(params)
 				viewGetter(type, params, 0, st, syncId, syncHandle, cb)
 			},
-			historicalView: function(type, params, cb){
+			/*historicalView: function(type, params, cb){
 				var st = dbSchema[type];
 				if(st === undefined){_.errout('unknown view: ' + type);}
 
@@ -516,7 +516,7 @@ function makeClient(host, port, clientCb){
 				_.assertArray(params)
 				var historicalKey = historicalKeyCounter++
 				viewGetter(type, params, historicalKey, st, syncId, syncHandle, cb)
-			},
+			},*/
 			make: function(type, json, cb){
 				_.assertString(type)
 				if(_.isFunction(json)){

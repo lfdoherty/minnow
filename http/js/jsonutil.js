@@ -226,10 +226,13 @@ function generatePropertyConverter(p, dbSchema){
 		var typeCode = dbSchema[p.type.object].code
 		converter = function(pv, makeTemporaryId, edits){
 			if(_.isInteger(pv)){
+				if(pv < 0) _.assert(pv < -1)
 				edits.push({op: editCodes.setObject, edit: {id: pv}})
 			}else{
 				if(pv._internalId){
-					edits.push({op: editCodes.setObject, edit: {id: pv._internalId()}})
+					var pvId = pv._internalId()
+					if(pvId < 0) _.assert(pvId < -1)
+					edits.push({op: editCodes.setObject, edit: {id: pvId}})
 				}else{
 					var temporary = makeTemporaryId();
 					edits.push({op: editCodes.setToNew, edit: {typeCode: typeCode, temporary: temporary}})
@@ -244,7 +247,7 @@ function generatePropertyConverter(p, dbSchema){
 	//process.exit(0)
 	converter.code = p.code
 	converter.propertyName = p.name
-	converter.isOptional = (p.tags?!!p.tags.optional:false)||p.type.primitive === 'boolean'
+	converter.isOptional = (p.tags?!!p.tags.optional:false)||(p.type.primitive === 'boolean'&&(!p.tags||!p.tags.required))
 	converter.isOptional = converter.isOptional||p.type.type ==='set'||p.type.type==='list'||p.type.type==='map'
 	
 	//console.log('conv.name: ' + converter.name)

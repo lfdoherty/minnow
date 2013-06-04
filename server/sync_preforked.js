@@ -22,66 +22,71 @@ function propertyIsNotOptional(property){
 
 exports.make = function(s, staticBindings, rel, recurse){
 
-	var preforkedObj = recurse(rel.params[0])
+	var preforkedObjInitial = recurse(rel.params[0])
 	
 	var preforkedObjSchema = s.schema[rel.params[0].schemaType.object]
-
-	/*return function(bindings){
-		var pfId = preforkedObj(bindings)
-		return pfId
-	}*/
 	
 	var newStaticBindings = _.extend({}, staticBindings)
 	
+	function specializeByType(objSchema){
+		var preforkedObj = preforkedObjInitial
+		if(preforkedObjInitial.specializeByType){
+			var typeBindings = {}
+			typeBindings[staticBindings.mutatorImplicit] = {type: 'object', object: objSchema.name}
+			//console.log('specializing prefork by index')//: ' + JSON.stringify(typeBindings))
+			var preforkedObj = preforkedObjInitial.specializeByType(typeBindings)
+		
+			if(preforkedObj.isNil){
+				return undefined
+			}else if(preforkedObj.isStatic){
+				_.errout('TODO optimize: ' + preforkedObj)
+			}
+		}
+		return preforkedObj
+	}
+	
 	newStaticBindings.makePropertyIndex = function(objSchema, property){
 		//console.log(JSON.stringify(preforkedObjSchema))
-		//_.errout('here')
+		//if(objSchema.name === 'sidebar' && property.name === 'elements') _.errout('here')
+		
+		var preforkedObj = specializeByType(objSchema)
 		
 		var originalIndex = staticBindings.makePropertyIndex(objSchema, property)
-		
-		//var isOptional = property.tags && property.tags.optional
-		//isOptional = isOptional||property.type.type==='set'||property.type.type==='list'||property.type.type==='map'
-		
+
 		var isNotOptional = propertyIsNotOptional(property)
-		
-		//if(isNotOptional) return originalIndex
-		
-		//console.log(preforkedObjSchema.name+'.'+property.name)
 		
 		var handle = {
 			getValueAt: function(bindings, key, editId, alreadyInPreforked){
 				if(!alreadyInPreforked) alreadyInPreforked = {}
 				//_.assertLength(arguments, 3)
-				var originalValue = originalIndex.getValueAt(bindings, key)//, editId)
-				
-				//if(isNotOptional){
-				//	console.log('not optional:' + JSON.stringify(property))
-				//	return originalValue
-				//}
-				
-				//console.log('getting prefork: ' + key)
-					
+				var originalValue = originalIndex.getValueAt(bindings, key)
+	
 				if(key.inner){
-					var nb = shallowCopy(bindings)
+					var nb = bindings
 					nb[staticBindings.mutatorImplicit]  = key.top
-					var preforkTopId = preforkedObj(nb)
+					var preforkTopId = preforkedObjInitial(nb)
 					if(preforkTopId){
 						var preforkedInner = innerify(preforkTopId, key.inner)
 						nb[staticBindings.mutatorImplicit]  = preforkedInner
-						preforkId = preforkedObj(nb) || preforkedInner
+
+						preforkId = preforkedInner
+						//console.log('expected type: ' + objSchema.name + ' [.' + property.name+']')
+						if(preforkedObj) preforkId = preforkedObj(nb) || preforkedInner
+						
 						_.assert(_.isInt(preforkId) || _.isInt(preforkId.top))
 					}
 					//_.errout('TODO: ' + JSON.stringify([key, preforkTopId]))
 				}else{
 					
+					
 					//we may still have prefork inheritance even on non-optional properties
 					//if the property is of an inner object which comes from the preforked object.
-					if(isNotOptional){
+					if(!preforkedObj || isNotOptional){
 						//console.log('not optional:' + JSON.stringify(property))
 						return originalValue
 					}
 					
-					var newBindings = shallowCopy(bindings)
+					var newBindings = bindings//shallowCopy(bindings)
 					newBindings[staticBindings.mutatorImplicit]  = key
 					//console.log('newBindings: ' + JSON.stringify(newBindings))
 					var preforkId = preforkedObj(newBindings)
@@ -93,22 +98,19 @@ exports.make = function(s, staticBindings, rel, recurse){
 					return originalValue
 				}
 				
-				
-
-				
-				//TODO handle longer cycles
 				var selfLoop = preforkId === key || (preforkId.inner && key.inner && preforkId.top === key.top && preforkId.inner === key.inner)
-				
 				if(selfLoop){
-					console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId + ' -- ' + JSON.stringify(originalValue))
+					//console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId + ' -- ' + JSON.stringify(originalValue))
 					return originalValue
 				}
+				
 				//console.log('getting preforked value for: ' + preforkId + ' ' + key)
 				if(alreadyInPreforked[preforkId]){
 					console.log('WARNING: cyclical prefork ' + key + ' -> ' + preforkId + ' ' + JSON.stringify(Object.keys(alreadyInPreforked)))
 					return originalValue
 				}
 				alreadyInPreforked[preforkId] = true
+				//console.log('getting ' + objSchema.name + '.' + property.name + ' for ' + preforkId)
 				var preforkedValue = handle.getValueAt(bindings, preforkId, editId, alreadyInPreforked)
 				var originalChanges = originalIndex.getValueChangesBetween(bindings, key, -1, editId)
 				if(originalChanges.length === 0){
@@ -170,7 +172,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 						return originalValue
 					}
 				}
-			},
+			}/*,
 			getValueChangesBetween: function(bindings, key, startEditId, endEditId){
 				_.assertLength(arguments, 4)
 				//_.errout('tODO')		
@@ -229,7 +231,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 					result[id] = handle.getValueAt(bindings, id, editId)
 				})
 				return result
-			}
+			}*/
 		}
 		return handle
 	}
@@ -239,11 +241,24 @@ exports.make = function(s, staticBindings, rel, recurse){
 
 		//_.errout('here')
 		
-		var originalIndex = staticBindings.makeReversePropertyIndex(objSchema, property)
+		var preforkedObj = specializeByType(objSchema)
 
-		//if(propertyIsNotOptional(property)){
-		//	return originalIndex
-		//}
+		var originalIndex = staticBindings.makeReversePropertyIndex(objSchema, property)
+		
+		if((property.type.primitive === 'boolean' && property.tags && property.tags.required && !property.tags.optional) || 
+			(property.type.primitive !== 'boolean' && (!property.tags || !property.tags.optional))){
+			//_.errout('TODO: ' + property.name)
+			return originalIndex
+		}
+		
+
+		
+		if(!preforkedObj){// || preforkedObj.isStatic){
+			//_.errout('TODO')
+			return originalIndex
+		}
+		
+		if(preforkedObj.isStatic) _.errout('TODO')
 
 		var forwardIndex = staticBindings.makePropertyIndex(objSchema, property)
 		
@@ -253,13 +268,6 @@ exports.make = function(s, staticBindings, rel, recurse){
 			keysAreBoolean = property.type.primitive === 'boolean'
 		}
 
-
-		//console.log(preforkedObjSchema.name+'.'+property.name)
-		
-		//var indexOnPreforked = staticBindings.makeReversePropertyIndex(preforkedObjSchema, property)
-		
-
-		
 		var handle = {
 			getValueAt: function(bindings, key){//, editId){
 				_.assertLength(arguments, 2)
@@ -274,10 +282,12 @@ exports.make = function(s, staticBindings, rel, recurse){
 				
 				var ids = s.objectState.getAllIdsOfType(objSchema.code)//, editId)
 				var newBindings = shallowCopy(bindings)
+				//console.log('here: ' + ids.length + ' ' + objSchema.name+'.'+property.name)
 				for(var i=0;i<ids.length;++i){
 					var id = ids[i]
 					newBindings[staticBindings.mutatorImplicit]  = id
 					var preforkId = preforkedObj(newBindings)
+					
 
 					var value = forwardIndex.getValueAt(bindings, id)//, editId)
 					var preforkValue = forwardIndex.getValueAt(bindings, preforkId)//, editId)
@@ -330,9 +340,9 @@ exports.make = function(s, staticBindings, rel, recurse){
 		}
 		return handle
 	}
-	preforkedObj.newStaticBindings = newStaticBindings
+	preforkedObjInitial.newStaticBindings = newStaticBindings
 	
-	return preforkedObj
+	return preforkedObjInitial
 }
 	
 /*
