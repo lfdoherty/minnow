@@ -1,8 +1,12 @@
 {
   "name": "minnow",
-  "version": "0.3.26",
+  "version": "0.3.28",
   "description": "An auto-syncing, in-memory-canonical relational database",
   "main": "./index",
+  "repository": { 
+	"type" : "git",
+	"url" : "https://github.com/lfdoherty/minnow.git"
+  },
   "author": "Liam Doherty",
   "dependencies": {
     "mkdirp": "*",

@@ -64,9 +64,10 @@ function makePropertyRefer(p){
 				return function(state, res){
 					if(state){
 						var keys = Object.keys(state)
-						//console.log('state: ' + JSON.stringify(state))
+						console.log('state: ' + JSON.stringify(state))
 						for(var i=0;i<keys.length;++i){
 							var v = keys[i]
+							v = parseInt(v)
 							_.assertInt(v)
 							res.objectIds.push(v)
 						}

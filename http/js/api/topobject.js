@@ -202,6 +202,7 @@ TopObjectHandle.prototype.getObjectById = function(id){
 		var topStr = id.substr(0, id.indexOf('_'))
 		var childStr = id.substr(id.indexOf('_')+1)
 		var top = this.getObjectApi(topStr)
+		if(!top.objectApiCache) return
 		var child = top.objectApiCache[childStr]
 		return child
 	}else{
@@ -250,10 +251,20 @@ TopObjectHandle.prototype.replay = function(cb){
 			cur = e.edit.id
 			//_.errout('TODO setup schema')
 			//var obj = this.getObjectApi(e.edit.id)
-			var obj = this.objectApiCache[e.edit.id]
-			if(!obj) _.errout('cannot find object: ' + e.edit.id)
-			curSchema = obj.typeSchema
-			curObj = obj
+			if(this.objectApiCache){
+				var obj = this.objectApiCache[e.edit.id]
+				/*if(!obj){
+					//curObj.getTopParent().objectApiCache
+					obj = curObj.objectApiCache[e.edit.id]
+				}*/
+				if(!obj){
+					console.log('cannot find object: ' + e.edit.id)
+					//curObj = undefined
+				}else{
+					curSchema = obj.typeSchema
+					curObj = obj
+				}
+			}
 			//curSchema = types[e.edit.id]
 		}else if(e.op === editCodes.selectSubObject){
 			sub = e.edit.id

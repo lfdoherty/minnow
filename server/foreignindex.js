@@ -48,7 +48,9 @@ exports.make = function(){
 				addForeignId(id, edit.id)
 			}else if(op === editCodes.selectObjectKey){
 				addForeignId(id, edit.key)
-			}
+			}//else if(op === editCodes.selectObject){
+			//	addForeignId(id, edit.id)
+			//}
 		},
 		get: function(id){
 			var arr = index[id]||[]
