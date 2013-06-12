@@ -572,7 +572,7 @@ ObjectHandle.prototype.property = function property(propertyName){
 		_.assertObject(n)
 		this[propertyName] = n//.cachedProperties[propertyName] = n;
 	}
-
+	//console.log('getting property ' + propertyName)
 	_.assertObject(n)
 	
 	return n;

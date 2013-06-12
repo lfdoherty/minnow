@@ -25,9 +25,10 @@ var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstr
 	'is', 'and', 'or', 'id', 'uid',
 	'div', 'add', 'sub', 'mul',
 	'nil',
-	'creationSession',
+	'creationsession',
 	'object',
 	'parent','isfork', 'value',
+	'objectid',
 	'uuided'];
 
 var builtinFunctions = {}

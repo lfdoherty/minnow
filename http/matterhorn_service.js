@@ -49,7 +49,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
-	var snapPath = prefix+'/mnw/snaps/' + appName + '/';
+	var snapPath = '/mnw/snaps/' + appName + '/';
 	//var snapPathHistorical = '/mnw/snaps_historical/' + appName + '/';
 	
 	var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))

@@ -259,6 +259,7 @@ TopObjectHandle.prototype.replay = function(cb){
 				}*/
 				if(!obj){
 					console.log('cannot find object: ' + e.edit.id)
+					curObj = undefined
 					//curObj = undefined
 				}else{
 					curSchema = obj.typeSchema
@@ -291,6 +292,8 @@ TopObjectHandle.prototype.replay = function(cb){
 		}
 		
 		if(!p) continue
+		
+		if(!curObj) continue
 		
 		var pkey = curObj.id()+':'+p.code
 		
@@ -827,7 +830,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	s.inputObject = undefined
 	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
 	
-	//console.log('realEdits: ' + JSON.stringify(realEdits))
+//	console.log('realEdits: ' + JSON.stringify(realEdits))
 	
 	//realEdits.forEach(function(e, index){
 	for(var i=0;i<realEdits.length;++i){

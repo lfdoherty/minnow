@@ -84,6 +84,9 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 					return expr(bindings)
 				}
 			}
+		}else if(rel.view === 'object'){
+			var expr = recurse(rel.params[0])
+			return expr
 		}else if(rel.view === 'typeset'){
 			
 			var typeName = rel.params[0].value

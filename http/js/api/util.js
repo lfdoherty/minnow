@@ -137,8 +137,12 @@ exports.primitiveChangeListener = function changeListener(subObj, key, op, edit,
 		if(syncId === this.getEditingId()) return
 		
 		//console.log('inserting: ' + edit.value)
-		this.obj = this.obj.substr(0, edit.index) + edit.value + this.obj.substr(edit.index)
-		this.emit(edit, 'set', this.obj, editId)
+		if(!this.obj){
+			console.log('WARNING: ignoring insert of undefined string property: ' + edit.index + ' ' + edit.value)
+		}else{
+			this.obj = this.obj.substr(0, edit.index) + edit.value + this.obj.substr(edit.index)
+			this.emit(edit, 'set', this.obj, editId)
+		}
 	}else{
 		_.errout('-TODO implement op: ' + editNames[op] + ' ' + JSON.stringify(edit) + ' ' + JSON.stringify(lookup.isSetCode));
 	}

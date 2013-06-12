@@ -24,4 +24,5 @@ require('./variables/timestamp')
 require('./variables/isa')
 require('./variables/preforked')
 require('./variables/mutate')
+require('./variables/object')
 
