@@ -20,22 +20,67 @@ exports.viewIdStr = viewIdStr
 
 var vcModule = require('./viewfacade')
 
-var pollFunctions = []
+var fastPollFunctions = []
+var slowerPollFunctions = []
+var slowPollFunctions = []
+
+var FastPollRate = 10
+var SlowerPollRate = 100
+var SlowPollRate = 1000
+
+var lastSlower = 0
+var lastSlow = 0
 var pollHandle = setInterval(function(){
-	for(var i=0;i<pollFunctions.length;++i){
-		var f = pollFunctions[i]
-		f()
+
+	var now = Date.now()
+	if(now - lastSlow > SlowPollRate){
+		for(var i=0;i<slowPollFunctions.length;++i){
+			var f = slowPollFunctions[i]
+			f()
+		}
+		lastSlow = now = Date.now()
 	}
-}, 250)//250)
+
+	if(now - lastSlower > SlowerPollRate){
+		for(var i=0;i<slowerPollFunctions.length;++i){
+			var f = slowerPollFunctions[i]
+			var s = Date.now()
+			f()
+			var elapsed = Date.now() - s
+			if(elapsed > 5){
+				slowerPollFunctions.splice(i, 1)
+				--i
+				slowPollFunctions.push(f)
+			}
+		}
+	}
+
+	for(var i=0;i<fastPollFunctions.length;++i){
+		var f = fastPollFunctions[i]
+		var s = Date.now()
+		f()
+		var elapsed = Date.now() - s
+		if(elapsed > 1){
+			fastPollFunctions.splice(i, 1)
+			--i
+			slowerPollFunctions.push(f)
+		}
+	}
+}, FastPollRate)
 
 function addPollFunction(f){
-	pollFunctions.push(f)
+	fastPollFunctions.push(f)
+}
+function removePollFunctionFrom(f, arr){
+	var index = arr.indexOf(f)
+	if(index !== -1){
+		arr.splice(index, 1)
+	}
 }
 function removePollFunction(f){
-	var index = pollFunctions.indexOf(f)
-	if(index !== -1){
-		pollFunctions.splice(index, 1)
-	}
+	removePollFunctionFrom(f, fastPollFunctions)
+	removePollFunctionFrom(f, slowerPollFunctions)
+	removePollFunctionFrom(f, slowPollFunctions)
 }
 
 function remainer(initial, cb){

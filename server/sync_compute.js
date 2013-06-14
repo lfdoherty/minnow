@@ -37,12 +37,14 @@ function make(s, staticBindings, rel, recurse){
 	if(paramRels.length === 1){
 		var paramRel = paramRels[0]
 		var compute = impl.computeSync
-		return function(bindings){
+		function compute1(bindings){
 			//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
 			return compute(z, paramRel(bindings))
 			//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
 			//return result
 		}
+		compute1.resultType = rel.schemaType
+		return compute1
 	}else if(paramRels.length === 2){
 		var pa = paramRels[0]
 		var pb = paramRels[1]
