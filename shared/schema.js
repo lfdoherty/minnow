@@ -29,6 +29,7 @@ var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstr
 	'object',
 	'parent','isfork', 'value',
 	'objectid',
+	'copysource',
 	'uuided'];
 
 var builtinFunctions = {}
@@ -548,7 +549,7 @@ exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb)
 		if(plugin.maxParams === undefined) _.errout('plugin ' + pluginName + ' must define a "minParams" int describing its call syntax (for error-reporting purposes.)')
 		if(plugin.syntax === undefined) _.errout('plugin ' + pluginName + ' must define a "syntax" string describing its call syntax (for error-reporting purposes.)')
 		
-		synchronousPlugins[pluginName] = {
+		var sp = synchronousPlugins[pluginName] = {
 			isSynchronousPlugin: true,
 			schemaType: function(rel){
 				var paramTypes = []
@@ -574,6 +575,12 @@ exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb)
 			computeAsync: plugin.computeAsync,
 			computeSync: plugin.computeSync
 		}
+		
+		sp.compute1 = plugin.compute1
+		sp.compute2 = plugin.compute2
+		sp.compute3 = plugin.compute3
+		//sp.compute4 = plugin.compute4
+		//sp.compute5 = plugin.compute5
 	})
 
 	syncPlugins = synchronousPlugins

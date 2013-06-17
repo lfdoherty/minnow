@@ -21,3 +21,10 @@ contained() 104
 	c containerWrapper(one(*container)) 1
 
 empty() 105
+
+soilable 4
+	isSomething boolean 1
+
+indexDirtyCheck() 110
+	all *soilable 1
+	rest subset(*soilable,{not(~.isSomething)}) 2

@@ -130,7 +130,7 @@ exports.make = function(){
 			
 			var offset = w.getCurrentOffset()
 			
-			if(edits.length >= 2) _.assertEqual(edits[1].edit.id, id)
+			//if(edits.length >= 2) _.assertEqual(edits[1].edit.id, id)
 			//write all edits
 			w.startLength()//set up the length frame
 			serializeFrame(edits, w)
@@ -182,7 +182,7 @@ exports.make = function(){
 		},
 		get: function(id){
 			var res = deserializeFrame(handle.getBinary(id))
-			if(res.length >= 2) _.assertEqual(res[1].edit.id, id)
+			//if(res.length >= 2) _.assertEqual(res[1].edit.id, id)
 			return res
 		},
 		getPartially: function(id, filter, eachCb){

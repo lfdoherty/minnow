@@ -212,7 +212,7 @@ function make(schema, ol){
 			}
 		}
 		
-		if(op !== editCodes.make && stateTop < -1){//note that -1 is not a valid temporary id - that is reserved
+		if(op !== editCodes.make && op !== editCodes.copy && stateTop < -1){//note that -1 is not a valid temporary id - that is reserved
 			//_.assertInt(id)
 			var newId = translateTemporary(top, syncId);
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
@@ -221,6 +221,7 @@ function make(schema, ol){
 		}
 		
 		if(currentSyncId !== syncId){
+			console.log('setting syncId ' + currentSyncId + ' -> ' + syncId)
 			ap.setSyncId({syncId: syncId})
 			currentSyncId = syncId
 		}
@@ -234,7 +235,7 @@ function make(schema, ol){
 		//var realOp = n.op
 		//var realEdit = n.edit
 
-		if(op === editCodes.make/* || op === editCodes.makeFork*/){
+		if(op === editCodes.make || op === editCodes.copy){
 			currentId = newId
 		}else if(currentId !== stateTop && stateTop !== -1){
 			ap.selectTopObject({id: stateTop})
@@ -271,8 +272,8 @@ function make(schema, ol){
 		ap[editNames[op]](e)
 		
 		//if(Math.random() < .001) console.log('w: ' + JSON.stringify(temporaryIdsBySync).length)
-	
-		if(op === editCodes.make){
+	 
+		if(op === editCodes.make || op === editCodes.copy){
 			var temporary = computeTemporary()
 			_.assertInt(temporary)
 			_.assertInt(newId)

@@ -106,67 +106,23 @@ function tryIncrementalUpdate(handle, a, b){
 
 	var bad = false
 	changes.forEach(function(c){
-		if(c.type !== 'add') bad = true
+		if(c.type !== 'add') bad = true//TODO impl remove
 	})
 	if(bad) return
 
 	changes.forEach(function(c){
 		if(c.type === 'add'){
-		
-			//var e = {index: firstChange, value: inserted}
 			handle.saveEdit(editCodes.insertString, c);
-			handle.emit(c, 'set', b)
 		}else{
-			//var e = {index: firstChange, many: inserted}
-			handle.saveEdit(editCodes.removeString, c);//TODO impl removeString
-			handle.emit(c, 'set', b)
+			handle.saveEdit(editCodes.removeString, c);
 		}
 	})
 	
-	return true
-		
-	//console.log('trying: "' + a + '" "' + b+'"')
-	/*if(b.length > a.length){
-		for(var i=0;i<a.length;++i){
-			if(a[i] !== b[i]){
-				break
-			}
-		}
-		var firstChange = i
-
-		for(var i=0;i<a.length;++i){
-			//console.log(a[a.length-i-1] + ' ' + b[b.length-i-1] + ' ' + i)
-			if(a[a.length-i-1] !== b[b.length-i-1]){
-				break
-			}
-		}
-		
-		var lastChangeInB = b.length-i
-
-		//console.log(JSON.stringify([firstChange, lastChangeInB, i, a, b]))
-
-		if(lastChangeInB <= firstChange && b.length - a.length === 1){
-			var inserted = b.substr(firstChange, 1)
-			
-			var e = {index: firstChange, value: inserted}
-			handle.saveEdit(editCodes.insertString, e);
-			handle.emit(e, 'set', b)
-			
-			return true
-		
-		}else if(lastChangeInB - firstChange === b.length - a.length){//is a pure insertion
-			var inserted = b.substring(firstChange, lastChangeInB)
-			
-			//_.assertDefined(this.obj)
-			var e = {index: firstChange, value: inserted}
-			handle.saveEdit(editCodes.insertString, e);
-			handle.emit(e, 'set', b)
-			
-			return true
-		}
-		return
+	if(changes.length > 0){
+		handle.emit({}, 'set', b)	
 	}
-	return*/
+	
+	return true
 }
 
 StringHandle.prototype.set = function(str){

@@ -9,6 +9,8 @@ exports.make = function makeWithIndex(s, rel, recurse, staticBindings){
 	var propertyCode
 	if(propertyName === 'uuid'){
 		propertyCode = -2
+	}else if(propertyName === 'copySource'){
+		propertyCode = -3
 	}else{
 		var p = objSchema.properties[propertyName]
 		if(p === undefined) _.errout('no property found: ' + objSchema.name+'.'+propertyName + ', got: ' + JSON.stringify(Object.keys(objSchema.properties)))
@@ -19,7 +21,7 @@ exports.make = function makeWithIndex(s, rel, recurse, staticBindings){
 	if(keyValueSchemaType.type !== 'set') keyValueSchemaType = {type: 'set', members: keyValueSchemaType}
 	var keysAreBoolean = rel.params[1].expr.schemaType.primitive === 'boolean'
 
-	var p = propertyCode===-2?propertyCode:objSchema.propertiesByCode[propertyCode]
+	var p = propertyCode<0?propertyCode:objSchema.propertiesByCode[propertyCode]
 	
 	var index = staticBindings.makeReversePropertyIndex(objSchema, p)
 	

@@ -228,7 +228,7 @@ function makeClient(host, port, clientCb){
 		
 		var requestId = cc.getDefaultSyncHandle().persistEdit(op, edit, listeningSyncId);
 
-		if(op === editCodes.make){// && !edit.forget){
+		if(op === editCodes.make || op === editCodes.copy){// && !edit.forget){
 			_.errout('TODO')
 			//_.assertInt(temporaryId)
 			//_.assert(temporaryId < -1)
@@ -245,6 +245,17 @@ function makeClient(host, port, clientCb){
 			json = {}
 		}*/
 		return doMake(type, json, forget, cb, temporary)
+	}
+	
+	wrapper.copy = function(obj, json, forget, cb, temporary){
+		//_.assertLength(arguments, 4)
+		_.assert(arguments.length >= 4)
+		_.assertInt(obj.id())
+		/*if(_.isFunction(json)){
+			cb = json
+			json = {}
+		}*/
+		return doCopy(obj, json, forget, cb, temporary)
 	}
 /*	
 	wrapper.makeFork = function(obj, cb, temporary){
@@ -313,6 +324,38 @@ function makeClient(host, port, clientCb){
 		
 		var dsh = cc.getDefaultSyncHandle()
 		var requestId = dsh.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length}, listeningSyncId)
+		if(cb){
+			_.assertInt(requestId)
+			_.assertFunction(cb)
+			//console.log('setting cb: ' + requestId)
+			
+			makeCbsWaiting[requestId] = {temporary: temp, cb: cb}
+		}
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(!_.isInt(e.op)) _.errout('invalid edit: ' + JSON.stringify(e))
+			//_.assertInt(e.op)
+			dsh.persistEdit(e.op, e.edit, listeningSyncId);
+		}
+		if(forget){
+			//console.log('doing make, forgetting')
+			dsh.forgetLastTemporary(listeningSyncId)
+		}
+		return edits
+	}	
+	
+	function doCopy(obj, json, forget, cb, temp){
+		//_.errout('TODO')
+		_.assertInt(obj.id())
+		///var st = dbSchema[type];
+		//var temp = makeTemporary()
+		_.assertObject(json)
+		
+		var edits = jsonutil.convertJsonToEdits(dbSchema, obj.type(), json, makeTemporary, temp)
+		
+		var dsh = cc.getDefaultSyncHandle()
+		var typeCode = obj.getObjectTypeCode()
+		var requestId = dsh.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: typeCode, forget: forget, following: edits.length}, listeningSyncId)
 		if(cb){
 			_.assertInt(requestId)
 			_.assertFunction(cb)
@@ -517,6 +560,27 @@ function makeClient(host, port, clientCb){
 				var historicalKey = historicalKeyCounter++
 				viewGetter(type, params, historicalKey, st, syncId, syncHandle, cb)
 			},*/
+			copy: function(id, json, cb){
+				_.assertString(type)
+				if(_.isFunction(json)){
+					cb = json
+					json = {}
+				}
+				var forget = !cb
+				if(cb === true){
+					forget = true
+				}
+				
+				json = json || {}
+				_.assertObject(json)
+				//doMake(type, json, forget, cb)
+				var res = api.copyExternalObject(id, json, forget, cb)
+				if(!forget){
+					_.assertDefined(res)
+				}
+				//console.log('here '+new Error().stack + ' ' + JSON.stringify(res))
+				return res
+			},
 			make: function(type, json, cb){
 				_.assertString(type)
 				if(_.isFunction(json)){

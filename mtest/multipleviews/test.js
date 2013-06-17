@@ -5,9 +5,6 @@ var _ = require('underscorem')
 exports.updateMadeObject = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
-			//client.onEdit(function(id, path, op, edit, syncId, editId){
-				//console.log('********** got edit: ' + op + ' ' + JSON.stringify(edit))
-			//})
 			
 			client.view('general', function(err, c){
 			

@@ -34,11 +34,13 @@ exports.make = function(schema, ol){
 	var objectCreation = {}
 	
 	var uuidPropertyIndexes = {}
+	var copySourcePropertyIndexes = {}
 	
 	var typeCodeSubTypes = {}
 	_.each(schema, function(objSchema){
 		if(!objSchema.isView){
 			uuidPropertyIndexes[objSchema.code] = []
+			copySourcePropertyIndexes[objSchema.code] = []
 			_.each(objSchema.properties, function(p){
 				var key = objSchema.code+':'+p.code
 				//if(p.type.type !== 'map'){
@@ -69,6 +71,9 @@ exports.make = function(schema, ol){
 			if(propertyCode === -2){
 				uuidPropertyIndexes[typeCode].push(callback)
 				_.assertUndefined(creationCallback)//TODO?
+			}else if(propertyCode === -3){
+				copySourcePropertyIndexes[typeCode].push(callback)
+				_.assertUndefined(creationCallback)//TODO?
 			}else{
 			
 				typeCodeSubTypes[typeCode].forEach(function(tc){
@@ -96,10 +101,12 @@ exports.make = function(schema, ol){
 					listeners[i](typeCode, id, editId)
 				}
 			}
+			
 		},
 		addEdit: function(id, op, edit, editId){
 			//return
 			//if(Math.random() < .0001) console.log(JSON.stringify(propertyChanges).length)
+
 			//console.log(JSON.stringify([id, editNames[op], edit, editId]))
 			
 			foreignIndex.addEdit(id, op, edit, editId)
@@ -117,6 +124,13 @@ exports.make = function(schema, ol){
 				currentKey[id] = edit.key
 			}else if(op === editCodes.clearObject){
 				currentObject[id] = id
+			}else if(op === editCodes.copied){
+				curId = id
+				cp = undefined
+				currentKey[id] = undefined
+				currentObject[id] = id
+				currentSub[id] = undefined
+				
 			}else{
 			
 				var typeCode = ol.getObjectType(curId)
@@ -125,6 +139,8 @@ exports.make = function(schema, ol){
 					indexes = uuidPropertyIndexes[typeCode]
 					if(!indexes) return
 					c = {type: 'set', value: edit.uuid, editId: editId}
+				}else if(op === editCodes.setSyncId){
+				//	console.log('setSyncId: ' + edit.syncId)
 				}else{
 			
 					var indexKey = typeCode+':'+cp

@@ -527,7 +527,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 				var editTypeCode = op//es.code
 				
 				var requestId
-				if(op === editCodes.make && !edit.forget){
+				if((op === editCodes.make || op === editCodes.copy) && !edit.forget){
 					requestId = makeRequestId()
 				}
 				

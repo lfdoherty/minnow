@@ -151,6 +151,8 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						}
 					}
 				}
+			}else if(rel.params[0].value === 'copySource'){
+				_.errout('tODO')
 			}else{
 				return syncProperty.make(s, staticBindings, rel, recurse)
 			}

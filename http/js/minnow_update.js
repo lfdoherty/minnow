@@ -90,13 +90,28 @@ function establishSocket(appName, schema, host, cb, errCb){
 				}
 				return edits
 			},
-			makeFork: function(obj, cb, temporary){
-				sendFacade.persistEdit(editCodes.makeFork, {sourceId: obj._internalId()})
-			
-				if(cb){
-					_.assertFunction(cb)
+			copy: function(obj, json, forget, cb, temporary){
+				_.assertLength(arguments, 5)
+				_.assertInt(obj.id())
+				
+				//var st = schema[type];
+
+				var edits = jsonutil.convertJsonToEdits(schema, obj.type(), json, api.makeTemporaryId.bind(api))
+
+				sendFacade.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: obj.getObjectTypeCode(), forget: forget, following: edits.length})
+
+				if(cb) {
 					makeIdCbListeners[temporary] = cb
+					//console.log('setup cb: ' + temporary)
 				}
+
+				edits.forEach(function(e){
+					sendFacade.persistEdit(e.op, e.edit);
+				})
+				if(forget){
+					sendFacade.forgetLastTemporary()
+				}
+				return edits
 			},
 			forgetLastTemporary: function(){
 				sendFacade.send({type: 'forgetLastTemporary'});
@@ -144,7 +159,7 @@ function establishSocket(appName, schema, host, cb, errCb){
 		function pollServer(){
 			getJson(host+pollUrl, function(msgs){
 				if(closed) return
-				console.log('got messages: ' + JSON.stringify(msgs))
+				//console.log('got messages: ' + JSON.stringify(msgs))
 				msgs.forEach(takeMessage)
 				pollServer()
 			}, function(status){
@@ -171,7 +186,7 @@ function establishSocket(appName, schema, host, cb, errCb){
 				}
 				viewsBeingSetup[data.uid](data.data)
 			}else{
-				console.log('message: ' + JSON.stringify(data))
+				//console.log('message: ' + JSON.stringify(data))
 				editListeners.forEach(function(listener){
 					listener(data)
 				})

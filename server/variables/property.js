@@ -31,10 +31,10 @@ function propertyType(rel, ch){
 	if(st.type === 'object'){
 		if(propertyName === 'id'){
 			return {type: 'primitive', primitive: 'string'}
-		}/*else if(propertyName === 'uid'){
+		}else if(propertyName === 'uuid'){
 			return {type: 'primitive', primitive: 'string'}
-		}*/else if(propertyName === 'uuid'){
-			return {type: 'primitive', primitive: 'string'}
+		}else if(propertyName === 'copySource'){
+			return st//{type: 'object', object: st.object}
 		}else if(propertyName === 'creationSession'){
 			return {type: 'primitive', primitive: 'int'}
 		}else{

@@ -2,7 +2,7 @@
 
 var _ = require('underscorem')
 
-var wrap = require('./wrap')
+//var wrap = require('./wrap')
 var analytics = require('./analytics')
 
 var snapshotSerialization = require('./snapshot_serialization')
@@ -161,17 +161,19 @@ function makeQueryHandle(syncId, viewCache){
 				
 				lastCache = newCache
 
-				console.log('diff: ' + qhEditId + ' -> ' + editId + ' for ' + syncId)
+				//console.log('diff: ' + qhEditId + ' -> ' + editId + ' for ' + syncId + ' ' + JSON.stringify([gotObjectIds,addedObjects]))
 
-				//console.log(JSON.stringify(diff))
+				//console.log('result diff: ' + JSON.stringify(diff))
 				//console.log(JSON.stringify(diff.addedViewObjects))
 				
 				diff.addedViewObjects.forEach(function(v){
 					_.assertString(v.id)
+					//if(gotViewObjectIds.indexOf(v.id) !== -1) _.errout('TODO FIXME: ' + v.id)
 					gotViewObjectIds.push(v.id)
 				})
 				diff.addedObjects.forEach(function(v){
 					_.assertInt(v.id)
+					//if(gotObjectIds.indexOf(v.id) !== -1) _.errout('TODO FIXME: ' + v.id)
 					gotObjectIds.push(v.id)
 				})
 				
@@ -212,7 +214,7 @@ function makeQueryHandle(syncId, viewCache){
 				return
 			}else{
 				//console.log('adding object: ' + id)
-				alreadyGot[id] = true
+				//alreadyGot[id] = true
 				//gotIds.push(id)
 				_.assertInt(id)
 				addedObjects.push(id)

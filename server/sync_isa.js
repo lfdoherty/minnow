@@ -11,7 +11,10 @@ function make(s, staticBindings, rel, recurse){
 	
 		var name = nameExpr()
 		
-		function f(bindings){
+		//var getObjectType = 
+		var byCode =  s.schema._byCode
+		
+		function staticNameFunc(bindings){
 			var id = expr(bindings)
 		
 			if(id === undefined){
@@ -19,14 +22,14 @@ function make(s, staticBindings, rel, recurse){
 				return
 			}
 		
-			var objSchema = s.schema._byCode[s.objectState.getObjectType(id)]
+			var objSchema = byCode[s.objectState.getObjectType(id)]
 
 			var result = objSchema.name === name || (objSchema.superTypes && objSchema.superTypes[name])
 			result = !!result
 			//console.log('isa ' + id + ','+name + ' ' + result + ' (' + objSchema.name + ')')
 			return result
 		}
-		f.specializeByType = function(typeBindings){
+		staticNameFunc.specializeByType = function(typeBindings){
 			var newExpr = expr.specializeByType(typeBindings)
 			//var newNameExpr = nameExpr.specializeByType(typeBindings)
 			if(newExpr !== expr){
@@ -36,10 +39,10 @@ function make(s, staticBindings, rel, recurse){
 				}
 			}
 		}
-		return f
+		return staticNameFunc
 	}else{
 	
-		function f(bindings){
+		function variableNameFunc(bindings){
 			var id = expr(bindings)
 		
 			if(id === undefined){
@@ -56,7 +59,7 @@ function make(s, staticBindings, rel, recurse){
 			//console.log('isa ' + id + ','+name + ' ' + result + ' (' + objSchema.name + ')')
 			return result
 		}
-		f.specializeByType = function(typeBindings){
+		variableNameFunc.specializeByType = function(typeBindings){
 			var newExpr = expr.specializeByType(typeBindings)
 			var newNameExpr = nameExpr.specializeByType(typeBindings)
 			if(newExpr !== expr || newNameExpr !== nameExpr){
@@ -66,6 +69,6 @@ function make(s, staticBindings, rel, recurse){
 				}
 			}
 		}
-		return f
+		return variableNameFunc
 	}
 }

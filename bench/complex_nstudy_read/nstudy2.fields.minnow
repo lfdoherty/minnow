@@ -213,7 +213,7 @@ mapChildren(source node, u user){
 }
 
 childrenMap(source node, u user) 161
-	children wrapInForms(u,{mapChildren(source,u)}) 1
+	children mapChildren(source,u) 1
 
 getOtherExpandedChildren(source node, f entry, u user){
 	subset(union(computeElements(f, u),computeSpecialChildren(source,f,u)),{isExpanded(f,~,u)})
@@ -271,7 +271,7 @@ computeSnippetStates(user user, tabUrl string){
 		snippetState(~, snippetQuoteStateForUser(~, user, tabUrl))
 	})
 }
-
+/*
 wrapInForms(u user, rest macro){
 	mutate(1,{
 		preforked(
@@ -284,7 +284,7 @@ wrapInForms(u user, rest macro){
 			)
 		)}, 
 		rest)
-}
+}*/
 
 computeChildren(user user){
 	map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)})
@@ -305,7 +305,7 @@ overlayPage(user user, session userSession, tab tab) 160
 	
 	userData user.data 25
 	///children map(getExpandedChildrenOfRoot(user,user.data.sidebar), {~.id},{childrenMap(~,user)}) 13
-	children wrapInForms(user,{computeChildren(user)}) 13
+	children computeChildren(user) 13
 	session session 16
 		
 	contacts user.data.contacts 230

@@ -19,6 +19,7 @@ function makePropertyDiffer(p){
 					if(!b) return changes
 					for(var i=0;i<b.length;++i){
 						var v = b[i]
+						//if(b.indexOf(v) < i) _.errout('TODO FIXME')
 						changes.push({op: editCodes.addExisting, edit: {id: v}})
 					}
 					return changes
@@ -39,6 +40,7 @@ function makePropertyDiffer(p){
 				var hasB = {}
 				for(var i=0;i<b.length;++i){
 					var v = b[i]
+					//if(b.indexOf(v) < i) _.errout('TODO FIXME: ' + JSON.stringify(p))
 					if(!has[v]){
 						changes.push({op: editCodes.addExisting, edit: {id: v}})
 					}else{
@@ -52,7 +54,7 @@ function makePropertyDiffer(p){
 						changes.push({op: editCodes.remove, edit: {}})
 					}
 				}
-				//console.log('diff ' + JSON.stringify([a,b,changes]))
+				//console.log('diff ' + JSON.stringify([a,b,changes, p]))
 				return changes
 			}
 		}else if(p.type.members.type === 'view'){
@@ -90,6 +92,7 @@ function makePropertyDiffer(p){
 		return function(a,b){
 			var has = {}
 			var changes = []
+			//console.log('diffing ' + JSON.stringify([a,b,]))
 			if(!a){
 				if(!b) return []
 				
@@ -120,6 +123,7 @@ function makePropertyDiffer(p){
 					changes.push({op: removeOp, edit: {value: v}})
 				}
 			}
+			//console.log('changes: ' + JSON.stringify([changes,a,b,p]))
 			return changes
 		}
 	}else if(p.type.type === 'object'){
@@ -358,7 +362,7 @@ function makePropertyDiffer(p){
 						//return changes
 					}
 				}
-				//console.log('**diffing: ' + JSON.stringify([a,b,changes]))
+				//console.log('**diffing: ' + JSON.stringify([a,b,changes,p]))
 				return changes
 			}
 		}

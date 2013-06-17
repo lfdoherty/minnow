@@ -10,6 +10,7 @@ exports.make = function(s, rel, recurse, staticBindings){
 		return function(bindings){
 			var value = valueFunc(bindings)
 			var res = mapFunc.getValue(bindings, value)
+			//console.log('*mapValue opt ' + JSON.stringify(res) + ' value: ' + value + ' ' + JSON.stringify(rel))
 			return res
 		}
 	}else{

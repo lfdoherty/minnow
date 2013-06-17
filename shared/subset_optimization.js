@@ -90,6 +90,7 @@ function applySubsetOptimizationToView(r){
 						return r
 					}
 				}
+				
 				function processNot(r, expr, cb){
 					return cb(expr.params[0])
 				}
@@ -98,6 +99,21 @@ function applySubsetOptimizationToView(r){
 					return processEq(r, expr, function(propertyExpr, paramExpr){
 						return applySingleSubsetOptimization(r, r.params[0], implicits[0], propertyExpr, paramExpr)//expr.params[1], expr.params[0])
 					})
+				}else if(expr.view === 'not' && expr.params[0].view === 'property' && expr.params[0].params[1].name === implicits[0]){
+					//_.errout('TODO')
+					/*return processNot(r, expr, function(propertyExpr, paramExpr){
+						return applySingleSubsetOptimization(r, r.params[0], implicits[0], propertyExpr, paramExpr)//expr.params[1], expr.params[0])
+					})*/
+					return {
+						type: 'view',
+						view: 'mapValue',
+						params: [
+							makeMultimap(r, r.params[0], implicits[0], expr.params[0]),
+							{type: 'value', value: false, schemaType: {type: 'primitive', primitive: 'boolean'}}
+						],
+						schemaType: r.schemaType,
+						code: r.code
+					}
 				}else if(expr.view === 'and'){
 					var failed = false
 					var inputExpr = r.params[0]

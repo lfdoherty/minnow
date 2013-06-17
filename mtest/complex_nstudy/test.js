@@ -100,7 +100,7 @@ function setupSidebarForm(c, v, cb){
 			
 			webGroup.sidebars.add(sidebar)
 			
-			cb(webGroup)
+			cb(webGroup, sidebar)
 		})
 	})
 }
@@ -115,7 +115,7 @@ function setupUserStuff(c, v, cb){
 		var contact = u.make('contact', {userId: u.id(), displayName: u.email.value(), name: u.email.value()})
 		u.setProperty('contact', contact)
 		
-		setupSidebarForm(c, v, function(webGroup){
+		setupSidebarForm(c, v, function(webGroup, sidebarForm){
 		
 			webGroup.members.add(u.contact)
 		
@@ -126,10 +126,10 @@ function setupUserStuff(c, v, cb){
 
 				//session.setProperty('currentTab', tab)
 				
-				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
+				var webpage = sidebarForm.bookmarkForm.copy({creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
 					console.log('webpage id: ' + webpage.id())
-					makeSidebar(c, u, function(){
-						cb(u, session, tab, webpage)
+					makeSidebar(c, u, function(sidebarForm){
+						cb(u, session, tab, webpage, sidebarForm)
 					})
 				})
 			})
@@ -145,7 +145,7 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.make('sidebar', {name: 'name'})//v.candidateSidebarForm.fork()
+				candidateSidebar = v.candidateSidebarForm.copy({name: 'name'})//v.make('sidebar', {name: 'name'})//v.candidateSidebarForm.fork()
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
 			console.log('forked sidebar')
@@ -153,7 +153,7 @@ function makeSidebar(c, user, cb){
 			v.userData.setProperty('sidebar', candidateSidebar)
 			console.log('made sidebar')
 		}
-		cb()
+		cb(v.candidateSidebarForm)
 	})
 }
 
@@ -225,9 +225,9 @@ exports.checkHistory = function(config, done){
 					
 							console.log('children: ' + v.children)
 							//console.log(JSON.stringify(v.sidebar))
-							v.sidebar.locally(function(){
+							/*v.sidebar.locally(function(){
 								v.sidebar.setForked(v.sidebarForm)
-							})
+							})*/
 							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
@@ -276,9 +276,9 @@ exports.checkQuote = function(config, done){
 							
 							console.log(JSON.stringify(v.children.toJson()))
 							
-							v.sidebar.locally(function(){
+							/*v.sidebar.locally(function(){
 								v.sidebar.setForked(v.sidebarForm)
-							})
+							})*/
 							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
@@ -295,13 +295,13 @@ exports.checkQuote = function(config, done){
 							var localWebpage
 							set.each(function(nv){localWebpage = nv;})
 							
-							localWebpage.locally(function(){
+							/*localWebpage.locally(function(){
 								localWebpage.setForked(v.sidebar.bookmarkForm)
-							})
+							})*/
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.userData.sidebarForm.quoteForm.copy({prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -341,16 +341,17 @@ exports.checkQuoteCount = function(config, done){
 			client.view('empty', function(err, c){
 				if(err) throw err
 				
-				setupUserStuff(client, c, function(u, session, tab, webpage){
+				setupUserStuff(client, c, function(u, session, tab, webpage, sidebarForm){
 
 					minnow.makeClient(config.port, function(otherClient){
 						otherClient.view('computeCounts', [u], function(err, v){
 							if(err) throw err
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
-
+							var quote = sidebarForm.quoteForm.copy({prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+setTimeout(function(){
 								_.assertEqual(v.quote.value(), 1)
 								done()
+},1000)
 							})
 						})
 					})
@@ -373,9 +374,9 @@ exports.checkQuoteRemoval = function(config, done){
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 							
-							v.sidebar.locally(function(){
+							/*v.sidebar.locally(function(){
 								v.sidebar.setForked(v.sidebarForm)
-							})
+							})*/
 							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
@@ -387,13 +388,13 @@ exports.checkQuoteRemoval = function(config, done){
 							var localWebpage
 							set.each(function(nv){localWebpage = nv;})
 							
-							localWebpage.locally(function(){
+							/*localWebpage.locally(function(){
 								localWebpage.setForked(v.sidebarForm.bookmarkForm)
-							})
+							})*/
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.userData.sidebarForm.quoteForm.copy({prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -444,9 +445,9 @@ exports.checkQuoteDoubleAdd = function(config, done){
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 							
-							v.sidebar.locally(function(){
+							/*v.sidebar.locally(function(){
 								v.sidebar.setForked(v.sidebarForm)
-							})
+							})*/
 							
 							var childMap = v.children.get(v.sidebar.id()).children
 							
@@ -458,13 +459,13 @@ exports.checkQuoteDoubleAdd = function(config, done){
 							var localWebpage
 							set.each(function(nv){localWebpage = nv;})
 							
-							localWebpage.locally(function(){
+							/*localWebpage.locally(function(){
 								localWebpage.setForked(v.sidebarForm.bookmarkForm)
-							})
+							})*/
 
 							v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 							
-							var quote = v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
+							var quote = v.userData.sidebarForm.quoteForm.copy({prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
 								console.log('children: ' + v.children)
@@ -483,7 +484,7 @@ exports.checkQuoteDoubleAdd = function(config, done){
 								//done()
 								//quote.removed.set(true)
 								
-								v.make('quote', {prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
+								v.userData.sidebarForm.quoteForm.copy({prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'second test quote text', originalOffset: 12, url: tabUrl}, function(){
 									_.assert(set.count() === 2)
 									
 									done()

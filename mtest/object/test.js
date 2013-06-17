@@ -12,7 +12,7 @@ exports.setProperty = function(config, done){
 					
 					setTimeout(function(){
 						c.view('specific', [id], function(err, handle){
-							//console.log('e: ' + handle.object.e.name.value())
+							console.log('e: ' + handle.object.e.name.value())
 							if(handle.object.e.name.value() === 'test2'){
 								done()
 							}

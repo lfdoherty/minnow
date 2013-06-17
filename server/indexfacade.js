@@ -14,6 +14,11 @@ exports.make = function(schema, propertyIndex){
 				var existing = reverse[key]
 				if(existing) return existing
 				return basic[key] = makeUuidIndex(objSchema, propertyIndex)				
+			}else if(property === -3){
+				var key = objSchema.code+':-3'
+				var existing = reverse[key]
+				if(existing) return existing
+				return basic[key] = makeCopySourceIndex(objSchema, propertyIndex)				
 			}else{
 				var key = objSchema.code+':'+property.code
 				var existing = basic[key]
@@ -27,6 +32,11 @@ exports.make = function(schema, propertyIndex){
 				var existing = reverse[key]
 				if(existing) return existing
 				return reverse[key] = makeUuidReverseIndex(objSchema, propertyIndex)				
+			}else if(property === -3){
+				var key = objSchema.code+':-3'
+				var existing = reverse[key]
+				if(existing) return existing
+				return reverse[key] = makeCopySourceReverseIndex(objSchema, propertyIndex)				
 			}else{
 				var key = objSchema.code+':'+property.code
 				var existing = reverse[key]
@@ -77,6 +87,44 @@ function makeUuidIndex(objSchema, propertyIndex){
 	return handle
 }
 
+function makeCopySourceIndex(objSchema, propertyIndex){
+	var permanentCache = {}
+	var editIds = {}
+	propertyIndex.attachIndex(objSchema.code, -3, function(id, c){
+		//console.log('got uuid change')
+		_.assertEqual(c.type, 'set')
+		permanentCache[id] = value
+		editIds[id] = c.editId
+	})
+	
+	var handle = {
+		getValueAt: function(bindings, id, editId){
+			_.assertLength(arguments, 3)
+			
+			var creationEditId = editIds[id]
+			if(creationEditId <= editId){
+				
+				var value = permanentCache[id]
+				return [value]
+			}else{
+				return []
+			}
+		},
+		getValueChangesBetween: function(bindings, id, startEditId, endEditId){
+			_.assertLength(arguments, 4)
+			
+			var editId = editIds[id]
+			if(editId >= startEditId && editId <= endEditId){
+				var value = permanentCache[id]
+				return [{type: 'set', value: value, editId: editId}]
+			}else{
+				return []
+			}
+		}
+	}
+	
+	return handle
+}
 function makeUuidReverseIndex(objSchema, propertyIndex){
 	var permanentCache = {}
 	var editIds = {}
@@ -116,6 +164,44 @@ function makeUuidReverseIndex(objSchema, propertyIndex){
 	return handle
 }
 
+function makeCopySourceReverseIndex(objSchema, propertyIndex){
+	var permanentCache = {}
+	var editIds = {}
+	propertyIndex.attachIndex(objSchema.code, -3, function(id, c){
+		//console.log('*got uuid change')
+		_.assertEqual(c.type, 'set')
+		permanentCache[c.value] = id
+		editIds[c.value] = c.editId
+	})
+	
+	var handle = {
+		getValueAt: function(bindings, key){
+			_.assertLength(arguments, 2)
+			
+			var id = permanentCache[key]
+			return [id]
+			/*var creationEditId = editIds[key]
+			if(creationEditId <= editId){
+				
+			}else{
+				return []
+			}*/
+		},
+		getValueChangesBetween: function(bindings, key, startEditId, endEditId){
+			_.assertLength(arguments, 4)
+			
+			var editId = editIds[key]
+			if(editId >= startEditId && editId <= endEditId){
+				var id = permanentCache[key]
+				return [{type: 'set', value: id, editId: editId}]
+			}else{
+				return []
+			}
+		}
+	}
+	
+	return handle
+}
 function indexOfRawId(arr, id){
 	for(var i=0;i<arr.length;++i){
 		var v = arr[i]
@@ -460,30 +546,46 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 function PrimitiveSet(){
 	this.list = []
 	this.removed = {}
-	this.dirty = true
+	this.dirty = false
 }
 PrimitiveSet.prototype.add = function(v){
+	if(this.dirty && this.removed[v]){
+		this._clean()
+	}else if(this.shown){
+		this.list = [].concat(this.list)
+		this.shown = false
+	}
 	//if(this.list.indexOf(v) !== -1) _.errout('invalid already has: ' + v)
 	this.list.push(v)
 }
 PrimitiveSet.prototype.remove = function(v){
+	//if(this.list.indexOf(v) === -1) _.errout('removing but does not have: ' + v)
+	//console.log('removing: ' + v)
 	this.removed[v] = true
 	this.dirty = true
 }
-PrimitiveSet.prototype.getRaw = function(){
-	if(this.dirty){
-		var newList = []
-		for(var i=0;i<this.list.length;++i){
-			var v = this.list[i]
-			if(!this.removed[v]){
-				newList.push(v)
-			}
+PrimitiveSet.prototype._clean = function(){
+	var newList = []
+	for(var i=0;i<this.list.length;++i){
+		var v = this.list[i]
+		if(!this.removed[v]){
+			newList.push(v)
 		}
-		this.list = newList
-		this.removed = {}
-		this.dirty = false
 	}
-	return this.list
+	//console.log('cleaned: ' + newList.length + ' ' + this.list.length)
+	this.list = newList
+	this.removed = {}
+	this.dirty = false
+	this.shown = false
+}
+PrimitiveSet.prototype.getRaw = function(){
+	//console.log('getting raw')
+	if(this.dirty){
+		this._clean()
+	}
+	//console.log(JSON.stringify(this.list))
+	this.shown = true
+	return this.list//[].concat(this.list)
 }
 
 function makeReversePropertyIndex(objSchema, property, propertyIndex){
@@ -515,8 +617,8 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 	
 	propertyIndex.attachIndex(objSchema.code, propertyCode, function(id, c){
 		_.assertDefined(id)
-		//console.log(' got c: ' + JSON.stringify(c))
 		if(c.type === 'set'){
+
 
 			var value = c.value
 			_.assertDefined(value)
@@ -526,6 +628,10 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			var old = currentValue[id]
 
 			if(keysAreBoolean) old = !!old
+
+			/*if(propertyCode === 3){
+				console.log(' got c: ' + id + ' ' + JSON.stringify(c) + ' ' + old)
+			}*/
 			
 			if(old !== value){
 
@@ -540,14 +646,18 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				if(old !== undefined){
 					//var oldSet = permanentCache[old]
 					//oldSet.push({type: 'remove', value: id, editId: c.editId})
+					//console.log(propertyCode + ' removing from ' + old + ' set: ' + id)
 					removeStateValue(old, id)
+					//console.log('after: ' + JSON.stringify(stateCache))
 				}else if(keysAreBoolean){
 					//var oldSet = permanentCache['false']
-					//console.log(id + ' ' + value + ' ' + JSON.stringify(stateCache))
+					//console.log(propertyCode + ' removing undefined old: ' + id + ' ' + value + ' ' + JSON.stringify(stateCache))
 					//oldSet.push({type: 'remove', value: id, editId: c.editId})
 					removeStateValue('false', id)
 				}
+				//console.log(propertyCode + ' adding to ' + value + ' set: ' + id + ' old: ' + old)
 				newSetValue.add(id)
+				//if(propertyCode === 3) console.log('now: ' + value + ' is ' + JSON.stringify(stateCache))
 				currentValue[id] = c.value
 			}
 		}else if(c.type === 'insert'){
@@ -627,7 +737,9 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			
 			if(keysAreBoolean){key = !!key}
 
-			//console.log('getting ' + key + ' from ' + JSON.stringify(stateCache))
+			/*if(propertyCode === 3){
+				console.log('getting ' + key + ' from ' + JSON.stringify(stateCache))
+			}*/
 			
 			var state = stateCache[key]
 			if(!state) return []

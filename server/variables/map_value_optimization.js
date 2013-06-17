@@ -120,6 +120,8 @@ exports.makeSync = function(s, rel, recurseSync, handle, ws){
 	_.assertDefined(param)
 	var a = analytics.make('map-value-optimization', [multimap, param])
 	
+	_.errout('here')
+	
 	if(!multimap.getValueAt) _.errout('missing getValueAt: ' + multimap.name)
 	//console.log(JSON.stringify(rel.params[0], null, 2))
 	_.assertEqual(rel.params[0].schemaType.value.type, 'set')
@@ -137,7 +139,7 @@ exports.makeSync = function(s, rel, recurseSync, handle, ws){
 			//}
 			var values = multimap.getValueAt(paramValue, bindings, editId)
 			//if(values.length === 0){
-			//	console.log(editId +' got at: ' + JSON.stringify([paramValue, values, rel.params[1]]))
+				console.log(editId +' got at: ' + JSON.stringify([paramValue, values, rel.params[1]]))
 			//	console.log(param.name)
 			//}
 			return values

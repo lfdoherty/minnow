@@ -48,7 +48,16 @@ function OlReaders(ol){
 	this.state = {}
 }
 OlReaders.prototype.make = function(e, timestamp){
+	//_.errout('ERROR: should always be made')
 	var newId = this.ol._make(e, timestamp, this.currentSyncId)//TODO
+	//this.currentId = n.id
+	this.state.top = newId
+	//log('got make', e.typeCode, ':', this.currentId)
+	//console.log('loading make '+ e.typeCode+ ':'+ this.currentId)
+}
+OlReaders.prototype.copy = function(e, timestamp){
+	//_.errout('ERROR: should always be made')
+	var newId = this.ol._copy(e, timestamp, this.currentSyncId)//TODO
 	//this.currentId = n.id
 	this.state.top = newId
 	//log('got make', e.typeCode, ':', this.currentId)
@@ -250,6 +259,7 @@ function Ol(schema){
 Ol.prototype.getSyncIdFor = function(editId){
 	return this.syncIdsByEditId.get(editId)
 }
+
 Ol.prototype._make = function make(edit, timestamp, syncId){
 
 	++this.stats.make
@@ -294,66 +304,78 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	//console.log('made object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name + ' ' + editId)
 	return id//{id: this.idCounter, editId: editId}
 }
-/*
-Ol.prototype.isFork = function(id){
-	return !!this.forks[id]
-}
-Ol.prototype.getForked = function(id){
-	return this.forks[id]
-}*/
-Ol.prototype.getUuid = function(id){
-	return this.uuid[id]
-}
 
-/*
-Ol.prototype.getAllForked = function(id){
-	var ids = []
-	var fid = this.getForked(id)
-	while(fid){
-		ids.push(fid)
-		fid = this.getForked(fid)
-	}
-	return ids
-}
-Ol.prototype._makeFork = function make(edit, timestamp, syncId){
 
+Ol.prototype._copy = function copy(edit, timestamp, syncId){
 
 	++this.stats.make
 		
 	++this.idCounter;
 	var editId = this.readers.lastVersionId
+	this.syncIdsByEditId.put(editId, syncId)
 	this.timestamps[editId]  = timestamp
-	this.syncIdsByEditId[editId] = syncId
 
 	++this.readers.lastVersionId
-	
 	//log('wrote object ', this.idCounter)
-
-	var sourceTypeCode = this.objectTypeCodes[edit.sourceId]
-	_.assertInt(sourceTypeCode)
 	
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
 	_.assert(syncId > 0)
-	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
-	this.olc.addEdit(id, {op: editCodes.madeFork, edit: {sourceId: edit.sourceId, id: id, typeCode: sourceTypeCode}, editId: editId})
-	this.objectCurrentSyncId[id] = syncId
 
-	//console.log('cannot find type: ' + JSON.stringify(edit))
-
-	this.idsByType[sourceTypeCode].push(this.idCounter)
-	this.creationEditIdsByType[sourceTypeCode].push(editId)
-
-	this.readers.currentId = this.idCounter
-	this.objectTypeCodes[this.idCounter] = sourceTypeCode
-
+	var sourceObjectEdits
+	this.get(edit.sourceId, -1, -1, function(es){
+		sourceObjectEdits = es
+	})
 	
-	this.forks[id] = edit.sourceId
+	
+	//TODO add all edits from sourceId
+	//_.errout('TODO: ' + edit.sourceId)
+	
+	this.objectCurrentSyncId.put(id,syncId)
+	_.assertInt(edit.typeCode)
+	//console.log('edit.typeCode: ' + edit.typeCode)
+	//this.idsByType[edit.typeCode].push(this.idCounter)
+	_.assertInt(edit.following)
+	//console.log(edit.typeCode + ' following: ' + edit.following)
+	this.creationEditIdsByType[edit.typeCode].push(editId+edit.following)
 
-	this.lastEditId[this.idCounter] = editId
+	this.creationEditIds[id] = editId+edit.following
+	
+	var sts = this.typeCodeSuperTypes[edit.typeCode]
+	for(var j=0;j<sts.length;++j){
+		var tc = sts[j]
+		this.idsByType[tc].push(id)
+	}	
+	
+	//console.log(JSON.stringify(this.idsByType))
+	
+	this.readers.currentId = this.idCounter
+	this.objectTypeCodes.put(this.idCounter, edit.typeCode)
+	this.lastEditId.put(this.idCounter, editId)
 
-	return {id: this.idCounter, editId: editId}
-}*/
+	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
+	this.olc.addEdit(id, {op: editCodes.copied, edit: {sourceId: edit.sourceId, typeCode: edit.typeCode, id: this.idCounter, following: edit.following}, editId: editId})
+
+	this.propertyIndex.creation(edit.typeCode, id, editId+edit.following)
+
+	var local = this
+	sourceObjectEdits.forEach(function(se){
+		local.olc.addEdit(id, se)
+		local.propertyIndex.addEdit(id, se.op, se.edit, se.editId)//resEditId)
+	})
+
+	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
+	
+	
+	//console.log('copied object: ' + id + ' ' + this.schema._byCode[edit.typeCode].name + ' ' + editId)
+	//console.log(JSON.stringify(sourceObjectEdits))
+	return id//{id: this.idCounter, editId: editId}
+}
+
+Ol.prototype.getUuid = function(id){
+	return this.uuid[id]
+}
+
 
 Ol.prototype.isDeleted = function(id){
 	return this.destroyed[id]
@@ -378,17 +400,6 @@ Ol.prototype._destroy = function(id,editId){
 		//console.log('removed ' + id + ' ' + JSON.stringify(arr))
 	}
 }
-/*
-Ol.prototype.getPathTo = function(id, cb){
-	//_.errout('TODO')
-
-
-	if(this.isTopLevelObject(id)){
-		cb([])
-	}else{
-		cb(this.innerParentIndex[id])
-	}
-}*/
 
 Ol.prototype._getForeignIdsDuring = function(id, startEditId, endEditId, cb){
 	if(endEditId === -1){
@@ -878,6 +889,8 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 		//_.assert(syncId > 0)
 		//console.log('MAKE ' + this.readers.lastVersionId)
 		return this._make(edit, timestamp, syncId)
+	}else if(op === editCodes.copy){
+		return this._copy(edit, timestamp, syncId)
 	}/*else if(op === editCodes.makeFork){
 		//_.assert(syncId > 0)
 		return this._makeFork(edit, timestamp, syncId)
@@ -1052,6 +1065,7 @@ Ol.prototype.getObjectMetadata = function(id){
 
 	var pu = pathsplicer.make()
 	var edits = this.olc.get(id)
+	//console.log('recomputing pu: ' + JSON.stringify(edits))
 	pu.updateAll(edits)
 	return pu.getAll()
 	

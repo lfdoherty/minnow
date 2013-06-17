@@ -136,7 +136,7 @@ exports.primitiveChangeListener = function changeListener(subObj, key, op, edit,
 	}else if(op === editCodes.insertString){
 		if(syncId === this.getEditingId()) return
 		
-		//console.log('inserting: ' + edit.value)
+		//console.log('inserting: ' + edit.value + ' ' + syncId + ' ' + this.getEditingId())
 		if(!this.obj){
 			console.log('WARNING: ignoring insert of undefined string property: ' + edit.index + ' ' + edit.value)
 		}else{

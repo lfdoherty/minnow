@@ -162,31 +162,6 @@ function loadMinnowView(){
 			fullFunc(schema, finish)
 		}
 	}
-
-	/*update.establishSocket(applicationName, schema, host, function(syncHandle){
-		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, baseId, function(err, root){
-			if(err) _.errout('Error: ' + err)
-
-			getRoot = function(){return root;}
-			
-			console.log('got main view api')
-			api = root
-		
-			//domready.domready(function(){
-			//	console.log('dom ready')
-				listeners.forEach(function(listener){
-					listener(root);
-				});
-			//});
-
-		}, window.mainViewHistorical?1:undefined)
-	}, function(err){
-	}, function(){
-		//window.location.reload()
-		setTimeout(function(){
-			window.document.body.innerHTML = '<h3>Lost Connection to Server</h3>'
-		},5000)
-	})*/
 }
 
 

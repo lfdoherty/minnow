@@ -1,7 +1,7 @@
 "use strict";
 
 /*  N,K: ms		
-	50000,100: 22049
+	50000,100: 17093
 */
 
 
@@ -114,12 +114,15 @@ function setupUserStuff(c, v, cb){
 			var session = v.make('userSession', {user: u.id(), syncId: -1})
 			var tab = v.make('tab', {url: tabUrl}, function(){
 			
-				var webpage = v.make('webpage', {creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
+				//var webpage = 
 				
-					makeSidebar(c, u, function(){
-						cb(u, session, tab, webpage)
+					makeSidebar(c, u, function(sidebarForm){
+					
+						var webpage = sidebarForm.bookmarkForm.copy({creator: u.contact, url: tabUrl, title: 'test title', name: 'test title'}, function(){
+							cb(u, session, tab, webpage)
+						})
 					})
-				})
+				//})
 			})
 		})
 	})
@@ -133,7 +136,7 @@ function makeSidebar(c, user, cb){
 			if(v.userData.sidebarsByForked.has(v.candidateSidebarForm)){
 				candidateSidebar = v.userData.sidebarsByForked.get(v.candidateSidebarForm)
 			}else{
-				candidateSidebar = v.make('sidebar', {creator: user.contact, name: ''})
+				candidateSidebar = v.candidateSidebarForm.copy({creator: user.contact, name: ''})
 				console.log(v.candidateSidebarForm._internalId())
 				v.userData.sidebarsByForked.put(v.candidateSidebarForm, candidateSidebar)
 			}
@@ -142,7 +145,7 @@ function makeSidebar(c, user, cb){
 			v.userData.setProperty('sidebar', candidateSidebar)
 			console.log('made sidebar')
 		}
-		cb()
+		cb(v.candidateSidebarForm)
 	})
 }
 function run(){
@@ -202,9 +205,9 @@ function run(){
 }
 
 function prepareOverlayPage(v){
-	v.sidebar.locally(function(){
+	/*v.sidebar.locally(function(){
 		v.sidebar.setForked(v.sidebarForm)
-	})
+	})*/
 	
 	console.log(JSON.stringify(v.children.toJson()))
 	
@@ -212,20 +215,20 @@ function prepareOverlayPage(v){
 	
 	_.assert(v.sidebar.elements.count() > 0)
 	
-	console.log('were: ' + JSON.stringify(childMap.toJson()))
+	//console.log('were: ' + JSON.stringify(childMap.toJson()))
 	
 	var historyField = v.sidebar.elements.at(0)
 	var set = childMap.get(historyField.id())
 	
-	console.log('looking for: ' + historyField.id())
+	//console.log('looking for: ' + historyField.id())
 	_.assert(set)
 	
 	var localWebpage
 	set.each(function(nv){localWebpage = nv;})
 	
-	localWebpage.locally(function(){
+	/*localWebpage.locally(function(){
 		localWebpage.setForked(v.sidebar.bookmarkForm)
-	})
+	})*/
 
 	v.userData.expansionToggles.put(historyField.id()+'|'+localWebpage.id(), true)
 

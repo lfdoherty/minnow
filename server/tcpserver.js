@@ -63,7 +63,7 @@ function serializeAllSnapshots(snapshots){
 	var buf = new Buffer(len)
 	buf[0] = snapshots.length
 	var off = 1
-	console.log('copying ' + snapshots.length + ' into bytes ' + buf.length)
+	//console.log('copying ' + snapshots.length + ' into bytes ' + buf.length)
 	for(var i=0;i<snapshots.length;++i){
 		var s = snapshots[i]
 		_.assertBuffer(s)
@@ -495,7 +495,10 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 					}else{
 						conn.currentIdFor[syncId] = e.edit.id
 					}
-					if(pu) pu.reset()
+					if(pu){
+						pu.reset()
+						//console.log('reset pu')
+					}
 					return
 				}else if(op === editCodes.selectTopViewObject){
 					_.errout('cannot modify view objects directly')
@@ -517,7 +520,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				
 				var tg = getTemporaryGenerator(syncId)
 				
-				if(op === editCodes.make){
+				if(op === editCodes.make || op === editCodes.copy){
 				
 					currentId = -1
 
@@ -644,7 +647,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 							return
 						}
 						res.requestId = e.requestId;
-						console.log('serializing all snapshots for ' + JSON.stringify(e))
+						//console.log('serializing all snapshots for ' + JSON.stringify(e))
 						res.snapshots = serializeAllSnapshots(res.snapshots)
 						res.isHistorical = e.isHistorical
 						conn.w.gotAllSnapshots(res);

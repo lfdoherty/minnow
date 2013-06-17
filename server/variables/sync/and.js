@@ -27,5 +27,18 @@ exports.compute = function(paramValues){
 
 exports.computeSync = function(z){
 	var args = Array.prototype.slice.call(arguments, 1)
+	//console.log(new Error().stack)
 	return exports.compute(args)
+}
+
+exports.compute1 = function(v){
+	return !!v
+}
+
+exports.compute2 = function(a, b){
+	return a && b
+}
+
+exports.compute3 = function(a, b, c){
+	return a && b && c
 }

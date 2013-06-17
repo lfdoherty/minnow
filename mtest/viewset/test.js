@@ -101,3 +101,57 @@ exports.wrappedRemoval = function(config, done){
 	})
 }
 
+
+exports.checkIndexDirty = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(otherClient){
+			otherClient.view('indexDirtyCheck', function(err, v){
+
+				v.make('soilable', {})
+
+				done.poll(function(){
+					if(v.all.count() === 3 && v.rest.count() === 3){
+						done()
+					}
+				})
+
+				minnow.makeClient(config.port, function(client){
+					client.view('empty', function(err, c){
+						c.make('soilable', {})
+						c.make('soilable', {})
+					})
+				})
+
+				/*var obj = v.make('entity', {v: 'test'})
+				var cont = v.make('container', {members: [obj]}, function(){
+				
+					minnow.makeClient(config.port, function(client){
+						client.view('contained', function(err, c){
+			
+							var had = false
+							done.poll(function(){
+								//console.log('$$$$ ' + had + ' ' + JSON.stringify(c.toJson()))
+								if(c.has('c')){
+									//console.log('rand: ' + c.c.rand)
+								}
+								if(c.has('c') && c.c.members.count() === 1){
+									had = true
+								}else if(had && c.has('c') && c.c.members.count() === 0){
+									done()
+									return true
+								}
+							})
+
+				
+							setTimeout(function(){
+								console.log('removing: ' + obj.id())
+								cont.members.remove(obj)
+							},500)
+						})
+					})
+				})*/
+			})
+		})
+	})
+}
+

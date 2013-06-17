@@ -21,8 +21,39 @@ setInterval(function(){
 	console.log('intersections: ' + intersections)
 },1000)*/
 
+exports.compute2 = function(a,b){
+	if(a.length > b.length){
+		var t = b
+		b = a
+		a = t
+	}
+	
+	var ma = {}
+	for(var j=0;j<a.length;++j){
+		ma[a[j]] = true
+	}
+	
+	var result = []
+	for(var j=0;j<b.length;++j){
+		var v = b[j]
+		if(ma[v]){
+			result.push(v)
+		}
+	}
+	return result
+}
+
+exports.compute3 = function(a,b,c){
+	return compute([a,b,c])
+}
+
 exports.computeSync = function(z){
+
 	var params = Array.prototype.slice.call(arguments, 1)
+	return compute(params)
+}
+
+function compute(params){
 	//++intersections
 
 	for(var i=0;i<params.length;++i){
@@ -30,8 +61,6 @@ exports.computeSync = function(z){
 			return []
 		}
 	}
-	
-	//var original = [].concat(params)
 	
 	params.sort(function(a,b){return a.length - b.length})
 
@@ -42,12 +71,10 @@ exports.computeSync = function(z){
 	}
 	for(var i=1;i<params.length;++i){
 		var next = params[i]
-		//var res = []
 		for(var j=0;j<next.length;++j){
 			var v = next[j]
-			if(ma[v] === i) ++ma[v]//res.push(v)
+			if(ma[v] === i) ++ma[v]
 		}
-		//cur = next
 	}
 	cur = params[0]
 	var res = []
@@ -57,21 +84,7 @@ exports.computeSync = function(z){
 		if(ma[v] === many){
 			res.push(v)
 		}
-	}/*
-	for(var i=1;i<params.length;++i){
-		ma = {}
-		for(var j=0;j<cur.length;++j){
-			ma[cur[j]] = true
-		}
-		var next = params[i]
-		var res = []
-		for(var j=0;j<next.length;++j){
-			var v = next[j]
-			if(ma[v]) res.push(v)
-		}
-		cur = res
-	}*/
-
+	}
 	//console.log(JSON.stringify(params))
 	//console.log('intersection of ' + JSON.stringify(_.map(original, function(p){return p.length})) + ' -> ' + res.length)
 	return res

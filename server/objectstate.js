@@ -845,14 +845,14 @@ exports.make = function(schema, ap, ol){
 			//_.assertLength(arguments, 7);
 
 			//console.log('adding edit: ' + JSON.stringify(arguments))
-			if(op !== editCodes.make && op !== editCodes.forgetTemporary){
+			if(op !== editCodes.make && op !== editCodes.copy && op !== editCodes.forgetTemporary){
 				_.assertInt(state.object);
 			}
 			_.assertInt(syncId);
 			_.assertInt(op)
 			//TODO support merge models
 			
-			if(op === editCodes.make){
+			if(op === editCodes.make || op === editCodes.copy){
 				return ap.persistEdit({}, op, edit, syncId, computeTemporary, Date.now())//TODO this timestamp is inconsistent with what will be serialized
 			}else{
 				_.assertInt(state.top)

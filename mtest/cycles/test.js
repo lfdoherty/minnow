@@ -10,7 +10,7 @@ exports.simplest = function(config, done){
 				if(err) throw err
 				
 				done.poll(function(){
-					//console.log('done.polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
+					console.log('done.polling: ' + JSON.stringify(c.toJson()) + ' ' + c.has('s'))
 					if(c.has('s')){
 						if(c.s.wrappedValue.value() === 'test'/* && d.wrappedOtherValue.value()*/){
 							done()

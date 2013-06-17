@@ -415,10 +415,10 @@ function createNewExternalObject(typeCode, obj, forget, cb){
 	_.assertDefined(this.parent);
 	return this.parent.createNewExternalObject(typeCode, obj, forget, cb);
 }
-function copyExternalObject( obj, forget, cb){
-	_.assertLength(arguments, 3)
+function copyExternalObject(obj, json, forget, cb){
+	_.assertLength(arguments, 4)
 	_.assertDefined(this.parent);
-	return this.parent.copyExternalObject( obj, forget, cb);
+	return this.parent.copyExternalObject(obj, json, forget, cb);
 }
 function reifyExternalObject(typeCode, temporaryId, realId){
 	_.assertDefined(this.parent);
@@ -569,6 +569,7 @@ SyncApi.prototype.hasView = function(viewId){
 }
 
 SyncApi.prototype.objectListener = function(id, edits){
+	//console.log('[object]: ' + id)
 	//console.log((!!this.objectApiCache[id]) + ' ' + this.getEditingId() + ' working: ' + id + ' ' + JSON.stringify(edits) + ' ' + JSON.stringify(Object.keys(this.objectApiCache)))
 	
 	if(_.isInt(id)){
@@ -579,13 +580,36 @@ SyncApi.prototype.objectListener = function(id, edits){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
 
+		//var actual
+		var realEditsEditId = -1
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(e.op === editCodes.copied){
+				//actual = edits.slice(i)
+				realEditsEditId = e.editId
+				break
+			}
+		}
+		/*if(realEditsEditId){
+			actual = []
+			for(var i=0;i<edits.length;++i){
+				var e = edits[i]
+				if(e.editId > realEditsEditId){
+					actual.push(e)
+				}
+			}
+		}else{
+			actual = edits
+		}*/
+		
+
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			if(e.op === editCodes.setSyncId){
 				curSyncId = e.edit.syncId
 			}else{
-				//console.log('e; ' + JSON.stringify(e))
-				obj.changeListener(undefined, undefined, e.op, e.edit, curSyncId, e.editId)
+				//console.log(realEditsEditId + ' e; ' + JSON.stringify(e))
+				obj.changeListener(undefined, undefined, e.op, e.edit, curSyncId, e.editId, true, realEditsEditId > e.editId)
 			}
 		}
 		return
@@ -594,22 +618,24 @@ SyncApi.prototype.objectListener = function(id, edits){
 
 	if(edits[0].op === editCodes.madeViewObject){
 		var typeCode = edits[0].edit.typeCode
-		//var id = edits[0].edit.id
 	}else{
 		var typeCode = edits[1].edit.typeCode
-		//var id = edits[1].edit.id
 	}
 	var t = this.schema._byCode[typeCode];
 	//console.log('typeCode: ' + typeCode)
 	_.assertObject(t)
 	if(this.objectApiCache[id] !== undefined){
 		if(this.objectApiCache[id].prepared){
-			_.errout('already prepared object being overwritten: ' + id)
+			//_.errout('already prepared object being overwritten: ' + id)
+			console.log('ERROR: already prepared object being overwritten: ' + id)
+			return
 		}
 		//console.log('WARNING: redundant update?: ' + id)
 		_.errout('HERE: ' + id + ' ' + JSON.stringify(this.objectApiCache[id].edits) + ' ' + JSON.stringify(edits))
 		return
 	}
+	
+	//console.log('making new object: ' + id)
 	_.assertUndefined(this.objectApiCache[id])
 	var n = new TopObjectHandle(this.schema, t, edits, this, id);
 	this.objectApiCache[id] = n;
@@ -692,7 +718,7 @@ SyncApi.prototype.persistEdit = function(typeCode, id, op, edit){
 	//console.log('id: ' + id + ' for ' + op)
 	//console.log(new Error().stack)
 	
-//	console.log('persistEdit: ' + JSON.stringify([typeCode, id, editNames[op], edit]))
+	//console.log('persistEdit: ' + JSON.stringify([typeCode, id, editNames[op], edit]))
 	
 	if(this.localMode){
 		return
@@ -729,6 +755,8 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertLength(arguments, 3);
 	_.assertInt(op);
 	_.assertInt(editId);
+	
+	//console.log(this.getEditingId()+' *** ' + editNames[op])
 
 	//console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
@@ -847,8 +875,8 @@ SyncApi.prototype.setEditingId = function(editingId){
 	this.editingId = editingId;
 }
 
-SyncApi.prototype.copyExternalObject = function(obj, forget, cb){
-	_.assertLength(arguments, 3)
+SyncApi.prototype.copyExternalObject = function(obj, json, forget, cb){
+	_.assertLength(arguments, 4)
 	_.assertObject(obj)
 	_.assertBoolean(forget)
 
@@ -856,14 +884,17 @@ SyncApi.prototype.copyExternalObject = function(obj, forget, cb){
 	
 	var temporary = this.makeTemporaryId()
 	
-	var edits = this.sh.copy(obj, forget, cb, temporary)
+	console.log('this.sh: ' + JSON.stringify(Object.keys(this.sh)))
+	var edits = this.sh.copy(obj, json, forget, cb, temporary)
 	
-	edits = [{op: editCodes.made, edit: {typeCode: this.schema[typeName].code, temporary: temporary}, editId: -2}].concat(edits)
+	edits = obj.edits
+		.concat([{op: editCodes.copied, edit: {sourceId: obj.id(), typeCode: this.schema[typeName].code, temporary: temporary}, editId: -2}])
+		.concat(edits)
 
-	var oldHandle = this.objectApiCache[this.currentObjectId]
+	/*var oldHandle = this.objectApiCache[this.currentObjectId]
 	if(oldHandle){
 		oldHandle.currentPath = undefined
-	}
+	}*/
 	
 	this.currentObjectId = temporary//TODO only if !forget?
 	
@@ -891,10 +922,10 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 	
 	edits = [{op: editCodes.made, edit: {typeCode: this.schema[typeName].code, temporary: temporary}, editId: -2}].concat(edits)
 
-	var oldHandle = this.objectApiCache[this.currentObjectId]
+	/*var oldHandle = this.objectApiCache[this.currentObjectId]
 	if(oldHandle){
 		oldHandle.currentPath = undefined
-	}
+	}*/
 	
 	this.currentObjectId = temporary//TODO only if !forget?
 	

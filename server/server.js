@@ -155,7 +155,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 				_.assertInt(syncId);
 				//_.assertFunction(cb)
 
-				if(op === editCodes.make || op === editCodes.makeFork){
+				if(op === editCodes.make || op === editCodes.copy){
 					var id = objectState.addEdit(op, state, edit, syncId, computeTemporaryId)
 
 					if(!edit.forget){
@@ -217,6 +217,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					//_.assertInt(up.syncId)
 					
 					//console.log('sync sending edit update: ' + JSON.stringify(up))
+					//console.log(new Error().stack)
 					
 					if(currentSyncId !== up.syncId){
 						currentSyncId = up.syncId

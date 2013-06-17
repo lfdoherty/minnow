@@ -14,6 +14,18 @@ makeMapped 3//what gets sent back to the make source syncId (for make and the va
 	id int 1
 	temporary int 2
 
+copy 155
+	sourceId int 1
+	typeCode int 2
+	forget boolean 4
+	following int 5
+
+copied 163
+	id int 1
+	sourceId int 4
+	typeCode int 2
+	following int 5
+
 madeViewObject 33
 	id string 1
 	typeCode int 2
