@@ -483,7 +483,7 @@ function makeClient(host, port, clientCb){
 				serviceIsSetup = true;
 				var lp = longpoll.load(local, name, urlPrefix, dbSchema, identifier, viewSecuritySettings, handle, syncHandleCreationListener)
 
-				var ws = websocket.load(local, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
+				var ws = websocket.load(local, urlPrefix, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
 				
 				xhrService.make(name, urlPrefix, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings);
 				return matterhornService.make(urlPrefix, name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);
