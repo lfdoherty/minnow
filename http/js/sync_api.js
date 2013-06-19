@@ -1062,13 +1062,13 @@ SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
 	return results
 }
 
-SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKey){
+SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, historicalKey){
 
 	//console.log('getting object ' + idOrViewKey + ' ' + historicalKey)
 	
-	var n
+	//var n
 	
-	if(historicalKey){
+	/*if(historicalKey){
 
 		if(this.historicalObjectCache[historicalKey] === undefined) this.historicalObjectCache[historicalKey] = {cache: {}, list: [], currentEditId: 0}
 		
@@ -1125,9 +1125,14 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey, historicalKe
 		
 		//console.log('historical: ' + idOrViewKey + ' ' + historicalKey)
 		return n
+	}*/
+	
+	if(idOrViewKey === 0){
+		console.log('ERROR: id===0 passed to sync_api.GetObjectApi(id)')
+		return
 	}
 	
-	n = this.objectApiCache[idOrViewKey];
+	var n = this.objectApiCache[idOrViewKey];
 	if(n !== undefined){
 		return n
 	}
@@ -1163,7 +1168,7 @@ SyncApi.prototype.wrapObject = function(id, typeCode, part, sourceParent){
 	_.errout('TOO FAR')
 }
 SyncApi.prototype.getEditingId = function(){
-	_.assertInt(this.editingId);
+	//_.assertInt(this.editingId);
 	//console.log('editingId: ' + this.editingId);
 	return this.editingId;
 }

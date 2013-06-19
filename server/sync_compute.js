@@ -66,6 +66,7 @@ function make(s, staticBindings, rel, recurse){
 				//return result
 			}
 			compute2Fixed.operator = rel.view
+			compute2Fixed.resultType = rel.schemaType
 			return compute2Fixed
 		}else{
 			function compute2(bindings){
@@ -75,6 +76,7 @@ function make(s, staticBindings, rel, recurse){
 				//return result
 			}
 			compute2.operator = rel.view
+			compute2.resultType = rel.schemaType
 			return compute2
 		}
 	}else if(paramRels.length === 3){
@@ -91,6 +93,7 @@ function make(s, staticBindings, rel, recurse){
 				//return result
 			}
 			compute3Fixed.operator = rel.view
+			compute3Fixed.resultType = rel.schemaType
 			return compute3Fixed
 		}else{
 			function compute3(bindings){
@@ -100,6 +103,7 @@ function make(s, staticBindings, rel, recurse){
 				//return result
 			}
 			compute3.operator = rel.view
+			compute3.resultType = rel.schemaType
 			return compute3
 		}
 	}else{

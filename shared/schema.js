@@ -780,7 +780,7 @@ function checkAlphanumericOnly(str, msg){
 	if(str.charAt(0) === '~') return;
 	//if(str === '$') return;
 	if(!alphaRegex.test(str)){
-		_.errout(msg);
+		_.errout(msg+': ' + str);
 	}
 }
 

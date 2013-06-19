@@ -390,9 +390,9 @@ MapHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, edi
 
 	//console.log('changeListener: ' + JSON.stringify([op, edit, syncId]))
 
-	if(syncId === this.getEditingId()){
+	/*if(syncId === this.getEditingId()){
 		return stub;//TODO deal with local/global priority
-	}
+	}*/
 
 	if(op === editCodes.putAddExisting){
 		//_.errout('TODO')

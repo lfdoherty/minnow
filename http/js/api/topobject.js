@@ -363,7 +363,7 @@ TopObjectHandle.prototype.replay = function(cb){
 		}else if(e.op === editCodes.addExisting || e.op === editCodes.addAfter || e.op === editCodes.unshiftExisting){
 			var obj = this.getObjectApi(e.edit.id)
 			obj.prepare()
-			cb(curObj, 'add', p.name, e.editId, obj.asAt(e.editId))
+			cb(curObj, 'add', p.name, e.editId, obj)//.asAt(e.editId))
 		}else if(e.op === editCodes.addString){
 			cb(curObj, 'add', p.name, e.editId, e.edit.value)
 		}else if(e.op === editCodes.remove){
@@ -852,14 +852,16 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	if(!s._destroyed){
 		if(s.typeSchema.properties){
 			var keys = Object.keys(s.typeSchema.properties);
-			keys.forEach(function(name){
+			//keys.forEach(function(name){
+			for(var i=0;i<keys.length;++i){
+				var name = keys[i]
 				//console.log('preparing: ' + name)
 				var p = s.typeSchema.properties[name];
 				var v = s.property(name);
 				v.prepare();
 				s[name] = v;
 		
-			});
+			}
 		}
 	}
 }
@@ -1286,6 +1288,8 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	_.assertObject(edit)
 	_.assertInt(syncId)
 	
+	var ownSyncId = this.getEditingId()
+	
 	if(!isNotExternal){
 		_.assertInt(editId)
 	}
@@ -1298,10 +1302,10 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	
 	this.inputSyncId = syncId
 	
-	if(!isNotExternal || this.getEditingId() === syncId){
+	if(!isNotExternal || ownSyncId === syncId){
 		this.edits.push({op: op, edit: edit, editId: editId})
 		
-		if(this.localEdits && this.getEditingId() === syncId){
+		if(this.localEdits && ownSyncId === syncId){
 			this.localEdits.shift()
 		}
 	}
@@ -1322,7 +1326,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	if(op === editCodes.destroy){
 		this._destroy(true)
 	}else{
-		if(isNotExternal && (syncId === this.getEditingId() || isCopyChange)){
+		if(isNotExternal && (syncId === ownSyncId || isCopyChange)){
 			//console.log('just updating path?: ' + editNames[op])
 			//console.log(new Error().stack)
 			//var did = updatePath(this, op, edit, editId)

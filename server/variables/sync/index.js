@@ -29,5 +29,6 @@ exports.plugins = {
 	exists: require('./exists'),
 	list: require('./list'),
 	keysByValues: require('./keysByValues'),
-	parseInt: require('./parseInt')
+	parseInt: require('./parseInt'),
+	withValuesGreaterThan: require('./withValuesGreaterThan')
 }
