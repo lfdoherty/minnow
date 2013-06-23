@@ -40,6 +40,7 @@ exports.compute2 = function(a,b){
 			result.push(v)
 		}
 	}
+	//console.log('intersection ' + JSON.stringify([a,b,result]))
 	return result
 }
 
@@ -86,7 +87,7 @@ function compute(params){
 		}
 	}
 	//console.log(JSON.stringify(params))
-	//console.log('intersection of ' + JSON.stringify(_.map(original, function(p){return p.length})) + ' -> ' + res.length)
+	//console.log('intersection of ' + JSON.stringify(_.map(params, function(p){return p.length})) + ' -> ' + res.length)
 	return res
 }
 

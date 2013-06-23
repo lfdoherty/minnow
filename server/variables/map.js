@@ -74,6 +74,10 @@ function mapType(rel, ch){
 
 	//console.log('map: ' + JSON.stringify([keyType,valueType]))
 	
+	if(keyType.type === 'set' || keyType.type === 'list'){
+		keyType = keyType.members
+	}
+	
 	_.assert(keyType.type !== 'set')
 	_.assert(keyType.type !== 'list')
 	_.assert(valueType.type !== 'set')
@@ -91,13 +95,6 @@ schema.addFunction('map', {
 	minParams: 3,
 	maxParams: 4,
 	callSyntax: 'map(collection,key-macro,value-macro[,reduce-macro])',
-	computeAsync: function(z, cb, input, keyMacro, valueMacro, reduceMacro){
-		if(reduceMacro){
-			reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro)
-		}else{
-			noReduceComputeAsync(z, cb, input, keyMacro, valueMacro)
-		}
-	},
 	computeSync: function(z, input, keyMacro, valueMacro, reduceMacro){
 		if(reduceMacro){
 			return reduceCompute(z, input, keyMacro, valueMacro, reduceMacro)
@@ -118,11 +115,21 @@ function reduceCompute(z, input, keyMacro, valueMacro, reduceMacro){
 
 	input.forEach(function(v){
 		var key = keyMacro.get(v)
-		var value = valueMacro.get(v)
-		_.assertDefined(key)			
-		_.assertDefined(value)	
-		if(!state[key]) state[key] = []		
-		state[key].push(value)
+		if(_.isArray(key)){
+			key.forEach(function(key){
+				var value = valueMacro.get(v)
+				_.assertDefined(key)			
+				_.assertDefined(value)	
+				if(!state[key]) state[key] = []		
+				state[key].push(value)
+			})
+		}else{
+			var value = valueMacro.get(v)
+			_.assertDefined(key)			
+			_.assertDefined(value)	
+			if(!state[key]) state[key] = []		
+			state[key].push(value)
+		}
 	})
 	
 	Object.keys(state).forEach(function(key){
@@ -144,92 +151,9 @@ function reduceCompute(z, input, keyMacro, valueMacro, reduceMacro){
 		ss[key] = state[key][0]
 	}
 	
-	console.log('reduced: ' + JSON.stringify(ss))
+	//console.log('reduced: ' + JSON.stringify(ss))
 	
 	return ss
-}
-
-
-function reduceComputeAsync(z, cb, input, keyMacro, valueMacro, reduceMacro){
-	var state = {}
-	_.assertArray(input)
-	
-	//console.log('reducing map')
-	
-	var combinationsToDo = 0
-	var cdl = _.latch(input.length*2, function(){
-
-		var nc = _.latch(combinationsToDo, function(){
-			var ss = {}
-			var keys = Object.keys(state)//.forEach(function(key){
-			for(var i=0;i<keys.length;++i){
-				var key = keys[i]
-				//console.log('kkkk: ' + key)
-				ss[key] = state[key][0]
-			}
-			//console.log('lkjeoirueroeu***: ' + JSON.stringify(ss))
-			var ncb = cb
-			cb = undefined
-			ncb(ss)
-		})
-		
-		//console.log('combinations: ' + combinationsToDo)
-		
-		Object.keys(state).forEach(function(key){
-			var values = state[key]
-			
-			//console.log('##lkjeoirueroeu: ' + JSON.stringify(state))
-			//_.assertDefined(cb)
-			function doReduce(){
-				reduceMacro.get(values[0], values[1], function(combinedValue){
-					//console.log('reduced ' + values[0] + ',' + values[1] + ': ' + combinedValue)
-					values.shift()
-					values[0] = combinedValue
-					nc()
-					if(values.length > 1){
-						setImmediate(doReduce)
-					}					
-				})
-			}
-			if(values.length > 1){
-				doReduce()
-			}
-		})
-	})
-	input.forEach(function(v){
-		var gotKey = false
-		var gotValue = false
-		var theKey
-		var theValue
-		keyMacro.get(v, function(key){	
-			_.assertDefined(key)			
-			if(state[key] === undefined){
-				state[key] = []
-			}
-			if(gotValue){
-				if(state[key].length > 0) ++combinationsToDo
-				state[key].push(theValue)
-			}else{
-				theKey = key
-				gotKey = true
-			}
-			cdl()
-		})
-		valueMacro.get(v, function(value){
-			_.assertDefined(value)			
-			if(gotKey){
-				if(state[theKey] === undefined){
-					state[theKey] = []
-				}
-				if(state[theKey].length > 0) ++combinationsToDo
-				state[theKey].push(value)
-			}else{
-				theValue = value
-				gotValue = true
-			}
-			cdl()
-		})
-	})
 }
 
 function noReduceCompute(z, input, keyMacro, valueMacro){
@@ -250,43 +174,6 @@ function noReduceCompute(z, input, keyMacro, valueMacro){
 	
 	//console.log('state: ' + JSON.stringify(state) + ' from ' + JSON.stringify(input))
 	return state
-}
-
-
-
-function noReduceComputeAsync(z, cb, input, keyMacro, valueMacro){
-	var state = {}
-	_.assertArray(input)
-	//console.log('++')
-	var cdl = _.latch(input.length, function(){
-		//console.log('computed map state: ' + JSON.stringify([input, state]))
-		cb(state)
-	})
-	input.forEach(function(v){
-		var gotKey = false
-		var gotValue = false
-		var theKey
-		var theValue
-		keyMacro.get(v, function(key){
-			if(gotValue){
-				if(key !== undefined && theValue !== undefined) state[key] = theValue
-				cdl()
-			}else{
-				theKey = key
-				gotKey = true
-			}
-		})
-		valueMacro.get(v, function(value){
-			
-			if(gotKey){
-				if(theKey !== undefined && value !== undefined) state[theKey] = value
-				cdl()
-			}else{
-				theValue = value
-				gotValue = true
-			}
-		})
-	})
 }
 
 
