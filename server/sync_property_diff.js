@@ -214,8 +214,7 @@ function makePropertyDiffer(p){
 				}
 				return changes
 			}
-		}else if(/*p.type.key.type === 'primitive' && */p.type.value.type === 'view'){
-			//var putOp = getPutOp(p.type.value)
+		}else if(p.type.value.type === 'view'){
 			return function(a,b){
 				var aKeys = Object.keys(a)
 				var bKeys = Object.keys(b)
@@ -224,8 +223,6 @@ function makePropertyDiffer(p){
 				for(var i=0;i<aKeys.length;++i){
 					var key = aKeys[i]
 					if(b[key] === undefined){
-						//changes.push({op: keyOp, edit: {key: key}})
-						//_.errout('TODO remove key')
 						changes.push({op: keyOp, edit: {key: key}})
 						changes.push({op: editCodes.delKey, edit: {}})
 					}
@@ -239,7 +236,7 @@ function makePropertyDiffer(p){
 				}
 				return changes
 			}
-		}else if(/*p.type.key.type === 'primitive' && */p.type.value.type === 'set' && p.type.value.members.type === 'primitive'){
+		}else if(p.type.value.type === 'set' && p.type.value.members.type === 'primitive'){
 			var putAddOp = u.getPutAddOp(p.type.value.members)
 			var putRemoveOp = u.getPutRemoveOp(p.type.value.members)
 			return function(a,b){

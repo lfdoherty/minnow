@@ -407,9 +407,13 @@ MapHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, edi
 				this.valueCache[key]._forceAdd(res, editId)
 			}
 			
+			//console.log('put-added: ' + key + ' -> ' + edit.id)
+			//console.log('now: ' + JSON.stringify(Object.keys(this.obj)))
+			//if(key === '645_90') console.log('now-values: ' + JSON.stringify(this.obj))
 			this.emit(edit, 'put-add', key, res, editId)
-		}else{
-		}
+		}//else{
+		//	console.log('already got: ' + key)
+		//}
 	}else if(lookup.isPutAddCode[op]){//op.indexOf('putAdd') === 0){
 		_.assertDefined(key)
 		if(this.obj[key] === undefined) this.obj[key] = []
@@ -519,8 +523,13 @@ MapHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, edi
 			return this.emit(edit, 'put', key, edit.value, old, editId)
 		}
 	}else if(op === editCodes.delKey){
-		//console.log('key: ' + key)		
+		//console.log('deleted key: ' + key)		
 		delete this.obj[key]
+		
+		if(this.valueCache && this.valueCache[key]){
+			delete this.valueCache[key]
+		}
+		//console.log('now: ' + JSON.stringify(Object.keys(this.obj)))
 		return this.emit(edit, 'del', editId)
 	}else{
 		_.errout('-TODO implement op: ' + JSON.stringify(edit));
