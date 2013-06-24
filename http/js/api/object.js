@@ -68,6 +68,9 @@ ObjectHandle.prototype.asAt = function(editId){
 	//_.errout('cannot construct inner object asAt copy independent of its top object container')
 	var parent = this.getTopParent()
 	var copy = parent.asAt(editId)
+
+	if(!copy.objectApiCache) return
+	
 	var ourCopy = copy.objectApiCache[this.objectId]
 	_.assertDefined(ourCopy)
 	return ourCopy
