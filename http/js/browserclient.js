@@ -10,15 +10,28 @@ var listenForMinnow;
 (function(){
 
 var api;
-var root;
+
+var domWasReady = false
+document.addEventListener('DOMContentLoaded', function(){
+	domWasReady = true
+	tryBegin()
+})
 
 var listeners = [];
 global.listenForMinnow = function(listener){
-	if(api === undefined){
+	if(api === undefined || !domWasReady){
 		listeners.push(listener);
 	}else{
 		listener(api);
 	}
+}
+
+function tryBegin(){
+	if(!api) return
+	if(!domWasReady) return
+	listeners.forEach(function(listener){
+		listener(api);
+	});
 }
 
 exports.listen = global.listenForMinnow
@@ -149,9 +162,7 @@ function loadMinnowView(){
 			console.log('got main view api: ' + Date.now())
 			api = root
 	
-			listeners.forEach(function(listener){
-				listener(root);
-			});
+			tryBegin()
 
 		}, window.mainViewHistorical?1:undefined)
 	}
