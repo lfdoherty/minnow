@@ -520,7 +520,10 @@ function changeOnPath(local, op, edit, syncId, editId){
 			}
 			//_.assertEqual(ps.type.type, 'object')
 		}
-		var pv = local[property.name]//.cachedProperties[ps.name]
+
+		var subj = local.inputObject!==undefined?local.objectApiCache[local.inputObject]:local
+
+		var pv = subj[property.name]//.cachedProperties[ps.name]
 		if(pv && pv.objectId === edit.id){
 			//already done
 			//this.log('setObject redundant (local view object?), skipping')
@@ -532,17 +535,21 @@ function changeOnPath(local, op, edit, syncId, editId){
 				local.log(new Error().stack)
 				return
 			}
+			
 
-			local.obj[local.inputProperty] = setObj;
+			subj.obj[local.inputProperty] = setObj;
 			setObj.prepare()
-			local[property.name] = setObj
+			subj[property.name] = setObj
 			//console.log('EMITTING SET OBJECT ' + ps.name)
-			local.emit(edit, 'set', property.name, setObj)			
+			subj.emit(edit, 'set', property.name, setObj)			
 		}
 	}else if(op === editCodes.clearObject || op === editCodes.clearProperty){
-		var ps = local.typeSchema.propertiesByCode[local.inputProperty];
-		local[ps.name] = undefined
-		local.obj[local.inputProperty] = undefined
+
+		var subj = local.inputObject!==undefined?local.objectApiCache[local.inputObject]:local
+
+		var ps = subj.typeSchema.propertiesByCode[local.inputProperty];
+		subj[ps.name] = undefined
+		subj.obj[local.inputProperty] = undefined
 	}else{
 		
 		//console.log(chp.constructor+'')
