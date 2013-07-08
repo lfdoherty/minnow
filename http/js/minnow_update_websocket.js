@@ -63,7 +63,7 @@ function openSocket(appName, host, cb, errCb, closeCb){
 	ws.onopen = function() {
 
 		console.log('websocket connection opened: ' + Date.now())
-		ws.send(getCookieToken())
+		ws.send(JSON.stringify({token: getCookieToken(), url: document.location.href}))
 		cb(establishSocketFully)
 	}
 	

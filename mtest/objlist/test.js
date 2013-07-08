@@ -17,7 +17,7 @@ exports.append = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -46,7 +46,7 @@ exports.backandforth = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -86,7 +86,7 @@ exports.replaceNew = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -127,7 +127,7 @@ exports.replaceNewMore = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -158,7 +158,7 @@ exports.replaceExistingWithNew = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -199,7 +199,7 @@ exports.replaceExisting = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -233,7 +233,7 @@ exports.replaceExistingExternalWithNew = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -269,7 +269,7 @@ exports.add = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -305,7 +305,7 @@ exports.shift = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)

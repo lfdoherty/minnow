@@ -187,11 +187,6 @@ ObjectListHandle.prototype._rewriteObjectApiCache = function(oldKey, newKey){
 	
 }
 
-//ObjectListHandle.prototype.changeListener = function(op, edit, syncId, editId){
-/*ObjectListHandle.prototype.changeListenerElevated = function(descendId, op, edit, syncId, editId){
-	
-}*/
-
 ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
 	_.assertLength(arguments, 6);
 
@@ -208,7 +203,14 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		this.obj.push(res)
 		res.prepare()
 		//console.log('object list added new to : ' + this.parent.type() + ' ' + this.parent.id())
-		return this.emit(edit, 'add', res)
+		var local = this
+		if(this.parent.isPreparing){
+		}else{
+			setTimeout(function(){//TODO fix this situation somehow - how do we delay emits here until following edits are done?
+				local.emit(edit, 'add', res)
+			},10)
+		}
+		return
 
 	}else if(op === editCodes.unshiftedNew){
 		var id = edit.id
@@ -531,6 +533,7 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 
 	var e = {typeCode: type.code, id: id}
 	
+	var temporary = this.makeTemporaryId()
 	//console.log('doing replaceNew')
 	if(objHandle.isInner()){
 		this.saveEdit(editCodes.replaceInternalNew, e)
@@ -539,7 +542,7 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 
 	}
 	
-	var n = this._makeAndSaveNew(json, type)
+	var n = this._makeAndSaveNew(json, type, temporary)
 	_.assertObject(n)
 
 	this.obj.push(n)
@@ -684,10 +687,11 @@ ObjectListHandle.prototype.addNewAt = function(index, typeName, json, cb){
 	var type = u.getOnlyPossibleType(this, typeName);
 	
 
-	var n = this._makeAndSaveNew(json, type)
+	var temporary = this.makeTemporaryId()
+	this.saveEdit(editCodes.addNewAt, {typeCode: type.code, index: index, temporary: temporary})
+	var n = this._makeAndSaveNew(json, type, temporary)
 	_.assertObject(n)
 
-	this.saveEdit(editCodes.addNewAt, {typeCode: type.code, index: index, temporary: n._internalId()})
 	
 	this.emit({}, 'add', n, index)
 	//this.obj.push(n)
@@ -791,10 +795,13 @@ ObjectListHandle.prototype.addNew = function(typeName, json, cb){
 
 	
 	var type = u.getOnlyPossibleType(this, typeName);
-	
-	this.saveEdit(editCodes.addNew, {typeCode: type.code})
 
-	var n = this._makeAndSaveNew(json, type)
+	var temporary = this.makeTemporaryId()	
+
+	var local = this
+	var n = this._makeAndSaveNew(json, type, temporary, undefined, function(fc){
+		local.saveEdit(editCodes.addNew, {typeCode: type.code, temporary: temporary, following: fc})
+	})
 	_.assertObject(n)
 	
 	this.obj.push(n)

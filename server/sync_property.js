@@ -85,11 +85,13 @@ exports.make = function(s, staticBindings, rel, recurse){
 
 				var contextIds = context(bindings)
 				var all = []
+				var has = {}
 				if(!contextIds) return all
 				for(var i=0;i<contextIds.length;++i){
 					var id = contextIds[i]
 					var res = index.getValueAt(bindings, id, s.objectState.getCurrentEditId()-1)//TODO remove editId param
-					if(res !== undefined){
+					if(res !== undefined && !has[res]){
+						has[res] = true
 						all.push(res)
 					}
 				}

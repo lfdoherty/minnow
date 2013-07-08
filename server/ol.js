@@ -125,7 +125,7 @@ OlReaders.prototype.syntheticEdit = function(){
 	++this.lastVersionId
 }
 OlReaders.prototype.destroy = function(){
-	this.ol._destroy(this.state.top)//TODO
+	this.ol._destroy(this.state.top, undefined, Date.now())//TODO
 	//this.currentId = undefined	
 }
 OlReaders.prototype.madeSyncId = function(){
@@ -380,11 +380,13 @@ Ol.prototype.getUuid = function(id){
 Ol.prototype.isDeleted = function(id){
 	return this.destroyed[id]
 }
-Ol.prototype._destroy = function(id,editId){
+Ol.prototype._destroy = function(id,editId,timestamp){
 	if(!editId){
 		editId = this.readers.lastVersionId
 		++this.readers.lastVersionId
 	}
+	
+	this.timestamps[editId] = timestamp//Date.now()
 	_.assertInt(editId)
 	//console.log('id destroyed: ' + id)
 	this.destroyed[id] = true
@@ -763,13 +765,13 @@ Ol.prototype.validateId = function(id){
 Ol.prototype.isTopLevelObject = function(id){
 	return this.olc.isTopLevelObject(id)
 }
-
+/*
 Ol.prototype.syntheticEditId = function(){
 	var editId = this.readers.lastVersionId
 	this.syncIdsByEditId.put(editId, -5)
 	++this.readers.lastVersionId
 	return editId
-}
+}*/
 Ol.prototype.getCreationVersion = function(id){
 	return this.creationEditIds[id]
 }
@@ -853,6 +855,7 @@ Ol.prototype.getVersionsAt = function(id, editId, cb){
 		cb(versions, id)
 	})
 }
+
 Ol.prototype.getLastVersion = function(id){
 	return this.lastEditId.get(id.top||id)
 }
@@ -876,39 +879,25 @@ Ol.prototype.getLastVersionAt = function(id, editId, cb){//, cb){
 	}
 }*/
 
+var specialPersistEdits = [editCodes.initializeUuid, editCodes.addNew, editCodes.unshiftNew, editCodes.addNewAt, editCodes.addNewAfter,
+		editCodes.replaceInternalNew, editCodes.replaceExternalNew, editCodes.setToNew, editCodes.putNew, editCodes.destroy]
+var isSpecialPersistEdit = {}
+specialPersistEdits.forEach(function(ec){isSpecialPersistEdit[ec] = true})
+
 //note that 'path' is only required for edits that are not path updates
 Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	_.assertNumber(timestamp)
 	_.assertInt(op)
 	
-	//var id = state.top
-	
-	//if(op === editCodes.selectTopObject) _.errout('err')
-	
-	if(op === editCodes.make){
-		//_.assert(syncId > 0)
-		//console.log('MAKE ' + this.readers.lastVersionId)
+	if(op === editCodes.make){//TODO short-circuit this?
 		return this._make(edit, timestamp, syncId)
 	}else if(op === editCodes.copy){
 		return this._copy(edit, timestamp, syncId)
-	}/*else if(op === editCodes.makeFork){
-		//_.assert(syncId > 0)
-		return this._makeFork(edit, timestamp, syncId)
-	}else if(op === editCodes.refork){
-		//_.assert(syncId > 0)
-		//return this._makeFork(edit, timestamp, syncId)
-		//_.assert(edit.sourceId > 0)//TODO how to handle property streams?
-		this.forks[id] = edit.sourceId
-	}*/
-
-	//_.assertInt(state.top)
-	//_.assert(state.top > 0)
-	
-	//var newEdits = []
+	}
 	
 	var objCurrentSyncId = this.objectCurrentSyncId.get(id)
 
-	if(objCurrentSyncId !== syncId){
+	if(objCurrentSyncId !== syncId){//TODO skip for reads from append log?
 		_.assert(syncId > 0)
 		this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
 		this.objectCurrentSyncId.put(id, syncId)
@@ -916,7 +905,6 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 		++this.readers.lastVersionId
 	}
 
-	//var res = {editId: this.readers.lastVersionId}
 	var resEditId = this.readers.lastVersionId
 	this.syncIdsByEditId.put(resEditId, syncId)
 	++this.readers.lastVersionId
@@ -925,81 +913,75 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 
 	this.timestamps[resEditId]  = timestamp
 
-	var local = this
-	/*function indexParent(resId){
-		local.innerParentIndex[resId] = state.top//[{op: editCodes.selectObject, edit: {id: id}}].concat(path)		
-	}*/
-	if(op === editCodes.initializeUuid){
-		//console.log('saved uuid ' + id + '->' + edit.uuid)
-		this.uuid[id] = edit.uuid
-	}else if(op === editCodes.addNew){
-		op = editCodes.addedNew
-		++this.idCounter
-		var resId = this.idCounter
-		edit = {id: resId, typeCode: edit.typeCode}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+	//var local = this
 
-		//this.innerParentIndex[res.id] = [{op: editCodes.selectObject, edit: {id: id}}].concat(path)		
-		//indexParent(res.id)
-	//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
-	}else if(op === editCodes.unshiftNew){
-		op = editCodes.unshiftedNew
-		++this.idCounter
-		var resId = this.idCounter
-		edit = {id: resId, typeCode: edit.typeCode}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+	if(isSpecialPersistEdit[op]){//TODO short-circuit all of these??
+		if(op === editCodes.initializeUuid){//TODO short-circuit this?
+			//console.log('saved uuid ' + id + '->' + edit.uuid)
+			this.uuid[id] = edit.uuid
+		}else if(op === editCodes.addNew){
+			op = editCodes.addedNew
+			++this.idCounter
+			var resId = this.idCounter
+			edit = {id: resId, typeCode: edit.typeCode, following: edit.following}
+			this.objectTypeCodes.put(resId, edit.typeCode)
+		//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
+		}else if(op === editCodes.unshiftNew){
+			op = editCodes.unshiftedNew
+			++this.idCounter
+			var resId = this.idCounter
+			edit = {id: resId, typeCode: edit.typeCode}
+			this.objectTypeCodes.put(resId, edit.typeCode)
 
-		//indexParent(res.id)
-	//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
-	}else if(op === editCodes.addNewAt){
-		op = editCodes.addedNewAt
-		++this.idCounter
-		var resId = this.idCounter
-		edit = {id: resId, typeCode: edit.typeCode, index: edit.index}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+			//indexParent(res.id)
+		//	console.log('added new ' + res.id + ' ' + this.schema._byCode[edit.typeCode].name)
+		}else if(op === editCodes.addNewAt){
+			op = editCodes.addedNewAt
+			++this.idCounter
+			var resId = this.idCounter
+			edit = {id: resId, typeCode: edit.typeCode, index: edit.index}
+			this.objectTypeCodes.put(resId, edit.typeCode)
 
-		//indexParent(res.id)
-	}else if(op === editCodes.addNewAfter){
-		op = editCodes.addedNewAfter
-		++this.idCounter
-		var resId = this.idCounter
-		edit = {id: resId, typeCode: edit.typeCode}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+			//indexParent(res.id)
+		}else if(op === editCodes.addNewAfter){
+			op = editCodes.addedNewAfter
+			++this.idCounter
+			var resId = this.idCounter
+			edit = {id: resId, typeCode: edit.typeCode}
+			this.objectTypeCodes.put(resId, edit.typeCode)
 
-		//indexParent(res.id)
-	}else if(op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
-		op = editCodes.replacedNew
-		++this.idCounter
-		var resId = this.idCounter
-		edit = {typeCode: edit.typeCode, newId: resId, oldId: edit.id}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+			//indexParent(res.id)
+		}else if(op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew){
+			op = editCodes.replacedNew
+			++this.idCounter
+			var resId = this.idCounter
+			edit = {typeCode: edit.typeCode, newId: resId, oldId: edit.id}
+			this.objectTypeCodes.put(resId, edit.typeCode)
 
-		//indexParent(res.id)
-	}else if(op === editCodes.setToNew){
-		op = editCodes.wasSetToNew
-		++this.idCounter
-		var resId = this.idCounter
-		edit = {typeCode: edit.typeCode, id: resId}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+			//indexParent(res.id)
+		}else if(op === editCodes.setToNew){
+			op = editCodes.wasSetToNew
+			++this.idCounter
+			var resId = this.idCounter
+			edit = {typeCode: edit.typeCode, id: resId}
+			this.objectTypeCodes.put(resId, edit.typeCode)
 
-		//indexParent(res.id)
-	}else if(op === editCodes.putNew){
-		op = editCodes.didPutNew
-		++this.idCounter
-		var resId = this.idCounter
-		_.assert(edit.typeCode > 0)
-		edit = {typeCode: edit.typeCode, id: resId}
-		this.objectTypeCodes.put(resId, edit.typeCode)
+			//indexParent(res.id)
+		}else if(op === editCodes.putNew){
+			op = editCodes.didPutNew
+			++this.idCounter
+			var resId = this.idCounter
+			_.assert(edit.typeCode > 0)
+			edit = {typeCode: edit.typeCode, id: resId}
+			this.objectTypeCodes.put(resId, edit.typeCode)
 
-		//indexParent(res.id)
-	}else if(op === editCodes.destroy){
-		//_.errout('TODO')
-		this._destroy(id, resEditId)
+			//indexParent(res.id)
+		}else if(op === editCodes.destroy){
+			//_.errout('TODO')
+			this._destroy(id, resEditId, timestamp)
+		}
 	}
-	
-	//res.edit = edit
-	//res.op = op
-
+		
 	//console.log('op now: ' + op)
 	this.olc.addEdit(id, {op: op, edit: edit, editId: resEditId})
 	

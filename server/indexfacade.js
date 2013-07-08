@@ -59,8 +59,8 @@ function makeUuidIndex(objSchema, propertyIndex){
 	})
 	
 	var handle = {
-		getValueAt: function(bindings, id, editId){
-			_.assertLength(arguments, 3)
+		getValueAt: function(bindings, id){//, editId){
+			_.assertLength(arguments, 2)
 			
 			var creationEditId = editIds[id]
 			if(creationEditId <= editId){
@@ -70,7 +70,7 @@ function makeUuidIndex(objSchema, propertyIndex){
 			}else{
 				return []
 			}
-		},
+		}/*,
 		getValueChangesBetween: function(bindings, id, startEditId, endEditId){
 			_.assertLength(arguments, 4)
 			
@@ -81,7 +81,7 @@ function makeUuidIndex(objSchema, propertyIndex){
 			}else{
 				return []
 			}
-		}
+		}*/
 	}
 	
 	return handle
@@ -98,18 +98,18 @@ function makeCopySourceIndex(objSchema, propertyIndex){
 	})
 	
 	var handle = {
-		getValueAt: function(bindings, id, editId){
-			_.assertLength(arguments, 3)
+		getValueAt: function(bindings, id){//, editId){
+			_.assertLength(arguments, 2)
 			
-			var creationEditId = editIds[id]
-			if(creationEditId <= editId){
+			//var creationEditId = editIds[id]
+			//if(creationEditId <= editId){
 				
 				var value = permanentCache[id]
 				return [value]
-			}else{
-				return []
-			}
-		},
+			//}else{
+			//	return []
+			//}
+		}/*,
 		getValueChangesBetween: function(bindings, id, startEditId, endEditId){
 			_.assertLength(arguments, 4)
 			
@@ -120,7 +120,7 @@ function makeCopySourceIndex(objSchema, propertyIndex){
 			}else{
 				return []
 			}
-		}
+		}*/
 	}
 	
 	return handle
@@ -136,18 +136,18 @@ function makeUuidReverseIndex(objSchema, propertyIndex){
 	})
 	
 	var handle = {
-		getValueAt: function(bindings, key, editId){
-			_.assertLength(arguments, 3)
+		getValueAt: function(bindings, key){//, editId){
+			_.assertLength(arguments, 2)
 			
-			var creationEditId = editIds[key]
-			if(creationEditId <= editId){
+			/*var creationEditId = editIds[key]
+			if(creationEditId <= editId){*/
 				
 				var id = permanentCache[key]
 				return [id]
-			}else{
+			/*}else{
 				return []
-			}
-		},
+			}*/
+		}/*,
 		getValueChangesBetween: function(bindings, key, startEditId, endEditId){
 			_.assertLength(arguments, 4)
 			
@@ -158,7 +158,7 @@ function makeUuidReverseIndex(objSchema, propertyIndex){
 			}else{
 				return []
 			}
-		}
+		}*/
 	}
 	
 	return handle
@@ -186,7 +186,7 @@ function makeCopySourceReverseIndex(objSchema, propertyIndex){
 			}else{
 				return []
 			}*/
-		},
+		}/*,
 		getValueChangesBetween: function(bindings, key, startEditId, endEditId){
 			_.assertLength(arguments, 4)
 			
@@ -197,7 +197,7 @@ function makeCopySourceReverseIndex(objSchema, propertyIndex){
 			}else{
 				return []
 			}
-		}
+		}*/
 	}
 	
 	return handle
@@ -220,12 +220,12 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex){
 
 	var index = {}
 	
-	var changeIndex = {}
+	//var changeIndex = {}
 	
 	propertyIndex.attachIndex(objSchema.code, property.code, function(id, c){
 	
-		if(!changeIndex[id]) changeIndex[id] = []
-		changeIndex[id].push(c)
+		//if(!changeIndex[id]) changeIndex[id] = []
+		//changeIndex[id].push(c)
 		
 		if(c.type === 'set'){
 			index[id] = c.value
@@ -249,9 +249,9 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex){
 		return index[id]
 	}
 	
-	handle.getValueChangesBetween = function(bindings, id){//, startEditId, endEditId){
+	/*handle.getValueChangesBetween = function(bindings, id){//, startEditId, endEditId){
 		return changeIndex[id] || []
-	}
+	}*/
 
 	return handle
 }
@@ -268,8 +268,10 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	var ids = []
 	var propertyCode = property.code
 	
-	var allChanges
-	var savingChanges = false
+	var applyEdit
+	
+	//var allChanges
+	//var savingChanges = false
 	
 	var isSetProperty = property.type.type === 'list' || property.type.type === 'set'
 	
@@ -281,12 +283,15 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 			_.errout('invalid change for set property: ' + JSON.stringify(c) + ' ' + JSON.stringify(property))
 		}
 		
-		var results = permanentCache[id]
+		/*var results = permanentCache[id]
 		if(!results){
 			results = permanentCache[id] = []
 			ids.push(id)
 		}
 		results.push(c)
+		
+		*/
+		permanentCache[id] = applyEdit(permanentCache[id], c)
 
 		//lastEditIdCache[id] = c.editId		
 		//currentValueCache[id] = computeValueAt(id, c.editId+1)
@@ -310,11 +315,28 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		if(editId
 	}*/
 	
-	var currentValueCache = {}
-	var lastEditIdCache = {}
+	//var currentValueCache = {}
+	//var lastEditIdCache = {}
 	
-	function getValueAtForSingle(bindings, id, editId){
-		_.assertLength(arguments, 3)
+	function applyEditForSingle(v, c){
+		if(c.type === 'set'){
+			v = c.value
+		}else if(lastChange.type === 'clear'){
+			v = undefined
+		}else if(lastChange.type === 'insert'){
+			if(v !== undefined){
+				v = v.substr(0, c.index) + c.value + v.substr(c.index)
+			}
+		}else if(lastChange.type === 'destroyed'){
+			v = undefined
+		}else{
+			_.errout('tODO: ' + JSON.stringify(lastChange))
+		}
+		return v
+	}
+	
+	function getValueAtForSingle(bindings, id){//, editId){
+		_.assertLength(arguments, 2)
 		if(editId === -1) return
 		
 		/*if(editId >= lastEditIdCache[id]){
@@ -322,10 +344,13 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		}*/
 		return computeValueAt(id, editId)
 	}
-	function computeValueAt(id, editId){
-		var changes = permanentCache[id]
+	function computeValueAt(id){//, editId){
+		var value = permanentCache[id]
+		return value
 		//console.log('indexed single property: ' + id + ' ' + JSON.stringify(changes) + ' ' + editId + ' ' + objSchema.name + '.'+property.name)
 		//console.log(JSON.stringify(permanentCache))
+		/*
+		var changes = permanentCache[id]
 		if(!changes){
 			//console.log('no changes')
 			return undefined;
@@ -373,49 +398,47 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 			return undefined
 		}else{
 			_.errout('tODO: ' + JSON.stringify(lastChange))
-		}
+		}*/
 	}
-	
-	function getValueChangesBetween(bindings, id, startEditId, endEditId){
-		_.assertLength(arguments, 4)
 		
-		var changes = permanentCache[id]
-		if(!changes){
-			//console.log('nothing in index for: ' + id +' for ' + objSchema.name + '.'+property.name)
-			return [];
-		}
-		var realChanges = []
-		for(var i=0;i<changes.length;++i){
-			var c = changes[i]
-			if(c.editId < startEditId) continue
-			if(c.editId > endEditId) break
-			realChanges.push(c)
-		}
-		//console.log('$$: ' + id + '.' + property.name + ' ' + JSON.stringify(realChanges) + ' ' + startEditId + ', ' + endEditId)
-		return realChanges
-	}
-	
-	function getStateAt(editId){
+	function getStateAt(){//editId){
 		var result = {}
 		ids.forEach(function(id){
-			result[id] = handle.getValueAt(id, editId)
+			result[id] = handle.getValueAt(id)//, editId)
 		})
 		return result
 	}
 	
-	function getPartialStateAt(bindings, ids, editId){
-		_.assertLength(arguments, 3)
+	function getPartialStateAt(bindings, ids){//, editId){
+		_.assertLength(arguments, 2)
 		var result = {}
 		ids.forEach(function(id){
-			result[id] = handle.getValueAt(bindings, id, editId)
+			result[id] = handle.getValueAt(bindings, id)//, editId)
 		})
 		return result
+	}
+	
+	function applyEditForSet(v, c){
+		if(!v) v = []
+		if(c.type === 'add'){
+			v.push(c.value)
+		}else if(c.type === 'remove'){
+			var index = indexOfRawId(v, c.value)//set.indexOf(c.value)
+			if(index !== -1){
+				v.splice(index, 1)
+			}else{
+				console.log('failed to remove: ' + c.value + ' ' + JSON.stringify(v))// + ' ' + JSON.stringify(changes))
+			}
+		}else{
+			_.errout('tODO: ' + JSON.stringify(c))
+		}
+		return v
 	}
 	
 	function getValueAtForSet(bindings, id){//, editId){
 		_.assertLength(arguments, 2)
 
-		var changes = permanentCache[id]
+		/*var changes = permanentCache[id]
 		if(!changes) return []
 		var set = []
 		for(var i=0;i<changes.length;++i){
@@ -435,12 +458,26 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 			}
 		}
 		//console.log('got indexed set property: ' + id + '.' + property.name + ' ' + JSON.stringify(set))
-		return set
+		return set*/
+		return permanentCache[id] || []
 	}
-	function getValueAtForMap(bindings, id){//, editId){
+	
+	function applyEditForMap(v, c){
+		if(!v) v = {}
+		if(c.type === 'put'){
+			v[c.key] = c.value
+		}else if(c.type === 'removeKey'){
+			delete v[c.key]
+		}else{
+			_.errout('tODO: ' + JSON.stringify(c))
+		}
+		return v
+	}
+	
+	function getValueAtForMap(bindings, id){
 		_.assertLength(arguments, 2)
 
-		var changes = permanentCache[id]
+		/*var changes = permanentCache[id]
 		if(!changes) return {}
 		var res = {}
 		for(var i=0;i<changes.length;++i){
@@ -454,87 +491,26 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 				_.errout('tODO: ' + JSON.stringify(c))
 			}
 		}
-		return res
-	}
-	function getChangesBetweenForSingle(startEditId, endEditId){
-		//_.assertLength(arguments, 3)
-		//if(!savingChanges){
-		var all = []
-		for(var j=0;j<ids.length;++j){
-			var id = ids[j]
-			var changes = permanentCache[id]
-			for(var i=0;i<changes.length;++i){
-				var c = changes[i]
-				if(c.editId < startEditId) continue
-				if(c.editId > endEditId) break
-				if(c.type === 'set'){
-					all.push({type: 'put', value: c.value, key: id, editId: c.editId})
-				}else if(c.type === 'clear'){
-					all.push({type: 'removeKey', key: id, editId: c.editId})
-				}else{
-					_.errout('TODO: ' + JSON.stringify(c))
-				}
-			}
-		}
-		all.sort(function(a,b){return a.editId - b.editId;})
-		//console.log('computed changes ')
-		return all
-		/*	allChanges = all
-			savingChanges = true
-		}
-		
-		var res = []
-		for(var i=0;i<allChanges.length;++i){
-			var c = allChanges[i]
-			if(c.editId < startEditId) continue
-			if(c.editId > endEditId) break
-			res.push(c)
-		}
 		return res*/
+		return permanentCache[id] || {}
 	}
-
-	function getChangesBetweenForSet(startEditId, endEditId){
-		//_.assertLength(arguments, 3)
-		
-		var all = []
-		for(var j=0;j<ids.length;++j){
-			var id = ids[j]
-			var changes = permanentCache[id]
-			for(var i=0;i<changes.length;++i){
-				var c = changes[i]
-				if(c.editId < startEditId) continue
-				if(c.editId > endEditId) break
-				if(c.type === 'add'){
-					all.push({type: 'putAdd', value: c.value, key: id, editId: c.editId})
-				}else if(c.type === 'remove'){
-					all.push({type: 'putRemove', value: c.value, key: id, editId: c.editId})
-				}else{
-					_.errout('TODO: ' + JSON.stringify(c))
-				}
-			}
-		}
-		all.sort(function(a,b){return a.editId - b.editId;})
-		return all
-	}
-	function getChangesBetweenForMap(startEditId, endEditId){
-		_.errout('TODO?')
-	}	
+	
+	//function 
+	
 	var handle = {}
 	
 	handle.getStateAt = getStateAt	
 	handle.getPartialStateAt = getPartialStateAt
 
-	handle.getValueChangesBetween = getValueChangesBetween
-	
 	if(property.type.type === 'object' || property.type.type === 'primitive'){
 		handle.getValueAt = getValueAtForSingle
-		handle.getChangesBetween = getChangesBetweenForSingle
+		applyEdit = applyEditForSingle
 	}else if(isSetProperty){
 		handle.getValueAt = getValueAtForSet
-		handle.getChangesBetween = getChangesBetweenForSet
+		applyEdit = applyEditForSet
 	}else if(property.type.type === 'map'){
 		handle.getValueAt = getValueAtForMap
-		handle.getChangesBetween = getChangesBetweenForMap
+		applyEdit = applyEditForMap
 	}else{
 		_.errout('TODO: ' + JSON.stringify(property.type))
 	}

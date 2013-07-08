@@ -1,12 +1,12 @@
 
-obj 1
+thing 1
 	data set:entity 1
 	
 entity 2
 	v string 1 optional
 	
 general() 100
-	s one(*obj) 1
+	s one(*thing) 1
 	
 blah 4
 	numbers set:int 1		

@@ -87,7 +87,7 @@ function primitiveCast(value, type){
 
 //var jsonConverters = {}
 
-function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){//, topTemporaryId){
+function convertJsonToEdits(dbSchema, type, json, makeTemporaryId, topTemporaryId){
 	//_.assertInt(topTemporaryId)
 	if(dbSchema.jsonConverters === undefined){
 		dbSchema.jsonConverters = {}
@@ -97,7 +97,7 @@ function convertJsonToEdits(dbSchema, type, json, makeTemporaryId){//, topTempor
 		converter = dbSchema.jsonConverters[type] = generateJsonConverter(dbSchema, type)
 	}
 	//console.log(JSON.stringify(json))
-	return converter(json, makeTemporaryId)
+	return converter(json, makeTemporaryId, topTemporaryId)
 }
 
 function generatePropertyConverter(p, dbSchema){
@@ -186,12 +186,21 @@ function generatePropertyConverter(p, dbSchema){
 				});
 			}
 		}else{
-			converter = function(pv, makeTemporaryId, edits){
-				//_.assertInt(parentId)
+			converter = function(pv, makeTemporaryId, edits, parentId, topObjectId){
+				_.assertInt(parentId)
+				_.assertInt(topObjectId)
+				var lastWasNew = false
 				pv.forEach(function(value){
+
+					if(lastWasNew){
+						//edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+						edits.push({op: editCodes.selectProperty, edit: {typeCode: p.code}})
+					}
+					
 					if(_.isInt(value) || _.isInt(value.objectId)){
 						edits.push({op: editCodes.addExisting, edit: {id: valueOrId(value)}})
 					}else{
+						lastWasNew = true
 						//_.assertString(value.type)
 						//_.errout('TODO addNew')
 						if(value.type === undefined) _.errout('no type defined: ' + JSON.stringify(value))
@@ -200,11 +209,12 @@ function generatePropertyConverter(p, dbSchema){
 						var temporary = makeTemporaryId();
 
 						//edits.push({op: editCodes.selectObject, edit: {id: parentId}})
-						edits.push({op: editCodes.clearObject, edit: {}})
-						edits.push({op: editCodes.selectProperty, edit: {typeCode: p.code}})
+						//if(parentId === topObjectId) edits.push({op: editCodes.clearObject, edit: {here: 'yes'}})
+						//else 
+						
 
-						edits.push({op: editCodes.addNew, edit: {typeCode: objSchema.code, temporary: temporary}})
-						var moreEdits = convertJsonToEdits(dbSchema, value.type, value, makeTemporaryId, temporary)
+						var moreEdits = convertJsonToEdits(dbSchema, value.type, value, makeTemporaryId, temporary, topObjectId)
+						edits.push({op: editCodes.addNew, edit: {typeCode: objSchema.code, temporary: temporary, following: moreEdits.length}})
 
 						if(moreEdits.length > 0){
 							edits.push({op: editCodes.selectObject, edit: {id: temporary}})
@@ -216,7 +226,10 @@ function generatePropertyConverter(p, dbSchema){
 							})
 							//edits.push({op: editCodes.ascend1, edit: {}})
 							//edits.push({op: editCodes.selectObject, edit: {id: parentId}})
-							edits.push({op: editCodes.clearObject, edit: {}})
+							//if(parentId === topObjectId) edits.push({op: editCodes.clearObject, edit: {}})
+							//else 
+							edits.push({op: editCodes.selectObject, edit: {id: parentId}})
+								//edits.push({op: editCodes.clearObject, edit: {}})
 						}
 					}
 				});
@@ -224,18 +237,24 @@ function generatePropertyConverter(p, dbSchema){
 		}
 	}else if(p.type.type === 'object'){
 		var typeCode = dbSchema[p.type.object].code
-		converter = function(pv, makeTemporaryId, edits){
+		converter = function(pv, makeTemporaryId, edits, parentId, topObjectId){
 			if(_.isInteger(pv)){
 				if(pv < 0) _.assert(pv < -1)
+				//console.log('*using id: ' + pvId)
 				edits.push({op: editCodes.setObject, edit: {id: pv}})
 			}else{
 				if(pv._internalId){
 					var pvId = pv._internalId()
 					if(pvId < 0) _.assert(pvId < -1)
+					//console.log('using id: ' + pvId)
 					edits.push({op: editCodes.setObject, edit: {id: pvId}})
 				}else{
 					var temporary = makeTemporaryId();
 					edits.push({op: editCodes.setToNew, edit: {typeCode: typeCode, temporary: temporary}})
+					if(Object.keys(pv).length > 0){
+						_.errout('TODO: process object properly: ' + JSON.stringify(pv))
+					}
+					//edits.push({op: editCodes.selectObject, edit: {id: parentId}})
 				}
 			}
 		}
@@ -293,9 +312,9 @@ function generateJsonConverter(dbSchema, type){
 		for(var i=0;i<propertyConverters.length;++i){
 			var pc = propertyConverters[i]
 			var pv = json[pc.propertyName]
-			if(pv != undefined){
+			if(pv != undefined && !(_.isArray(pv) && pv.length === 0)){
 				edits.push({op: editCodes.selectProperty, edit: {typeCode: pc.code}})
-				pc(pv, makeTemporaryId, edits, topTemporaryId)
+				pc(pv, makeTemporaryId, edits, topTemporaryId, topTemporaryId)
 			}else{
 				if(!pc.isOptional){
 					_.errout('json to create ' + type + ' object missing required attribute: ' + pc.propertyName)

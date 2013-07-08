@@ -5,14 +5,14 @@ var schemaModule = require('./../shared/schema')
 
 var syncProperty = require('./sync_property')
 var syncSwitch = require('./sync_switch')
-var syncPreforked = require('./sync_preforked')
+//var syncPreforked = require('./sync_preforked')
 
 var syncMultimapOptimization = require('./sync_multimap_optimization')
 var mapValueOptimization = require('./sync_map_value_optimization')
 
 var syncCompute = require('./sync_compute')
 var syncIsa = require('./sync_isa')
-var syncMutate = require('./sync_mutate')
+//var syncMutate = require('./sync_mutate')
 var syncType = require('./sync_type')
 
 var opu = require('./oputil')
@@ -161,7 +161,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		}else if(rel.view === 'type'){
 			//return syncSwitch.make(ns, staticBindings, rel)
 			return syncType.make(s, staticBindings, rel, recurse)
-		}else if(rel.view === 'preforked'){
+		}/*else if(rel.view === 'preforked'){
 			//_.errout('TODO')
 			return syncPreforked.make(s, staticBindings, rel, recurse)
 			
@@ -170,7 +170,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 
 			return syncMutate.make(s, staticBindings, rel, recurse)
 			
-		}else if(rel.view === 'isa'){
+		}*/else if(rel.view === 'isa'){
 			
 			return syncIsa.make(s, staticBindings, rel, recurse)
 		}else if(rel.view === 'multimap' && rel.isSubsetOptimizationMultimap){

@@ -237,8 +237,13 @@ function getInnerObject(id){
 	return this.parent.getInnerObject(id)
 }
 
-function _makeAndSaveNew(json, type, source){
-	return this.parent._makeAndSaveNew(json, type, source||this)
+function _makeAndSaveNew(json, type, temporary, source, countCb){
+	_.assertInt(temporary)
+	return this.parent._makeAndSaveNew(json, type, temporary, source||this, countCb)
+}
+
+function listenForReification(temporary, index, obj){
+	return this.parent.listenForReification(temporary, index, obj)
 }
 
 SyncApi.prototype.saveTemporaryForLookup = function(temporary, n, local){
@@ -387,6 +392,8 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.adjustTopObjectToOwn === undefined) classPrototype.adjustTopObjectToOwn = adjustTopObjectToOwn
 
 	if(classPrototype.getInnerObject === undefined) classPrototype.getInnerObject = getInnerObject
+	
+	if(classPrototype.listenForReification === undefined) classPrototype.listenForReification = listenForReification
 
 	//if(classPrototype.getName === undefined) classPrototype.getName = getName
 }
@@ -608,7 +615,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 			if(e.op === editCodes.setSyncId){
 				curSyncId = e.edit.syncId
 			}else{
-				//console.log(realEditsEditId + ' e; ' + JSON.stringify(e))
+				//console.log(realEditsEditId + ' e; ' + JSON.stringify(e) + ' ' + curSyncId)
 				obj.changeListener(undefined, undefined, e.op, e.edit, curSyncId, e.editId, true, realEditsEditId > e.editId)
 			}
 		}
@@ -884,7 +891,7 @@ SyncApi.prototype.copyExternalObject = function(obj, json, forget, cb){
 	
 	var temporary = this.makeTemporaryId()
 	
-	console.log('this.sh: ' + JSON.stringify(Object.keys(this.sh)))
+	//console.log('this.sh: ' + JSON.stringify(Object.keys(this.sh)))
 	var edits = this.sh.copy(obj, json, forget, cb, temporary)
 	
 	edits = obj.edits
@@ -927,15 +934,27 @@ SyncApi.prototype.createNewExternalObject = function(typeName, obj, forget, cb){
 		oldHandle.currentPath = undefined
 	}*/
 	
+	
 	this.currentObjectId = temporary//TODO only if !forget?
 	
 	//console.log(new Error().stack)
 	
 	if(!forget){
 		var t = this.schema[typeName]
-		var n = new TopObjectHandle(this.schema, t, edits, this, temporary);
+		var n = new TopObjectHandle(this.schema, t, [], this, temporary);
+		n.localEdits = edits
 		//console.log('created temporary lookup: ' + temporary)
 		this.objectApiCache[temporary] = n;
+
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
+			if(e.op === editCodes.addNew){
+				this.listenForReification(e.edit.temporary, i, n)
+			}else if(e.op === editCodes.setObject || e.op === editCodes.addExisting){
+				if(e.edit.id < 0) this.listenForReification(e.edit.id, i, n)
+			}
+		}
+
 		return n
 	}else{
 		//console.log('forgetting')
@@ -949,9 +968,19 @@ SyncApi.prototype._rewriteObjectApiCache = function(oldKey, newKey){
 }
 
 
+SyncApi.prototype.listenForReification = function(temporaryId, editIndex, obj){
+	_.assertInt(temporaryId)
+	//console.log('listening for reification: ' + temporaryId + ' ' + editIndex + ' ' + obj.objectId)
+	if(!this.reificationListeners) this.reificationListeners = {}
+	if(!this.reificationListeners[temporaryId]) this.reificationListeners[temporaryId] = []
+	this.reificationListeners[temporaryId].push({index: editIndex, obj: obj})
+}
+
 SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 	_.assertLength(arguments, 2)
-	//this.log('reifying id ' + temporaryId + ' -> ' + realId)
+	
+	//console.log('reifying id ' + temporaryId + ' -> ' + realId)
+	
 	//console.log('reifying id ' + temporaryId + ' -> ' + realId + ' for ' + this.getEditingId())
 
 	_.assert(temporaryId < 0)
@@ -981,7 +1010,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 			//delete e.local.objectApiCache[oldCacheKey]
 			//e.local.objectApiCache[realId] = e.n
 			e.n.objectId = realId
-			e.n.reifyParentEdits(temporaryId, realId)
+			//e.n.reifyParentEdits(temporaryId, realId)
 			e.n.emit({}, 'reify', realId, temporaryId)
 			//console.log('reified temporary: ' + e.n)
 		}else{
@@ -991,7 +1020,17 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		}
 	}
 	
-	var local = this
+	if(this.reificationListeners){
+		var arr = this.reificationListeners[temporaryId]
+		if(arr){
+			for(var i=0;i<arr.length;++i){
+				var t = arr[i]
+				t.obj.reifyEdit(t.index, temporaryId, realId)
+			}
+		}
+		delete this.reificationListeners[temporaryId]
+	}
+	/*var local = this
 	var keys = Object.keys(this.objectApiCache)
 	for(var i=0;i<keys.length;++i){
 		var key = keys[i]
@@ -1002,7 +1041,7 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		}else{
 			console.log('WARNING: destroyed object still in objectApiCache')
 		}
-	}//
+	}//*/
 }
 
 SyncApi.prototype.reifyObject = SyncApi.prototype.reifyExternalObject

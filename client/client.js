@@ -473,17 +473,17 @@ function makeClient(host, port, clientCb){
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
-			setupService: function(name, urlPrefix, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener){
+			setupService: function(name, urlPrefix, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, listeners){
 				//_.assertLength(arguments, 5)
-				_.assert(arguments.length >= 7)
-				_.assert(arguments.length <= 8)
+				_.assert(arguments.length >= 8)
+				_.assert(arguments.length <= 9)
 				_.assertFunction(identifier)
 				_.assert(_.isObject(viewSecuritySettings) || _.isFunction(viewSecuritySettings))
 				_.assertNot(serviceIsSetup);
 				serviceIsSetup = true;
-				var lp = longpoll.load(local, name, urlPrefix, dbSchema, identifier, viewSecuritySettings, handle, syncHandleCreationListener)
+				var lp = longpoll.load(local, name, urlPrefix, dbSchema, identifier, viewSecuritySettings, handle, listeners)
 
-				var ws = websocket.load(local, urlPrefix, dbSchema, authenticateByToken, viewSecuritySettings, handle, syncHandleCreationListener)
+				var ws = websocket.load(local, urlPrefix, dbSchema, authenticateByToken, viewSecuritySettings, handle, listeners)
 				
 				xhrService.make(name, urlPrefix, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings);
 				return matterhornService.make(urlPrefix, name, dbSchema, local, secureLocal, handle, identifier, viewSecuritySettings, lp);

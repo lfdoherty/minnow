@@ -12,13 +12,13 @@ var abstract = require('./abstract')
 var websocketImpl = require('./websocket_impl')
 
 
-exports.load = function(local, urlPrefix, schema, authenticateByToken, viewSecuritySettings, minnowClient, syncHandleCreationListener){
+exports.load = function(local, urlPrefix, schema, authenticateByToken, viewSecuritySettings, minnowClient, listeners){
 
 	_.assertFunction(minnowClient.make)
 	
-	if(syncHandleCreationListener !== undefined) _.assertFunction(syncHandleCreationListener)
+	//if(syncHandleCreationListener !== undefined) _.assertFunction(syncHandleCreationListener)
 
-	var impl = websocketImpl.make(authenticateByToken, local, urlPrefix)
+	var impl = websocketImpl.make(authenticateByToken, local, urlPrefix, listeners)
 
-	abstract.load(schema, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl)
+	abstract.load(schema, viewSecuritySettings, minnowClient, listeners, impl)
 }

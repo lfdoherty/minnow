@@ -376,7 +376,7 @@ TopObjectHandle.prototype.replay = function(cb){
 			cb(curObj/*.asAt(e.editId)*/, 'remove', p.name, e.editId, obj)//.asAt(e.editId))
 		}else if(e.op === editCodes.moveToAfter || e.op === editCodes.moveToFront || e.op === editCodes.moveToBack){
 			_.assertDefined(sub)
-			console.log('sub: ' + JSON.stringify(sub))
+			//console.log('sub: ' + JSON.stringify(sub))
 			var obj  = this.objectApiCache?this.objectApiCache[sub]:undefined
 			if(!obj){
 				obj = this.getObjectApi(sub)
@@ -476,19 +476,35 @@ function changeOnPath(local, op, edit, syncId, editId){
 	})*/
 	//console.log('self: ' + local.id())
 	_.assertInt(local.inputProperty)
+
+	//console.log('own: ' + local.objectId + ' ' + local.inputObject + ' ')// + local._forkedObject._internalId())
 	
 	var ch;
 	if(!local.inputObject || local.inputObject === local.objectId || 
-			(local._forkedObject && local._forkedObject._internalId() === local.inputObject) ||
+			//(local._forkedObject && local._forkedObject._internalId() === local.inputObject) ||
 			local.inputObject === -1){//TODO handle case where inputObject is the forked object
 		ch = local
 	}else{
-		//console.log('own: ' + local.objectId + ' ' + local.inputObject + ' ')// + local._forkedObject._internalId())
+		/*if(editId > 0 && editId !== local.getEditingId() && local.inputObject < 0){
+			_.errout('invalid inputObject: ' + local.inputObject + '\t' + editId + ' !== ' + local.getEditingId())
+		}*/
+		
 		if(local.objectApiCache){
 			ch = local.objectApiCache[local.inputObject]
 		}
+		
+		if(local.inputObject < 0){
+			var v = local.parent.temporaryCache[local.inputObject]
+			if(v){
+				ch = v.n
+				//console.log('looked up temporary ' + local.inputObject + ' got ' + Object.keys(ch))
+			}
+		}
+		/*if(local.inputObject < 0){
+			ch = local.temporary
+		}*/
 		if(!ch){
-			//console.log('WARNING: not found ' + local.inputObject + ', only got: ' + JSON.stringify(Object.keys(local.objectApiCache||{})))
+			console.log('WARNING: not found ' + local.inputObject + ', only got: ' + JSON.stringify(Object.keys(local.objectApiCache||{})) + ' in ' + local.objectId + ' --- ' + editId)
 			return
 		}
 		_.assertObject(ch)
@@ -521,12 +537,17 @@ function changeOnPath(local, op, edit, syncId, editId){
 			//_.assertEqual(ps.type.type, 'object')
 		}
 
-		var subj = local.inputObject!==undefined?local.objectApiCache[local.inputObject]:local
+		var subj
+		if(local.inputObject === local.objectId){
+			subj = local
+		}else{
+			subj = local.inputObject!==undefined?local.objectApiCache[local.inputObject]:local
+		}
 
 		var pv = subj[property.name]//.cachedProperties[ps.name]
 		if(pv && pv.objectId === edit.id){
 			//already done
-			//this.log('setObject redundant (local view object?), skipping')
+			console.log('setObject redundant (local view object?), skipping: ' + pv.objectId + ' ' + edit.id)
 		}else{
 			//this.log('set to: ' + edit.id + ' ' + descentCode + ' ' + this.objectId + ' ' + ps.name)
 			var setObj = local.getObjectApi(edit.id)
@@ -537,10 +558,10 @@ function changeOnPath(local, op, edit, syncId, editId){
 			}
 			
 
-			subj.obj[local.inputProperty] = setObj;
+			//subj.obj[local.inputProperty] = setObj;
 			setObj.prepare()
 			subj[property.name] = setObj
-			//console.log('EMITTING SET OBJECT ' + ps.name)
+			//console.log('EMITTING SET OBJECT ' + property.name)
 			subj.emit(edit, 'set', property.name, setObj)			
 		}
 	}else if(op === editCodes.clearObject || op === editCodes.clearProperty){
@@ -549,7 +570,7 @@ function changeOnPath(local, op, edit, syncId, editId){
 
 		var ps = subj.typeSchema.propertiesByCode[local.inputProperty];
 		subj[ps.name] = undefined
-		subj.obj[local.inputProperty] = undefined
+		//subj.obj[local.inputProperty] = undefined
 	}else{
 		
 		//console.log(chp.constructor+'')
@@ -560,9 +581,16 @@ function changeOnPath(local, op, edit, syncId, editId){
 		if(!chp){
 			_.errout('property value missing: ' + property.name)
 		}
+		
+		if(!chp.changeListener){
+			//console.dir(chp)
+			_.errout('cannot determine current edit target(' + property.name+' in ' + ch.typeSchema.name + ' ' + ch.prepared + ' - ' + chp.constructor + ') failed to run edit: ' + JSON.stringify([editNames[op], edit, syncId, editId]))
+			return
+		}
 		//console.log('HERERERERER')
 		//console.log('editing ' + editNames[op] + ' ' + (chp.rally = Math.random()))
 		
+		//console.log(typeof(chp.changeListener))
 		
 		chp.changeListener(local.inputSubObject, local.inputKey, op, edit, syncId, editId)
 	}
@@ -806,10 +834,10 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	//console.log(new Error().stack)
 	
 	//_.assertNot(this.historicalKey)
-	if(this.historicalKey){
+	/*if(this.historicalKey){
 		this.prepareHistorically(this.historicalKey)
 		return
-	}
+	}*/
 	
 	if(this.isReadonlyAndEmpty) return
 	if(this.prepared) return;
@@ -817,35 +845,21 @@ TopObjectHandle.prototype.prepare = function prepare(){
 		_.errout('cannot prepare destroyed object - internal error')
 	}
 	this.prepared = true;
+	this.isPreparing = true
 	var s = this;
-
-	/*var fakeObject = {}//{state: {}}
-	//var cur = {}
-	for(var i=0;i<this.edits.length;++i){
-		var e = this.edits[i]
-		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
-		if(!did){
-			e.state = {
-				property: fakeObject.inputProperty, 
-				object: fakeObject.inputObject, 
-				key: fakeObject.inputKey, 
-				keyOp: fakeObject.inputKeyOp
-			}
-		}
-	}*/
 	
-	var realEdits = [].concat(this.edits)
+	var realEdits = [].concat(this.edits).concat(this.localEdits||[])
 
 	//apply edits
 	s.inputSyncId=-1
 	s.inputObject = undefined
 	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
 	
-//	console.log('realEdits: ' + JSON.stringify(realEdits))
+	//console.log('realEdits: ' + JSON.stringify(realEdits, null, 2))
 	
-	//realEdits.forEach(function(e, index){
 	for(var i=0;i<realEdits.length;++i){
 		var e = realEdits[i]
+		//console.log(JSON.stringify(e))
 		if(e.op === editCodes.setSyncId){
 			s.inputSyncId = e.edit.syncId
 		}else if(e.op === editCodes.madeViewObject){
@@ -871,6 +885,8 @@ TopObjectHandle.prototype.prepare = function prepare(){
 			}
 		}
 	}
+	
+	this.isPreparing = false
 }
 
 TopObjectHandle.prototype._rebuild = function(){
@@ -948,7 +964,10 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 	if(op === editCodes.selectProperty){
 		if(!isLocally) this.currentProperty = edit.typeCode
 	}else if(op === editCodes.selectObject){
-		if(!isLocally) this.currentObject = edit.id
+		if(!isLocally){
+			this.currentObject = edit.id
+			if(edit.id < 0) this.listenForReification(edit.id, this.edits.length+(this.localEdits?this.localEdits.length:0), this)
+		}
 	}else if(op === editCodes.clearObject){
 		if(!isLocally) this.currentObject = undefined
 	}else if(op === editCodes.selectSubObject){
@@ -957,6 +976,16 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 		if(!isLocally) this.currentSubObject = edit.id
 	}else if(lookup.isKeySelectCode[op]){//op === 'selectStringKey' || op === 'selectLongKey' || op === 'selectIntKey' || op === 'selectBooleanKey'){
 		if(!isLocally) this.currentKey = edit.key
+	}else if(op === editCodes.addNew){
+		//console.log(JSON.stringify(edit))
+
+		if(edit.following === undefined){
+			_.errout('invalid addNew missing following')
+		}
+		
+		this.listenForReification(edit.temporary, this.edits.length+(this.localEdits?this.localEdits.length:0), this)
+	}else if(op === editCodes.setObject || op === editCodes.addExisting){
+		if(edit.id < 0) this.listenForReification(edit.id, this.edits.length+(this.localEdits?this.localEdits.length:0), this)
 	}else{
 		isRealEdit = true
 	}
@@ -967,13 +996,13 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 	this.localEdits.push({op: op, edit: edit})
 	
 	this.parent.persistEdit(this.getObjectTypeCode(), this.getObjectId(), op, edit)
-	
+	/*
 	if(isRealEdit && this._forkListeners){
 		var local = this
 		this._forkListeners.forEach(function(fl){
 			fl._acceptForkChange(local.currentSubObject, local.currentKey, op, edit, local.currentSyncId, -4)//, local.pathEdits || [])
 		})
-	}
+	}*/
 }
 
 TopObjectHandle.prototype.saveEdit = function(op, edit){
@@ -1055,6 +1084,8 @@ TopObjectHandle.prototype.copy = function(json,cb){
 		forget = true
 	}
 	
+	//console.log('copying ' + this.objectId + ' ' + JSON.stringify(this.edits) + '\n\n' + JSON.stringify(this.localEdits))
+	
 	if(forget){
 		this.copyExternalObject(this, json, forget, undefined)
 	}else{
@@ -1068,7 +1099,38 @@ TopObjectHandle.prototype.getTopParent = function(){
 	return this
 }
 
+TopObjectHandle.prototype.reifyEdit = function(index, temporary, real){
+	var e
+	//var source
+	//var sourceIndex
+	if(index >= this.edits.length){
+		e = this.localEdits[index-this.edits.length]
+		//source = this.localEdits
+		//sourceIndex = index - this.edits.length
+	}else{
+		e = this.edits[index]
+		//source = this.edits
+		//sourceIndex = index
+	}
+	//console.log(this.objectId + ' ' + this.edits.length + ' ' + index + ' ' + temporary + ' ' + real + ' ' + this.localEdits.length + ' ' + e.edit.id)
+	_.assertDefined(e)
+	if(e.op === editCodes.addNew){
+		_.assertEqual(e.edit.temporary, temporary)
+		e.op = editCodes.addedNew
+		e.edit = {id: real, typeCode: e.edit.typeCode}
+	//	this.source[sourceIndex] = {
+	}else{
+		_.assertEqual(e.edit.id, temporary)
+		e.edit.id = real
+	}
+}
+
 TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
+
+	if(this.lastReificationIndex === this.edits.length){
+		return
+	}
+	
 	if(this.currentObject === temporaryId){
 		this.currentObject = realId
 	}
@@ -1076,7 +1138,7 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 		this.currentSubObject = realId
 	}
 	if(this.inputObject === temporaryId){
-		//console.log('reified input object: ' + temporaryId)
+		//console.log('reified input object: ' + temporaryId + ' -> ' + realId)
 		this.inputObject = realId
 	}
 	if(this.inputSubObject === temporaryId){
@@ -1089,7 +1151,7 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 		this.objectApiCache[temporaryId] = undefined
 		//console.log('found object for reification in top object ' + obj.type() + ' ' + this.objectId + ' cache: ' + temporaryId + ' -> ' + realId)
 	}
-	
+	/*
 
 	var i=this.lastReificationIndex||0
 	var lastReified=i//the reification position should always be monotonically increasing
@@ -1099,22 +1161,33 @@ TopObjectHandle.prototype.reifyParentEdits = function(temporaryId, realId){
 			if(temporaryId !== e.edit.temporary) continue
 			e.op = editCodes.addedNew
 			e.edit = {id: realId, typeCode: e.edit.typeCode}
-			lastReified = i
-		}else if(e.op === editCodes.selectObject){
+			console.log('HERE HERE HERE')
+			console.log(JSON.stringify([e, temporaryId, i]))
+			//lastReified = i
+		}*else if(e.op === editCodes.selectObject){
 			if(e.edit.id !== temporaryId) continue
 			e.edit.id = realId
-			lastReified = i
+			//lastReified = i
 		}
 	}
-	
-	/*if(this.objectId === 21){
-		console.log(this.lastReificationIndex + ' ' + JSON.stringify(this.edits.slice(0, this.lastReificationIndex)))
-		console.log(JSON.stringify(this.edits.slice(this.lastReificationIndex)))
-	}*/
+
+	i = lastReified
+	for(;i<this.edits.length;++i){
+		if(e.op === editCodes.addNew){
+			if(e.edit.id < 0){
+				break
+			}
+		}else if(e.op === editCodes.selectObject){
+			if(e.edit.id < 0){
+				break
+			}
+		}
+	}
+
 
 	//TODO optimize by also skipping non-reifiable edits after the last reification
 	
-	this.lastReificationIndex = lastReified//this.edits.length-1
+	this.lastReificationIndex = lastReified//this.edits.length-1*/
 }
 
 TopObjectHandle.prototype.adjustTopObjectToOwn = function(){
@@ -1142,6 +1215,7 @@ function updateInputPath(local, op, edit, editId){
 		local.inputProperty = edit.typeCode
 	}else if(op === editCodes.selectObject){
 		//console.log('updated inputObject: ' + local.inputObject + ' -> ' + edit.id)
+		//console.log(new Error().stack)
 		local.inputObject = edit.id
 	}else if(op === editCodes.clearObject){
 		//console.log('updated inputObject: ' + local.inputObject + ' -> ' + edit.id)
@@ -1174,12 +1248,14 @@ function updateInputPath(local, op, edit, editId){
 	return true
 }
 
-function maintainPath(local, op, edit, syncId, editId){
+function maintainPath(local, op, edit, syncId, editId, forceOwnProcessing){
 	_.assertInt(editId)
 	//if(local.uid === undefined) local.uid = Math.random()
 	//local.log.info('current path:' +JSON.stringify( local.pathEdits))
 	//console.log(local.uid + ' current path(' + local.objectId + '): ' + JSON.stringify(local.pathEdits))
+	
 	//console.log('maintainPath: ' + JSON.stringify([editNames[op], edit, syncId, editId, local.inputProperty]))
+	
 	//console.log(new Error().stack)
 	
 	_.assertInt(op)
@@ -1196,7 +1272,7 @@ function maintainPath(local, op, edit, syncId, editId){
 	}else if(op === editCodes.made || op === editCodes.copied){
 	}else if(op === editCodes.initializeUuid){
 		local._uuid = edit.uuid
-	}else if(op === editCodes.wasSetToNew && local.inputObject === local.objectId){
+	}else if(op === editCodes.wasSetToNew && (!local.inputObject || local.inputObject === local.objectId)){
 
 		
 		var code = local.inputProperty//local.pathEdits[0].edit.typeCode
@@ -1209,7 +1285,7 @@ function maintainPath(local, op, edit, syncId, editId){
 		if(!local.objectApiCache) local.objectApiCache = {}
 		local.objectApiCache[edit.id] = n
 
-		if(local.getEditingId() === syncId){
+		if(local.getEditingId() === syncId && !forceOwnProcessing){
 			return
 		}
 		local[property.name] = n
@@ -1305,20 +1381,36 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 		this.prepare()//TODO optimize by appending edit if not prepared, applying if prepared?
 	}
 
-//	console.log(this.getEditingId() + ': ' + this.objectId + ' got edit: ' + JSON.stringify([op, edit, syncId, editId, isNotExternal]))
+	//console.log(this.getEditingId() + ': ' + this.objectId + ' got edit: ' + JSON.stringify([op, edit, syncId, editId, isNotExternal]))
 	
 	this.inputSyncId = syncId
 	
 	if(!isNotExternal || ownSyncId === syncId){
 		this.edits.push({op: op, edit: edit, editId: editId})
+		//console.log(this.objectId + ' pushing edit: ' + JSON.stringify({op: op, edit: edit, editId: editId}))
 		
-		if(this.localEdits && ownSyncId === syncId){
-			this.localEdits.shift()
+		if(ownSyncId === syncId){
+			if(!this.localEdits || this.localEdits.length === 0){
+				if(!this.isView()){
+					//console.log('WARNING: no localEdits or zero length, but got an own edit(' + syncId+'): ' + JSON.stringify(this.localEdits))
+					//console.log(JSON.stringify([editNames[op], edit, editId]))
+				}
+				//
+			}else{
+				//console.log('shifting ' + editNames[this.localEdits[0].op])
+				this.localEdits.shift()
+			}
 		}
 	}
 
 	//console.log(this.objectId + ' updating path?: ' + editNames[op])
 	var did = updateInputPath(this, op, edit, editId)
+
+
+	if(this.localEdits && ownSyncId === syncId){
+	//	console.log('skipping own ' + syncId)
+		return	
+	}
 
 	/*if(!did && this._forkListeners && !isNotExternal){// && op !== editCodes.refork){
 		var local = this
@@ -1346,21 +1438,25 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	}
 }
 
-TopObjectHandle.prototype._makeAndSaveNew = function(json, type, source){
-
-	var temporary = this.makeTemporaryId();
+TopObjectHandle.prototype._makeAndSaveNew = function(json, type, temporary, source, countCb){
+	_.assertInt(temporary)
+	_.assert(temporary < 0)
+	//var temporary = this.makeTemporaryId();
 	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this), temporary);
 
+	if(countCb) countCb(edits.length)
+	
 	if(edits.length > 0){
 		source.adjustCurrentObject(temporary)
-		source.adjustCurrentProperty(source.part)
+		//source.adjustCurrentProperty(source.part)
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
 		}
 	}
 	
-	var n = new ObjectHandle(type, edits, temporary, [temporary], this);
+	var n = new ObjectHandle(type, [], temporary, [temporary], this);
+	n.localEdits = edits
 	if(this.objectApiCache === undefined) this.objectApiCache = {}
 	this.objectApiCache[temporary] = n;
 	
@@ -1368,13 +1464,13 @@ TopObjectHandle.prototype._makeAndSaveNew = function(json, type, source){
 	
 	this.saveTemporaryForLookup(temporary, n, this)
 	
-	//console.log('made and saved new: '+ temporary)
+	console.log('made and saved new: '+ temporary)
 	
 	n.prepare()
 	
 	return n
 }
-
+/*
 TopObjectHandle.prototype._applyRefork = function(sourceId){
 	if(this._forkedObject){
 		var manyToRemove = this._forkedObject._getEdits().length
@@ -1395,7 +1491,7 @@ TopObjectHandle.prototype._applyRefork = function(sourceId){
 	this.edits = [].concat(this._forkedObject._getEdits()).concat(this.edits)
 	this._rebuild()
 	//console.log('rebuilt: ' + JSON.stringify(this.edits))
-}
+}*/
 
 TopObjectHandle.prototype.errorOnWarn = false
 
@@ -1528,7 +1624,7 @@ TopObjectHandle.prototype.version = function(editId){
 TopObjectHandle.prototype.versions = function(){
 	var versions = [this.edits[0].editId]
 	var fakeObject = {}
-	console.log(JSON.stringify(this.edits))
+	//console.log(JSON.stringify(this.edits))
 	var skip = 0
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]

@@ -555,6 +555,12 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 						})
 					}
 				}else{
+				
+					//if(op === editCodes.setToNew){
+						//_.errout('TODO')
+						
+					//}
+					
 					if(currentId === undefined){
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getAll(), e.edit, syncId])
 						c.destroy()

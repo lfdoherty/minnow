@@ -164,6 +164,10 @@ MapHandle.prototype.adjustPathLocal = function adjustMapPath(key){
 }
 MapHandle.prototype.del = function(key){
 
+	if(key._internalId){
+		key = key._internalId()
+	}
+	
 	this.adjustPathLocal(key)
 	var e = {key: key};
 	this.persistEdit(editCodes.delKey, {})
@@ -229,11 +233,14 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	var type = u.getOnlyPossibleType(this, newTypeName);
 	
 	this.adjustPathLocal(newKey)
-	var e = {typeCode: type.code};
+	var temporary = this.makeTemporaryId()
+	var e = {typeCode: type.code, temporary: temporary};
 	this.persistEdit(editCodes.putNew, e)
 
-	var n = this._makeAndSaveNew(json, type)
+	var n = this._makeAndSaveNew(json, type, temporary)
 	this.obj[newKey] = n
+	
+	//n.prepare()
 		
 	this.emit(e, 'put', newKey, n)
 	return n

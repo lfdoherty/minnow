@@ -46,18 +46,26 @@ exports.compute = function(paramValues){
 	
 	var results = [].concat(a)
 	var ma = {}
-	a.forEach(function(av){
-		ma[av] = true
-	})
-	paramValues.slice(1).forEach(function(b){
-		if(b === undefined) return
-		b.forEach(function(bv){
+	//a.forEach(function(av){
+	for(var i=0;i<a.length;++i){
+		ma[a[i]] = true
+	}
+	//})
+	//paramValues.slice(1).forEach(function(b){
+	for(var i=1;i<paramValues.length;++i){
+		var b = paramValues[i]
+		if(b === undefined) continue//return
+		//b.forEach(function(bv){
+		for(var j=0;j<b.length;++j){
+			var bv = b[j]
 			if(!ma[bv]){
 				results.push(bv)
 				ma[bv] = true
 			}
-		})
-	})
+		}
+	}
+		//})
+	//})
 	//console.log('union ', paramValues, results)
 	return results
 }
@@ -67,3 +75,30 @@ exports.computeSync = function(z){
 	return exports.compute(args)
 }
 
+exports.compute2 = function(a,b){
+	if(!a || !b) return []
+	
+	if(a.length > b.length){
+		var t = a
+		a = b
+		b = t
+	}
+	
+	var has = {}
+	for(var i=0;i<a.length;++i){
+		has[a[i]] = true
+	}
+	
+	var res = [].concat(a)
+	for(var i=0;i<b.length;++i){
+		var v = b[i]
+		if(has[v]){
+			continue
+		}
+		res.push(v)
+	}
+	
+	//console.log('union: ' + JSON.stringify([a,b,res]))
+	
+	return res
+}

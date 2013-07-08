@@ -22,6 +22,7 @@ setInterval(function(){
 },1000)*/
 
 exports.compute2 = function(a,b){
+	if(!a || !b) return []
 	if(a.length > b.length){
 		var t = b
 		b = a

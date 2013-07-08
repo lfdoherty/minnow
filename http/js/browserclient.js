@@ -137,7 +137,7 @@ function start(){
 		}, function(){
 			//window.location.reload()
 			setTimeout(function(){
-				window.document.body.innerHTML = '<h3>Lost Connection to Server</h3>'
+				window.document.body.innerHTML = '<h3 style="position:absolute;top:50%;left:50%;font-size:large;">Lost Connection to Server: <a href="'+document.location+'">Reload</a></h3>'
 			},5000)
 		})
 }

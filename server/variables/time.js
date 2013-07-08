@@ -18,8 +18,8 @@ schema.addFunction('now', {
 	minParams: 1,
 	maxParams: 1,
 	callSyntax: 'now(refresh-macro)',
-	computeSync: function(){
-		_.errout('tODO')
+	computeSync: function(z, macro){
+		return Date.now()//macro.get()
 	}
 })
 

@@ -64,12 +64,16 @@ exports.make = function(appName, prefix, schema, local, secureLocal, minnowClien
 	local.get('/mnw/schema/'+appName, aa, function(req, httpRes){
 		var url= 'http://'+req.headers.host+prefix+schemaUrl
 		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
+
+		httpRes.header('Cache-Control', 'no-cache, no-store')
 		
 		httpRes.redirect(url)
 	})
 	secureLocal.get('/mnw/schema/'+appName, aa, function(req, httpRes){
 		var url= 'https://'+req.headers.host+prefix+schemaUrl
 		//console.log('redirected: ' + url + ' ' + JSON.stringify(req.headers))
+		
+		httpRes.header('Cache-Control', 'no-cache, no-store')
 		
 		httpRes.redirect(url)
 	})
@@ -136,6 +140,7 @@ exports.make = function(appName, prefix, schema, local, secureLocal, minnowClien
 				data = new Buffer(data)
 				httpRes.setHeader('Content-Type', 'application/json');
 				httpRes.setHeader('Content-Length', data.length);
+			    httpRes.setHeader('Cache-Control', 'no-cache, no-store')
 				httpRes.end(data)
 			});
 		}, params, req.userToken)

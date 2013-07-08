@@ -30,7 +30,16 @@ var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstr
 	'parent','isfork', 'value',
 	'objectid',
 	'copysource',
-	'uuided'];
+	'obj',
+	'uuided',
+	'version'];
+
+var reservedTypeNamesLookup = {}
+reservedTypeNames.forEach(function(v){reservedTypeNamesLookup[v] = true})
+
+function isReservedName(n){
+	return !!reservedTypeNamesLookup[n.toLowerCase()]
+}
 
 var builtinFunctions = {}
 exports.addFunction = function(name, def){
@@ -1313,6 +1322,8 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 	}
 	
 	_.each(v.rels, function(rel, name){
+	
+		if(isReservedName(name)) _.errout('cannot use reserved name for view property ' + v.name + '.' + name)
 		var p = result.properties[name] = {};
 		p.name = name;
 		try{

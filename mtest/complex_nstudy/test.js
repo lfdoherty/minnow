@@ -235,9 +235,11 @@ exports.checkHistory = function(config, done){
 							
 							//console.log('history: ' + v.sidebar.elements.at(0))
 							//console.log('history parent: ' + v.sidebar.elements.at(0).getTopParent())
+							
 							console.log('history: ' + v.sidebar.elements.at(0).id())
 							console.log('history parent: ' + v.sidebar.elements.at(0).getTopParent().id())
 							console.log(childMap.toJson())
+							
 							//console.log(JSON.stringify(v.historyData.toJson()))
 							//console.log(JSON.stringify(v.sidebar.elements.at(0).elements.toJson()))
 
@@ -274,7 +276,7 @@ exports.checkQuote = function(config, done){
 						otherClient.view('overlayPage', [u, session, tab], function(err, v){
 							if(err) throw err
 							
-							console.log(JSON.stringify(v.children.toJson()))
+							//console.log(JSON.stringify(v.children.toJson()))
 							
 							/*v.sidebar.locally(function(){
 								v.sidebar.setForked(v.sidebarForm)
@@ -284,12 +286,12 @@ exports.checkQuote = function(config, done){
 							
 							_.assert(v.sidebar.elements.count() > 0)
 							
-							console.log('were: ' + JSON.stringify(childMap.toJson()))
+							//console.log('were: ' + JSON.stringify(childMap.toJson()))
 							
 							var historyField = v.sidebar.elements.at(0)
 							var set = childMap.get(historyField.id())
 							
-							console.log('looking for: ' + historyField.id() + ' in ' + historyField.getEditingId())
+							//console.log('looking for: ' + historyField.id() + ' in ' + historyField.getEditingId())
 							_.assert(set)
 							
 							var localWebpage
@@ -304,7 +306,7 @@ exports.checkQuote = function(config, done){
 							var quote = v.userData.sidebarForm.quoteForm.copy({prefix: '', postfix: '', removed: false, name: 'test title', originalUrlTitle:'dummy title', originalOffset: -1, creator: u.contact, text: 'test quote text', originalOffset: 10, url: tabUrl}, function(){
 
 								console.log('localWebpage: ' + localWebpage.id())
-								console.log('children: ' + v.children)
+								//console.log('children: ' + v.children)
 								console.log('quote id: ' + quote.id())
 						
 								var childObj = v.children.get(localWebpage.id())
@@ -312,9 +314,10 @@ exports.checkQuote = function(config, done){
 								var childMap = childObj.children
 								var quotesField = localWebpage.elements.at(2)
 								console.log('quotesField id: ' + quotesField.id())
+								console.log('snippetsField id: ' + localWebpage.elements.at(3).id())
 								console.log('historyField id: ' + historyField.id())
 								console.log(childMap.toJson())
-								console.log(localWebpage.id() + ' ' + JSON.stringify(v.children.toJson(), null, 2))
+								//console.log(localWebpage.id() + ' ' + JSON.stringify(v.children.toJson(), null, 2))
 								var set = childMap.get(quotesField.id())
 								//console.log('set: ' + set)
 								

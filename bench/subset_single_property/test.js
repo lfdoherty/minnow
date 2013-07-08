@@ -5,7 +5,7 @@ u.reset(run)
 
 var N = 1*1000*1000
 
-//benchmark to beat: N=1M in 45805ms (~21,000 ops/sec)
+//benchmark to beat: N=1M in 42083ms (~23,000 ops/sec)
 
 //N=100K in 5404ms
 //N=1M in 45805ms

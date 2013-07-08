@@ -17,7 +17,7 @@ exports.append = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						//v.setProperty('s', obj)
 						v.setProperty('s',obj)
 						_.assertDefined(obj)
@@ -48,7 +48,7 @@ exports.backandforth = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)//setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -87,7 +87,7 @@ exports.removeTemporariedInternalObject = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)//setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)
@@ -118,7 +118,7 @@ exports.removeTemporariedExternalObject = function(config, done){
 
 				minnow.makeClient(config.port, function(otherClient){
 					otherClient.view('general', function(err, v){
-						var obj = v.make('obj')
+						var obj = v.make('thing')
 						v.setProperty('s',obj)//setProperty('s', obj)
 						_.assertDefined(obj)
 						_.assertDefined(obj.data)

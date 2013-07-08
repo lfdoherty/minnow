@@ -127,14 +127,14 @@ exports.primitiveChangeListener = function changeListener(subObj, key, op, edit,
 	_.assertInt(op)
 	
 	if(lookup.isSetCode[op]){//op.indexOf('set') === 0){
-		if(syncId === this.getEditingId()) return
+		//if(syncId === this.getEditingId()) return
 
 		if(this.obj === edit.value) return
 		this.obj = edit.value;
-		//console.log('primitive value set to: ' + this.obj)
+		//console.log('primitive value set to: ' + this.obj + ' for ' + this.parent.ruid + ' ' + this.parent.objectId + ' ' + this.parent.typeSchema.name)
 		this.emit(edit, 'set', edit.value, editId)
 	}else if(op === editCodes.insertString){
-		if(syncId === this.getEditingId()) return
+		//if(syncId === this.getEditingId()) return
 		
 		//console.log('inserting: ' + edit.value + ' ' + syncId + ' ' + this.getEditingId())
 		if(!this.obj){

@@ -28,12 +28,12 @@ PathUpdater.prototype.reset = function(){
 }
 
 PathUpdater.prototype.made = function(e){this.typeCode = e.edit.typeCode}
-PathUpdater.prototype.madeFork = function(e){
+/*PathUpdater.prototype.madeFork = function(e){
 	_.assertInt(e.edit.typeCode);
 	this.typeCode = e.edit.typeCode
 	this.path = []
 	//_.errout('TODO')
-}
+}*/
 PathUpdater.prototype.setSyncId = function(e){this.syncId = e.edit.syncId}
 PathUpdater.prototype.selectProperty = function(e){
 	_.assertInt(e.edit.typeCode)
@@ -60,6 +60,18 @@ PathUpdater.prototype.selectLongKey = PathUpdater.prototype.selectStringKey
 PathUpdater.prototype.selectIntKey = PathUpdater.prototype.selectStringKey
 PathUpdater.prototype.selectBooleanKey = PathUpdater.prototype.selectStringKey
 PathUpdater.prototype.selectObjectKey = PathUpdater.prototype.selectStringKey
+/*
+PathUpdater.prototype.wasSetToNew = function(e){
+	_.assertInt(e.edit.id)
+	this.currentObject = e.edit.id
+	_.errout('here')
+}
+
+PathUpdater.prototype.setToNew = function(e){
+	_.assertInt(e.edit.id)
+	this.currentObject = e.edit.id
+	_.errout('here')
+}*/
 
 var upLookup = Object.create(null)
 var arr = [ 'made','madeFork','setSyncId','selectProperty',

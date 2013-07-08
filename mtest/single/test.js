@@ -10,10 +10,10 @@ exports.getSpecificView = function(config, done){
 					if(typeof(id) !== 'number') throw new Error('id is not valid: ' + id)
 					
 					c.view('specific', [id], function(err, handle){
-						if(handle.object.name.value() === 'test name'){
+						if(handle.subj.name.value() === 'test name'){
 							done()
 						}else{
-							console.log('single.getSpecificView - TEST FAILED: WRONG VALUE: ' + handle.object.name.value());
+							console.log('single.getSpecificView - TEST FAILED: WRONG VALUE: ' + handle.subj.name.value());
 						}
 					})
 				})
@@ -49,10 +49,10 @@ exports.changeObjectGotten = function(config, done){
 						//this is sort of weird, but it's for timing purposes
 						obj.name.set('better name')
 						
-						if(handle.object.name.value() === 'better name'){
+						if(handle.subj.name.value() === 'better name'){
 							done()
 						}else{
-							console.log('single.getSpecificView - TEST FAILED: WRONG VALUE: ' + handle.object.name.value());
+							console.log('single.getSpecificView - TEST FAILED: WRONG VALUE: ' + handle.subj.name.value());
 						}
 					})
 				})

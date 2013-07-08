@@ -9,10 +9,10 @@ var log = require('quicklog').make('minnow/longpoll')
 var newViewSequencer = require('./../server/new_view_sequencer')
 
 
-exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCreationListener, impl){
+exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, impl){
 	_.assertFunction(minnowClient.make)
 	
-	if(syncHandleCreationListener !== undefined) _.assertFunction(syncHandleCreationListener)
+//	if(syncHandleCreationListener !== undefined) _.assertFunction(syncHandleCreationListener)
 	
 	var syncHandles = {}
 
@@ -57,19 +57,29 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 			sh.msgs = []
 			//log('got sync handle: ' + syncId)
 			//console.log('got sync handle: ' + syncId)
-			if(syncHandleCreationListener) syncHandleCreationListener(userToken, syncId)
+			if(listeners.newSync) listeners.newSync(userToken, syncId)
 			
 			replyCb(syncId)
 
 		})
-	}, function(syncId){//called when the sync handle is ended
+	}, function(userToken, syncId){//called when the sync handle is ended
 		if(syncHandles[syncId]){
 			syncHandles[syncId].close()
+			if(listeners.closeSync) listeners.closeSync(userToken, syncId)
 			delete syncHandles[syncId]
 		}else{
 			log.warn('cannot find sync id to close: ' + syncId)
 		}
 	})
+	
+	if(listeners.heartbeat){
+		setInterval(function(){
+			Object.keys(syncHandles).forEach(function(key){
+				var syncId = parseInt(key)
+				listeners.heartbeat(syncId)
+			})
+		},5000)
+	}
 
 	function objectListener(sh, id, edits){
 		_.assertLength(arguments, 3);
@@ -89,7 +99,9 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		sh.msgs.push(msg)
 	}
 
-	impl.receiveUpdates(function(userToken, syncId, msgs, replyCb, securityFailureCb){
+	impl.receiveUpdates(function(userToken, syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb){
+	
+		_.assertFunction(deadSyncHandleCb)
 		
 		var failed = false
 		
@@ -156,7 +168,11 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, syncHandleCr
 		}
 
 		var syncHandle = syncHandles[syncId]
-		if(syncHandle === undefined) _.errout('no known sync handle for syncId: ' + syncId)
+		if(syncHandle === undefined){
+			console.log('WARNING: no known sync handle for syncId: ' + syncId)
+			deadSyncHandleCb()
+			return
+		}
 
 		msgs.forEach(function(msg){
 			if(failed) return

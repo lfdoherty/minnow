@@ -130,12 +130,14 @@ exports.putNew = function(config, done){
 							if(c.s.members.get('testKey').has('name') && c.s.members.get('testKey').name.value() === 'Bill'){
 								done()
 								return true
+							}else{
+								console.log(JSON.stringify(c.s.members.toJson()))
 							}
 						}else{
-							//console.log('here: ' + c.s.data.size())
+							console.log('here: ' + c.s.data.size())
 						}
 					}else{
-						//console.log('no s')
+						console.log('no s')
 					}
 				})
 
@@ -144,6 +146,8 @@ exports.putNew = function(config, done){
 						//console.log(''+v.setPropertyToNew)
 						var obj = v.make('container')
 						obj.members.putNew('testKey', {name: 'Bill'})
+						
+						console.log('obj: ' + JSON.stringify(obj.toJson()))
 					})
 				})
 				

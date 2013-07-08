@@ -22,6 +22,10 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 		_.assertInt(objId);
 	}
 	
+	this.ruid = Math.random()
+	
+	//console.log('made new ' + typeSchema.name + ': ' + this.ruid + ' ' + objId)
+	
 	this.edits = edits
 	this.part = part;//TODO make part a single value rather than a list?
 	this.typeSchema = typeSchema;
@@ -110,15 +114,24 @@ ObjectHandle.prototype.prepare = function(){
 	var s = this;	
 
 	//apply edits
-	if(this.edits){
+	var edits = (this.edits||[]).concat(this.localEdits||[])
+	
+//	console.log('preparing: ' + JSON.stringify(edits))
+	
+	if(edits.length > 0){
 		var currentSyncId=-1
-		//this.log(this.objectId + ' preparing topobject with edits: ' + JSON.stringify(this.edits).slice(0,500))
+		//this.log(this.objectId + ' preparing object with edits: ' + this.edits.length)
 		var local = this
-		this.edits.forEach(function(e, index){
-			topObject.maintainPath(local, e.op, e.edit, -1, index)
-		})
-		local.path = undefined
-		local.pathEdits = undefined
+		
+		if(edits.length > 0){
+			topObject.maintainPath(local.getTopParent(), editCodes.selectObject, {id: this.objectId}, -1, -100, true)
+		
+			edits.forEach(function(e, index){
+				topObject.maintainPath(local.getTopParent(), e.op, e.edit, -1, index, true)
+			})
+		}
+		//local.path = undefined
+		//local.pathEdits = undefined
 		local.lastEditId = undefined
 	}
 	
@@ -134,8 +147,12 @@ ObjectHandle.prototype.prepare = function(){
 			}else{
 				var v = s.property(name);
 				s[name] = v;
-				//this.log('prepared: ' + name)
-				v.prepare();
+				if(!v.prepare){
+					var temp = s.property(name)
+					console.log('not preparable('+name+'): '  + v + ' ' + JSON.stringify(Object.keys(v)) + ' ' + s.constructor.name)
+				}else{
+					v.prepare();
+				}
 			}
 		}
 	});

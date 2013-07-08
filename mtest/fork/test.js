@@ -321,6 +321,8 @@ exports.allForked = function(config, done){
 	})
 }
 */
+
+/*
 exports.preforkedQuery = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -345,7 +347,7 @@ exports.preforkedQuery = function(config, done){
 			})
 		})
 	})
-}
+}*/
 /*
 exports.forkWithLocalEdits = function(config, done){
 	minnow.makeServer(config, function(){

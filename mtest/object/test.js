@@ -12,8 +12,8 @@ exports.setProperty = function(config, done){
 					
 					setTimeout(function(){
 						c.view('specific', [id], function(err, handle){
-							console.log('e: ' + handle.object.e.name.value())
-							if(handle.object.e.name.value() === 'test2'){
+							console.log('e: ' + handle.subj.e.name.value())
+							if(handle.subj.e.name.value() === 'test2'){
 								done()
 							}
 						})
@@ -32,7 +32,7 @@ exports.makeWithEmptyObject = function(config, done){
 			c.view('general', [], function(err, handle){
 				var container = handle.make('container', {e: {}}, function(id){
 					c.view('specific', [id], function(err, handle){
-						if(handle.object.has('e')){
+						if(handle.subj.has('e')){
 							done()
 						}
 					})
@@ -50,7 +50,7 @@ exports.prepareWasSetToNew = function(config, done){
 				handle.make('container', {e: {}}, function(id){
 					minnow.makeClient(config.port, function(c){
 						c.view('specific', [id], function(err, handle){
-							if(handle.object.has('e')){
+							if(handle.subj.has('e')){
 								done()
 							}else{
 								console.log(JSON.stringify(handle.toJson()))

@@ -183,12 +183,12 @@ function makePropertyDiffer(p){
 				}
 				for(var i=0;i<bKeys.length;++i){
 					var key = bKeys[i]
-					if(a[key] === undefined){
+					if(a[key] !== b[key]){
 						changes.push({op: keyOp, edit: {key: key}})
 						changes.push({op: putOp, edit: {value: b[key]}})
 					}
 				}
-				//console.log('diff map: ' + JSON.stringify([a, b, changes]))
+				//if(p.type.value.primitive === 'boolean') console.log('diff map: ' + JSON.stringify([a, b, changes]))
 				return changes
 			}
 		}else if(/*p.type.key.type === 'primitive' && */p.type.value.type === 'object'){
@@ -207,7 +207,7 @@ function makePropertyDiffer(p){
 				}
 				for(var i=0;i<bKeys.length;++i){
 					var key = bKeys[i]
-					if(a[key] === undefined){
+					if(a[key] !== b[key]){
 						changes.push({op: keyOp, edit: {key: key}})
 						changes.push({op: editCodes.putExisting, edit: {id: b[key]}})
 					}
@@ -229,7 +229,7 @@ function makePropertyDiffer(p){
 				}
 				for(var i=0;i<bKeys.length;++i){
 					var key = bKeys[i]
-					if(a[key] === undefined){
+					if(a[key] !== b[key]){
 						changes.push({op: keyOp, edit: {key: key}})
 						changes.push({op: editCodes.putViewObject, edit: {id: b[key]}})
 					}

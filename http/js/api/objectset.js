@@ -224,11 +224,13 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);	
 	
-	var edit = {typeCode: type.code}
-	this.saveEdit(editCodes.addNew, edit)
+	var temporary = this.makeTemporaryId()
 
-	var n = this._makeAndSaveNew(json, type)
-	edit.temporary = n._internalId()
+	var local = this
+	var n = this._makeAndSaveNew(json, type, temporary, undefined, function(fc){
+		var edit = {typeCode: type.code, temporary: temporary, following: fc}
+		local.saveEdit(editCodes.addNew, edit)
+	})
 	
 	if(n === undefined) _.errout('failed to addNew')
 		

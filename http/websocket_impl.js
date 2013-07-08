@@ -7,7 +7,7 @@ var WebSocketServer = require('ws').Server
 
 function stub(){}
 
-exports.make = function(authenticateByToken, local, urlPrefix){//secureLocal){
+exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secureLocal){
 	_.assertFunction(authenticateByToken)
 
 	var receiver
@@ -33,10 +33,8 @@ exports.make = function(authenticateByToken, local, urlPrefix){//secureLocal){
 
 				var syncId
 				
-				
 				ws.on('error', function(err){
 					console.log(err)
-					//ws.close()
 					close()
 				})
 				ws._socket.on('error', function(e){	
@@ -52,14 +50,16 @@ exports.make = function(authenticateByToken, local, urlPrefix){//secureLocal){
 
 				ws.on('message', function(data,flags){
 					if(userToken === undefined){
-						//console.log('got token: ' + data)
-						authenticateByToken(data, function(err, t){
+						var setupMsg = JSON.parse(data)
+						console.log('got setup msg: ' + JSON.stringify(setupMsg))
+						authenticateByToken(setupMsg.token, function(err, t){
 							if(err){
 								log.warn('websocket client provided incorrect authentication info, closing socket: ' + err)
 								ws.close()
 								return
 							}
 							userToken = t
+							
 
 							cb(userToken, function(theSyncId){
 
@@ -68,6 +68,8 @@ exports.make = function(authenticateByToken, local, urlPrefix){//secureLocal){
 								syncId = theSyncId
 
 								senders[syncId] = send
+
+								if(listeners.websocketFromUrl) listeners.websocketFromUrl(syncId, setupMsg.url)
 
 								try{
 									ws.send(JSON.stringify([{syncId: syncId}]))
@@ -93,11 +95,14 @@ exports.make = function(authenticateByToken, local, urlPrefix){//secureLocal){
 				function securityFailureCb(){
 					ws.send(JSON.stringify([{type: 'security error', msg: 'tried to access non-accessible view'}]))
 				}
+				function deadSyncIdCb(){
+					ws.send(JSON.stringify([{type: 'error', msg: 'sync id is dead or non-existent'}]))
+				}
 				function receive(msg){
 					if(userToken === undefined){
 						authBuffer.push(msg)
 					}else{
-						receiver(userToken, syncId, [msg], stub, securityFailureCb)
+						receiver(userToken, syncId, [msg], stub, securityFailureCb, deadSyncIdCb)
 					}
 				}	
 
@@ -118,7 +123,7 @@ exports.make = function(authenticateByToken, local, urlPrefix){//secureLocal){
 					console.log('closed: ' + syncId)
 					delete senders[syncId]
 					closed = true
-					endCb(syncId)
+					endCb(userToken, syncId)
 				}
 
 				

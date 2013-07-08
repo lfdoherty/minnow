@@ -5,7 +5,7 @@ u.reset(run)
 
 var N = 1*1000*1000
 
-//benchmark to beat: N=1M in 57454ms (~15,000 ops/sec)
+//benchmark to beat: N=1M in 42508ms (~23,000 ops/sec)
 
 //TODO implement each-optimization that will make this actually fast
 

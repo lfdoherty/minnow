@@ -22,6 +22,29 @@ function makeSwitchFunction(valueExpr, caseValues, caseExprs, defaultExpr){
 		return caseExpr
 	}
 	
+	//if(valueExpr.isBoolean) _.errout('test: ' + valueExpr.isBoolean)
+
+	function booleanF(bindings){
+		var value = valueExpr(bindings)
+		value = !!value
+		//console.log('switch value: ' + value)
+		for(var i=0;i<caseValues.length;++i){
+			var cv = caseValues[i]
+			if(cv === value){
+				var res = caseExprs[i](bindings)
+				//console.log('case result: ' + value + ' -> ' + JSON.stringify(res))
+				return res
+			}
+		}
+		if(defaultExpr){
+			var res = defaultExpr(bindings)
+			//console.log('default result: ' + value + ' -> ' + JSON.stringify(res))
+			return res
+		}else{
+			console.log('WARNING: no case matched and no default case provided')
+		}
+	}
+	
 	function f(bindings){
 		var value = valueExpr(bindings)
 		//console.log('switch value: ' + value)
@@ -41,8 +64,8 @@ function makeSwitchFunction(valueExpr, caseValues, caseExprs, defaultExpr){
 			console.log('WARNING: no case matched and no default case provided')
 		}
 	}
-
-	f.specializeByType = function(typeBindings){
+	
+	booleanF.specializeByType = f.specializeByType = function(typeBindings){
 
 		var newValueExpr = valueExpr
 		if(valueExpr.specializeByType){
@@ -66,7 +89,12 @@ function makeSwitchFunction(valueExpr, caseValues, caseExprs, defaultExpr){
 	
 		return makeSwitchFunction(newValueExpr, caseValues, newCaseExprs, newDefaultExpr)
 	}
-	return f
+	
+	if(valueExpr.isBoolean){
+		return booleanF
+	}else{
+		return f
+	}
 }
 exports.make = function(s, staticBindings, rel, recurse){
 	_.assertLength(arguments, 4)
@@ -76,6 +104,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 	var defaultExpr
 	
 	var valueExpr = recurse(rel.params[0])
+	valueExpr.isBoolean = rel.params[0].schemaType.primitive === 'boolean'
 	
 	rel.params.slice(1).forEach(function(caseParam, index){
 		var cvp = caseParam.params[0]

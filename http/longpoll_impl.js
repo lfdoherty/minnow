@@ -7,6 +7,8 @@ exports.make = function(app, appName, prefix, identifier){
 
 	var userTokenBySyncId = {}
 
+	var endingCb
+	
 	var handle = {
 		handleErrors: function(){
 			return function(e){
@@ -14,8 +16,9 @@ exports.make = function(app, appName, prefix, identifier){
 				console.log('longpoll error: ' + e)
 			}
 		},
-		exposeBeginSync: function(cb){
-		
+		exposeBeginSync: function(cb, endCb){
+			endingCb = endCb
+			
 			app.get('/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
 				
 				cb(req.userToken, function(syncId){
@@ -25,6 +28,7 @@ exports.make = function(app, appName, prefix, identifier){
 
 					httpRes.setHeader('Content-Type', 'application/json');
 					httpRes.setHeader('Content-Length', data.length);
+					httpRes.setHeader('Cache-Control', 'no-cache, no-store');
 					//httpRes.setHeader('Cache-Control', 'max-age=0');
 					httpRes.end(data)
 				})
@@ -37,13 +41,17 @@ exports.make = function(app, appName, prefix, identifier){
 				function replyCb(){
 					res.setHeader('Content-Type', 'text/plain');
 					res.setHeader('Content-Length', '0');
+					res.setHeader('Cache-Control', 'no-cache, no-store');
 
 					res.end()
 				}
 				function securityFailureCb(){
 					res.send(403)
 				}
-				cb(req.userToken,syncId, msgs, replyCb, securityFailureCb)
+				function deadSyncHandleCb(){
+					res.send(400)
+				}
+				cb(req.userToken,syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb)
 			})
 		},
 		sendAllToClient: sendToClient,
@@ -61,20 +69,42 @@ exports.make = function(app, appName, prefix, identifier){
 			waitingForLongPoll[syncId] = waitingForLongPoll[syncId].concat(msgs)//.push(msgs)
 		}
 	}
+	var lastStartedWaiting = {}
 	var waitingForLongPoll = {}
 	var longPollCaller = {}
+	var isOpen = {}
+	
+	setInterval(function(){
+		var now = Date.now()
+		var toRemove = []
+
+		Object.keys(lastStartedWaiting).forEach(function(k){
+			var last = lastStartedWaiting[k]
+			if(isOpen[k]) return
+			if(now - last > 30*1000){
+				console.log('long poll sync handle was not used for too long, destroying sync handle: ' + k)
+				toRemove.push(k)
+			}
+		})
+		toRemove.forEach(function(k){
+
+			var userToken = userTokenBySyncId[k]
+			
+			delete lastStartedWaiting[k]
+			delete waitingForLongPoll[k]
+			delete longPollCaller[k]
+			delete userTokenBySyncId[k]
+			
+			endingCb(userToken, parseInt(k))
+			
+		})
+	},5000)
+	
 	//long poll connections to send update server->client for a sync handle
 	//TODO if no longpoll connection is made for a syncId for awhile, delete it
 	app.get('/mnw/xhr/longpoll/' + appName + '/:syncId', identifier, function(req, res){
 		var syncId = parseInt(req.params.syncId)
 
-		/*var syncHandle = getSyncHandle(syncId)//syncHandles[syncId]
-		if(syncHandle === undefined) _.errout('no known sync handle for syncId: ' + syncId)
-		if(syncHandle.owningUserId !== req.userToken){
-			log('user(' + req.userToken + ') attempted to access sync handle of user(' + syncHandle.owningUser + ') - access denied')
-			res.send(403)
-			return
-		}*/
 		if(userTokenBySyncId[syncId] !== req.userToken){
 			//log('user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
 			console.log('WARNING: user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
@@ -82,14 +112,33 @@ exports.make = function(app, appName, prefix, identifier){
 			res.send(403)
 			return
 		}
-		
+
+		lastStartedWaiting[syncId] = Date.now()
+		isOpen[syncId] = true
+		console.log('open: ' + syncId)
 				
 		function sendContent(content){
 			var data = new Buffer(content)
 		    res.setHeader('Content-Type', 'application/json');
 		    res.setHeader('Content-Length', data.length);
+		    res.header('Cache-Control', 'no-cache, no-store')
 			res.send(data)
+			isOpen[syncId] = false
+			lastStartedWaiting[syncId] = Date.now()
+			console.log('closed: ' + syncId)
 		}
+		
+		var stillOpen = true
+		
+		
+		req.on('close', function(err){
+			//console.log('req close: ' + err)
+			isOpen[syncId] = false
+			console.log('*closed: ' + syncId)
+			lastStartedWaiting[syncId] = Date.now()
+			stillOpen = false
+		})
+		
 		
 		var sendPending = false
 		if(waitingForLongPoll[syncId] === undefined) waitingForLongPoll[syncId] = []
@@ -107,11 +156,17 @@ exports.make = function(app, appName, prefix, identifier){
 					sendPending = true
 					setTimeout(function(){
 						log('...finally sending response with some messages: ' + msgsToSend.length)
+						if(!stillOpen){
+							console.log('cannot send messages, req closed in meantime')
+							return
+						}
 						sendPending = false
 						waitingForLongPoll[syncId] = []
 						sendContent(JSON.stringify(msgsToSend))
 						longPollCaller[syncId] = undefined;
 					},50)
+				}else{
+					console.log('WARNING: send pending')
 				}
 			}
 		}
