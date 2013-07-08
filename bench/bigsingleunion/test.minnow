@@ -1,0 +1,10 @@
+
+entity 1
+	numbers set:int 1		
+	more set:int 2
+
+intCount(e entity){
+	count(union(e.numbers,e.more))
+}
+general() 100
+	plussed eachReduce(*entity,{intCount(~)},{add(~1,~2)}) 1

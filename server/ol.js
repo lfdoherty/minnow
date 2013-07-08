@@ -12,6 +12,7 @@ var shared = require('./tcp_shared')
 var pathsplicer = require('./pathsplicer')
 var bin = require('./../util/bin')
 var olcache = require('./olcache')
+var metadataIndex = require('./metadataindex')
 
 var IntIntMap = require('primitivemap').IntIntMap
 var IntLongMap = require('primitivemap').IntLongMap
@@ -185,6 +186,8 @@ function Ol(schema){
 	this.destructionEditIdsByType = {}
 	this.destructionIdsByType = {}
 	this.uuid = {}
+	
+	this.metadata = metadataIndex.make()
 	
 	this.creationEditIds = {}
 	
@@ -981,6 +984,25 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 			this._destroy(id, resEditId, timestamp)
 		}
 	}
+	
+	//TODO optimize via short-circuit
+	if(op === editCodes.selectProperty){
+		this.metadata.selectProperty(id, edit.typeCode)
+	}else if(op === editCodes.selectIntKey){
+		this.metadata.selectIntKey(id, edit.key)
+	}else if(op === editCodes.selectStringKey){
+		this.metadata.selectStringKey(id, edit.key)
+	}else if(op === editCodes.selectBooleanKey){
+		this.metadata.selectBooleanKey(id, edit.key)
+	}else if(op === editCodes.selectLongKey){
+		this.metadata.selectLongKey(id, edit.key)
+	}else if(op === editCodes.selectObject){
+		this.metadata.selectObject(id, edit.id)
+	}else if(op === editCodes.selectSubObject){
+		this.metadata.selectObject(id, edit.id)
+	}else if(op === editCodes.clearObject){
+		this.metadata.clearObject(id)
+	}
 		
 	//console.log('op now: ' + op)
 	this.olc.addEdit(id, {op: op, edit: edit, editId: resEditId})
@@ -1045,11 +1067,13 @@ Ol.prototype.getObjectMetadata = function(id){
 		_.errout('id already destroyed: ' + id)
 	}*/
 
-	var pu = pathsplicer.make()
+	/*var pu = pathsplicer.make()
 	var edits = this.olc.get(id)
 	//console.log('recomputing pu: ' + JSON.stringify(edits))
 	pu.updateAll(edits)
-	return pu.getAll()
+	return pu.getAll()*/
+	
+	return this.metadata.get(id)
 	
 	//cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
 }
