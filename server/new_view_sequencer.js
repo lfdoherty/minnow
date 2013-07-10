@@ -391,6 +391,7 @@ exports.make = function(schema, ol){
 			
 			for(var i=0;i<relFuncs.length;++i){
 				var rf = relFuncs[i]
+				_.assertInt(rf.code)
 				state[rf.code] = rf.func(bindings)
 			}
 			return state

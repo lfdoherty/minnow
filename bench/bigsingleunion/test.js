@@ -4,7 +4,7 @@ The goal here is to minimum the second poll time, mostly.
 It should be very small - perhaps as low as 1ms.
 
 				  first poll, second poll, full time
-(500,2000,10) -> (168, 310, 21370)
+(500,2000,10) -> (82, 4, 22123)
 
 */
 

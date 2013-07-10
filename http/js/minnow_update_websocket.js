@@ -193,7 +193,11 @@ function openSocket(appName, host, cb, errCb, closeCb){
 			
 			var edits = jsonutil.convertJsonToEdits(schema, obj.type(), json, api.makeTemporaryId.bind(api))
 
-			sendFacade.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: obj.getObjectTypeCode(), forget: forget, following: edits.length})
+			sendFacade.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: obj.getObjectTypeCode(), forget: forget, 
+				following: 
+					edits.length+
+					(obj.edits?obj.edits.length:0)+
+					(obj.localEdits?obj.localEdits.length:0)})
 
 			if(cb) {
 				makeIdCbListeners[temporary] = cb

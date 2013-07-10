@@ -52,13 +52,22 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	var snapPath = '/mnw/snaps/' + appName + '/';
 	//var snapPathHistorical = '/mnw/snaps_historical/' + appName + '/';
 	
-	var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))
-	Object.keys(simplifiedSchema).forEach(function(key){
-		if(simplifiedSchema[key].isView){
-			delete simplifiedSchema._byCode[simplifiedSchema[key].code].viewSchema
-			delete simplifiedSchema[key].viewSchema
-		}
+	//var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))
+	var simplifiedSchema = {}
+	Object.keys(minnowClient.schema).forEach(function(key){
+		if(key === '_byCode') return
+		var cur = simplifiedSchema[key] = {}
+		var from = minnowClient.schema[key]
+		Object.keys(from).forEach(function(kk){
+			if(kk === 'viewSchema') return
+			cur[kk] = from[kk]
+		})
 	})
+	simplifiedSchema = JSON.parse(JSON.stringify(simplifiedSchema))
+	/*Object.keys(simplifiedSchema).forEach(function(key){
+		delete simplifiedSchema[key].viewSchema
+	})*/
+	require('fs').writeFileSync('schema.txt', JSON.stringify(simplifiedSchema, null, 2))
 	
 	var schemaUrl;
 	var schemaStr = 'gotSchema(' + JSON.stringify(simplifiedSchema) + ');'
@@ -216,14 +225,14 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 						newParams[index] = id
 					}
 				}else{
-					console.log(JSON.stringify(p.type))
+					//console.log(JSON.stringify(p.type))
 					newParams[index] = params[index]
 				}
 			})
 			//_.errout('TODO')
 			params = newParams
 
-			if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
+			//if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
 			
 			service.getViewState(viewName, params, function(err, baseTypeCode, snap, lastSeenVersionId){
 			
@@ -263,7 +272,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 						newParams[index] = id
 					}
 				}else{
-					console.log(JSON.stringify(p.type))
+					//console.log(JSON.stringify(p.type))
 					newParams[index] = params[index]
 				}
 			})

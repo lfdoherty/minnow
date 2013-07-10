@@ -36,26 +36,18 @@ function globalizeExpression(rel, extractCb){
 			}
 		}
 
-		if(rel.view === 'mutate'){
+		/*if(rel.view === 'mutate'){
 			rel.params[1].expr = globalizeExpression(rel.params[1].expr)//, extractCb)
 			
 			//console.log('mutateRel: ' + JSON.stringify(rel.params[2]))
 			rel.params[2].expr = globalizeExpression(rel.params[2].expr)
 
-			/*var newBindingsUsed = _.extend({},rel.params[2].bindingsUsed)
-			rel.params[2].expr = extractGlobals(rel.params[2].expr, rel.params[2].implicits, function(expr, uid){
-				//_.errout('TODO: ' + JSON.stringify(expr))
-				uid = uid||'extracted_'+Math.random()
-				extractCb(expr, uid)
-				newBindingsUsed[uid] = true
-				return {type: 'param', name: uid, schemaType: expr.schemaType, was: expr}
-			})
-			rel.params[2].bindingsUsed = newBindingsUsed*/
-		}else{
+
+		}else{*/
 			rel.params.forEach(function(p, i){
 				rel.params[i] = globalizeExpression(p, extractCb)
 			})
-		}
+		//}
 		
 		extractions.reverse().forEach(function(ex){//TODO dedup?
 			
@@ -121,13 +113,22 @@ function extractGlobals(rel, implicits, cb){
 		}/*else if(rel.type === 'mutate'){
 			return rel
 		}*/else if(rel.type === 'let'){
-			log('further globalizing let: ' + JSON.stringify([rel.name,rel.expr], null, 2))
+			//log('further globalizing let: ' + JSON.stringify([rel.name,rel.expr], null, 2))
 			cb(rel.expr, rel.name)
 			return extractGlobals(rel.rest, implicits.concat(rel.name), cb)//TODO implicits.concat(rel.name) should be unnecessary?
 		}else if(rel.type === 'macro'){
 			//we cannot extract a macro independent of its parent view
 			return rel
 		}else if(rel.type === 'view' && ['case','default','unchanged'].indexOf(rel.view) !== -1){
+			rel.params.forEach(function(p,i){
+				rel.params[i] = extractGlobals(p, implicits, cb)
+			})
+			return rel
+		}else if(rel.type === 'view' && rel.view === 'property' && 
+				rel.params[1].type === 'param' && 
+				rel.params[1].schemaType.type !== 'set' && 
+				rel.params[1].schemaType.type !== 'list'){
+			//console.log('did not externalize single property: ' + JSON.stringify(rel))
 			rel.params.forEach(function(p,i){
 				rel.params[i] = extractGlobals(p, implicits, cb)
 			})

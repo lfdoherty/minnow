@@ -80,11 +80,20 @@ function applySubsetOptimizationToView(r){
 					//console.log(JSON.stringify([expr.params[1].view === 'property', expr.params[1].params[1].name === implicits[0], expr.params[0].type === 'param']))
 					//console.log(JSON.stringify(expr, null, 2))
 					
+					function isSimple(p){
+						return p.type === 'param' || p.type === 'value' ||
+							(p.type === 'view' && p.view === 'property' && isSimple(p.params[1]))
+					}
+					
 					if(expr.params[0].view === 'property' && expr.params[0].params[1].name === implicits[0] && 
-							(expr.params[1].type === 'param' || expr.params[1].type === 'value')){
+							//(expr.params[1].type === 'param' || expr.params[1].type === 'value')
+							isSimple(expr.params[1])
+							){
 						return cb(expr.params[0], expr.params[1])
 					}else if(expr.params[1].view === 'property' && expr.params[1].params[1].name === implicits[0] && 
-							(expr.params[0].type === 'param' || expr.params[0].type === 'value')){
+							//(expr.params[0].type === 'param' || expr.params[0].type === 'value')
+							isSimple(expr.params[0])
+							){
 						return cb(expr.params[1], expr.params[0])
 					}else{
 						return r

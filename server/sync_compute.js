@@ -9,6 +9,7 @@ function make(s, staticBindings, rel, recurse){
 	var impl = schemaModule.getImplementation(rel.view)
 	_.assertDefined(impl)
 	var paramRels = []
+	
 	//console.log(JSON.stringify(rel, null, 2))
 	for(var i=0;i<rel.params.length;++i){
 		var p = rel.params[i]

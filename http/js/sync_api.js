@@ -765,7 +765,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	
 	//console.log(this.getEditingId()+' *** ' + editNames[op])
 
-	//console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
+//	console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
@@ -895,7 +895,11 @@ SyncApi.prototype.copyExternalObject = function(obj, json, forget, cb){
 	var edits = this.sh.copy(obj, json, forget, cb, temporary)
 	
 	edits = obj.edits
-		.concat([{op: editCodes.copied, edit: {sourceId: obj.id(), typeCode: this.schema[typeName].code, temporary: temporary}, editId: -2}])
+		.concat([{op: editCodes.copied, edit: {sourceId: obj.id(), typeCode: this.schema[typeName].code, temporary: temporary, following:
+			edits.length+
+			(obj.edits?obj.edits.length:0)+
+			(obj.localEdits?obj.localEdits.length:0)
+		}, editId: -2}])
 		.concat(edits)
 
 	/*var oldHandle = this.objectApiCache[this.currentObjectId]

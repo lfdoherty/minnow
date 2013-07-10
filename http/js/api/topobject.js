@@ -601,7 +601,7 @@ TopObjectHandle.prototype.uuid = function(){
 	if(!this._uuid) _.errout('type is not a uuid type: ' + this.typeSchema.name)
 	return this._uuid
 }
-
+/*
 TopObjectHandle.prototype._maintainFork = function(fork){
 	//_.errout('TODO')
 	_.assertFunction(fork._acceptForkChange)
@@ -613,13 +613,9 @@ TopObjectHandle.prototype._maintainFork = function(fork){
 }
 TopObjectHandle.prototype._stopMaintainingFork = function(fork){
 	//_.errout('TODO')
-	/*if(!this._forkListeners){
-		this._forkListeners = [fork]
-	}else{
-		this._forkListeners.push(fork)
-	}*/
+
 	this._forkListeners.splice(this._forkListeners.indexOf(fork), 1)
-}
+}*/
 function destroyedWarning(){
 	_.errout('this object has been destroyed, it is an error to still have a reference to it')
 }

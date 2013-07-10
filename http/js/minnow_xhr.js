@@ -22,6 +22,11 @@ function setup(host, appName, cb, errCb){
 	function tryToConnect(){
 		getJson(host+'/mnw/schema/'+appName, function(schema){
 			console.log('got json')
+			schema._byCode = {}
+			Object.keys(schema).forEach(function(key){
+				var obj = schema[key]
+				schema._byCode[obj.code] = obj
+			})
 			update.establishSocket(appName, schema, host, cb, errCb)
 		}, function(){
 			console.log('get json failed, retrying in 1 second')

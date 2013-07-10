@@ -201,6 +201,7 @@ exports.make = function(schema, objectState, query){
 
 		var typeCode = getTypeCode(id)
 		var state = getQueryFromUpdate(id, newCache)
+		//console.log('state: ' + JSON.stringify(state))
 		var stateEdits = convertViewStateToEdits(typeCode, id, state)//editifiers[typeCode](state)
 		diff.addedViewObjects.push({id: id, edits: stateEdits})
 		updateViewReffed(id, typeCode, state, diff, oldEditId, oldCache, newCache)

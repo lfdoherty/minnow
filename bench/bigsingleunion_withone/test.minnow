@@ -1,0 +1,19 @@
+
+entity 1
+	
+
+container 2
+	eId int 3
+	numbers set:int 1		
+	more set:int 2
+
+getContainer(e entity){
+	one(subset(*container,{eq(e.id,~.eId)}))
+}
+
+intCount(e entity){
+	count(union(getContainer(e).numbers,getContainer(e).more))
+	//count(getContainer(e).numbers)
+}
+general() 100
+	plussed eachReduce(*entity,{intCount(~)},{add(~1,~2)}) 1

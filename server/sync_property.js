@@ -23,7 +23,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 		var context = recurse(rel.params[1])
 		
 		if(p.type.type === 'set' || p.type.type === 'list'){
-			return function(bindings){
+			function setSetGetter(bindings){
 
 				var contextIds = context(bindings)
 				var all = []
@@ -50,11 +50,13 @@ exports.make = function(s, staticBindings, rel, recurse){
 					return []
 				}
 			}
+			setSetGetter.index = index
+			return setSetGetter
 		}else if(p.type.type === 'map'){
 			if(p.type.value.type === 'set' || p.type.value.type === 'list'){
 				_.errout('tODO: ' + JSON.stringify(p))
 			}else{
-				return function(bindings){
+				function mapSetGetter(bindings){
 
 					var contextIds = context(bindings)
 					var all = []
@@ -79,9 +81,11 @@ exports.make = function(s, staticBindings, rel, recurse){
 					}
 					return result
 				}
+				mapSetGetter.index = index
+				return mapSetGetter
 			}
 		}else{
-			return function(bindings){
+			function setGetter(bindings){
 
 				var contextIds = context(bindings)
 				var all = []
@@ -97,6 +101,8 @@ exports.make = function(s, staticBindings, rel, recurse){
 				}
 				return all
 			}
+			setGetter.index = index
+			return setGetter
 		}
 	}else if(contextType.type === 'map'){
 		//_.errout('TODO?: ' + JSON.stringify(rel) + '\n' + JSON.stringify(contextType))
@@ -112,7 +118,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 
 		var context = recurse(rel.params[1])
 		var getter = index.getValueAt
-		return function(bindings){
+		function getterFunction(bindings){
 			var contextId = context(bindings)
 			//_.errout('tODO')
 			if(contextId !== undefined){
@@ -122,6 +128,8 @@ exports.make = function(s, staticBindings, rel, recurse){
 			}
 			//console.log(contextId+'['+contextType.object+']'+'.'+propertyName)
 		}
+		getterFunction.index = index
+		return getterFunction
 		//_.errout('TODO: ' + JSON.stringify(rel))
 	}
 }

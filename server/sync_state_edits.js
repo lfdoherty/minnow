@@ -164,6 +164,7 @@ function makeViewStateConverter(objSchema){
 		var p = objSchema.properties[propertyName]
 		var pc = makeViewStatePropertyConverter(p)
 		pc.code = p.code
+		_.assertInt(pc.code)
 		propertyConverters.push(pc)
 	})
 	return function(viewId, state){

@@ -357,7 +357,8 @@ Ol.prototype._copy = function copy(edit, timestamp, syncId){
 	this.lastEditId.put(this.idCounter, editId)
 
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
-	this.olc.addEdit(id, {op: editCodes.copied, edit: {sourceId: edit.sourceId, typeCode: edit.typeCode, id: this.idCounter, following: edit.following}, editId: editId})
+	this.olc.addEdit(id, {op: editCodes.copied, edit: {sourceId: edit.sourceId, typeCode: edit.typeCode, id: this.idCounter, 
+		following: edit.following}, editId: editId})
 
 	this.propertyIndex.creation(edit.typeCode, id, editId+edit.following)
 
@@ -365,6 +366,13 @@ Ol.prototype._copy = function copy(edit, timestamp, syncId){
 	sourceObjectEdits.forEach(function(se){
 		local.olc.addEdit(id, se)
 		local.propertyIndex.addEdit(id, se.op, se.edit, se.editId)//resEditId)
+		if(se.op === editCodes.selectProperty){
+			local.metadata.selectProperty(id, se.edit.typeCode)
+		}else if(se.op === editCodes.selectObject){
+			local.metadata.selectObject(id, se.edit.id)
+		}else if(se.op === editCodes.clearObject){
+			local.metadata.clearObject(id)
+		}
 	})
 
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
@@ -782,7 +790,8 @@ Ol.prototype.getVersionTimestamp = function(v){
 	_.assert(v > 0)
 	var t = this.timestamps[v]
 	if(t === undefined){
-		_.errout('no timestamp found for version: ' + v)
+		//_.errout('no timestamp found for version: ' + v)
+		return undefined
 	}
 	_.assertNumber(t)
 	_.assert(t > 0)
@@ -1003,6 +1012,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	}else if(op === editCodes.clearObject){
 		this.metadata.clearObject(id)
 	}
+	
 		
 	//console.log('op now: ' + op)
 	this.olc.addEdit(id, {op: op, edit: edit, editId: resEditId})
@@ -1010,6 +1020,8 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	this.lastEditId.put(id, resEditId)
 
 	this.propertyIndex.addEdit(id, op, edit, resEditId)
+
+	this.getObjectMetadata(id)
 	
 	return resId
 
@@ -1067,14 +1079,39 @@ Ol.prototype.getObjectMetadata = function(id){
 		_.errout('id already destroyed: ' + id)
 	}*/
 
-	/*var pu = pathsplicer.make()
-	var edits = this.olc.get(id)
-	//console.log('recomputing pu: ' + JSON.stringify(edits))
-	pu.updateAll(edits)
-	return pu.getAll()*/
-	
+
 	return this.metadata.get(id)
+/*
+	var pu = pathsplicer.make()
+	var edits = this.olc.get(id)
+
+	pu.updateAll(edits)
+	var a = pu.getAll()
 	
+	var b = this.metadata.get(id)
+	
+	delete b.top
+
+	
+	var ka = Object.keys(a)
+	ka.sort()
+	
+	var sa = ''
+	var sb = ''
+	
+	ka.forEach(function(key){
+		sa += key + ': ' + a[key] + ', '
+		sb += key + ': ' + b[key] + ', '
+	})
+	
+	if(sa !== sb){
+		console.log(sa)
+		console.log(sb)
+		console.log(id+' different: ' + JSON.stringify([a,b]))
+		console.log(JSON.stringify(edits, null, 2))
+		throw new Error('metadata bug')
+	}
+	return b*/
 	//cb(pu.getTypeCode(), pu.getPath(), pu.getSyncId())
 }
 

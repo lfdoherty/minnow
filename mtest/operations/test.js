@@ -15,6 +15,8 @@ exports.orCombination = function(config, done){
 
 					minnow.makeClient(config.port, function(otherClient){
 						otherClient.view('specific', [e.id()], function(err, v){
+							if(err) throw err
+							console.log(JSON.stringify(v.toJson()))
 							if(v.truly.value()){
 								done()
 							}else{

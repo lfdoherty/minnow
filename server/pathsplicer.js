@@ -74,7 +74,7 @@ PathUpdater.prototype.setToNew = function(e){
 }*/
 
 var upLookup = Object.create(null)
-var arr = [ 'made','madeFork','setSyncId','selectProperty',
+var arr = [ 'made','setSyncId','selectProperty',
 			'selectObject',
 			'selectSubObject',
 			'selectStringKey',

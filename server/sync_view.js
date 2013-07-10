@@ -9,6 +9,7 @@ var syncSwitch = require('./sync_switch')
 
 var syncMultimapOptimization = require('./sync_multimap_optimization')
 var mapValueOptimization = require('./sync_map_value_optimization')
+var genericOperatorIndex = require('./generic_operator_index')
 
 var syncCompute = require('./sync_compute')
 var syncIsa = require('./sync_isa')
@@ -40,6 +41,15 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 			st = _.extend({}, staticBindings, newStaticBindings)
 		}
 		return exports.makeRelFunction(s, st, rel)
+	}
+	
+	recurse.getFunction = function(r, manyParams){
+
+		var impl = schemaModule.getImplementation(r.view)
+
+		function generic(){return impl.computeSync.apply(undefined, [undefined].concat(Array.prototype.slice.call(arguments)))}
+
+		return generic//TODO provide optimized versions
 	}
 	
 	
@@ -113,7 +123,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 				var context = recurse(rel.params[1])
 				var inputType = rel.params[1].schemaType
 				if(inputType.type === 'set' || inputType.type === 'list'){
-					return function(bindings){
+					function setIdFunc(bindings){
 						var ids = context(bindings)
 						var res = []
 						for(var i=0;i<ids.length;++i){
@@ -121,17 +131,25 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						}
 						return res
 					}
+					setIdFunc.index = {
+						listen: function(){}//do nothing, since ids are immutable
+					}
+					return setIdFunc
 				}else{
-					return function(bindings){
+					function idFunc(bindings){
 						var id = context(bindings)
 						if(id) return ''+id
 					}
+					idFunc.index = {
+						listen: function(){}//do nothing, since ids are immutable
+					}
+					return idFunc
 				}
 			}else if(rel.params[0].value === 'uuid'){
 				var context = recurse(rel.params[1])
 				var inputType = rel.params[1].schemaType
 				if(inputType.type === 'set' || inputType.type === 'list'){
-					return function(bindings){
+					function setUuid(bindings){
 						var ids = context(bindings)
 						if(ids){
 							var res = []
@@ -143,13 +161,21 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 							return []
 						}
 					}
+					valueUuid.index = {
+						listen: function(){}//do nothing, since UUIDs are immutable
+					}
+					return setUuid
 				}else{
-					return function(bindings){
+					function valueUuid(bindings){
 						var id = context(bindings)
 						if(id){
 							return s.objectState.getUuid(id)
 						}
 					}
+					valueUuid.index = {
+						listen: function(){}//do nothing, since UUIDs are immutable
+					}
+					return valueUuid
 				}
 			}else if(rel.params[0].value === 'copySource'){
 				_.errout('tODO')
@@ -179,6 +205,9 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 			//_.errout('TODO')
 		}else if(rel.view === 'mapValue'){
 			return mapValueOptimization.make(s, rel, recurse, staticBindings)
+		}else if(rel.view === 'generic-operator-index'){
+			//_.errout('TODO ' + rel.view)
+			return genericOperatorIndex.make(s, rel, recurse, staticBindings)
 		}else{
 		
 			return syncCompute.make(s, staticBindings, rel, recurse)

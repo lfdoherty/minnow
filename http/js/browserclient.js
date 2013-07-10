@@ -75,6 +75,12 @@ global.gotSchema = function(s){
 
 	schema = s;
 
+	schema._byCode = {}
+	Object.keys(schema).forEach(function(key){
+		var obj = schema[key]
+		schema._byCode[obj.code] = obj
+	})
+	
 	tryLoad();
 }
 

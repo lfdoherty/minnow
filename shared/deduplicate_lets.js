@@ -32,11 +32,43 @@ function replaceParam(oldName, newName, r){
 	}
 }
 
+function makeExprKey(r, ignorable){
+	ignorable = JSON.parse(JSON.stringify(ignorable||{}))
+	
+	if(r.type === 'param'){
+		if(ignorable[r.name]) return '<ignorable-param>'
+	}else if(r.type === 'view'){
+		var str = ''+r.view+'('
+		r.params.forEach(function(p){
+			str += makeExprKey(p, ignorable)+','
+		})
+		str +=')'
+		return str
+	}else if(r.type === 'macro'){
+		r.implicits.forEach(function(v){
+			ignorable[v] = true
+		})
+		return 'macro['+makeExprKey(r.expr)+']'
+	}else if(r.type === 'value'){
+		return 'value<'+r.value+'>'
+	}else if(r.type === 'int'){
+		return 'int<'+r.int+'>'
+	}else if(r.type === 'nil'){
+		return '<nil>'
+	}else if(r.type === 'let'){
+		return 'let['+makeExprKey(r.expr)+':'+makeExprKey(r.rest)+']'
+	}else{
+		_.errout('TODO: ' + JSON.stringify(r))
+	}
+}
+
+exports.makeExprKey = makeExprKey
+
 function collapseLetChainDuplicates(lets){
 	var byExprStr = {}
 	for(var i=0;i<lets.length;++i){
 		var r = lets[i]
-		var key = JSON.stringify(r.expr)
+		var key = makeExprKey(r.expr)//JSON.stringify(r.expr)
 		if(byExprStr[key]){
 			replaceParam(r.name, byExprStr[key].name, r)
 			lets[i-1].rest = lets[i+1]||r.rest

@@ -220,21 +220,30 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex){
 
 	var index = {}
 	
-	//var changeIndex = {}
+	var listeners = []
 	
+	function updateListeners(id, oldValue, newValue){
+		for(var i=0;i<listeners.length;++i){
+			listeners[i](id, oldValue, newValue)
+		}
+	}
+
 	propertyIndex.attachIndex(objSchema.code, property.code, function(id, c){
-	
-		//if(!changeIndex[id]) changeIndex[id] = []
-		//changeIndex[id].push(c)
-		
+
 		if(c.type === 'set'){
+			var oldValue = index[id]
 			index[id] = c.value
+			updateListeners(id, oldValue, c.value)
 		}else if(c.type === 'clear' || c.type === 'destroyed'){
+			var oldValue = index[id]
 			index[id] = undefined
+			updateListeners(id, oldValue, undefined)
 		}else if(c.type === 'insert'){
 			var old = index[id]
 			_.assertInt(c.index)
-			index[id] = old.substr(0, c.index) + c.value + old.substr(c.index)
+			var oldValue = index[id]
+			var newValue = index[id] = old.substr(0, c.index) + c.value + old.substr(c.index)
+			updateListeners(id, oldValue, newValue)
 		}else{
 			_.errout('TODO?: '  + JSON.stringify(c))
 		}
@@ -249,9 +258,9 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex){
 		return index[id]
 	}
 	
-	/*handle.getValueChangesBetween = function(bindings, id){//, startEditId, endEditId){
-		return changeIndex[id] || []
-	}*/
+	handle.listen = function(listener){
+		listeners.push(listener)
+	}
 
 	return handle
 }
@@ -269,54 +278,27 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	var propertyCode = property.code
 	
 	var applyEdit
-	
-	//var allChanges
-	//var savingChanges = false
-	
+
 	var isSetProperty = property.type.type === 'list' || property.type.type === 'set'
-	
-	propertyIndex.attachIndex(objSchema.code, propertyCode, function(id, c){
-		//if(property.name === 'url' && objSchema.name === 'webpage') console.log('*index update: ' + id + ' ' + JSON.stringify(c) + ' ' + objSchema.name + '.'+property.name)
-		//if(property.name === 'form' && property.code === 111 && c.value === true) _.errout('invalid combination: ' + JSON.stringify(c) + ' ' + id)
+
+	var listeners = []	
+	function updateListeners(id, oldValue, newValue){
+		for(var i=0;i<listeners.length;++i){
+			listeners[i](id, oldValue, newValue)
+		}
+	}
 		
+	propertyIndex.attachIndex(objSchema.code, propertyCode, function(id, c){
+
 		if(c.type === 'set' && isSetProperty){
 			_.errout('invalid change for set property: ' + JSON.stringify(c) + ' ' + JSON.stringify(property))
 		}
 		
-		/*var results = permanentCache[id]
-		if(!results){
-			results = permanentCache[id] = []
-			ids.push(id)
-		}
-		results.push(c)
-		
-		*/
-		permanentCache[id] = applyEdit(permanentCache[id], c)
+		var oldValue = permanentCache[id]
+		var newValue = permanentCache[id] = applyEdit(permanentCache[id], c)
 
-		//lastEditIdCache[id] = c.editId		
-		//currentValueCache[id] = computeValueAt(id, c.editId+1)
-		
-		/*
-		if(savingChanges){
-			if(c.type === 'set'){
-				allChanges.push({type: 'put', value: c.value, key: id, editId: c.editId})
-			}else if(c.type === 'clear'){
-				allChanges.push({type: 'removeKey', key: id, editId: c.editId})
-			}else{
-				_.errout('TODO: ' + JSON.stringify(c))
-			}
-		}*/
+		updateListeners(id, oldValue, newValue)
 	})
-	
-	//var nameStr = 'map-optimization-with-index['+objSchema.name+'.'+property.name+']'
-	//var a = analytics.make(nameStr, [])
-	
-	/*function getSingleValueAtForSingle(bindings, id, editId){
-		if(editId
-	}*/
-	
-	//var currentValueCache = {}
-	//var lastEditIdCache = {}
 	
 	function applyEditForSingle(v, c){
 		if(c.type === 'set'){
@@ -335,85 +317,30 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		return v
 	}
 	
-	function getValueAtForSingle(bindings, id){//, editId){
+	function getValueAtForSingle(bindings, id){
 		_.assertLength(arguments, 2)
 		if(editId === -1) return
-		
-		/*if(editId >= lastEditIdCache[id]){
-			return currentValueCache[id]
-		}*/
+
 		return computeValueAt(id, editId)
 	}
-	function computeValueAt(id){//, editId){
+	function computeValueAt(id){
 		var value = permanentCache[id]
 		return value
-		//console.log('indexed single property: ' + id + ' ' + JSON.stringify(changes) + ' ' + editId + ' ' + objSchema.name + '.'+property.name)
-		//console.log(JSON.stringify(permanentCache))
-		/*
-		var changes = permanentCache[id]
-		if(!changes){
-			//console.log('no changes')
-			return undefined;
-		}
-		var lastChange
-		for(var i=changes.length-1;i>=0;--i){
-			var c = changes[i]
-			if(c.editId <= editId){
-				lastChange = c
-				break
-			}
-		}
-
-		//_.assertDefined(lastChange)
-		if(!lastChange){
-			//console.log('no last change')
-			if(property.type.primitive === 'boolean') return false
-			return undefined//hasn't been initialized yet
-		}
-
-		if(lastChange.type === 'set'){
-			//if(!lastChange.value) console.log('returning last ' + lastChange.value + ' ' + objSchema.name + '.'+property.name)
-			return lastChange.value
-		}else if(lastChange.type === 'clear'){
-			//omit the value
-			return undefined
-		}else if(lastChange.type === 'insert'){
-			var value = ''
-			for(var i=0;i<changes.length;++i){
-				var c = changes[i]
-				if(c.editId > editId) break
-				if(c.type === 'clear'){
-					value = ''
-				}else if(c.type === 'set'){
-					value = c.value
-				}else if(c.type === 'insert'){
-					_.assertInt(c.index)
-					value = value.substr(0, c.index) + c.value + value.substr(c.index)
-				}else{
-					_.errout('tODO: ' + JSON.stringify(lastChange))
-				}
-			}
-			return value
-		}else if(lastChange.type === 'destroyed'){
-			return undefined
-		}else{
-			_.errout('tODO: ' + JSON.stringify(lastChange))
-		}*/
 	}
 		
-	function getStateAt(){//editId){
+	function getStateAt(){
 		var result = {}
 		ids.forEach(function(id){
-			result[id] = handle.getValueAt(id)//, editId)
+			result[id] = handle.getValueAt(id)
 		})
 		return result
 	}
 	
-	function getPartialStateAt(bindings, ids){//, editId){
+	function getPartialStateAt(bindings, ids){
 		_.assertLength(arguments, 2)
 		var result = {}
 		ids.forEach(function(id){
-			result[id] = handle.getValueAt(bindings, id)//, editId)
+			result[id] = handle.getValueAt(bindings, id)
 		})
 		return result
 	}
@@ -423,11 +350,11 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		if(c.type === 'add'){
 			v.push(c.value)
 		}else if(c.type === 'remove'){
-			var index = indexOfRawId(v, c.value)//set.indexOf(c.value)
+			var index = indexOfRawId(v, c.value)
 			if(index !== -1){
 				v.splice(index, 1)
 			}else{
-				console.log('failed to remove: ' + c.value + ' ' + JSON.stringify(v))// + ' ' + JSON.stringify(changes))
+				console.log('failed to remove: ' + c.value + ' ' + JSON.stringify(v))
 			}
 		}else{
 			_.errout('tODO: ' + JSON.stringify(c))
@@ -435,30 +362,9 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		return v
 	}
 	
-	function getValueAtForSet(bindings, id){//, editId){
+	function getValueAtForSet(bindings, id){
 		_.assertLength(arguments, 2)
 
-		/*var changes = permanentCache[id]
-		if(!changes) return []
-		var set = []
-		for(var i=0;i<changes.length;++i){
-			var c = changes[i]
-			//if(c.editId > editId) break
-			if(c.type === 'add'){
-				set.push(c.value)
-			}else if(c.type === 'remove'){
-				var index = indexOfRawId(set, c.value)//set.indexOf(c.value)
-				if(index !== -1){
-					set.splice(index, 1)
-				}else{
-					console.log('failed to remove: ' + c.value + ' ' + JSON.stringify(set) + ' ' + JSON.stringify(changes))
-				}
-			}else{
-				_.errout('tODO: ' + JSON.stringify(c))
-			}
-		}
-		//console.log('got indexed set property: ' + id + '.' + property.name + ' ' + JSON.stringify(set))
-		return set*/
 		return permanentCache[id] || []
 	}
 	
@@ -477,25 +383,8 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	function getValueAtForMap(bindings, id){
 		_.assertLength(arguments, 2)
 
-		/*var changes = permanentCache[id]
-		if(!changes) return {}
-		var res = {}
-		for(var i=0;i<changes.length;++i){
-			var c = changes[i]
-			//if(c.editId > editId) break
-			if(c.type === 'put'){
-				res[c.key] = c.value
-			}else if(c.type === 'removeKey'){
-				delete res[c.key]
-			}else{
-				_.errout('tODO: ' + JSON.stringify(c))
-			}
-		}
-		return res*/
 		return permanentCache[id] || {}
 	}
-	
-	//function 
 	
 	var handle = {}
 	
@@ -515,7 +404,10 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 		_.errout('TODO: ' + JSON.stringify(property.type))
 	}
 	
-	//newHandle.getHistoricalChangesBetween = handle.getChangesBetween
+	handle.listen = function(listener){
+		listeners.push(listener)
+	}
+	
 	return handle
 }
 

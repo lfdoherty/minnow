@@ -60,6 +60,7 @@ function makePropertyDiffer(p){
 		}else if(p.type.members.type === 'view'){
 			return function(a,b){
 				var has = {}
+				if(!a) a = []
 				for(var i=0;i<a.length;++i){
 					var v = a[i]
 					has[v] = true

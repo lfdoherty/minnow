@@ -41,7 +41,17 @@ setInterval(function(){
 
 exports.compute = function(paramValues){
 	//++unions
+	//console.log(JSON.stringify(paramValues))
+	
 	var a = paramValues[0]
+	
+	while(!a){
+		if(paramValues.length === 0) return []
+		a = paramValues.shift()
+	}
+	
+	if(!a) return []
+	if(paramValues.length === 0) return a
 	//var b = paramValues[1]
 	
 	var results = [].concat(a)
