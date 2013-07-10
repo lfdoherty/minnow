@@ -43,7 +43,9 @@ function replaceExpr(r, exprs, replacingExpr){
 	for(var i=0;i<exprs.length;++i){
 		var expr = exprs[i]
 		if(expr === r){
-			return replacingExpr
+			var rep = JSON.parse(JSON.stringify(replacingExpr))
+			rep.code = r.code
+			return rep
 		}
 	}
 	if(r.type === 'view'){
@@ -127,7 +129,8 @@ function deduplicate(r, schema){
 			expr: found[0],
 			rest: r,
 			name: name,
-			schemaType: r.schemaType
+			schemaType: r.schemaType,
+			code: r.code
 		}
 
 		return letExpr

@@ -42,6 +42,7 @@ exports.compute2 = function(a,b){
 		}
 	}
 	//console.log('intersection ' + JSON.stringify([a,b,result]))
+	//console.log('intersection of ' + JSON.stringify(_.map([a,b], function(p){return p.length})) + ' -> ' + result.length + ' (' + typeof(a[0]||b[0]) + ')')
 	return result
 }
 
@@ -87,8 +88,8 @@ function compute(params){
 			res.push(v)
 		}
 	}
-	//console.log(JSON.stringify(params))
-	//console.log('intersection of ' + JSON.stringify(_.map(params, function(p){return p.length})) + ' -> ' + res.length)
+	//console.log(JSON.stringify([params,res]))
+	//console.log('intersection of ' + JSON.stringify(_.map(params, function(p){return p.length})) + ' -> ' + res.length + ' (' + typeof(params[0][0]||params[0][1]||params[0][2]) + ')')
 	return res
 }
 

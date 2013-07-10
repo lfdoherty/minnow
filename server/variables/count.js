@@ -14,7 +14,7 @@ schema.addFunction('count', {
 	callSyntax: 'count(collection)',
 	computeSync: function(z, collection){
 		if(!collection) return 0
-		//console.log('counting ' + JSON.stringify(collection))
+		//console.log('counting ' + collection.length)
 		
 		//console.log(new Error().stack)
 		if(_.isObject(collection)){

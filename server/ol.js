@@ -187,6 +187,8 @@ function Ol(schema){
 	this.destructionIdsByType = {}
 	this.uuid = {}
 	
+	this.copySource = {}
+	
 	this.metadata = metadataIndex.make()
 	
 	this.creationEditIds = {}
@@ -308,6 +310,9 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	return id//{id: this.idCounter, editId: editId}
 }
 
+Ol.prototype.getCopySource = function(id){
+	return this.copySource[id]
+}
 
 Ol.prototype._copy = function copy(edit, timestamp, syncId){
 
@@ -321,9 +326,12 @@ Ol.prototype._copy = function copy(edit, timestamp, syncId){
 	++this.readers.lastVersionId
 	//log('wrote object ', this.idCounter)
 	
+	
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
 	_.assert(syncId > 0)
+
+	this.copySource[id] = edit.sourceId
 
 	var sourceObjectEdits
 	this.get(edit.sourceId, -1, -1, function(es){

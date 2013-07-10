@@ -178,7 +178,13 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 					return valueUuid
 				}
 			}else if(rel.params[0].value === 'copySource'){
-				_.errout('tODO')
+				//_.errout('tODO: ' + JSON.stringify(rel))
+				var inner = recurse(rel.params[1])
+				return function(bindings){
+					var id = inner(bindings)
+					if(!id) return
+					return s.objectState.ol.getCopySource(id)
+				}
 			}else{
 				return syncProperty.make(s, staticBindings, rel, recurse)
 			}

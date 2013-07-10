@@ -77,6 +77,7 @@ exports.compute = function(paramValues){
 		//})
 	//})
 	//console.log('union ', paramValues, results)
+	//console.log('union of ' + JSON.stringify(_.map(paramValues, function(p){return p.length})) + ' -> ' + results.length)
 	return results
 }
 
@@ -108,7 +109,7 @@ exports.compute2 = function(a,b){
 		res.push(v)
 	}
 	
-	//console.log('union: ' + JSON.stringify([a,b,res]))
+	//console.log('union: ' + JSON.stringify([a.length,b.length,res.length]))
 	
 	return res
 }

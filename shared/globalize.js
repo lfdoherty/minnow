@@ -24,9 +24,6 @@ function globalizeView(v, view){
 
 function globalizeExpression(rel, extractCb){
 	if(rel.type === 'view'){
-		//if(rel.view === 'unchanged'){
-		//	return rel
-		//}
 		
 		var extractions = []
 		if(extractCb === undefined){
@@ -36,18 +33,9 @@ function globalizeExpression(rel, extractCb){
 			}
 		}
 
-		/*if(rel.view === 'mutate'){
-			rel.params[1].expr = globalizeExpression(rel.params[1].expr)//, extractCb)
-			
-			//console.log('mutateRel: ' + JSON.stringify(rel.params[2]))
-			rel.params[2].expr = globalizeExpression(rel.params[2].expr)
-
-
-		}else{*/
-			rel.params.forEach(function(p, i){
-				rel.params[i] = globalizeExpression(p, extractCb)
-			})
-		//}
+		rel.params.forEach(function(p, i){
+			rel.params[i] = globalizeExpression(p, extractCb)
+		})
 		
 		extractions.reverse().forEach(function(ex){//TODO dedup?
 			
@@ -70,7 +58,6 @@ function globalizeExpression(rel, extractCb){
 		})
 		rel.bindingsUsed = newBindingsUsed
 	}else if(rel.type === 'let'){
-		//do nothing?
 		rel.expr = globalizeExpression(rel.expr, extractCb)
 		rel.rest = globalizeExpression(rel.rest, extractCb)
 	}else{
@@ -92,7 +79,7 @@ function extractGlobals(rel, implicits, cb){
 			})
 			return rel
 		}else if(rel.type === 'let'){
-			log('cannot further globalize let, contains implicits: ' + JSON.stringify([rel.expr, implicits],null,2))
+			//log('cannot further globalize let, contains implicits: ' + JSON.stringify([rel.expr, implicits],null,2))
 			rel.rest = extractGlobals(rel.rest, implicits.concat([rel.name]), cb)
 			return rel
 		}else if(rel.type === 'value' || rel.type === 'int' || rel.type === 'param' || rel.type === 'macro'){
@@ -103,17 +90,10 @@ function extractGlobals(rel, implicits, cb){
 		}
 	}else{
 		if(rel.type === 'value' || rel.type === 'int' || rel.type === 'param'){
-			//do nothing
-			//return rel
-			//return extractGlobals(rel, implicits, cb)
-			//console.log('rel: ' + JSON.stringify(rel))
-			
-			//return cb(rel)
 			return rel
-		}/*else if(rel.type === 'mutate'){
-			return rel
-		}*/else if(rel.type === 'let'){
+		}else if(rel.type === 'let'){
 			//log('further globalizing let: ' + JSON.stringify([rel.name,rel.expr], null, 2))
+			//return rel
 			cb(rel.expr, rel.name)
 			return extractGlobals(rel.rest, implicits.concat(rel.name), cb)//TODO implicits.concat(rel.name) should be unnecessary?
 		}else if(rel.type === 'macro'){
@@ -149,7 +129,6 @@ function containsImplicits(rel, implicits){
 		//_.errout('TODO: ' + JSON.stringify(rel))
 		return implicits.indexOf(rel.name) !== -1
 	}else if(rel.type === 'view'){
-		//if(rel.view === 'mutate') return true
 		for(var i=0;i<rel.params.length;++i){
 			if(containsImplicits(rel.params[i], implicits)) return true
 		}
@@ -157,7 +136,7 @@ function containsImplicits(rel, implicits){
 	}else if(rel.type === 'macro'){
 		return containsImplicits(rel.expr, implicits)
 	}else if(rel.type === 'let'){
-		return containsImplicits(rel.expr, implicits)// || containsImplicits(rel.rest, implicits)
+		return containsImplicits(rel.expr, implicits) || containsImplicits(rel.rest, implicits)
 	}else if(rel.type === 'value' || rel.type === 'int' || rel.type === 'nil'){
 		return false
 	}else{

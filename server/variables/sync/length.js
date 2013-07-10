@@ -14,5 +14,6 @@ var log = require('quicklog').make('minnow/length')
 
 exports.computeSync = function(z, str){
 	if(str === undefined) return -1
+	//console.log('length: ' + str + ' ' + str.length)
 	return str.length
 }

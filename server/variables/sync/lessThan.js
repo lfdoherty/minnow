@@ -12,5 +12,6 @@ exports.syntax = 'lessThan(number,number)'
 
 exports.computeSync = function(z, a, b){
 	
+	//console.log('lessThan ' + a + ' ' + b)
 	return a < b
 }
