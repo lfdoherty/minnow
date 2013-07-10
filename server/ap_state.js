@@ -229,7 +229,13 @@ function make(schema, ol){
 		//_.assertInt(id)
 		//console.log(editNames[op])
 		
-		var newId = ol.persist(op, e, syncId, timestamp, stateTop)
+		var newId
+		try{
+			newId = ol.persist(op, e, syncId, timestamp, stateTop)
+		}catch(e){
+			console.log('ERROR PERSISTING: ' + e.stack)
+			return
+		}
 		//var newId = n.id//may be undefined if not applicable for the edit type
 		//var editId = n.editId
 		//var realOp = n.op
