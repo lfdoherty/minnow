@@ -67,7 +67,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	/*Object.keys(simplifiedSchema).forEach(function(key){
 		delete simplifiedSchema[key].viewSchema
 	})*/
-	require('fs').writeFileSync('schema.txt', JSON.stringify(simplifiedSchema, null, 2))
+	//require('fs').writeFileSync('schema.txt', JSON.stringify(simplifiedSchema, null, 2))
 	
 	var schemaUrl;
 	var schemaStr = 'gotSchema(' + JSON.stringify(simplifiedSchema) + ');'
