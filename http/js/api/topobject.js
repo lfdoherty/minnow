@@ -1064,6 +1064,9 @@ TopObjectHandle.prototype.make = function(typeName, json,cb){
 
 //TODO NOT FINISHED (see minnow_update_websocket copy method)
 TopObjectHandle.prototype.copy = function(json,cb){
+
+	if(this.objectId < 0) throw new Error('cannot copy locally-created object yet - provide a callback to the make or copy function to be notified when it is ready.')
+
 	if(arguments.length === 1){
 		if(!_.isObject(json)){//_.isFunction(json)){
 			cb = json
@@ -1072,7 +1075,9 @@ TopObjectHandle.prototype.copy = function(json,cb){
 	}
 	
 	_.assert(cb === undefined || cb === true || _.isFunction(cb))
-	_.assertObject(json)
+	
+	json = json || {}
+	//_.assertObject(json)
 
 	var forget = false;
 	if(cb === true){
@@ -1662,21 +1667,31 @@ TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to pref
 
 	var versions = [this.edits[madeIndex].editId]
 	
+
+	console.log(JSON.stringify(this.edits, null, 2))
 	//console.log(JSON.stringify(edits))
 	var skip = 0
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]
 		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
+		if(e.op === editCodes.setSyncId) continue
 		if(skip > 0){
 			--skip
 			continue
 		}
 		if(e.op === editCodes.made){
+			if(skip === 0){
+				skip = e.edit.following
+				console.log('skipping ' + skip)
+			}
+		}else if(e.op === editCodes.copied){
 			skip = e.edit.following
+			console.log('skipping ' + skip)
 		}
 		if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){
 			if(e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) continue
 			//if(this.isa('quote')) console.log(this.id() + ' * ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			console.log('added version for: ' + editNames[e.op] + ' ' + JSON.stringify(e))
 			versions.push(e.editId)
 		}
 	}

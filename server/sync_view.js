@@ -259,16 +259,11 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		if(rel.manyImplicits === 1){
 			var implicit = rel.implicits[0]
 			return function(bindings){
-				var newBindings = shallowCopy(bindings)
+				//var newBindings = shallowCopy(bindings)
 				var handle = {
 					get: function(v){
-						//var newBindings = shallowCopy(bindings)
-					
-						newBindings[implicit] = v
-						//newBindings.__key = bindings.__key+'_'+v
-						//console.log('mutatorKey: ' + this.bindings.__mutatorKey)
-		
-						var result = exprFunc(newBindings)//, this.editId)
+						bindings[implicit] = v
+						var result = exprFunc(bindings)
 						//console.log('macro get ' + v + ' -> ' + JSON.stringify(result))
 						return result
 					},

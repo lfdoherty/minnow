@@ -29,18 +29,18 @@ function makeSwitchFunction(valueExpr, caseValues, caseExprs, defaultExpr, rel){
 	function booleanF(bindings){
 		var value = valueExpr(bindings)
 		value = !!value
-		if(rel.params[1].params[0].value === true && rel.params[1].params[1].was && rel.params[1].params[1].was.view === 'list') console.log('switch value: ' + value)//+ ' ' + JSON.stringify(rel.params[2]))//.params[0].view)
+		//if(rel.params[1].params[0].value === true && rel.params[1].params[1].was && rel.params[1].params[1].was.view === 'list') console.log('switch value: ' + value)//+ ' ' + JSON.stringify(rel.params[2]))//.params[0].view)
 		for(var i=0;i<caseValues.length;++i){
 			var cv = caseValues[i]
 			if(cv === value){
 				var res = caseExprs[i](bindings)
-				if(rel.params[1].params[0].value === true && rel.params[1].params[1].was && rel.params[1].params[1].was.view === 'list') console.log('case result: ' + value + ' -> ' + JSON.stringify(res))
+				//if(rel.params[1].params[0].value === true && rel.params[1].params[1].was && rel.params[1].params[1].was.view === 'list') console.log('case result: ' + value + ' -> ' + JSON.stringify(res))
 				return res
 			}
 		}
 		if(defaultExpr){
 			var res = defaultExpr(bindings)
-			if(rel.params[1].params[0].value === true && rel.params[1].params[1].was && rel.params[1].params[1].was.view === 'list') console.log('default result: ' + value + ' -> ' + JSON.stringify(res))
+			//if(rel.params[1].params[0].value === true && rel.params[1].params[1].was && rel.params[1].params[1].was.view === 'list') console.log('default result: ' + value + ' -> ' + JSON.stringify(res))
 			return res
 		}else{
 			console.log('WARNING: no case matched and no default case provided')

@@ -139,26 +139,9 @@ function makeUuidReverseIndex(objSchema, propertyIndex){
 		getValueAt: function(bindings, key){//, editId){
 			_.assertLength(arguments, 2)
 			
-			/*var creationEditId = editIds[key]
-			if(creationEditId <= editId){*/
-				
-				var id = permanentCache[key]
-				return [id]
-			/*}else{
-				return []
-			}*/
-		}/*,
-		getValueChangesBetween: function(bindings, key, startEditId, endEditId){
-			_.assertLength(arguments, 4)
-			
-			var editId = editIds[key]
-			if(editId >= startEditId && editId <= endEditId){
-				var id = permanentCache[key]
-				return [{type: 'set', value: id, editId: editId}]
-			}else{
-				return []
-			}
-		}*/
+			var id = permanentCache[key]
+			return [id]
+		}
 	}
 	
 	return handle
@@ -180,24 +163,7 @@ function makeCopySourceReverseIndex(objSchema, propertyIndex){
 			
 			var id = permanentCache[key]
 			return [id]
-			/*var creationEditId = editIds[key]
-			if(creationEditId <= editId){
-				
-			}else{
-				return []
-			}*/
-		}/*,
-		getValueChangesBetween: function(bindings, key, startEditId, endEditId){
-			_.assertLength(arguments, 4)
-			
-			var editId = editIds[key]
-			if(editId >= startEditId && editId <= endEditId){
-				var id = permanentCache[key]
-				return [{type: 'set', value: id, editId: editId}]
-			}else{
-				return []
-			}
-		}*/
+		}
 	}
 	
 	return handle
@@ -415,10 +381,16 @@ function PrimitiveSet(){
 	this.list = []
 	this.removed = {}
 	this.dirty = false
+	this.uid = Math.random()
 }
 PrimitiveSet.prototype.add = function(v){
+	//console.log('adding: ' + v + ' ' + this.uid)
 	if(this.dirty && this.removed[v]){
-		this._clean()
+		/*console.log('cleaning: ' + v + ' ' + this.uid)
+		console.log(new Error().stack)
+		this._clean()*/
+		this.removed[v] = false
+		return
 	}else if(this.shown){
 		this.list = [].concat(this.list)
 		this.shown = false
@@ -428,7 +400,7 @@ PrimitiveSet.prototype.add = function(v){
 }
 PrimitiveSet.prototype.remove = function(v){
 	//if(this.list.indexOf(v) === -1) _.errout('removing but does not have: ' + v)
-	//console.log('removing: ' + v)
+	//console.log('removing: ' + v + ' ' + this.uid)
 	this.removed[v] = true
 	this.dirty = true
 }
@@ -469,10 +441,6 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 	
 	function removeStateValue(key, value){
 		var oldSetValue = stateCache[key]
-		/*var index = oldSetValue.indexOf(value)
-		_.assert(index !== -1)
-		console.log('removing state value: ' + key + ' ' + value)
-		oldSetValue.splice(index, 1)*/
 		oldSetValue.remove(value)
 	}
 	
@@ -535,37 +503,17 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			var old = currentValue[id]
 			var newValue = old.substr(0, c.index)+c.value+old.substr(c.index)
 
-			//var newSet = permanentCache[newValue]
 			var newSetValue = stateCache[newValue]
 			if(!newSetValue){
-				//newSet = permanentCache[newValue] = []
 				newSetValue = stateCache[newValue] = new PrimitiveSet()
 			}
-			//newSet.push({type: 'add', value: id, editId: c.editId})
+
 			newSetValue.add(id)
 
-			//var oldSet = permanentCache[old]
-			//oldSet.push({type: 'remove', value: id, editId: c.editId})
+
 			currentValue[id] = newValue
 			removeStateValue(old, id)
-			
-			
-			/*if(keysAreBoolean) value = !!value
 
-			var newSet = permanentCache[value]
-			if(!newSet) newSet = permanentCache[value] = []
-			newSet.push({type: 'add', value: id, editId: c.editId})
-		
-			var old = currentValue[id]
-
-			if(old !== undefined){
-				var oldSet = permanentCache[old]
-				oldSet.push({type: 'remove', value: id, editId: c.editId})
-			}else if(keysAreBoolean){
-				var oldSet = permanentCache['false']
-				oldSet.push({type: 'remove', value: id, editId: c.editId})
-			}
-			currentValue[id] = c.value*/
 		}else if(c.type === 'clear'){
 			_.assertDefined(c.old)
 			//var oldSet = permanentCache[c.old]
@@ -604,73 +552,13 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			_.assertObject(bindings)
 			
 			if(keysAreBoolean){key = !!key}
-
-			/*if(propertyCode === 3){
-				console.log('getting ' + key + ' from ' + JSON.stringify(stateCache))
-			}*/
 			
 			var state = stateCache[key]
 			if(!state) return []
 			return state.getRaw()
 		
-			/*var changes = permanentCache[key]
-			if(!changes){
-			//	console.log(editId + ' no changes: ' + key + ' ' + objSchema.name+'.'+property.name)
-				return []
-			}
 			
-			var state = []
-			
-			//console.log('changes: ' + JSON.stringify(changes))
-			
-			//here we're pre-masking remove
-			var removed = {}
-			for(var i=0;i<changes.length;++i){
-				var c = changes[i]
-				//if(c.editId > editId) break
-				if(c.type === 'add'){
-					if(removed[c.value]) removed[c.value] = false
-				}else if(c.type === 'remove'){
-					removed[c.value] = true
-				}else{
-					_.errout('TODO: ' + JSON.stringify(c))
-				}
-			}
-			
-			
-			for(var i=0;i<changes.length;++i){
-				var c = changes[i]
-				//if(c.editId > editId) break
-				if(c.type === 'add'){
-					if(!removed[c.value]){
-						state.push(c.value)
-					}
-				}else if(c.type === 'remove'){
-					//console.log(JSON.stringify([c, state]))
-					//var index = state.indexOf(c.value)
-					//_.assert(index !== -1)
-					//state.splice(index, 1)
-				}else{
-					_.errout('TODO: ' + JSON.stringify(c))
-				}
-			}
-			//console.log(key + ' computed value: ' + JSON.stringify(state) + ' ' + editId)
-			return state*/
-		}/*,
-		getValueChangesBetween: function(bindings, key){//, startEditId, endEditId){
-			_.assertLength(arguments, 2)
-			_.assert('TODO?')
-			
-			if(keysAreBoolean){key = !!key}
-		
-			var changes = permanentCache[key]
-			if(!changes){
-				//console.log('no changes' + JSON.stringify([key, startEditId, endEditId, realChanges, changes, permanentCache]))
-				return []
-			}
-			return changes
-			
-		}*/
+		}
 	}
 	
 	return handle

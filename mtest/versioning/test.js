@@ -121,6 +121,145 @@ exports.versionPrimitive = function(config, done){
 		})
 	})
 }
+
+exports.copyVersions = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+			
+				var hasReverted = false
+				
+				done.poll(function(){
+					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
+					/*if(c.has('e') && c.e.text.versions().length === 4){
+						done()
+						return true
+					}*/
+					if(c.all.count() === 2){
+						var versionSets = []
+						c.all.each(function(v){
+							versionSets.push(v.versionsSelf())
+						})
+						//versionSets.push([])
+						versionSets.sort(function(a,b){return a.length - b.length;})
+						
+						_.assertEqual(versionSets[0].length, 1)
+						_.assertEqual(versionSets[1].length, 1)
+						
+						done()
+						//console.log('version sets: ' + JSON.stringify(versionSets))
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('entity', {text: 'test1'}, function(){
+							var c = e.copy({description: 'desc1', text: 'test2'})
+						})
+						//e.text.set('test1')
+						/*e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	*/
+					})
+				})
+				
+			})
+		})
+	})
+}
+exports.copyVersionsAfterChange = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+			
+				var hasReverted = false
+				
+				done.poll(function(){
+					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
+					/*if(c.has('e') && c.e.text.versions().length === 4){
+						done()
+						return true
+					}*/
+					if(c.all.count() === 2){
+						var versionSets = []
+						c.all.each(function(v){
+							versionSets.push(v.versionsSelf())
+						})
+						//versionSets.push([])
+						versionSets.sort(function(a,b){return a.length - b.length;})
+						
+						_.assertEqual(versionSets[0].length, 1)
+						if(versionSets[1].length === 2){
+							//_.assertEqual(versionSets[1].length, 2)
+							
+							done()
+						}
+						//console.log('version sets: ' + JSON.stringify(versionSets))
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('entity', {text: 'test1'}, function(){
+							var c = e.copy({description: 'desc1', text: 'test2'})
+							c.text.set('test3')
+						})
+						//e.text.set('test1')
+						/*e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	*/
+					})
+				})
+				
+			})
+		})
+	})
+}
+exports.copyVersionsWithUuid = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general_canno', function(err, c){
+			
+				var hasReverted = false
+				
+				done.poll(function(){
+					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
+					/*if(c.has('e') && c.e.text.versions().length === 4){
+						done()
+						return true
+					}*/
+					if(c.all.count() === 2){
+						var versionSets = []
+						c.all.each(function(v){
+							versionSets.push(v.versionsSelf())
+						})
+						//versionSets.push([])
+						versionSets.sort(function(a,b){return a.length - b.length;})
+						
+						_.assertEqual(versionSets[0].length, 1)
+						_.assertEqual(versionSets[1].length, 1)
+						
+						done()
+						//console.log('version sets: ' + JSON.stringify(versionSets))
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('canno', {text: 'test1'}, function(){
+							var c = e.copy({description: 'desc1', text: 'test2'})
+						})
+						//e.text.set('test1')
+						/*e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	*/
+					})
+				})
+				
+			})
+		})
+	})
+}
 /*
 exports.revertPrimitive = function(config, done){
 	minnow.makeServer(config, function(){

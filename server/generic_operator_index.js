@@ -36,11 +36,8 @@ exports.make = function(s, rel, recurse, staticBindings){
 	}
 	
 	function getter(bindings){
-		//var res = compute(bindings)
+
 		var value = getParamValue(bindings)
-		//console.log(JSON.stringify([bindings, value, compute(bindings)]))
-		//return res
-		
 		
 		if(dirty[value] || resultIndex[value] === undefined){
 			updateKey(value)

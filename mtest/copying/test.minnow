@@ -1,0 +1,13 @@
+
+entity 1
+	text string 1 optional
+	description string 2 optional
+	values string:string 3
+	state boolean 4
+
+empty() 100
+
+general() 101
+	e one(subset(*entity,{not(~.state)})) 1
+	
+

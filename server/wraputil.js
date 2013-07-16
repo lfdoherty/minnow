@@ -10,14 +10,24 @@ function stub(){}
 
 
 function mergeSets(a,b){
+	if(a.length === 0) return b
+	if(b.length === 0) return a
+	if(a.length > b.length){
+		var t = a
+		a = b
+		b = t
+	}
+	
 	var has = {}
-	a.forEach(function(v){
-		has[v] = true
-	})
+	//console.log('merging ' + a.length + ' ' + b.length)
+	for(var i=0;i<a.length;++i){
+		has[a[i]] = true
+	}
 	var rem = []
-	b.forEach(function(v){
+	for(var i=0;i<b.length;++i){
+		var v = b[i]
 		if(!has[v]) rem.push(v)
-	})
+	}
 	return a.concat(rem)
 }
 

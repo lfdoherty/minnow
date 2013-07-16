@@ -355,7 +355,9 @@ function makeClient(host, port, clientCb){
 		
 		var dsh = cc.getDefaultSyncHandle()
 		var typeCode = obj.getObjectTypeCode()
-		var requestId = dsh.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: typeCode, forget: forget, following: edits.length}, listeningSyncId)
+		var following = edits.length+obj.edits.length+(obj.localEdits?obj.localEdits.length:0)
+		console.log('doCopy following: ' + following + ' ' + edits.length + ' ' + obj.edits.length + ' ' + (obj.localEdits?obj.localEdits.length:0) + ' ' + 1)
+		var requestId = dsh.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: typeCode, forget: forget, following: following}, listeningSyncId)
 		if(cb){
 			_.assertInt(requestId)
 			_.assertFunction(cb)

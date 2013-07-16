@@ -3,10 +3,17 @@ entity 1
 	text string 1 optional
 	description string 2 optional
 	values string:string 3
+
+canno 2 entity uuided
+
 empty() 100
 
 general() 101
 	e one(*entity) 1
+	all *entity 2
+
+general_canno() 110
+	all *canno 2
 
 generalWithVersions() 102
 	e one(*entity) 1

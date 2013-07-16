@@ -89,8 +89,16 @@ function make(s, staticBindings, rel, recurse){
 			compute = impl.compute3
 			function compute3Fixed(bindings){
 				//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
-				return compute(pa(bindings), pb(bindings), pc(bindings))
+
+				//try{
+					return compute(pa(bindings), pb(bindings), pc(bindings))
+				//}catch(e){
+				//	console.log(e.stack)
+				//	console.log(JSON.stringify(rel))
+				//}
+
 				//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
+				//
 				//return result
 			}
 			compute3Fixed.operator = rel.view

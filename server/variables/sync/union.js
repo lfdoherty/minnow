@@ -39,9 +39,9 @@ setInterval(function(){
 	console.log('unions: ' + unions)
 },1000)*/
 
-exports.compute = function(paramValues){
+function compute(paramValues){
 	//++unions
-	//console.log(JSON.stringify(paramValues))
+	console.log(JSON.stringify(_.map(paramValues, function(v){return v.length;})))
 	
 	var a = paramValues[0]
 	
@@ -52,20 +52,18 @@ exports.compute = function(paramValues){
 	
 	if(!a) return []
 	if(paramValues.length === 0) return a
-	//var b = paramValues[1]
 	
 	var results = [].concat(a)
 	var ma = {}
-	//a.forEach(function(av){
+
 	for(var i=0;i<a.length;++i){
 		ma[a[i]] = true
 	}
-	//})
-	//paramValues.slice(1).forEach(function(b){
+
 	for(var i=1;i<paramValues.length;++i){
 		var b = paramValues[i]
-		if(b === undefined) continue//return
-		//b.forEach(function(bv){
+		if(b === undefined) continue
+
 		for(var j=0;j<b.length;++j){
 			var bv = b[j]
 			if(!ma[bv]){
@@ -74,26 +72,31 @@ exports.compute = function(paramValues){
 			}
 		}
 	}
-		//})
-	//})
+
 	//console.log('union ', paramValues, results)
 	//console.log('union of ' + JSON.stringify(_.map(paramValues, function(p){return p.length})) + ' -> ' + results.length)
 	return results
 }
+
+exports.compute = compute
 
 exports.computeSync = function(z){
 	var args = Array.prototype.slice.call(arguments, 1)
 	return exports.compute(args)
 }
 
-exports.compute2 = function(a,b){
+function compute2(a,b){
 	if(!a || !b) return []
 	
-	if(a.length > b.length){
+	if(a.length > b.length){//faster to check against lots than allocate a big temporary hashmap
 		var t = a
 		a = b
 		b = t
 	}
+	
+	/*if(b.length > 1000){
+		throw new Error('big: ' + JSON.stringify(b.slice(20)))
+	}*/
 	
 	var has = {}
 	for(var i=0;i<a.length;++i){
@@ -112,4 +115,16 @@ exports.compute2 = function(a,b){
 	//console.log('union: ' + JSON.stringify([a.length,b.length,res.length]))
 	
 	return res
+}
+exports.compute2 = compute2
+
+exports.compute3 = function(a,b,c){
+	if(a.length === 0){
+		return compute2(b,c)
+	}else if(b.length === 0){
+		return compute2(a,c)
+	}else if(c.length === 0){
+		return compute2(a,b)
+	}
+	return compute([a,b,c])
 }

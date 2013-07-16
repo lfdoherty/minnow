@@ -80,6 +80,7 @@ function extractGlobals(rel, implicits, cb){
 			return rel
 		}else if(rel.type === 'let'){
 			//log('cannot further globalize let, contains implicits: ' + JSON.stringify([rel.expr, implicits],null,2))
+			//rel.expr = extractGlobals(rel.expr, implicits, cb)
 			rel.rest = extractGlobals(rel.rest, implicits.concat([rel.name]), cb)
 			return rel
 		}else if(rel.type === 'value' || rel.type === 'int' || rel.type === 'param' || rel.type === 'macro'){
@@ -95,7 +96,7 @@ function extractGlobals(rel, implicits, cb){
 			//log('further globalizing let: ' + JSON.stringify([rel.name,rel.expr], null, 2))
 			//return rel
 			cb(rel.expr, rel.name)
-			return extractGlobals(rel.rest, implicits.concat(rel.name), cb)//TODO implicits.concat(rel.name) should be unnecessary?
+			return rel.rest//extractGlobals(rel.rest, implicits.concat(rel.name), cb)//TODO implicits.concat(rel.name) should be unnecessary?
 		}else if(rel.type === 'macro'){
 			//we cannot extract a macro independent of its parent view
 			return rel
@@ -136,7 +137,7 @@ function containsImplicits(rel, implicits){
 	}else if(rel.type === 'macro'){
 		return containsImplicits(rel.expr, implicits)
 	}else if(rel.type === 'let'){
-		return containsImplicits(rel.expr, implicits) || containsImplicits(rel.rest, implicits)
+		return containsImplicits(rel.expr, implicits)// || containsImplicits(rel.rest, implicits)
 	}else if(rel.type === 'value' || rel.type === 'int' || rel.type === 'nil'){
 		return false
 	}else{
