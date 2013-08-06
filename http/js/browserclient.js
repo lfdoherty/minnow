@@ -1,9 +1,22 @@
 "use strict";
 
-var domready = require('matterhorn-standard/js/domready')
+//var domready = require('matterhorn-standard/js/domready')
 
 var syncApi = require('./sync_api')
 var update = require('./minnow_update_websocket')
+
+var page = require('fpage')
+
+var schema = require(':schema.js')
+
+//console.log('schema: ' + JSON.stringify(schema))
+
+schema._byCode = {}
+Object.keys(schema).forEach(function(key){
+	var obj = schema[key]
+	schema._byCode[obj.code] = obj
+})
+
 
 var listenForMinnow;
 
@@ -11,11 +24,16 @@ var listenForMinnow;
 
 var api;
 
-var domWasReady = false
-document.addEventListener('DOMContentLoaded', function(){
+if(page.server){
 	domWasReady = true
 	tryBegin()
-})
+}else{
+	var domWasReady = false
+	document.addEventListener('DOMContentLoaded', function(){
+		domWasReady = true
+		tryBegin()
+	})
+}
 
 var listeners = [];
 global.listenForMinnow = function(listener){
@@ -27,6 +45,7 @@ global.listenForMinnow = function(listener){
 }
 
 function tryBegin(){
+	//console.log('try begin ' + (!api) + ' ' + (!domWasReady))
 	if(!api) return
 	if(!domWasReady) return
 	listeners.forEach(function(listener){
@@ -36,12 +55,12 @@ function tryBegin(){
 
 exports.listen = global.listenForMinnow
 
-var schema;
+//var schema;
 
-var snapsRemaining = [].concat(snapshotIds);
+var snapsRemaining = [].concat(page.params.snapshotIds);
 
-for(var i=0;i<snapshotIds.length;++i){
-	var id = snapshotIds[i];
+for(var i=0;i<page.params.snapshotIds.length;++i){
+	var id = page.params.snapshotIds[i];
 	console.log('snap id: ' + id);
 }
 
@@ -65,26 +84,22 @@ global.gotSnapshot = function(snap){
 	tryLoad();
 }
 
-if(window.minnowSnap){
+if(page.params.minnowSnap){
 	//snaps.push(minnowSnap)
-	minnowSnap.id = lastId
-	global.gotSnapshot(minnowSnap)
+	page.params.minnowSnap.id = page.params.lastId
+	global.gotSnapshot(page.params.minnowSnap)
 }
 
+
+/*
 global.gotSchema = function(s){
 
 	schema = s;
-
-	schema._byCode = {}
-	Object.keys(schema).forEach(function(key){
-		var obj = schema[key]
-		schema._byCode[obj.code] = obj
-	})
-	
-	tryLoad();
-}
+*/
+//}
 
 function tryLoad(){
+	console.log((snapsRemaining.length === 0)+ ' '+ (schema !== undefined))
 	if(snapsRemaining.length === 0 && schema !== undefined){
 		loadMinnowView();
 	}
@@ -127,12 +142,12 @@ global.getRoot = function(){
 var fullFunc
 var waitingFunc
 
-var host = window.location.protocol + '//' + window.location.host + UrlPrefix+'/ws/'// + ':' + minnowSocketPort
+var host = page.params.WebsocketUrl//window.location.protocol + '//' + window.location.host + page.params.UrlPrefix+'/ws/'// + ':' + minnowSocketPort
 console.log('opening websocket... ' + Date.now())
 var hasStarted = false
 function start(){
 	hasStarted = true
-	update.openSocket(applicationName, host, function(fullFuncParam){
+	update.openSocket(page.params.applicationName, host, function(fullFuncParam){
 			console.log('socket opened: ' + Date.now())
 			fullFunc = fullFuncParam
 			if(waitingFunc){
@@ -155,12 +170,13 @@ function loadMinnowView(){
 	snapshot = mergeSnapshots(snaps);
 	
 	console.log('version loaded: ' + snapshot.version);
+	console.log(page.params.baseTypeCode + ' ' + (JSON.stringify(Object.keys(schema._byCode))))
 
-	var viewName = schema._byCode[baseTypeCode].name
+	var viewName = schema._byCode[page.params.baseTypeCode].name
 	
 	function finish(syncHandle){
 		console.log('beginning sync handle setup: ' + Date.now())
-		syncHandle._openViewWithSnapshots(baseTypeCode, snapshot.version, snaps, viewName, baseId, function(err, root){
+		syncHandle._openViewWithSnapshots(page.params.baseTypeCode, snapshot.version, snaps, viewName, page.params.baseId, function(err, root){
 			if(err) _.errout('Error: ' + err)
 
 			getRoot = function(){return root;}

@@ -356,7 +356,7 @@ function makeClient(host, port, clientCb){
 		var dsh = cc.getDefaultSyncHandle()
 		var typeCode = obj.getObjectTypeCode()
 		var following = edits.length+obj.edits.length+(obj.localEdits?obj.localEdits.length:0)
-		console.log('doCopy following: ' + following + ' ' + edits.length + ' ' + obj.edits.length + ' ' + (obj.localEdits?obj.localEdits.length:0) + ' ' + 1)
+		//console.log('doCopy following: ' + following + ' ' + edits.length + ' ' + obj.edits.length + ' ' + (obj.localEdits?obj.localEdits.length:0) + ' ' + 1)
 		var requestId = dsh.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: typeCode, forget: forget, following: following}, listeningSyncId)
 		if(cb){
 			_.assertInt(requestId)
@@ -631,8 +631,8 @@ function makeClient(host, port, clientCb){
 }
 
 
-function makeServer(dbSchema, globalMacros, dataDir, port, cb){
-	tcpserver.make(dbSchema, globalMacros, dataDir, port, cb)
+function makeServer(dbSchema, globalMacros, dataDir, port, config, loadedListeners, facades, cb){
+	tcpserver.make(dbSchema, globalMacros, dataDir, port, config, loadedListeners, facades, cb)
 }
 
 
@@ -648,9 +648,13 @@ exports.makeServer = function(config, cb){
 	
 	var syncPlugins = {}
 	_.extend(syncPlugins, config.synchronousPlugins||{}, sync.plugins)
+
+	var indexPlugins = config.indexPlugins || []
 	
-	schema.load(config.schemaDir, syncPlugins, config.disableOptimizations, function(dbSchema, globalMacros){
-		makeServer(dbSchema, globalMacros, config.dataDir||'.', config.port, cb||function(){})
+	var loadedListeners = []
+	var facades = []
+	schema.load(config.schemaDir, syncPlugins, indexPlugins, config.disableOptimizations, loadedListeners, facades, function(dbSchema, globalMacros){
+		makeServer(dbSchema, globalMacros, config.dataDir||'.', config.port, config, loadedListeners, facades, cb||function(){})
 	})
 }
 exports.makeClient = function(port, host, cb){

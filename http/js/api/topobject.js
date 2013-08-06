@@ -5,7 +5,6 @@ var _ = require('underscorem')
 
 var jsonutil = require('./../jsonutil')
 
-var ObjectHandle = require('./object')
 
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
@@ -620,6 +619,9 @@ function destroyedWarning(){
 	_.errout('this object has been destroyed, it is an error to still have a reference to it')
 }
 
+var ObjectHandle = require('./object')
+console.log(ObjectHandle)
+
 TopObjectHandle.prototype.replaceObjectHandle = ObjectHandle.prototype.replaceObjectHandle
 
 TopObjectHandle.prototype.clearProperty = ObjectHandle.prototype.clearProperty
@@ -661,7 +663,9 @@ TopObjectHandle.prototype.getImmediateKey = function(){}
 TopObjectHandle.prototype._getVersionsSelf = function(source){
 	//_.assert(path.length > 0)
 
-	var madeIndex = getMadeIndex(this)
+	var edits = this.edits.concat(this.localEdits||[])
+
+	var madeIndex = getMadeIndex(edits, this)
 
 	var fakeObject = {}
 	var same = false
@@ -1296,6 +1300,8 @@ function maintainPath(local, op, edit, syncId, editId, forceOwnProcessing){
 		changeOnPath(local, op, edit, syncId, editId)
 	}
 }
+
+module.exports = TopObjectHandle
 exports.maintainPath = maintainPath
 
 TopObjectHandle.prototype.adjustCurrentObject = function(id){
@@ -1648,14 +1654,18 @@ TopObjectHandle.prototype.versions = function(){
 	return versions
 }
 
-function getMadeIndex(top){
+function getMadeIndex(edits, top){
 	var madeIndex
-	for(var i=top.edits.length-1;i>=0;--i){
-		var e = top.edits[i]
+	for(var i=edits.length-1;i>=0;--i){
+		var e = edits[i]
 		if(e.op === editCodes.made || e.op === editCodes.copied){
 			madeIndex = i
 			break
 		}
+	}
+	
+	if(madeIndex === undefined){
+		_.errout('cannot find made edit: ' + JSON.stringify(edits))
 	}
 	_.assertInt(madeIndex)
 	return madeIndex
@@ -1663,12 +1673,14 @@ function getMadeIndex(top){
 TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to preforking
 	var fakeObject = {}
 
-	var madeIndex = getMadeIndex(this)
+	var edits = this.edits.concat(this.localEdits||[])
+	
+	var madeIndex = getMadeIndex(edits, this)
 
-	var versions = [this.edits[madeIndex].editId]
+	var versions = [edits[madeIndex].editId]
 	
 
-	console.log(JSON.stringify(this.edits, null, 2))
+	//console.log(JSON.stringify(this.edits, null, 2))
 	//console.log(JSON.stringify(edits))
 	var skip = 0
 	for(var i=0;i<this.edits.length;++i){
@@ -1682,16 +1694,16 @@ TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to pref
 		if(e.op === editCodes.made){
 			if(skip === 0){
 				skip = e.edit.following
-				console.log('skipping ' + skip)
+				//console.log('skipping ' + skip)
 			}
 		}else if(e.op === editCodes.copied){
 			skip = e.edit.following
-			console.log('skipping ' + skip)
+			//console.log('skipping ' + skip)
 		}
 		if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){
 			if(e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) continue
 			//if(this.isa('quote')) console.log(this.id() + ' * ' + editNames[e.op] + ' ' + JSON.stringify(e))
-			console.log('added version for: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			//console.log('added version for: ' + editNames[e.op] + ' ' + JSON.stringify(e))
 			versions.push(e.editId)
 		}
 	}
@@ -1730,5 +1742,5 @@ TopObjectHandle.prototype.revert = function(editId){
 	//this._rebuild()
 }*/
 
-module.exports = TopObjectHandle
+
 

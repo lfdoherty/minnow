@@ -371,7 +371,10 @@ Ol.prototype._copy = function copy(edit, timestamp, syncId){
 	this.propertyIndex.creation(edit.typeCode, id, editId+edit.following)
 
 	var local = this
-	sourceObjectEdits.forEach(function(se){
+	
+	//sourceObjectEdits.forEach(function(se){
+	for(var i=0;i<sourceObjectEdits.length;++i){
+		var se = sourceObjectEdits[i]
 		local.olc.addEdit(id, se)
 		local.propertyIndex.addEdit(id, se.op, se.edit, se.editId)//resEditId)
 		if(se.op === editCodes.selectProperty){
@@ -381,7 +384,7 @@ Ol.prototype._copy = function copy(edit, timestamp, syncId){
 		}else if(se.op === editCodes.clearObject){
 			local.metadata.clearObject(id)
 		}
-	})
+	}
 
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
 	
@@ -528,8 +531,8 @@ Ol.prototype.getAsBuffer = function(id, startEditId, endEditId, cb){//TODO optim
 	cb(did?buf:undefined)
 }*/
 
-Ol.prototype.getObjectState = function(id, cb){
-	_.assertLength(arguments, 2)
+Ol.prototype.getObjectState = function(id){//, cb){
+	_.assertLength(arguments, 1)
 	//_.assertInt(startEditId)
 	//_.assertInt(endEditId)
 	_.assertInt(id)
@@ -540,7 +543,9 @@ Ol.prototype.getObjectState = function(id, cb){
 	//_.errout('here')
 
 	var buf = this.olc.getBinary(id)
-	cb(buf)
+	return buf
+	
+	//cb(buf)
 /*	return
 	}
 	var w = fparse.makeSingleBufferWriter(100)
@@ -915,6 +920,8 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 		return this._copy(edit, timestamp, syncId)
 	}
 	
+	_.assert(id > 0)
+	
 	var objCurrentSyncId = this.objectCurrentSyncId.get(id)
 
 	if(objCurrentSyncId !== syncId){//TODO skip for reads from append log?
@@ -1124,7 +1131,7 @@ Ol.prototype.getObjectMetadata = function(id){
 }
 
 Ol.prototype.getObjectType = function(id){
-	_.assertLength(arguments, 1)
+	//_.assertLength(arguments, 1)
 	
 	var tc = this.objectTypeCodes.get(id.inner||id)
 	if(tc === undefined) _.errout('unknown id: ' + JSON.stringify(id))

@@ -21,6 +21,43 @@ function make(s, staticBindings, rel, recurse){
 		paramRels.push(pr)
 	}
 	
+	
+	
+	if(impl.isIndexFunction){
+		var nameStr = 'compute'+impl.minParams
+		impl[nameStr] = impl.func
+	}else{
+		//console.log(impl)
+		if(!_.isFunction(impl.computeSync)) _.errout('missing computeSync: ' + impl.callSyntax)
+	}
+	
+	var func = makeFunc(s, rel, impl, paramRels)
+	if(impl.isIndexFunction){
+		var listeners = []
+		func.index = impl.func.index
+		//console.log('setting func.index to ' + impl.func.index)
+		/*
+		func.index = {
+			listen: function(cb){
+				if(listeners.length === 0){
+					startListening()
+				}
+				listeners.push(cb)
+			},
+			reverse: function(){
+				//_.errout('TODO?')
+				//if(!reversed) makeReversed()
+				//return reversed
+				_.errout('TODO?')
+			}
+		}
+		*/
+	}
+	return func
+}
+
+function makeFunc(s, rel, impl, paramRels){
+
 	var z
 	
 	function setupZ(){
@@ -31,11 +68,20 @@ function make(s, staticBindings, rel, recurse){
 		}
 	}
 	s.after(setupZ)
-	
-	if(!_.isFunction(impl.computeSync)) _.errout('missing computeSync: ' + impl.callSyntax)
-	
-	//handle = makeOperatorRelSync(s, rel, paramRels, impl, rel.view, ws, recurseSync, staticBindings)
-	if(paramRels.length === 1){
+
+	if(paramRels.length === 0){
+		var compute = impl.computeSync
+		if(impl.compute0){
+			compute = impl.compute0
+			return compute
+		}else{
+			function compute0(bindings){
+				return compute(z)
+			}
+			compute0.resultType = rel.schemaType
+			return compute0
+		}
+	}if(paramRels.length === 1){
 		var paramRel = paramRels[0]
 		var compute = impl.computeSync
 		if(impl.compute1){
@@ -49,7 +95,6 @@ function make(s, staticBindings, rel, recurse){
 				//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
 				return compute(z, paramRel(bindings))
 				//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
-				//return result
 			}
 			compute1.resultType = rel.schemaType
 			return compute1
@@ -90,16 +135,7 @@ function make(s, staticBindings, rel, recurse){
 			function compute3Fixed(bindings){
 				//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
 
-				//try{
-					return compute(pa(bindings), pb(bindings), pc(bindings))
-				//}catch(e){
-				//	console.log(e.stack)
-				//	console.log(JSON.stringify(rel))
-				//}
-
-				//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
-				//
-				//return result
+				return compute(pa(bindings), pb(bindings), pc(bindings))
 			}
 			compute3Fixed.operator = rel.view
 			compute3Fixed.resultType = rel.schemaType
@@ -109,7 +145,6 @@ function make(s, staticBindings, rel, recurse){
 				//console.log('calling operator ' + rel.view + ' ' + JSON.stringify(cp))
 				return compute(z, pa(bindings), pb(bindings), pc(bindings))
 				//console.log('called operator ' + rel.view + ' ' + JSON.stringify(cp) + ' -> ' + JSON.stringify(result))
-				//return result
 			}
 			compute3.operator = rel.view
 			compute3.resultType = rel.schemaType

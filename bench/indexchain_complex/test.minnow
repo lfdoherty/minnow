@@ -1,0 +1,24 @@
+/**/
+
+entity 1
+
+wrap 2
+	parentEntity entity 1
+	hash string 2
+	
+wrapwrap 3
+	parentHash string 1
+	name string 2
+
+getWrapFor(e entity){
+	one(subset(*wrap,{eq(~.parentEntity,e)}))
+}
+getWrapWrapFor(w wrap){
+	one(subset(*wrapwrap,{eq(w.hash, ~.parentHash)}))
+}
+
+general() 100
+	mapping map(*entity,
+		{~.id},
+		{length(getWrapWrapFor(getWrapFor(~)).name)}
+	) 1

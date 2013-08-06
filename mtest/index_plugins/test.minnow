@@ -1,0 +1,9 @@
+
+entity 1
+	text string 1
+	
+empty() 100
+
+search(query string) 102
+	results simpleSearch(query) 1
+

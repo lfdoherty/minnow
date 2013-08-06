@@ -10,6 +10,10 @@ var syncSwitch = require('./sync_switch')
 var syncMultimapOptimization = require('./sync_multimap_optimization')
 var mapValueOptimization = require('./sync_map_value_optimization')
 var genericOperatorIndex = require('./generic_operator_index')
+var genericIndexChain = require('./generic_index_chain')
+var subsetReductionIndex = require('./subset_reduction_index')
+var reducingIndex = require('./reducing_index')
+var intersection2Index = require('./intersection2_index')
 
 var syncCompute = require('./sync_compute')
 var syncIsa = require('./sync_isa')
@@ -132,7 +136,11 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						return res
 					}
 					setIdFunc.index = {
-						listen: function(){}//do nothing, since ids are immutable
+						listen: function(){},//do nothing, since ids are immutable
+						reverse: function(){
+							//_.errout('Should never reverse [objects]->id function')
+							return setIdFunc.index
+						}
 					}
 					return setIdFunc
 				}else{
@@ -141,7 +149,14 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						if(id) return ''+id
 					}
 					idFunc.index = {
-						listen: function(){}//do nothing, since ids are immutable
+						listen: function(){},//do nothing, since ids are immutable
+						reverse: function(){
+							return idFunc.index
+							//_.errout('Should never reverse object->id function')
+						},
+						get: function(id){
+							return id
+						}
 					}
 					return idFunc
 				}
@@ -162,7 +177,10 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						}
 					}
 					valueUuid.index = {
-						listen: function(){}//do nothing, since UUIDs are immutable
+						listen: function(){},//do nothing, since UUIDs are immutable
+						reverse: function(){
+							_.errout('TODO')
+						}
 					}
 					return setUuid
 				}else{
@@ -173,7 +191,11 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						}
 					}
 					valueUuid.index = {
-						listen: function(){}//do nothing, since UUIDs are immutable
+						listen: function(){},//do nothing, since UUIDs are immutable
+						reverse: function(){
+							//_.errout('TODO')
+							return staticBindings.makePropertyIndex(inputType, -2)
+						}
 					}
 					return valueUuid
 				}
@@ -214,6 +236,17 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		}else if(rel.view === 'generic-operator-index'){
 			//_.errout('TODO ' + rel.view)
 			return genericOperatorIndex.make(s, rel, recurse, staticBindings)
+		}else if(rel.view === 'generic-index-chain'){
+			//_.errout('TODO ' + rel.view)
+			return genericIndexChain.make(s, rel, recurse, staticBindings)
+		}else if(rel.view === 'subset' && rel.isReductionIndex){
+			//_.errout('TODO ' + rel.view)
+			return subsetReductionIndex.make(s, rel, recurse, staticBindings)
+		}else if(rel.view === 'reducing-index'){
+			//_.errout('TODO ' + rel.view)
+			return reducingIndex.make(s, rel, recurse, staticBindings)
+		}else if(rel.view === 'intersection2-index'){
+			return intersection2Index.make(s, rel, recurse, staticBindings)
 		}else{
 		
 			return syncCompute.make(s, staticBindings, rel, recurse)
@@ -303,14 +336,9 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		}
 	}else if(rel.type === 'let'){
 		var expr = recurse(rel.expr)
-		//var newStaticBindings = {}
-		//newStaticBindings[rel.name] = expr
-		var rest = recurse(rel.rest)//, newStaticBindings)
+		var rest = recurse(rel.rest)
 		
-		return function(bindings){
-			/*var newBindings = shallowCopy(bindings)
-			newBindings[rel.name] = expr(bindings)
-			return rest(newBindings)*/
+		return function letBinder(bindings){
 			bindings[rel.name] = expr(bindings)
 			return rest(bindings)
 		}

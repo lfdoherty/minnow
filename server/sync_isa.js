@@ -13,6 +13,14 @@ function make(s, staticBindings, rel, recurse){
 		
 		//var getObjectType = 
 		var byCode =  s.schema._byCode
+		var isOneOf = {}
+		isOneOf[s.schema[name].code] = true
+		Object.keys(s.schema[name].subTypes||{}).forEach(function(subName){
+			var objSchema = s.schema[subName]
+			if(objSchema){
+				isOneOf[objSchema.code] = true
+			}
+		})
 		
 		function staticNameFunc(bindings){
 			var id = expr(bindings)
@@ -22,12 +30,19 @@ function make(s, staticBindings, rel, recurse){
 				return
 			}
 		
-			var objSchema = byCode[s.objectState.getObjectType(id)]
-
+			var code = s.objectState.getObjectType(id)
+			
+			
+			/*var objSchema = byCode[code]
 			var result = objSchema.name === name || (objSchema.superTypes && objSchema.superTypes[name])
-			result = !!result
-			//console.log('isa ' + id + ','+name + ' ' + result + ' (' + objSchema.name + ')')
-			return result
+			var result = !!result*/
+			
+			var newResult = !!(isOneOf[code])
+			
+			/*if(newResult !== result){
+				console.log('isa ' + id + ','+name + ' ' + result + ' (' + byCode[code].name + ') ' + newResult + ' ' + JSON.stringify(isOneOf) + ' ' + code)
+			}*/
+			return newResult
 		}
 		staticNameFunc.specializeByType = function(typeBindings){
 			var newExpr = expr.specializeByType(typeBindings)

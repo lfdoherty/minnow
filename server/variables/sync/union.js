@@ -41,7 +41,7 @@ setInterval(function(){
 
 function compute(paramValues){
 	//++unions
-	console.log(JSON.stringify(_.map(paramValues, function(v){return v.length;})))
+	//console.log(JSON.stringify(_.map(paramValues, function(v){return v.length;})))
 	
 	var a = paramValues[0]
 	
@@ -88,11 +88,14 @@ exports.computeSync = function(z){
 function compute2(a,b){
 	if(!a || !b) return []
 	
+	
 	if(a.length > b.length){//faster to check against lots than allocate a big temporary hashmap
 		var t = a
 		a = b
 		b = t
 	}
+
+	if(a.length === 0) return b
 	
 	/*if(b.length > 1000){
 		throw new Error('big: ' + JSON.stringify(b.slice(20)))

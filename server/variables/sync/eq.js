@@ -17,3 +17,9 @@ exports.computeSync = function(z, a, b){
 	if(a && b && a.inner && b.inner) return ''+a === ''+b
 	return false
 }
+
+exports.compute2 = function(a,b){
+	if(a === b) return true
+	if(a && b && a.inner && b.inner) return ''+a === ''+b
+	return false
+}

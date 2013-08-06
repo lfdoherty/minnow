@@ -163,14 +163,16 @@ function noReduceCompute(z, input, keyMacro, valueMacro){
 	
 	//console.log(new Error().stack)
 	
-	input.forEach(function(v){
+	//input.forEach(function(v){
+	for(var i=0;i<input.length;++i){
+		var v = input[i]
 		var key = keyMacro.get(v)
 		var value = valueMacro.get(v)
 		//console.log('key: ' + key + ', value: ' + value)
 		if(value !== undefined){
 			state[key] = value
 		}
-	})
+	}
 	
 	//console.log('state: ' + JSON.stringify(state) + ' from ' + JSON.stringify(input))
 	return state

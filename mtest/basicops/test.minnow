@@ -27,27 +27,25 @@ specific(minAge6 int) 102
 	oldEnough each(*entity,{filter(~,greaterThan(~.age,minAge6))}) 1
 
 ageThreshold(minAge5 int){filter(~,greaterThan(~.age,minAge5))}
-
+/*
 specificPartial(minAge4 int) 103
 	oldEnough each(*entity,ageThreshold<minAge4>) 1
 
 allOfIt(input set:entity, minAge int){each(input,ageThreshold<minAge>)}
 reallySpecific(minAge int) 104
 	oldEnough allOfIt(*entity, minAge) 1
-
+*/
 //tests passing a bound macro
 partOfIt(input set:entity, transform macro){each(input,transform)}
+/*
 macroParameter(minAge3 int) 105
 	oldEnough partOfIt(*entity, ageThreshold<minAge3>) 1
-
+*/
 //tests passing a bound macro and calling with its second parameter
 doIt(minAge2 int,it macro){it(minAge2)}
+/*
 macroParameterAgain(minAgeA int) 106
 	oldEnough doIt(minAgeA, allOfIt<*entity>) 1
-/*
-
-nowTest() 107
-	beat sub(now({1000}),now({1500})) 1
 */
 tagging 2
 	tags list:string 1
@@ -67,11 +65,6 @@ majorityFilter(ageConfig ageConfiguration){subset(*entity, {greaterThan(add(1,~.
 pairedFilterTest(ac ageConfiguration) 111
 	adults majorityFilter(ac) 1022
 
-/*
-crazyHandler(first *){add(first.age,~)}
-crazyPartialMacroTest() 112
-	crazy each(*entity, {each(~.numbers, crazyHandler<~>)}) 1
-	*/
 sameNameMacro(otherName string, name string){eq(name, otherName)}
 nameCollisionTest(name string) 113
 	named each(*entity, {filter(~,sameNameMacro(name, ~.name))}) 1

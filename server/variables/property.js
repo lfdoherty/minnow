@@ -42,7 +42,10 @@ function propertyType(rel, ch){
 			if(objSchema === undefined) _.errout('cannot find object type: ' + st.object)
 			if(objSchema.properties === undefined) _.errout('no properties: ' + JSON.stringify(objSchema) + ' - ' + propertyName)
 			var p = objSchema.properties[propertyName]
-			if(p === undefined) _.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
+			if(p === undefined){
+				//console.log(JSON.stringify(rel, null, 2))
+				_.errout('cannot find property "' + propertyName + '" of ' + objSchema.name);
+			}
 			return p.type
 		}
 	}else if(st.type === 'view'){

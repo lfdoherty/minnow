@@ -20,67 +20,85 @@ exports.viewIdStr = viewIdStr
 
 var vcModule = require('./viewfacade')
 
-var fastPollFunctions = []
-var slowerPollFunctions = []
-var slowPollFunctions = []
 
-var FastPollRate = 10
-var SlowerPollRate = 100
-var SlowPollRate = 1000
+function makePoller(config){
 
-var lastSlower = 0
-var lastSlow = 0
-var pollHandle = setInterval(function(){
+	var fastPollFunctions = []
+	var slowerPollFunctions = []
+	var slowPollFunctions = []
 
-	var now = Date.now()
-	if(now - lastSlow > SlowPollRate){
-		for(var i=0;i<slowPollFunctions.length;++i){
-			var f = slowPollFunctions[i]
-			f()
-		}
-		lastSlow = now = Date.now()
+	var FastPollRate = 10
+	var SlowerPollRate = 100
+	var SlowPollRate = 1000
+	
+	if(config.pollrate){
+		FastPollRate = config.pollrate.fast||FastPollRate
+		SlowerPollRate = config.pollrate.medium||SlowerPollRate
+		SlowPollRate = config.pollrate.slow||SlowPollRate
 	}
 
-	if(now - lastSlower > SlowerPollRate){
-		for(var i=0;i<slowerPollFunctions.length;++i){
-			var f = slowerPollFunctions[i]
+	//console.log(JSON.stringify(config))
+	//console.log('fast poll rate: ' + FastPollRate)
+	//console.log('slow poll rate: ' + SlowPollRate)
+
+	var lastSlower = 0
+	var lastSlow = 0
+	var pollHandle = setInterval(function(){
+
+		var now = Date.now()
+		if(now - lastSlow > SlowPollRate){
+			for(var i=0;i<slowPollFunctions.length;++i){
+				var f = slowPollFunctions[i]
+				f()
+			}
+			lastSlow = now = Date.now()
+		}
+
+		if(now - lastSlower > SlowerPollRate){
+			for(var i=0;i<slowerPollFunctions.length;++i){
+				var f = slowerPollFunctions[i]
+				var s = Date.now()
+				f()
+				var elapsed = Date.now() - s
+				if(elapsed > 5){
+					slowerPollFunctions.splice(i, 1)
+					--i
+					slowPollFunctions.push(f)
+				}
+			}
+		}
+
+		for(var i=0;i<fastPollFunctions.length;++i){
+			var f = fastPollFunctions[i]
 			var s = Date.now()
 			f()
 			var elapsed = Date.now() - s
-			if(elapsed > 5){
-				slowerPollFunctions.splice(i, 1)
+			if(elapsed > 1){
+				fastPollFunctions.splice(i, 1)
 				--i
-				slowPollFunctions.push(f)
+				slowerPollFunctions.push(f)
 			}
 		}
-	}
+	}, FastPollRate)
 
-	for(var i=0;i<fastPollFunctions.length;++i){
-		var f = fastPollFunctions[i]
-		var s = Date.now()
-		f()
-		var elapsed = Date.now() - s
-		if(elapsed > 1){
-			fastPollFunctions.splice(i, 1)
-			--i
-			slowerPollFunctions.push(f)
+	function addPollFunction(f){
+		fastPollFunctions.push(f)
+	}
+	function removePollFunctionFrom(f, arr){
+		var index = arr.indexOf(f)
+		if(index !== -1){
+			arr.splice(index, 1)
 		}
 	}
-}, FastPollRate)
-
-function addPollFunction(f){
-	fastPollFunctions.push(f)
-}
-function removePollFunctionFrom(f, arr){
-	var index = arr.indexOf(f)
-	if(index !== -1){
-		arr.splice(index, 1)
+	function removePollFunction(f){
+		removePollFunctionFrom(f, fastPollFunctions)
+		removePollFunctionFrom(f, slowerPollFunctions)
+		removePollFunctionFrom(f, slowPollFunctions)
 	}
-}
-function removePollFunction(f){
-	removePollFunctionFrom(f, fastPollFunctions)
-	removePollFunctionFrom(f, slowerPollFunctions)
-	removePollFunctionFrom(f, slowPollFunctions)
+	return {
+		add: addPollFunction,
+		remove: removePollFunction
+	}
 }
 
 function remainer(initial, cb){
@@ -126,7 +144,7 @@ function makeQueryHandle(syncId, viewCache){
 	
 	return {
 		got: alreadyGot,
-		moveTo: function(editId, changesCb, inclusionsCb, doneCb){
+		moveTo: function(editId, changesCb, inclusionsCb, viewInclusionsCb, doneCb){
 			
 			if(gotIds.length === 0 && addedViewObjects.length === 0 && editId === qhEditId){
 				//console.log(syncId + ' none: ' +  editId + ' ' + qhEditId)
@@ -187,7 +205,7 @@ function makeQueryHandle(syncId, viewCache){
 					diff.addedViewObjects.forEach(function(v){
 						_.assertString(v.id)
 						_.assertArray(v.edits)
-						inclusionsCb(v.id, v.edits)//TODO use snap directly
+						viewInclusionsCb(v.id, v.edits)//TODO use snap directly
 					})					
 				}
 				
@@ -458,9 +476,11 @@ exports.make = function(schema, ol){
 		
 
 	var handle = {
-		initialize: function(objs){
+		initialize: function(objs, config){
 			objectState = objs
 			s.objectState = objs
+			
+			s.poller = makePoller(config)
 
 			console.log('initialized new_view_sequencer')
 			//_.errout('here')
@@ -539,18 +559,19 @@ exports.make = function(schema, ol){
 					edits = edits.concat(changes)
 	
 					console.log('poll took: ' + (Date.now()-start))
-					//console.log('moving changes: ' + id + ' ' + JSON.stringify(changes))
+					
+					//console.log('moving changes: ' + JSON.stringify(changes))
 				},
 				function(id, snap){
 					//console.log('moving adds: ' + id)
 					//console.log('edits: ' + JSON.stringify(snap))
 					_.assertDefined(snap)
-					if(_.isString(id)){
-						sendViewObjectCb(id, snap)
-					}else{
-						includeObjectCb(id, snap)
-					}
-					
+					includeObjectCb(id, snap)
+				},function(id, snap){
+					//console.log('moving adds: ' + id)
+					//console.log('edits: ' + JSON.stringify(snap))
+					_.assertDefined(snap)
+					sendViewObjectCb(id, snap)
 				}, function(){
 					//console.log(endEditId + ' (' + objectState.getCurrentEditId() + ') moving done: ' + JSON.stringify(edits))
 					//console.log(''+editCb)
@@ -571,6 +592,7 @@ exports.make = function(schema, ol){
 					}*/
 
 					//console.log(endEditId + ' (' + objectState.getCurrentEditId() + ') moving done: ' + JSON.stringify(edits))
+					//console.log(editCb+'')
 					
 					edits.forEach(function(e){
 						editCb(e)
@@ -597,7 +619,7 @@ exports.make = function(schema, ol){
 				}
 			}
 
-			addPollFunction(poll)
+			s.poller.add(poll)
 			
 			function addView(id, lastEditId, endEditId, readyCb, isHistorical){
 
@@ -669,7 +691,7 @@ exports.make = function(schema, ol){
 					//console.log('ended new view sequencer')
 					//clearInterval(analyticsLogIntervalHandle)
 					//clearInterval(pollHandle)
-					removePollFunction(poll)
+					s.poller.remove(poll)
 					
 					//analyticsLog.close()
 					//_.errout('TODO')

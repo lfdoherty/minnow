@@ -33,14 +33,19 @@ exports.make = function(schema, ol){
 	var propertyIndexes = {}
 	var objectCreation = {}
 	
+	var indexesByObjectType = {}
+	
 	var uuidPropertyIndexes = {}
 	var copySourcePropertyIndexes = {}
 	
 	var typeCodeSubTypes = {}
 	_.each(schema, function(objSchema){
 		if(!objSchema.isView){
+			
 			uuidPropertyIndexes[objSchema.code] = []
 			copySourcePropertyIndexes[objSchema.code] = []
+			indexesByObjectType[objSchema.code] = []
+			
 			_.each(objSchema.properties, function(p){
 				var key = objSchema.code+':'+p.code
 				//if(p.type.type !== 'map'){
@@ -63,6 +68,15 @@ exports.make = function(schema, ol){
 	
 	var handle = {
 		foreignIndex: foreignIndex,
+		attachObjectIndex: function(typeCode, callback, creationCallback){
+			typeCodeSubTypes[typeCode].forEach(function(tc){
+				indexesByObjectType[tc].push(callback)
+			
+				if(creationCallback){
+					objectCreation[tc].push(creationCallback)
+				}
+			})
+		},
 		attachIndex: function(typeCode, propertyCode, callback, creationCallback){
 			if(attachingEnded){
 				_.errout('too late to attach an index')
@@ -134,6 +148,8 @@ exports.make = function(schema, ol){
 			}else{
 			
 				var typeCode = ol.getObjectType(curId)
+				var topTypeCode = ol.getObjectType(id)
+				var objectIndexes = indexesByObjectType[topTypeCode]
 				var indexes
 				if(op === editCodes.initializeUuid){
 					indexes = uuidPropertyIndexes[typeCode]
@@ -230,8 +246,12 @@ exports.make = function(schema, ol){
 					}
 				}
 				if(c){
+					if(!curId) _.errout('invalid curId: ' + curId)
 					for(var i=0;i<indexes.length;++i){
 						indexes[i](curId, c)
+					}
+					for(var i=0;i<objectIndexes.length;++i){
+						objectIndexes[i](id)//, c)
 					}
 				}
 			}

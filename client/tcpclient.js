@@ -293,8 +293,11 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			}
 		},
 		reifyObject: function(e){
-			var reifyCb = syncListenersBySyncId[e.destinationSyncId].reify
-			reifyCb(e.temporary, e.id)
+			var listener = syncListenersBySyncId[e.destinationSyncId]
+			if(listener){
+				var reifyCb = listener.reify
+				reifyCb(e.temporary, e.id)
+			}
 		},
 		requestError: function(e){
 			log.err('ERROR: ' + e.err)

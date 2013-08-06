@@ -290,15 +290,15 @@ exports.parameterizeEachFiltered = function(config, done){
 		})
 	})
 }
-
+/*
 exports.partialApplication = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
 			client.view('specificPartial', [14], testAgeThreshold(minnow, config.port, done))
 		})
 	})
-}
-
+}*/
+/*
 exports.globalMacroCall = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){
@@ -322,7 +322,7 @@ exports.macroParameterAgain = function(config, done){
 		})
 	})
 }
-
+*/
 /*
 exports.nowTest = function(config, done){
 	minnow.makeServer(config, function(){

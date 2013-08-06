@@ -6,8 +6,8 @@ u.reset(run)
 var N = 1*1000*1000
 
 /*
-N=1M: 91247ms
-N=100K: 9233ms
+N=1M: 76361ms
+N=100K: 8376ms //9400/9170
 */
 
 try{
@@ -29,7 +29,7 @@ function testAgeThreshold(minnow, port, done){
 			console.log(JSON.stringify(process.memoryUsage()))
 			//console.log(c.many.value() )
 			if(c.many.value() === N){
-				//console.log('d: ' + c.oldEnough.size())
+				console.log('d: ' + c.right.size())
 				done()
 				return true
 			}

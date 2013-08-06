@@ -22,14 +22,12 @@ exports.make = function makeWithIndex(s, rel, recurse, staticBindings){
 	var keysAreBoolean = rel.params[1].expr.schemaType.primitive === 'boolean'
 
 	var p = propertyCode<0?propertyCode:objSchema.propertiesByCode[propertyCode]
-	
-	var index = staticBindings.makeReversePropertyIndex(objSchema, p)
-	
-	//_.assertFunction(index.getValueChangesBetween)
-	_.assertDefined(index.getValueAt)
-	
-	var inputSet = recurse(rel.params[0])
 
+	var inputSet = recurse(rel.params[0])
+	
+	//TODO build indexes on inputSet instead?
+	var index = staticBindings.makeReversePropertyIndex(objSchema, p)
+	_.assertDefined(index.getValueAt)
 	var forwardIndex = staticBindings.makePropertyIndex(objSchema, p)
 	
 	function compute(bindings){
@@ -51,6 +49,7 @@ exports.make = function makeWithIndex(s, rel, recurse, staticBindings){
 	compute.getValue = function(bindings, key){
 		return index.getValueAt(bindings, key)
 	}
+	compute.index = index
 	
 	return compute
 	/*

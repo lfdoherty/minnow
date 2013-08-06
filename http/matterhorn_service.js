@@ -50,9 +50,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
 	var snapPath = '/mnw/snaps/' + appName + '/';
-	//var snapPathHistorical = '/mnw/snaps_historical/' + appName + '/';
 	
-	//var simplifiedSchema = JSON.parse(JSON.stringify(minnowClient.schema))
 	var simplifiedSchema = {}
 	Object.keys(minnowClient.schema).forEach(function(key){
 		if(key === '_byCode') return
@@ -70,13 +68,15 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	//require('fs').writeFileSync('schema.txt', JSON.stringify(simplifiedSchema, null, 2))
 	
 	var schemaUrl;
-	var schemaStr = 'gotSchema(' + JSON.stringify(simplifiedSchema) + ');'
+	var schemaStr = 'module.exports = '+JSON.stringify(simplifiedSchema) //'gotSchema(' + JSON.stringify(simplifiedSchema) + ');'
 	function generateSchemaUrl(ccc){
 		_.assertFunction(ccc);
 		schemaUrl = ccc(schemaStr);
 	}
-	local.serveJavascript(exports, appName, generateSchemaUrl);
-	secureLocal.serveJavascript(exports, appName, generateSchemaUrl);
+	//local.serveJavascript(exports, appName, generateSchemaUrl);
+	//secureLocal.serveJavascript(exports, appName, generateSchemaUrl);
+	local.serveJavascript(exports, 'schema', generateSchemaUrl);
+	secureLocal.serveJavascript(exports, 'schema', generateSchemaUrl);
 	
 	function generateSnapHistorical(req, res){
 		generateSnapInner(req, res, function(viewId, snapshotId, previousId, paramStr, cb){
@@ -156,57 +156,8 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	}
 	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
 	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
-	//local.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
-	//secureLocal.get(snapPathHistorical + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnapHistorical);
 
-	
-	//local.serveJavascriptFile(exports, 
-	//	__dirname + '/../node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
-	
 	return {
-		/*getViewTagsHistorical: function(viewName, params, vars, res, cb){
-			_.assertLength(arguments, 5);
-			
-			console.log('getting view tags historical')
-			
-			var viewSchema = minnowClient.schema[viewName]
-			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
-			var viewCode = viewSchema.code
-			//var historicalKey = 'historical_'+Math.random()
-			service.getViewFilesHistorical(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
-				
-				if(err){
-					console.log('view files error: ' + JSON.stringify(err))
-					res.send(500)
-					return
-				}
-				
-				var result = [];
-
-				console.log('got historical paths:  ' + JSON.stringify(paths))
-			
-				vars.snapshotIds = snapshotIds;
-				vars.lastId = lastSeenVersionId;
-				vars.baseTypeCode = viewCode;
-				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)//vars.baseTypeCode+':'+newViewSequencer.paramsStr(params)//JSON.stringify(params);
-				vars.applicationName = appName
-				//vars.mainViewParams = params
-				vars.mainViewHistorical = true
-				
-				vars.UrlPrefix = prefix
-				//vars.httpPort = local.getPort()
-				//vars.httpsPort = secureLocal.getSecurePort()
-				
-				for(var i=0;i<paths.length;++i){
-					var p = paths[i];
-					result.push(snapPathHistorical + p);
-				}
-			
-				result.push(schemaUrl);
-			
-				cb(vars, result);
-			});
-		},*/
 		getViewState: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
 
@@ -249,10 +200,11 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.baseTypeCode = viewCode;
 				vars.baseId = newViewSequencer.viewIdStr(baseTypeCode,params)
 				vars.applicationName = appName
-				vars.UrlPrefix = prefix
+				vars.UrlPrefix = secureLocal.host
 				vars.minnowSnap = snap//JSON.parse(snap)
+				vars.WebsocketUrl = ''+secureLocal.host+'/ws/'
 			
-				cb(vars, [schemaUrl])
+				cb(vars, [])//[schemaUrl])
 			})
 		},
 		getViewTags: function(viewName, params, vars, res, cb){
@@ -296,7 +248,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.baseTypeCode = viewCode;
 				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)
 				vars.applicationName = appName
-				vars.UrlPrefix = prefix
+				vars.UrlPrefix = secureLocal.host//prefix
 				
 				for(var i=0;i<paths.length;++i){
 					var p = paths[i];

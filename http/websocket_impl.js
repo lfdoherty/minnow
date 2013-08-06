@@ -54,7 +54,7 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 						console.log('got setup msg: ' + JSON.stringify(setupMsg))
 						authenticateByToken(setupMsg.token, function(err, t){
 							if(err){
-								log.warn('websocket client provided incorrect authentication info, closing socket: ' + err)
+								console.log('websocket client provided incorrect authentication info, closing socket: ' + err)
 								ws.close()
 								return
 							}

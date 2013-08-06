@@ -29,12 +29,13 @@ var WriteFlushInterval = 10
 
 var ReconnectPeriod = 1000*60//a client may reconnect within 1 minute
 
-function makeServer(appSchema, appMacros, dataDir, port, readyCb){
-	_.assertLength(arguments, 5);
+function makeServer(appSchema, appMacros, dataDir, port, config, loadedListeners, facades, readyCb){
+	_.assertLength(arguments, 8);
 	_.assertInt(port);
 	_.assertFunction(readyCb);
 	
-	server.make(appSchema, appMacros, dataDir, function(s){
+	server.make(appSchema, appMacros, dataDir, config, loadedListeners, facades, function(s){
+		
 		createTcpServer(appSchema, port, s, readyCb);
 	});
 }

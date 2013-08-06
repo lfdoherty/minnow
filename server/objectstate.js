@@ -781,6 +781,8 @@ exports.make = function(schema, ap, ol){
 	
 	var includeFunctions = {};
 	
+	var objectJsonConstructor = require('./json_constructor').make(schema)
+	
 	function emptyIncludeFunction(id, obj, addObjectCb, endCb){endCb();}
 
 	var indexing;
@@ -1069,15 +1071,23 @@ exports.make = function(schema, ap, ol){
 				return makeGetPropertyValueAtViaFilter(ol, makeDefaultValue, p, typeCode)
 			//}		
 		},
-		
-		getObjectState: function(id, cb){
-			_.assertLength(arguments, 2)
+		getObjectBuffer: function(id){//, cb){
+			return ol.getObjectState(id)
+		},
+		getObjectState: function(id){//, cb){
+			_.assertLength(arguments, 1)
+			//_.assertLength(arguments, 2)
 			//_.assertInt(startEditId)
 			//_.assertInt(endEditId)
 			//_.assertObject(already)
 			_.assert(id > 0)
 
-			ol.getObjectState(id, cb)
+			var edits = ol.getObjectEdits(id)//, cb)
+
+			var typeCode = ol.getObjectType(id)
+			
+			return objectJsonConstructor(typeCode, id, edits)
+			//_.errout('TODO')
 		},
 
 		streamObjectState: function(already, id, startEditId, endEditId, cb, endCb){

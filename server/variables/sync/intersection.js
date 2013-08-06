@@ -21,12 +21,21 @@ setInterval(function(){
 	console.log('intersections: ' + intersections)
 },1000)*/
 
-exports.compute2 = function(a,b){
+function compute2(a,b){
 	if(!a || !b) return []
 	if(a.length > b.length){
 		var t = b
 		b = a
 		a = t
+	}
+	
+	if(a.length === 0) return []
+	if(a.length === 1){
+		if(b.indexOf(a[0]) === -1){
+			return []
+		}else{
+			return a
+		}
 	}
 	
 	var ma = {}
@@ -42,9 +51,12 @@ exports.compute2 = function(a,b){
 		}
 	}
 	//console.log('intersection ' + JSON.stringify([a,b,result]))
-	//console.log('intersection of ' + JSON.stringify(_.map([a,b], function(p){return p.length})) + ' -> ' + result.length + ' (' + typeof(a[0]||b[0]) + ')')
+	
+	//console.log('*big intersection of ' + JSON.stringify(_.map([a,b], function(p){return p.length})) + ' -> ' + result.length + ' (' + typeof(a[0]||b[0]) + ')')
 	return result
 }
+
+exports.compute2 = compute2
 
 exports.compute3 = function(a,b,c){
 	return compute([a,b,c])
@@ -66,6 +78,8 @@ function compute(params){
 	}
 	
 	params.sort(function(a,b){return a.length - b.length})
+	
+	if(params[0].length === 0) return []
 
 	var ma = {}
 	var cur = params[0]
@@ -89,7 +103,8 @@ function compute(params){
 		}
 	}
 	//console.log(JSON.stringify([params,res]))
-	//console.log('intersection of ' + JSON.stringify(_.map(params, function(p){return p.length})) + ' -> ' + res.length + ' (' + typeof(params[0][0]||params[0][1]||params[0][2]) + ')')
+	
+	//console.log('big intersection of ' + JSON.stringify(_.map(params, function(p){return p.length})) + ' -> ' + res.length + ' (' + typeof(params[0][0]||params[0][1]||params[0][2]) + ')')
 	return res
 }
 

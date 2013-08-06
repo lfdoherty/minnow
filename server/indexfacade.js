@@ -23,7 +23,7 @@ exports.make = function(schema, propertyIndex){
 				var key = objSchema.code+':'+property.code
 				var existing = basic[key]
 				if(existing) return existing
-				return basic[key] = makePropertyIndex(objSchema, property, propertyIndex)
+				return basic[key] = makePropertyIndex(objSchema, property, propertyIndex, handle.makePropertyIndex, handle.makeReversePropertyIndex)
 			}
 		},
 		makeReversePropertyIndex: function(objSchema, property){
@@ -36,12 +36,12 @@ exports.make = function(schema, propertyIndex){
 				var key = objSchema.code+':-3'
 				var existing = reverse[key]
 				if(existing) return existing
-				return reverse[key] = makeCopySourceReverseIndex(objSchema, propertyIndex)				
+				return reverse[key] = makeCopySourceReverseIndex(objSchema, propertyIndex, handle.makePropertyIndex.bind(undefined, objSchema, -3))				
 			}else{
 				var key = objSchema.code+':'+property.code
 				var existing = reverse[key]
 				if(existing) return existing
-				return reverse[key] = makeReversePropertyIndex(objSchema, property, propertyIndex)
+				return reverse[key] = makeReversePropertyIndex(objSchema, property, propertyIndex, handle.makePropertyIndex, handle.makeReversePropertyIndex)
 			}
 		}
 	}
@@ -62,26 +62,25 @@ function makeUuidIndex(objSchema, propertyIndex){
 		getValueAt: function(bindings, id){//, editId){
 			_.assertLength(arguments, 2)
 			
-			var creationEditId = editIds[id]
+			/*var creationEditId = editIds[id]
 			if(creationEditId <= editId){
 				
 				var value = permanentCache[id]
 				return [value]
 			}else{
 				return []
-			}
-		}/*,
-		getValueChangesBetween: function(bindings, id, startEditId, endEditId){
-			_.assertLength(arguments, 4)
-			
-			var editId = editIds[id]
-			if(editId >= startEditId && editId <= endEditId){
-				var value = permanentCache[id]
-				return [{type: 'set', value: value, editId: editId}]
-			}else{
-				return []
-			}
-		}*/
+			}*/
+			var value = permanentCache[id]
+			return [value]
+		}
+	}
+
+	handle.reverse = function(){
+		_.errout('TODO')
+	}
+	handle.get = function(id){
+		var value = permanentCache[id]
+		return [value]
 	}
 	
 	return handle
@@ -101,26 +100,17 @@ function makeCopySourceIndex(objSchema, propertyIndex){
 		getValueAt: function(bindings, id){//, editId){
 			_.assertLength(arguments, 2)
 			
-			//var creationEditId = editIds[id]
-			//if(creationEditId <= editId){
-				
-				var value = permanentCache[id]
-				return [value]
-			//}else{
-			//	return []
-			//}
-		}/*,
-		getValueChangesBetween: function(bindings, id, startEditId, endEditId){
-			_.assertLength(arguments, 4)
-			
-			var editId = editIds[id]
-			if(editId >= startEditId && editId <= endEditId){
-				var value = permanentCache[id]
-				return [{type: 'set', value: value, editId: editId}]
-			}else{
-				return []
-			}
-		}*/
+			var value = permanentCache[id]
+			return value
+		},
+		get: function(id){
+			var value = permanentCache[id]
+			return value
+		}
+	}
+
+	handle.reverse = function(){
+		_.errout('TODO')
 	}
 	
 	return handle
@@ -141,20 +131,33 @@ function makeUuidReverseIndex(objSchema, propertyIndex){
 			
 			var id = permanentCache[key]
 			return [id]
+		},
+		get: function(key){
+			var id = permanentCache[key]
+			return [id]
 		}
+	}
+	
+	handle.reverse = function(){
+		_.errout('TODO')
 	}
 	
 	return handle
 }
 
-function makeCopySourceReverseIndex(objSchema, propertyIndex){
+function makeCopySourceReverseIndex(objSchema, propertyIndex, makeCopySourceIndex){
 	var permanentCache = {}
 	var editIds = {}
+	var listeners = []
 	propertyIndex.attachIndex(objSchema.code, -3, function(id, c){
 		//console.log('*got uuid change')
 		_.assertEqual(c.type, 'set')
 		permanentCache[c.value] = id
 		editIds[c.value] = c.editId
+		
+		for(var i=0;i<listeners.length;++i){
+			listeners[i](c.value)
+		}
 	})
 	
 	var handle = {
@@ -163,7 +166,19 @@ function makeCopySourceReverseIndex(objSchema, propertyIndex){
 			
 			var id = permanentCache[key]
 			return [id]
+		},
+		get: function(key){
+			var id = permanentCache[key]
+			return [id]
 		}
+	}
+	
+	handle.reverse = function(){
+		return makeCopySourceIndex()
+	}
+	
+	handle.listen = function(cb){
+		listeners.push(cb)
 	}
 	
 	return handle
@@ -182,7 +197,7 @@ function indexOfRawId(arr, id){
 	return -1
 }
 
-function makeSinglePropertyIndex(objSchema, property, propertyIndex){
+function makeSinglePropertyIndex(objSchema, property, propertyIndex, makeReversePropertyIndex){
 
 	var index = {}
 	
@@ -217,11 +232,18 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex){
 	
 	var handle = {}
 	
-	handle.getStateAt = function(){_.errout('TODO?')}
-	handle.getPartialStateAt = function(){_.errout('TODO?')}
+	//handle.getStateAt = function(){_.errout('TODO?')}
+	//handle.getPartialStateAt = function(){_.errout('TODO?')}
 	
 	handle.getValueAt = function(bindings, id){
 		return index[id]
+	}
+	handle.get = function(id){
+		return index[id]
+	}
+	
+	handle.reverse = function(){
+		return makeReversePropertyIndex(objSchema, property)
 	}
 	
 	handle.listen = function(listener){
@@ -232,11 +254,11 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex){
 }
 
 
-function makePropertyIndex(objSchema, property, propertyIndex){
-	_.assertLength(arguments, 3)
+function makePropertyIndex(objSchema, property, propertyIndex, makePropertyIndex, makeReversePropertyIndex){
+	_.assertLength(arguments, 5)
 
 	if(property.type.type === 'object' || property.type.type === 'primitive'){
-		return makeSinglePropertyIndex(objSchema, property, propertyIndex)
+		return makeSinglePropertyIndex(objSchema, property, propertyIndex, makeReversePropertyIndex)
 	}
 		
 	var permanentCache = {}
@@ -373,6 +395,12 @@ function makePropertyIndex(objSchema, property, propertyIndex){
 	handle.listen = function(listener){
 		listeners.push(listener)
 	}
+	handle.get = function(key){
+		return handle.getValueAt(undefined, key)
+	}
+	handle.reverse = function(){
+		return makeReversePropertyIndex(objSchema, property)
+	}
 	
 	return handle
 }
@@ -428,10 +456,84 @@ PrimitiveSet.prototype.getRaw = function(){
 	return this.list//[].concat(this.list)
 }
 
-function makeReversePropertyIndex(objSchema, property, propertyIndex){
+function makeSetReversePropertyIndex(objSchema, property, propertyIndex, makePropertyIndex){
+	
+	var keysAreBoolean = property.type.primitive === 'boolean'
+	
+	var stateCache = {}
+
+	var propertyCode = property.code
+	
+	propertyIndex.attachIndex(objSchema.code, propertyCode, function(id, c){
+		_.assertDefined(id)
+		if(c.type === 'add'){
+			var value = c.value
+			if(keysAreBoolean) value = !!value
+			var newSetValue = stateCache[value]
+			if(!newSetValue){
+				newSetValue = stateCache[value] = new PrimitiveSet()
+			}
+			newSetValue.add(id)
+			//console.log('added ' + value + ' ' + id)
+			updateListeners(value)//, id)
+		}else if(c.type === 'remove'){
+			var value = c.value
+			if(keysAreBoolean) value = !!value
+			var setValue = stateCache[value]
+			setValue.remove(id)
+			//console.log('removed ' + value + ' ' + id)
+			updateListeners(value)//, undefined)
+		}else{
+			_.errout('TODO: ' + c.type + ' ' + JSON.stringify(c))
+		}
+		
+	}, function(typeCode, id, editId){
+		
+	})
+	
+	var handle = {
+		getValueAt: function(bindings, key){
+			_.assertLength(arguments, 2)
+			_.assertObject(bindings)
+			
+			if(keysAreBoolean){key = !!key}
+			
+			var state = stateCache[key]
+			if(!state) return []
+			return state.getRaw()
+		}
+	}
+	handle.get = function(key){
+		if(keysAreBoolean){key = !!key}
+		
+		var state = stateCache[key]
+		if(!state) return []
+		return state.getRaw()
+	}
+	handle.reverse = function(){
+		return makePropertyIndex(objSchema, property)
+	}
+	
+	var listeners = []	
+	function updateListeners(key){//, value){
+		for(var i=0;i<listeners.length;++i){
+			listeners[i](key)//, value)
+		}
+	}
+	handle.listen = function(cb){
+		listeners.push(cb)
+	}
+	return handle
+}
+
+function makeReversePropertyIndex(objSchema, property, propertyIndex, makePropertyIndex){
 
 	if(property.type.type === 'set' || property.type.type === 'map' || property.type.type === 'list'){
-		_.errout('TODO')
+		return makeSetReversePropertyIndex(objSchema, property, propertyIndex, makePropertyIndex)
+	}
+
+	if(property.type.type === 'map'){
+		_.errout('TODO?')
 	}
 	
 	var keysAreBoolean = property.type.primitive === 'boolean'
@@ -442,6 +544,7 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 	function removeStateValue(key, value){
 		var oldSetValue = stateCache[key]
 		oldSetValue.remove(value)
+		updateListeners(key)//, oldSetValue.getRaw())
 	}
 	
 
@@ -493,6 +596,9 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 				}
 				//console.log(propertyCode + ' adding to ' + value + ' set: ' + id + ' old: ' + old)
 				newSetValue.add(id)
+				
+				updateListeners(value)//, newSetValue.getRaw())
+				
 				//if(propertyCode === 3) console.log('now: ' + value + ' is ' + JSON.stringify(stateCache))
 				currentValue[id] = c.value
 			}
@@ -510,6 +616,7 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 
 			newSetValue.add(id)
 
+			updateListeners(newValue)//, newSetValue.getRaw())
 
 			currentValue[id] = newValue
 			removeStateValue(old, id)
@@ -540,6 +647,8 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			}
 			//newSet.push({type: 'add', value: id, editId: editId})
 			newSetValue.add(id)
+
+			updateListeners('false')//, newSetValue.getRaw())
 			
 		}else{
 			//TODO?
@@ -560,7 +669,26 @@ function makeReversePropertyIndex(objSchema, property, propertyIndex){
 			
 		}
 	}
+	handle.get = function(key){
+		if(keysAreBoolean){key = !!key}
+		
+		var state = stateCache[key]
+		if(!state) return []
+		return state.getRaw()
+	}
+	handle.reverse = function(){
+		return makePropertyIndex(objSchema, property)
+	}
 	
+	var listeners = []	
+	function updateListeners(key){//, value){//, oldValue, newValue){
+		for(var i=0;i<listeners.length;++i){
+			listeners[i](key)//, value)//{, oldValue, newValue)
+		}
+	}
+	handle.listen = function(cb){
+		listeners.push(cb)
+	}
 	return handle
 }
 

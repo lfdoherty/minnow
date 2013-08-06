@@ -43,9 +43,9 @@ function getCookieToken(){
 
 if(WebSocket === undefined){
 	WebSocket = require('ws')
-	getCookieToken = function(){
-		return 'DUMMYTOKEN'
-	}
+	//getCookieToken = function(){
+	//	return 'DUMMYTOKEN'
+	//}
 }
 
 function openSocket(appName, host, cb, errCb, closeCb){
@@ -168,7 +168,7 @@ function openSocket(appName, host, cb, errCb, closeCb){
 			
 			var st = schema[type];
 
-			var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
+			var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api), temporary)
 
 			sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length})
 

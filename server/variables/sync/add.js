@@ -43,6 +43,10 @@ exports.compute = function(paramValues){
 	return v
 }
 
+exports.compute2 = function(a,b){
+	return( a||0) + (b||0)
+}
+
 exports.computeSync = function(z){
 	var paramValues = Array.prototype.slice.call(arguments, 1)
 	return exports.compute(paramValues)

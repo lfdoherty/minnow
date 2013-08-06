@@ -157,7 +157,13 @@ exports.make = function(schema, objectState, query){
 			return
 		}
 		
+		if(objectState.getLastVersion(id) <= oldEditId){
+			//diff.updated[id] = true
+			return
+		}
+		
 		//console.log('updating: ' + id)
+		//console.log(new Error().stack)
 		
 		diff.updated[id] = true
 		var edits = objectState.getObjectEdits(id)//, oldEditId)

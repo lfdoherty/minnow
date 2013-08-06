@@ -5,7 +5,7 @@ var _ = require('underscorem')
 
 var api = require('./../sync_api')
 var jsonutil = require('./../jsonutil')
-var topObject = require('./topobject')
+//var topObject = require('./topobject')
 
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
@@ -55,6 +55,9 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	
 	this.log = this.parent.log
 }
+
+console.log('set module.exports to ObjectHandle')
+module.exports = ObjectHandle
 
 ObjectHandle.prototype.asAt = function(editId){
 	//_.errout('TODO')
@@ -107,56 +110,6 @@ ObjectHandle.prototype.reify = function(id){
 }
 ObjectHandle.prototype.isDestroyed = function(){return false}
 
-ObjectHandle.prototype.prepare = function(){
-	if(this.prepared || !this.typeSchema) return;
-	
-	this.prepared = true;
-	var s = this;	
-
-	//apply edits
-	var edits = (this.edits||[]).concat(this.localEdits||[])
-	
-//	console.log('preparing: ' + JSON.stringify(edits))
-	
-	if(edits.length > 0){
-		var currentSyncId=-1
-		//this.log(this.objectId + ' preparing object with edits: ' + this.edits.length)
-		var local = this
-		
-		if(edits.length > 0){
-			topObject.maintainPath(local.getTopParent(), editCodes.selectObject, {id: this.objectId}, -1, -100, true)
-		
-			edits.forEach(function(e, index){
-				topObject.maintainPath(local.getTopParent(), e.op, e.edit, -1, index, true)
-			})
-		}
-		//local.path = undefined
-		//local.pathEdits = undefined
-		local.lastEditId = undefined
-	}
-	
-	//this.log('preparing object: ' + this.typeSchema.name + ' ' + JSON.stringify(this.typeSchema))
-	//_.each(this.typeSchema.properties, function(p, name){
-	var properties = this.typeSchema.properties
-	Object.keys(properties).forEach(function(name){
-		var p = properties[name]
-		if(p.type.type !== 'object' || s.hasProperty(name)){
-			if(s.isReadonlyAndEmpty){
-				//this.log('defining getter')
-				s.__defineGetter__(name, emptyReadonlyObjectProperty);
-			}else{
-				var v = s.property(name);
-				s[name] = v;
-				if(!v.prepare){
-					var temp = s.property(name)
-					console.log('not preparable('+name+'): '  + v + ' ' + JSON.stringify(Object.keys(v)) + ' ' + s.constructor.name)
-				}else{
-					v.prepare();
-				}
-			}
-		}
-	});
-}
 
 function getProperties(){
 	var local = this;
@@ -651,5 +604,58 @@ ObjectHandle.prototype.del = function(){
 	this.saveEdit(editCodes.destroy, {})
 }
 
-module.exports = ObjectHandle
+
+
+var topObject = require('./topobject')
+
+ObjectHandle.prototype.prepare = function(){
+	if(this.prepared || !this.typeSchema) return;
+	
+	this.prepared = true;
+	var s = this;	
+
+	//apply edits
+	var edits = (this.edits||[]).concat(this.localEdits||[])
+	
+//	console.log('preparing: ' + JSON.stringify(edits))
+	
+	if(edits.length > 0){
+		var currentSyncId=-1
+		//this.log(this.objectId + ' preparing object with edits: ' + this.edits.length)
+		var local = this
+		
+		if(edits.length > 0){
+			topObject.maintainPath(local.getTopParent(), editCodes.selectObject, {id: this.objectId}, -1, -100, true)
+		
+			edits.forEach(function(e, index){
+				topObject.maintainPath(local.getTopParent(), e.op, e.edit, -1, index, true)
+			})
+		}
+		//local.path = undefined
+		//local.pathEdits = undefined
+		local.lastEditId = undefined
+	}
+	
+	//this.log('preparing object: ' + this.typeSchema.name + ' ' + JSON.stringify(this.typeSchema))
+	//_.each(this.typeSchema.properties, function(p, name){
+	var properties = this.typeSchema.properties
+	Object.keys(properties).forEach(function(name){
+		var p = properties[name]
+		if(p.type.type !== 'object' || s.hasProperty(name)){
+			if(s.isReadonlyAndEmpty){
+				//this.log('defining getter')
+				s.__defineGetter__(name, emptyReadonlyObjectProperty);
+			}else{
+				var v = s.property(name);
+				s[name] = v;
+				if(!v.prepare){
+					var temp = s.property(name)
+					console.log('not preparable('+name+'): '  + v + ' ' + JSON.stringify(Object.keys(v)) + ' ' + s.constructor.name)
+				}else{
+					v.prepare();
+				}
+			}
+		}
+	});
+}
 

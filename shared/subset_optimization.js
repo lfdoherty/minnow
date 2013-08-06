@@ -264,13 +264,158 @@ function applySingleSubsetOptimization(r, inputExpr, implicit, macroPropertyExpr
 		code: r.code
 	}
 }
+
+function getAnyIndexes(r){
+	if(r.type === 'view'){
+		if(r.view === 'property'){// && r.params[1].name === param.name){
+			return [r]
+		}else{
+			//console.log(JSON.stringify(r))
+			var indexes = []
+			r.params.forEach(function(p,i){
+				indexes = indexes.concat(getAnyIndexes(p))
+			})
+			return indexes
+		}
+	}else if(r.type === 'param'){
+		return []
+	}else if(r.type === 'value' || r.type === 'int' || r.type === 'nil'){
+		return []
+	}else{
+		_.errout('TODO: ' + r.type )
+	}
+}
 function applyAndSubsetOptimization(r, inputExpr, implicit, macroPropertyExprs, externalParamExprs){
 	var comboParams = []
+	var wrapParams = []
+	
+	var implicitName = 'reduction_'+Math.random()
+	
 	externalParamExprs.forEach(function(epe, index){
 		var mpe = macroPropertyExprs[index]
 		
 		_.assertEqual(mpe.view, 'property')
 		//_.errout('TODO: ' + JSON.stringify(mpe))
+		
+		//TODO in 'not' and 'bool' cases wrap in reduction operators instead of intersecting
+		if(epe === 'not'){
+			/*wrapParams.push({
+				type: 'view', view: 'subset',
+				isReductionIndex: true,
+				params: [undefined,//will be replaced
+				{
+					type: 'macro',
+					expr: {
+						type: 'view',
+						view: 'not',
+						params: [{
+							type: 'view',
+							view: 'property',
+							params: [
+								mpe.params[0],
+								{type: 'param', name: implicitName, schemaType: mpe.params[1].schemaType}
+							],
+							schemaType: mpe.schemaType	
+						}],
+						schemaType: {type: 'primitive', primitive: 'boolean'}
+					},
+					implicits: [implicitName],
+					manyImplicits: 1
+				}	
+				],
+				schemaType: r.params[0].schemaType,
+				code: r.code
+			})*/
+			wrapParams.push({
+				
+					type: 'view',
+					view: 'not',
+					params: [{
+						type: 'view',
+						view: 'property',
+						params: [
+							mpe.params[0],
+							{type: 'param', name: implicitName, schemaType: mpe.params[1].schemaType}
+						],
+						schemaType: mpe.schemaType	
+					}],
+					schemaType: {type: 'primitive', primitive: 'boolean'}
+				//},
+			})
+			return
+		}else if(epe === 'bool'){
+			/*wrapParams.push({
+				type: 'view', view: 'subset',
+				isReductionIndex: true,
+				params: [undefined,//will be replaced
+				{
+					type: 'macro',
+					expr: {
+						type: 'view',
+						view: 'property',
+						params: [
+							mpe.params[0],
+							{type: 'param', name: implicitName, schemaType: mpe.params[1].schemaType}
+						],
+						schemaType: mpe.schemaType	
+					},
+					implicits: [implicitName],
+					manyImplicits: 1
+				}	
+				],
+				schemaType: r.params[0].schemaType,
+				code: r.code
+			})*/
+			wrapParams.push({
+				type: 'view',
+				view: 'property',
+				params: [
+					mpe.params[0],
+					{type: 'param', name: implicitName, schemaType: mpe.params[1].schemaType}
+				],
+				schemaType: mpe.schemaType	
+			})
+			return
+		}
+	})
+	
+	var reducingExpr
+	if(wrapParams.length > 0){
+		if(wrapParams.length === 1){
+			reducingExpr = wrapParams[0]
+		}else if(wrapParams.length > 1){
+			reducingExpr = {
+				type: 'view', view: 'and',
+				params: wrapParams,
+				schemaType: {type: 'primitive', primitive: 'boolean'}
+			}
+		}
+	}
+	
+	function applyReduction(expr){
+		if(!reducingExpr) return expr
+		
+		return {
+			type: 'view',
+			view: 'reducing-index',
+			params: [expr,
+				{
+					type: 'macro',
+					expr: reducingExpr,
+					name: implicitName,
+					implicits: [implicitName],
+					manyImplicits: 1,
+					schemaType: {type: 'primitive', primitive: 'boolean'}
+				}
+			].concat(getAnyIndexes(reducingExpr)),
+			schemaType: expr.schemaType
+		}
+	}
+
+	externalParamExprs.forEach(function(epe, index){
+		var mpe = macroPropertyExprs[index]
+		if(epe === 'not' || epe === 'bool') return
+		/*
 		if(epe === 'not'){
 			comboParams.push(
 				{type: 'view', view: 'mapValue', 
@@ -291,29 +436,69 @@ function applyAndSubsetOptimization(r, inputExpr, implicit, macroPropertyExprs, 
 					schemaType: r.params[0].schemaType
 				}
 			)
-		}else{
+		}else{*/
 			comboParams.push(
 				{type: 'view', view: 'mapValue', 
 					params: [
-						makeMultimap(r, inputExpr, implicit, mpe),
+						applyReduction(
+							makeMultimap(r, inputExpr, implicit, mpe)
+						),
 						epe
 					],
-					schemaType: r.params[0].schemaType
+					schemaType: r.params[0].schemaType,
+					code: r.code
 				}
 			)
-		}
+		//}
 	})
+	var combination
 	if(comboParams.length < 2){
-		console.log(JSON.stringify(r))
-		_.errout('cannot and less than 2 values')
+		//console.log(JSON.stringify(r))
+		//_.errout('cannot and less than 2 values: ' + comboParams.length)
+		if(comboParams.length === 1){
+			combination = comboParams[0] 
+		}else{
+			_.errout('cannot and less than 2 values: ' + comboParams.length)
+		}
+	}else{
+		combination = {
+			type: 'view', view: 'intersection', 
+			params: comboParams,
+			schemaType: r.schemaType,
+			code: r.code
+		}
 	}
-	var combination = {
-		type: 'view', view: 'intersection', 
-		params: comboParams,
-		schemaType: r.schemaType,
-		code: r.code
-	}
+	
+	//console.log(JSON.stringify(combination, null, 2))
+	
 	return combination
+		
+	/*if(comboParams.length > 1){
+		var cur = combination
+		wrapParams.forEach(function(wp){
+			wp.params[0] = cur
+			cur = wp
+		})
+		return cur
+	}else{
+	
+		var acceptExpr
+		if(wrapParams.length === 1){
+			acceptExpr = wrapParams[0]
+		}else if(wrapParams.length > 1){
+			acceptExpr = {
+				type: 'view', view: 'and',
+				params: wrapParams,
+				schemaType: {type: 'primitive', primitive: 'boolean'}
+			}
+		}
+	
+		return {
+		}
+	}*/
+		
+	//console.log(JSON.stringify(cur, null, 2))
+	//return cur
 }
 /*
 function makeSubsetOptimization(r, combinationMacro, externalParamExprs, mapExprs){

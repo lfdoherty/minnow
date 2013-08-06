@@ -50,8 +50,8 @@ function openUid(dataDir, cb){
 	})
 }
 
-exports.make = function(schema, globalMacros, dataDir, cb){
-	_.assertLength(arguments, 4);
+exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, facades, cb){
+	_.assertLength(arguments, 7);
 	
 	var serverUid;
 	
@@ -80,7 +80,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					serverUid = uid
 					log('got uid')
 					var objectState = require('./objectstate').make(schema, ap, ol);
-					viewSequencer.initialize(objectState)
+					viewSequencer.initialize(objectState, config)
 					//objectState.setIndexing(indexing)
 					load(ap, objectState, apClose, ol, viewSequencer);
 				})
@@ -107,7 +107,8 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 		
 		var handle = {
 			serverInstanceUid: function(){return serverUid;},
-
+			objectState: objectState,
+			schema: schema,
 			close: function(cb){
 				console.log('closing server...')
 				var cdl = _.latch(2, function(){
@@ -304,49 +305,14 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 					
 					var pointer = {got: false, edits: []}
 					sentBuffer.push(pointer)
-					/*objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
-						pointer.edits.push({id: objId, edits: objEditsBuffer})
-						//pointer.got = true
-						//advanceSentBuffer()
-					}, function(){
 						
-							//cb()
-							pointer.got = true
-							advanceSentBuffer()
-						})*/
-						
-					objectState.getObjectState(id, function(objEditsBuffer){
-						pointer.edits.push({id: id, edits: objEditsBuffer})
-						pointer.got = true
-						advanceSentBuffer()
-					})
+					var objEditsBuffer = objectState.getObjectBuffer(id)//, function(objEditsBuffer){
+					pointer.edits.push({id: id, edits: objEditsBuffer})
+					pointer.got = true
+					advanceSentBuffer()
+					//})
 					
-					/*_.assertFunction(cb)
-					_.assert(id >= 0)
-					if(alreadySent[id]){
-						//console.log('already sent: ' + id)
-						cb()
-						return;
-					}else{
-						_.assert(objectState.isTopLevelObject(id))
-						var pointer = {got: false, edits: []}
-						sentBuffer.push(pointer)
-						_.assertInt(id)
-						
-						//console.log('streaming versions: ' + id)
-						objectState.streamObjectState(alreadySent, id, -1, -1, function(objId, objEditsBuffer){
-						
-							_.assertBuffer(objEditsBuffer)
-							//console.log('here: ' + objId)
-							pointer.edits.push({id: objId, edits: objEditsBuffer})
-
-						}, function(){
-						
-							cb()
-							pointer.got = true
-							advanceSentBuffer()
-						})
-					}*/				
+				
 				}
 				function alreadyHasCb(id, editId){
 					alreadySent[id] = true
@@ -381,6 +347,7 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 							
 					if(sentBuffer.length > 0){
 						sentBuffer.push(e)
+						//console.log('sentBuffer: ' + sentBuffer.length)
 					}else{
 						sendEditUpdate(e)
 					}
@@ -508,6 +475,33 @@ exports.make = function(schema, globalMacros, dataDir, cb){
 			}
 		};
 		//console.log('cbing')
+		
+		//var objectState = s.objectState
+		facades.forEach(function(f){
+			f.eachOfType = function(type, cb){
+				//objectState.getAll
+				var typeCode = schema[type].code
+				var ids = objectState.getAllIdsOfType(typeCode)
+				for(var i=0;i<ids.length;++i){
+					var id = ids[i]
+					cb(id)
+				}
+				//_.errout('TODO')
+			}
+			f.getObjectState = function(id){
+				if(!id || id < 0) throw new Error('not a valid server-side id: ' + id)
+				return objectState.getObjectState(id)
+				//_.errout('TODO')
+			}
+			f.listenForEdits = function(typeName, cb){
+				//_.errout('TODO')
+				var typeCode = schema[typeName].code
+				ol.propertyIndex.attachObjectIndex(typeCode, cb)
+			}
+			
+		})
+		loadedListeners.forEach(function(cb){cb()})
+		
 		cb(handle);
 	}
 }

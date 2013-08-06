@@ -20,7 +20,10 @@ var oneToOneMultimapOptimization = require('./one_to_one_multimap_optimization')
 var oneListOneOptimization = require('./one_list_one_optimization').apply
 var genericOperatorIndexOptimization = require('./generic_operator_index').apply
 var branchingDeduplicator = require('./branching_deduplicator').apply
-
+var genericIndexChain = require('./generic_index_chain').apply
+var eachIndex = require('./each_index').apply
+var intersection2Index = require('./intersection2_index').apply
+var checkBindings = require('./check_bindings').apply
 //builtin stuff
 
 var reservedTypeNames = ['invariant', 'readonly', 'recursively_readonly', 'abstract', 'type', 'in', 
@@ -62,6 +65,7 @@ exports.addFunction = function(name, def){
 	}
 }
 var syncPlugins
+var indexPluginFunctions
 
 var sugar = {}
 exports.addSugar = function(name, def){
@@ -73,6 +77,9 @@ exports.getImplementation = function(name){
 	if(def === undefined){
 		def = syncPlugins[name]
 	}
+	if(def === undefined){
+		def = indexPluginFunctions[name]
+	}
 	if(def === undefined) throw new Error('unknown view: ' + name)
 	return def
 }
@@ -80,11 +87,12 @@ exports.getImplementation = function(name){
 
 var log = require('quicklog').make('minnow/schema')
 
-function loadViews(schemaDirs, str, schema, synchronousPlugins, disableOptimizations, cb){
+function loadViews(schemaDirs, str, schema, synchronousPlugins, indexPluginFunctions, disableOptimizations, cb){
 	_.assertArray(schemaDirs)
 	
+	
 	var view = myrtle.parse(str);
-	view = viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOptimizations);
+	view = viewMinnowize(schemaDirs, view, schema, synchronousPlugins, indexPluginFunctions, disableOptimizations);
 	
 	_.each(view, function(view, viewName){
 		if(view.schema){
@@ -173,42 +181,52 @@ function replaceReferencesToParams(expr, viewMap, bindings, implicits, leavePart
 			}
 		}
 
+		//console.log('processing: ' + expr.view)
 		
 		var newParams = []
 		expr.params.forEach(function(p, index){
 			_.assertDefined(p)
-			//if(p.name === 'tabUrl') console.log('replacing references for param: ' + JSON.stringify(p))
+			//console.log('replacing references for param: ' + JSON.stringify(p))
 			//console.log(new Error().stack)
 			try{
-				var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
+				var np = newParams[index] = replaceReferencesToParams(p, viewMap, bindings, implicits)//, !!gm)//!!gm because views aren't allowed to take macros (so we cannot leavePartials), but everything else we might call is
+				if(np !== p){
+					//console.log('replaced reference to param: ' + JSON.stringify(p) + ' -> ' + JSON.stringify(np))
+					//if(np.name === 11) _.errout('ignored?')
+				}
 				if(!gm) _.assert(np.type !== 'partial-application')
 			}catch(e){
 				//console.log('view: ' + expr.view + ' ' + JSON.stringify(Object.keys(bindings)))
 				throw e
 			}
 		})
+
+		//console.log('*processing: ' + expr.view)
 		
 		if(gm){
 			if(leavePartials){
-				//console.log('leaving partials: ' + JSON.stringify(newParams))
+				//console.log('leaving partials: ' + JSON.stringify(newParams) + '\n' + JSON.stringify(expr.params))
+				//expr.params = newParams
 				return expr
 			}
 			if(gm.type === 'global-macro'){
 				var newBindings = _.extend({}, bindings)//due to inlining we should include all bindings, not just the ones passed via the view call
 				gm.params.forEach(function(p, index){
 					newBindings[p.name] = newParams[index]
-					//console.log('bound ' + p.name)
+					//console.log('bound ' + p.name + ' to ' + JSON.stringify(newParams[index]) + ' ' + index)
 				})
+				//console.log('recursing into global macro: ' + gm.name + ' ' + JSON.stringify(newBindings))
 				try{
 					var res = replaceReferencesToParams(gm.expr, viewMap, newBindings, implicits)
 				}catch(e){
 					//console.log(JSON.stringify(expr) + '\n\t' + JSON.stringify(gm))
-					console.log(gm.name + ' params: ' + JSON.stringify(_.map(gm.params, function(v){return v.name;})))
+					//console.log(gm.name + ' params: ' + JSON.stringify(_.map(gm.params, function(v){return v.name;})))
 					throw e
 				}
 				if(expr.view === 'computeSnippetStates'){
 					//console.log('replacing: ' + JSON.stringify(newBindings))
 				}
+				//console.log('returning: ')
 				return res
 			}else if(gm.type === 'specialization'){
 				var concreteCases = []
@@ -511,12 +529,6 @@ function makeMergeTypes(schema){
 				var last
 				while(all.length > 1){
 					var sf = all[0]
-					//var sn = all[1]
-					/*if(sn.superTypes && sn.superTypes[sf.name]){
-						all.shift()
-					}else{
-						break;
-					}*/
 					var failed
 					for(var i=1;i<all.length;++i){
 						var sn = all[i]
@@ -538,8 +550,32 @@ function makeMergeTypes(schema){
 	return f
 }
 
-exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb){
-	_.assertLength(arguments, 4)
+function diffArrays(a,b,addCb,removeCb){
+	var has = {}
+	for(var i=0;i<a.length;++i){
+		var v = a[i]
+		has[v] = true
+	}
+	var hasB = {}
+	for(var i=0;i<b.length;++i){
+		var v = b[i]
+		if(!has[v]){
+			//changes.push({op: addOp, edit: {value: v}})
+			addCb(v)
+		}
+		hasB[v] = true
+	}
+	for(var i=0;i<a.length;++i){
+		var v = a[i]
+		if(!hasB[v]){
+			//changes.push({op: removeOp, edit: {value: v}})
+			removeCb(v)
+		}
+	}
+}
+
+exports.load = function(schemaDir, synchronousPlugins, indexPlugins, disableOptimizations, loadedListeners, facades, cb){
+	_.assertLength(arguments, 7)
 	_.assertFunction(cb)
 	//_.assertBoolean(disableOptimizations)
 	disableOptimizations = !!disableOptimizations
@@ -549,6 +585,72 @@ exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb)
 	var schema;
 	
 	//var mergeTypesFunction
+
+	//var loadedListeners = []
+	var indexes = []
+	//var facades = []
+	
+	indexPluginFunctions = {}
+	indexPlugins.forEach(function(index){
+
+		var functionListeners = {}
+		
+		var facade = {
+			onLoaded: function(listener){
+				loadedListeners.push(listener)
+			},
+			isa: function(typeName, obj){
+				if(typeName === obj.type || (schema[typeName].superTypes && schema[typeName].superTypes[obj.type])){
+					return true
+				}
+			},
+			diffArrays: diffArrays,
+			emitDirtyKey: function(functionName, key){
+				//TODO
+				var fl = functionListeners[functionName]
+				if(!fl) _.errout('unknown functionName: ' + functionName)
+				//console.log('dirtying key ' + functionName + ' ' + key + ' ' + fl.length)
+				for(var i=0;i<fl.length;++i){
+					fl[i](key)
+				}
+			}
+		}
+		facades.push(facade)
+		
+		var ind = index.make(facade)
+		indexes.push(ind)
+
+		index.functions.forEach(function(f){
+			var typeObj = keratin.parseType(f.type)
+			console.log('loaded index function ' + f.name + ' of type ' + f.type)
+			
+			var func = ind.functions[f.name].func
+			
+			var fl = functionListeners[f.name] = []
+			
+			func.index = {
+				listen: function(cb){
+					/*if(listeners.length === 0){
+						startListening()
+					}
+					listeners.push(cb)*/
+					console.log('listening ' + f.name)
+					fl.push(cb)
+				},
+				reverse: function(){
+					_.errout('TODO?')
+				}
+			}//ind.makeIndex(f)
+			
+			indexPluginFunctions[f.name] = {
+				schemaType: function(){return {schemaType: typeObj};},
+				minParams: f.arity,
+				maxParams: f.arity,
+				func: func,
+				isIndexFunction: true
+			}
+		})
+	})
 	
 	var osp = synchronousPlugins
 	synchronousPlugins = {}
@@ -587,6 +689,7 @@ exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb)
 			computeSync: plugin.computeSync
 		}
 		
+		sp.compute0 = plugin.compute0
 		sp.compute1 = plugin.compute1
 		sp.compute2 = plugin.compute2
 		sp.compute3 = plugin.compute3
@@ -648,7 +751,7 @@ exports.load = function(schemaDir, synchronousPlugins, disableOptimizations, cb)
 			}
 		});		
 
-		loadViews(schemaDirs, str, schema, synchronousPlugins, disableOptimizations, function(globalMacros){
+		loadViews(schemaDirs, str, schema, synchronousPlugins, indexPluginFunctions, disableOptimizations, function(globalMacros){
 			var takenObjectTypeCodes = {}
 			_.each(schema, function(st, name){
 				if(takenObjectTypeCodes[st.code]){
@@ -1068,8 +1171,8 @@ function computeMacroType(schema, computeType, viewMap, macroParam, bindingTypes
 	}
 	return valueType;
 }
-function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchronousPlugins){
-	_.assertLength(arguments, 7);
+function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchronousPlugins, indexPluginFunctions){
+	_.assertLength(arguments, 8);
 	_.assertArray(implicits)
 	_.assertObject(rel);
 
@@ -1077,7 +1180,7 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		_.assertDefined(relValue)
 		_.assertObject(bindingTypes)
 		_.assertArray(localImplicits)
-		return computeType(relValue, v, schema, viewMap, bindingTypes, localImplicits || implicits, synchronousPlugins)
+		return computeType(relValue, v, schema, viewMap, bindingTypes, localImplicits || implicits, synchronousPlugins, indexPluginFunctions)
 	}
 
 	//console.log('param: ' + JSON.stringify(rel))
@@ -1186,12 +1289,18 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		if(def === undefined){
 			def = synchronousPlugins[rel.view]
 		}
+
+		if(def === undefined){
+			def = indexPluginFunctions[rel.view]
+			rel.isIndex = true
+		}
 		
 		if(def === undefined){
 			log(JSON.stringify(Object.keys(schema)))
 			log(JSON.stringify(bindingTypes))
 			throw new Error('cannot find: ' + rel.view)
 		}
+		
 		
 		v = {}
 		
@@ -1204,15 +1313,14 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 		computeParamTypes(rel, bindingTypes, implicits, computeTypeWrapper)
 		
 		var mergeTypesFunction = makeMergeTypes(schema)
-		//_.each(osp, function(plugin){
-			def.mergeTypes = mergeTypesFunction
-		//})
+		def.mergeTypes = mergeTypesFunction
 		
 		var local = {
 			mergeTypes: mergeTypesFunction
 		}
 		//console.log('computing view: ' + rel.view)
 		var res = def.schemaType.bind(local)(rel, ch)
+				
 		rel.params.forEach(function(p){
 			if(p.type === 'macro' || p.type === 'partial-application'){//must be computed by def.schemaType
 				if(p.schemaType === undefined) throw new Error('def.schemaType ' + rel.view + ' did not compute macro schemaType')
@@ -1307,8 +1415,8 @@ function computeType(rel, v, schema, viewMap, bindingTypes, implicits, synchrono
 	}
 }
 
-function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
-	_.assertLength(arguments, 5)
+function makeViewSchema(v, schema, result, viewMap, synchronousPlugins, indexPluginFunctions){
+	_.assertLength(arguments, 6)
 	
 	result.superTypes = {readonly: true, recursively_readonly: true};
 	result.name = v.name
@@ -1329,7 +1437,7 @@ function makeViewSchema(v, schema, result, viewMap, synchronousPlugins){
 		var p = result.properties[name] = {};
 		p.name = name;
 		try{
-			p.type = computeType(rel, v, schema, viewMap, bindingTypes, [], synchronousPlugins);
+			p.type = computeType(rel, v, schema, viewMap, bindingTypes, [], synchronousPlugins, indexPluginFunctions);
 		}catch(e){
 			console.log('error: ' + e)
 			require('fs').createWriteStream('schema_error.log').write(JSON.stringify(rel, null, 2))
@@ -1375,8 +1483,8 @@ function parseParams(paramsStr){
 	});
 	return params
 }
-function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOptimizations){
-	_.assertLength(arguments, 5);
+function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, indexPluginFunctions, disableOptimizations){
+	_.assertLength(arguments, 6);
 	_.assertObject(schema);
 	_.assertArray(schemaDirs)
 	_.assertBoolean(disableOptimizations)
@@ -1485,7 +1593,8 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 	_.each(result, function(vn, name){
 		if(vn.schema){
 			//console.log('computing schema for ' + name)
-			makeViewSchema(vn, schema, vn.schema, result, synchronousPlugins);
+			//console.log(JSON.stringify(vn, null, 2))
+			makeViewSchema(vn, schema, vn.schema, result, synchronousPlugins, indexPluginFunctions);
 			vsStr += keratin.stringize(vn.schema, name, vn.code, function(t){
 				if(t.type === 'view'){
 					if(t.view === 'count'){
@@ -1526,8 +1635,33 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 		oneToOneMultimapOptimization(result, schema)
 		oneListOneOptimization(result, schema)
 
+		//genericOperatorIndexOptimization(result, schema)
+
+		globalizeOptimization(result)
+		globalizeOptimization(result)
+		globalizeOptimization(result)
+		globalizeOptimization(result)
+		globalizeOptimization(result)
+		globalizeOptimization(result)
+		globalizeOptimization(result)
+		globalizeOptimization(result)	
+
+		deduplicateLets(result)
+
+		subsetOptimization(result)
+/*
 		genericOperatorIndexOptimization(result, schema)
 		
+		
+		genericIndexChain(result, schema)
+		
+		eachIndex(result, schema)
+		genericOperatorIndexOptimization(result, schema)
+		
+		
+		intersection2Index(result, schema)
+		*/
+		checkBindings(result)
 	}
 	
 	function stringizeType(t){
@@ -1602,27 +1736,37 @@ function viewMinnowize(schemaDirs, view, schema, synchronousPlugins, disableOpti
 		return str
 	}
 	
+	var views = []
+	
 	var viewStr = ''
 	_.each(result, function(vn, name){
 		if(vn.schema){
-			//_.errout(JSON.stringify(vn))
-			viewStr += vn.name + '('
-			vn.params.forEach(function(p,index){
-				if(index > 0) viewStr += ', '
-				viewStr += p.name + ' ' + stringizeType(p.type)//JSON.stringify(p.type)
-			})
-			viewStr += ')'
-			viewStr += ' ' + vn.code + '\n'
-			Object.keys(vn.rels).forEach(function(relKey, index){
-				var rel = vn.rels[relKey]
-				viewStr += '\t:'+relKey+'\n'
-				viewStr += stringizeView(rel, 2, result)
-				viewStr += '\n'
-			})
-			viewStr += '\n\n';
+			views.push({v: vn, name: name})
 		}else{
 			//console.log('not computing schema for: ' + name)
 		}
+	})
+	views.sort(function(a,b){return a.name.localeCompare(b.name);})
+	
+	views.forEach(function(v){
+		var vn = v.v
+		var name = v.name
+		//_.errout(JSON.stringify(vn))
+		viewStr += vn.name + '('
+		vn.params.forEach(function(p,index){
+			if(index > 0) viewStr += ', '
+			viewStr += p.name + ' ' + stringizeType(p.type)//JSON.stringify(p.type)
+		})
+		viewStr += ')'
+		viewStr += ' ' + vn.code + '\n'
+		Object.keys(vn.rels).forEach(function(relKey, index){
+			var rel = vn.rels[relKey]
+			viewStr += '\t:'+relKey+'\n'
+			viewStr += stringizeView(rel, 2, result)
+			viewStr += '\n'
+		})
+		viewStr += '\n\n';
+		
 	});
 	fs.writeFile(schemaDirs[0] + '/view.generated', viewStr, 'utf8');
 	
