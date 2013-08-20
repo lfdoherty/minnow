@@ -79,7 +79,7 @@ global.gotSnapshot = function(snap){
 	
 	snaps.push(snap);
 	
-	console.log('received snap: ' + snap.id);
+	//console.log('received snap: ' + snap.id);
 	
 	tryLoad();
 }
@@ -99,7 +99,7 @@ global.gotSchema = function(s){
 //}
 
 function tryLoad(){
-	console.log((snapsRemaining.length === 0)+ ' '+ (schema !== undefined))
+	//console.log((snapsRemaining.length === 0)+ ' '+ (schema !== undefined))
 	if(snapsRemaining.length === 0 && schema !== undefined){
 		loadMinnowView();
 	}
@@ -143,12 +143,12 @@ var fullFunc
 var waitingFunc
 
 var host = page.params.WebsocketUrl//window.location.protocol + '//' + window.location.host + page.params.UrlPrefix+'/ws/'// + ':' + minnowSocketPort
-console.log('opening websocket... ' + Date.now())
+//console.log('opening websocket... ' + Date.now())
 var hasStarted = false
 function start(){
 	hasStarted = true
 	update.openSocket(page.params.applicationName, host, function(fullFuncParam){
-			console.log('socket opened: ' + Date.now())
+			//console.log('socket opened: ' + Date.now())
 			fullFunc = fullFuncParam
 			if(waitingFunc){
 				waitingFunc()
@@ -165,23 +165,23 @@ function start(){
 start()
 
 function loadMinnowView(){
-	console.log('got all snapshot parts, loading minnow');
+	//console.log('got all snapshot parts, loading minnow');
 	
 	snapshot = mergeSnapshots(snaps);
 	
-	console.log('version loaded: ' + snapshot.version);
-	console.log(page.params.baseTypeCode + ' ' + (JSON.stringify(Object.keys(schema._byCode))))
+	//console.log('version loaded: ' + snapshot.version);
+	//console.log(page.params.baseTypeCode + ' ' + (JSON.stringify(Object.keys(schema._byCode))))
 
 	var viewName = schema._byCode[page.params.baseTypeCode].name
 	
 	function finish(syncHandle){
-		console.log('beginning sync handle setup: ' + Date.now())
+		//console.log('beginning sync handle setup: ' + Date.now())
 		syncHandle._openViewWithSnapshots(page.params.baseTypeCode, snapshot.version, snaps, viewName, page.params.baseId, function(err, root){
 			if(err) _.errout('Error: ' + err)
 
 			getRoot = function(){return root;}
 		
-			console.log('got main view api: ' + Date.now())
+			//console.log('got main view api: ' + Date.now())
 			api = root
 	
 			tryBegin()

@@ -16,6 +16,7 @@ _.assertObject(editNames)
 function TopObjectHandle(schema, typeSchema, edits, parent, id){
 	_.assertInt(edits.length)
 	_.assertObject(parent)
+	_.assertArray(edits)
 	
 	if(id === -1) _.errout('invalid id: ' + id)
 	
@@ -546,7 +547,7 @@ function changeOnPath(local, op, edit, syncId, editId){
 		var pv = subj[property.name]//.cachedProperties[ps.name]
 		if(pv && pv.objectId === edit.id){
 			//already done
-			console.log('setObject redundant (local view object?), skipping: ' + pv.objectId + ' ' + edit.id)
+			//console.log('setObject redundant (local view object?), skipping: ' + pv.objectId + ' ' + edit.id)
 		}else{
 			//this.log('set to: ' + edit.id + ' ' + descentCode + ' ' + this.objectId + ' ' + ps.name)
 			var setObj = local.getObjectApi(edit.id)
@@ -666,13 +667,17 @@ TopObjectHandle.prototype._getVersionsSelf = function(source){
 	var edits = this.edits.concat(this.localEdits||[])
 
 	var madeIndex = getMadeIndex(edits, this)
+	
+	if(madeIndex === -1){
+		return []
+	}
 
 	var fakeObject = {}
 	var same = false
-	var versions = [this.edits[madeIndex].editId]
+	var versions = [edits[madeIndex].editId]
 	//console.log('looking over(' + source + '): ' + JSON.stringify(this.edits, null, 2))// + ' ' + path.length)
-	for(var i=0;i<this.edits.length;++i){
-		var e = this.edits[i]
+	for(var i=0;i<edits.length;++i){
+		var e = edits[i]
 		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
 		//console.log(JSON.stringify([same, versions, e]))
 		if(!did){
@@ -919,7 +924,7 @@ TopObjectHandle.prototype.getPath = function(){return [];}
 TopObjectHandle.prototype.type = function(){return this.typeSchema.name;}
 TopObjectHandle.prototype.isa = ObjectHandle.prototype.isa
 TopObjectHandle.prototype.id = function(){
-	if(this.objectId < 0) throw new Error('cannot get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the id becomes available.')
+	if(this.objectId < 0) console.log('WARNING: should not get id of locally-created object yet - you need to provide a callback to your make(...) call to be notified when the correct id becomes available.')
 	return this.objectId;
 }
 TopObjectHandle.prototype.getTopId = TopObjectHandle.prototype.id
@@ -1369,6 +1374,8 @@ TopObjectHandle.prototype.getImmediateObject = function(){
 TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId, isNotExternal, isCopyChange){
 	//console.log(JSON.stringify(arguments))
 	
+	if(this._destroyed) return
+	
 	if(!subObj) subObj = this.inputSubObject
 	_.assertEqual(subObj, this.inputSubObject)
 	if(!key) key = this.inputKey
@@ -1387,12 +1394,15 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	if(!this.prepared){
 		this.prepare()//TODO optimize by appending edit if not prepared, applying if prepared?
 	}
+	
+	if(this._destroyed) return
 
 	//console.log(this.getEditingId() + ': ' + this.objectId + ' got edit: ' + JSON.stringify([op, edit, syncId, editId, isNotExternal]))
 	
 	this.inputSyncId = syncId
 	
 	if(!isNotExternal || ownSyncId === syncId){
+		if(!this.edits)_.errout('no this.edits: ' + this.objectId + ' ' + this.constructor + ' '+ this._destroyed)
 		this.edits.push({op: op, edit: edit, editId: editId})
 		//console.log(this.objectId + ' pushing edit: ' + JSON.stringify({op: op, edit: edit, editId: editId}))
 		

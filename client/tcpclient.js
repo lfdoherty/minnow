@@ -117,12 +117,13 @@ function clearFlushFunction(f){
 }
 
 
-function make(host, port, defaultChangeListener, defaultObjectListener, defaultMakeListener, defaultReifyListener, readyCb){
-	_.assertLength(arguments, 7);
+function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultObjectListener,*/ defaultMakeListener, defaultReifyListener, readyCb){
+	_.assertLength(arguments, 6);
 	_.assertString(host)
 	_.assertInt(port);
-	_.assertFunction(defaultChangeListener)
-	_.assertFunction(defaultObjectListener)
+	//_.assertFunction(defaultChangeListener)
+	//_.assertFunction(defaultObjectListener)
+	_.assertFunction(defaultBlockListener)
 	_.assertFunction(defaultMakeListener)
 	_.assertFunction(defaultReifyListener)
 	_.assertFunction(readyCb);
@@ -165,6 +166,21 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 	
 	var wasClosedManually = false
 	
+	function readObject(buf){
+		var r = fparse.makeSingleReader(buf)
+		var many = r.readInt()
+		var edits = []
+		//console.log('many: ' + many)
+		for(var i=0;i<many;++i){
+			var op = r.readByte()
+			//console.log('op: ' + op)
+			var editId = r.readInt()
+			var edit = fp.readersByCode[op](r)
+			edits.push({op: op, edit: edit, editId: editId})
+		}
+		return edits
+	}
+	
 	var reader = {
 
 		setup: function(e){
@@ -181,14 +197,67 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			var cb = getRequestCallback(e);
 			syncListenersBySyncId[e.syncId] = syncListenersByRequestId[e.requestId]
 			//makeCbListenersBySyncId[e.syncId] = makeCbListenersByRequestId[e.requestId]
-			_.assertFunction(syncListenersBySyncId[e.syncId].edit)
-			_.assertFunction(syncListenersBySyncId[e.syncId].object)
+			//_.assertFunction(syncListenersBySyncId[e.syncId].edit)
+			//_.assertFunction(syncListenersBySyncId[e.syncId].object)
 			_.assertFunction(syncListenersBySyncId[e.syncId].make)
+			_.assertFunction(syncListenersBySyncId[e.syncId].block)
 			//_.assertFunction(syncListenersBySyncId[e.syncId].versionTimestamps)
 			delete syncListenersByRequestId[e.requestId]
 			cb(e.syncId);
 		},
-		update: function(e){
+		blockUpdate: function(e){
+		
+			//console.log('got block update for: ' + e.destinationSyncId)
+		
+			var cb = syncListenersBySyncId[e.destinationSyncId]
+			if(!cb){
+				console.log('ignored block for dead or missing sync listener: ' + e.destinationSyncId)
+				return
+			}
+			_.assertFunction(cb.block);
+			
+			var json = {
+				endEditId: e.endEditId
+			}
+			
+			var r = fparse.makeSingleReader(e.edits)
+			var many = r.readInt()
+			var edits = []
+			//console.log('many edits: ' + many)
+			for(var i=0;i<many;++i){
+				var editId = r.readInt()
+				var op = r.readByte()
+				var edit = fp.readersByCode[op](r)
+				edits.push({op: op, edit: edit, editId: editId})
+			}
+			json.edits = edits
+			
+			var r = fparse.makeSingleReader(e.objects)
+			var many = r.readInt()
+			var objects = []
+			//console.log('many objects: ' + many)
+			for(var i=0;i<many;++i){
+				var id = r.readInt()
+				var buf = r.readData()
+				objects.push({id: id, edits: readObject(buf)})
+			}
+			json.objects = objects
+			
+			var r = fparse.makeSingleReader(e.viewObjects)
+			var many = r.readInt()
+			var viewObjects = []
+			//console.log('many view objects: ' + many)
+			for(var i=0;i<many;++i){
+				var id = r.readVarString()
+				var buf = r.readData()
+				viewObjects.push({id: id, edits: readObject(buf)})
+			}
+			json.viewObjects = viewObjects
+			
+			cb.block(json)
+			//_.errout('TODO: ' + JSON.stringify(e))
+		},
+		/*update: function(e){
 			if(closed[e.destinationSyncId]){
 				return
 			}
@@ -251,7 +320,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			}
 			//log([e.id, edits])
 			cb.object(e.id, edits)
-		},
+		},*/
 		ready: function(e){
 			if(closed[e.syncId]){
 				return
@@ -431,8 +500,9 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			
 		defaultSyncHandle = makeSyncHandle(syncId, defaultMakeListener)
 		syncListenersBySyncId[syncId] = {
-			edit: defaultChangeListener, 
-			object: defaultObjectListener, 
+			//edit: defaultChangeListener, 
+			//object: defaultObjectListener, 
+			block: defaultBlockListener,
 			make: defaultMakeListener,
 			reify: defaultReifyListener}
 
@@ -583,10 +653,11 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 		},
 		//even though we provide a default sync handle, we include the ability to create them
 		//for the purposes of proxying.
-		beginSync: function(listenerCb, objectCb, makeCb, reifyCb, cb){
-			_.assertLength(arguments, 5)
-			_.assertFunction(listenerCb)
-			_.assertFunction(objectCb)
+		beginSync: function(blockCb/*listenerCb, objectCb*/, makeCb, reifyCb, cb){
+			_.assertLength(arguments, 4)
+			//_.assertFunction(listenerCb)
+			//_.assertFunction(objectCb)
+			_.assertFunction(blockCb)
 			_.assertFunction(makeCb)
 			_.assertFunction(reifyCb)
 			_.assertFunction(cb);
@@ -596,7 +667,7 @@ function make(host, port, defaultChangeListener, defaultObjectListener, defaultM
 			log('BEGAN SYNC CLIENT')
 
 			w.beginSync(e);
-			syncListenersByRequestId[e.requestId] = {edit: listenerCb, object: objectCb, make: makeCb, reify: reifyCb}
+			syncListenersByRequestId[e.requestId] = {block: blockCb,/*edit: listenerCb, object: objectCb, */make: makeCb, reify: reifyCb}
 			
 			
 		},

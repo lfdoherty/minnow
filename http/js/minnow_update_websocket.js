@@ -57,12 +57,12 @@ function openSocket(appName, host, cb, errCb, closeCb){
 
 	var wsHost = 'ws'+host.substr(4)
 	var url = wsHost
-	console.log('url: ' + url)
+	//console.log('url: ' + url)
 	var ws = new WebSocket(url);
 	
 	ws.onopen = function() {
 
-		console.log('websocket connection opened: ' + Date.now())
+		//console.log('websocket connection opened: ' + Date.now())
 		ws.send(JSON.stringify({token: getCookieToken(), url: document.location.href}))
 		cb(establishSocketFully)
 	}
@@ -153,7 +153,7 @@ function openSocket(appName, host, cb, errCb, closeCb){
 			var uid = Math.random()+''
 			viewsBeingSetup[uid] = cb
 			e.uid = uid
-			//console.log(syncId + ' sent setup message for uid: ' + uid)
+			//console.log(syncId + ' sent setup message for uid: ' + uid + ' ' + JSON.stringify(e))
 			send(e)
 		},
 		persistEdit: function(op, edit){
@@ -250,7 +250,12 @@ function openSocket(appName, host, cb, errCb, closeCb){
 				delete makeIdCbListeners[temporary]
 				cb(id)
 			}
+		}else if(data[0] === 'block'){
+			api.blockUpdate(data[1])
+		}else if(data.type){
+			throw JSON.stringify(data)
 		}else{
+			//console.log('type: ' + data[0])
 			api.objectListener(data[1], data[2]);
 		}
 	})

@@ -21,7 +21,7 @@ exports.getSpecificView = function(config, done){
 		})
 	})
 }
-
+/*
 exports.getSpecificViewWithTemporaryErrors = function(config, done){
 	minnow.makeServer(config, function(s){
 		minnow.makeClient(config.port, function(c){
@@ -37,7 +37,7 @@ exports.getSpecificViewWithTemporaryErrors = function(config, done){
 	})
 }
 
-
+*/
 exports.changeObjectGotten = function(config, done){
 	minnow.makeServer(config, function(s){
 		minnow.makeClient(config.port, function(c){

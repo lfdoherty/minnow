@@ -54,6 +54,7 @@ exports.make = function(){
 		},
 		get: function(id){
 			var arr = index[id]||[]
+			//console.log('foreign ' + id + ' -> ' + JSON.stringify(arr))
 			return [].concat(arr)
 		}
 	}

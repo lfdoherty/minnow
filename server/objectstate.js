@@ -158,15 +158,15 @@ function advanceStateAndReportChange(objId, prop, changeReport, e, lastKey, subO
 			}
 		}else if(op === editCodes.unshiftExisting){
 			if(prop.indexOf(e.edit.id) === -1){
+				changeReport({type: 'unshift', value: e.edit.id, editId: e.editId, syncId: syncId})
 				prop.unshift(e.edit.id)
 			}
 		}else if(op === editCodes.unshiftedNew){
 			var innerId = innerify(objId, e.edit.id)
 			if(!hasInnerId(prop, innerId)){//prop.indexOf(e.edit.id) === -1){
 				//prop.push(e.edit.id)
-				//prop.unshift(innerId)
 				changeReport({type: 'unshift', value: e.edit.id, editId: e.editId, syncId: syncId})
-
+				prop.unshift(innerId)
 			}
 		}else if(op === editCodes.addAfter){
 			if(prop.indexOf(e.edit.id) === -1){

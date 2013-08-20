@@ -221,7 +221,7 @@ function make(schema, ol){
 		}
 		
 		if(currentSyncId !== syncId){
-			console.log('setting syncId ' + currentSyncId + ' -> ' + syncId)
+			//console.log('setting syncId ' + currentSyncId + ' -> ' + syncId)
 			ap.setSyncId({syncId: syncId})
 			currentSyncId = syncId
 		}

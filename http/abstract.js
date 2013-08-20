@@ -35,21 +35,25 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 		var theSyncId;
 		var sh
 		
-		function listenerCb(e){
+		/*function listenerCb(e){
 			syncListener(sh, e)
 		}
 		function objectCb(id, edits){
 			_.assertLength(arguments, 2)
 
 			objectListener(sh, id, edits)
+		}*/
+		function blockCb(e){
+			blockListener(sh, e)
 		}
+		
 		function reifyCb(temporary, id){
 			_.assert(temporary < 0)
 			_.assert(id > 0)
 			sh.msgs.push(['reify', id, temporary])
 		}
 
-		minnowClient.beginSync(listenerCb, objectCb, reifyCb, reifyCb, function(syncId, syncHandle){
+		minnowClient.beginSync(blockCb,/*listenerCb, objectCb,*/ reifyCb, reifyCb, function(syncId, syncHandle){
 			theSyncId = syncId
 
 			sh = syncHandles[syncId] = syncHandle
@@ -80,8 +84,14 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			})
 		},5000)
 	}
+	
+	function blockListener(sh, e){
+		_.assertLength(arguments, 2);
+		var msg = ['block', e];
+		sh.msgs.push(msg)
+	}
 
-	function objectListener(sh, id, edits){
+	/*function objectListener(sh, id, edits){
 		_.assertLength(arguments, 3);
 		
 		_.assertArray(edits)
@@ -97,7 +107,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 		var msg = ['edit', e.op, e.edit, e.editId];
 
 		sh.msgs.push(msg)
-	}
+	}*/
 
 	impl.receiveUpdates(function(userToken, syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb){
 	
@@ -126,7 +136,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			if(securitySetting === undefined){
 				log('security policy denied access to view (view is not accessible via HTTP): ' + viewName);
 				console.log('WARNING: security policy denied access to view (view is not accessible via HTTP - longpoll): ' + viewName);
-				securityFailureCb()
+				securityFailureCb(msg.viewName)
 				failed = true
 				return
 			}
@@ -137,7 +147,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 				if(!passed){
 					log('security policy denied access to view: ' + viewName);
 					console.log('WARNING: security policy denied access to view: ' + viewName);
-					securityFailureCb()
+					securityFailureCb(msg.viewName)
 					failed = true
 					return
 				}

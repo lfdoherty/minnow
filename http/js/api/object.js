@@ -14,6 +14,8 @@ var editNames = lookup.names
 function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty){
 	//_.assertFunction(parent.adjustPath)
 	
+	//_.assertDefined(edits)
+	
 	_.assert(objId !== 0)
 	_.assertNot(objId !== -1 && parent.isView())
 	//_.assertObject(typeSchema)

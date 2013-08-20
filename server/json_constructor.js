@@ -19,7 +19,8 @@ exports.make = function(schema){
 			var state = {obj: obj, top: obj, id: id, objects: {}, objSchema: objSchema, objectTypes: {}}
 			state.objectTypes[typeCodeStr] = objSchema
 			for(var i=0;i<edits.length;++i){
-				processEdit(edits[i], obj, state, objSchema, schema)
+				var res = processEdit(edits[i], obj, state, objSchema, schema, edits)
+				if(res) break
 			}
 			
 			//if(obj.type === 'term') console.log('processing: ' + JSON.stringify(obj))
@@ -53,7 +54,7 @@ function indexOfRawId(arr, id){
 	return -1
 }
 
-function processEdit(e, obj, state, objSchema, schema){
+function processEdit(e, obj, state, objSchema, schema, edits){
 
 	function typeName(tc){
 		return schema._byCode[tc].name
@@ -67,6 +68,12 @@ function processEdit(e, obj, state, objSchema, schema){
 	if(editCode === editCodes.selectProperty){
 		//isProperty = edit.typeCode === propertyCode
 		state.property = edit.typeCode
+		
+		if(!state.objSchema){
+			console.log(JSON.stringify(edits))
+			console.log('ERROR: no objSchema')
+			return true
+		}
 		
 		if(!state.objSchema.propertiesByCode[state.property]){
 			_.errout('TODO: ' + JSON.stringify([state.objSchema.name, state.property, state.propertyName, obj, state.obj]))//[e, obj, state]))
@@ -87,6 +94,11 @@ function processEdit(e, obj, state, objSchema, schema){
 			state.obj = state.objects[edit.id] = {}
 		}
 		state.objSchema = state.objectTypes[edit.id]
+		if(!state.objSchema){
+			console.log(JSON.stringify(edits))
+			console.log('ERROR: no object type known for id: ' + edit.id + ' ' + JSON.stringify(e))
+			return true
+		}
 		
 	}else if(editCode === editCodes.clearObject){
 		//isObject = !id.inner

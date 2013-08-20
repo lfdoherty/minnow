@@ -209,7 +209,59 @@ function createTcpServer(appSchema, port, s, readyCb){
 	});
 }
 
+
 function makeClientFunc(s, appSchema, addConnection, removeConnection, getTemporaryGenerator, lastTemporaryId){
+
+	var writersByCode = fp.writersByCode
+
+	function serializeVO(obj){
+		var tw = fparse.makeSingleBufferWriter()
+		serializeViewObject(tw, fp.codes, fp.writersByCode, obj.edits)
+		return tw.finish()
+	}
+
+	function serializeEdits(diff){
+
+		var tw = fparse.makeSingleBufferWriter()
+		tw.putInt(diff.edits.length)
+		for(var i=0;i<diff.edits.length;++i){
+			var e = diff.edits[i]
+			tw.putInt(e.editId)
+			tw.putByte(e.op)
+			writersByCode[e.op](tw, e.edit)
+		}
+		//serializeViewObject(tw, fp.codes, fp.writersByCode, obj)
+		return tw.finish()
+
+		//_.errout('TODO: ' + JSON.stringify(diff.edits))
+	}
+	function serializeObjects(diff){
+		//_.errout('TODO')
+		
+		var tw = fparse.makeSingleBufferWriter()
+		tw.putInt(diff.addedObjects.length)
+		for(var i=0;i<diff.addedObjects.length;++i){
+			var obj = diff.addedObjects[i]
+			_.assertBuffer(obj.edits)
+			tw.putInt(obj.id)
+			tw.putBuffer(obj.edits)
+		}
+		//serializeViewObject(tw, fp.codes, fp.writersByCode, obj)
+		return tw.finish()
+	}
+	function serializeViewObjects(diff){
+		var tw = fparse.makeSingleBufferWriter()
+		tw.putInt(diff.addedViewObjects.length)
+		for(var i=0;i<diff.addedViewObjects.length;++i){
+			var obj = diff.addedViewObjects[i]
+			//console.log('serializing view object: ' + JSON.stringify(obj))
+			//_.assertBuffer(obj.edits)
+			_.assertString(obj.id)
+			tw.putString(obj.id)
+			tw.putBuffer(serializeVO(obj))
+		}
+		return tw.finish()
+	}
 
 	var writersToFlush = []
 	var flushHandle = setInterval(function(){
@@ -249,7 +301,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			var syncId = s.makeSyncId()
 		
 			var eHandle = {syncId: syncId}
-			var wrappedListenerCb = sendEditUpdate.bind(eHandle)
+			
+			/*var wrappedListenerCb = sendEditUpdate.bind(eHandle)
 			function wrappedObjCb(ob){
 				//console.log('sending: ' + JSON.stringify(ob).substr(0,100))
 				sendObject(syncId, ob)
@@ -268,9 +321,24 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 					destinationSyncId: syncId,
 				}
 				w.updateViewObject(ob);
+			}*/
+			
+			function blockChangesCb(diff){
+				//_.errout('tODO')
+				var binEdits = serializeEdits(diff)
+				var binObjects = serializeObjects(diff)
+				var binViewObjects = serializeViewObjects(diff)
+				
+				w.blockUpdate({
+					endEditId: diff.endEditId,
+					destinationSyncId: diff.destinationSyncId,
+					edits: binEdits,
+					objects: binObjects,
+					viewObjects: binViewObjects
+				})
 			}
 
-			s.beginSync(syncId, wrappedListenerCb, wrappedObjCb, viewObjectCb)
+			s.beginSync(syncId, blockChangesCb)//wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
 			var setupStr = '{"syncId": '+syncId+', "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
 			var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
@@ -331,7 +399,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			//these are the *incoming* edit's path state
 			var pathsFromClientById = {}//TODO these should be indexed by syncId as well as id
 		
-			function sendObject(syncId, ob){
+			/*function sendObject(syncId, ob){
 				if(!conn.w){//this means that the server has explicitly shut down this connection permanently (no possibility of reconnect)
 					_.errout('bad server shutdown: still receiving object updates')
 				}
@@ -340,7 +408,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				//console.log('sending object: ' + ob.id + ' ' + syncId)
 				ob.destinationSyncId = syncId
 				conn.w.updateObject(ob);
-			}
+			}*/
 
 			var nkw = fparse.makeTemporaryBufferWriter(1024*1024)
 			function binEdit(op, edit){
@@ -349,7 +417,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				return nkw.get()
 			}
 		
-			function sendEditUpdate(op, edit, editId){
+			/*function sendEditUpdate(op, edit, editId){
 				_.assertLength(arguments, 3)
 			
 				var destinationSyncId = this.syncId
@@ -378,7 +446,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				};
 
 				w.update(update);
-			}
+			}*/
 			function sendReady(e){
 				//_.assertArray(updatePacket)
 				//log('sending ready')
@@ -402,9 +470,10 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				wfs: wfs,
 				flushHandle: flushHandle,
 				sendReady: sendReady,
-				sendEditUpdate: sendEditUpdate,
-				viewObjectCb: viewObjectCb,
-				sendObject: sendObject,
+				//sendEditUpdate: sendEditUpdate,
+				//viewObjectCb: viewObjectCb,
+				//sendObject: sendObject,
+				blockChangesCb: blockChangesCb,
 				currentIdFor: {},
 				pathFromClientFor: {},
 				reifications: {},
@@ -430,15 +499,20 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				conn.openSyncIds.push(syncId)
 				//console.log('adding open syncId: ' + syncId)
 				var ne = {syncId: syncId}
-				var updater = conn.sendEditUpdate.bind(ne)
+				/*var updater = conn.sendEditUpdate.bind(ne)
 				function objectUpdater(ob){
 					conn.sendObject(syncId, ob)
 				}
 				function viewObjectUpdater(id, obj, syncId){
 					_.assertInt(syncId)
 					conn.viewObjectCb(id, obj, syncId)
+				}*/
+				
+				function blockChangesCb(e){
+					conn.blockChangesCb(e)
 				}
-				s.beginSync(syncId, updater, objectUpdater, viewObjectUpdater);
+				
+				s.beginSync(syncId, blockChangesCb)//updater, objectUpdater, viewObjectUpdater);
 				_.assert(e.requestId > 0)
 				var msg = {requestId: e.requestId, syncId: syncId}
 				conn.w.newSyncId(msg)

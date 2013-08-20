@@ -42,7 +42,7 @@ var log = require('quicklog').make('minnow/client')
 
 var historicalKeyCounter = 1
 
-function getView(dbSchema, cc, st, type, params, syncId, api, beginView, historicalKey, cb){
+function getView(dbSchema, cc, st, type, params, syncId, api, beginView, /*historicalKey,*/ cb){
 	_.assertInt(syncId)
 
 	_.assertFunction(cb)
@@ -57,7 +57,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 	_.assertInt(st.code);
 	//console.log(new Error().stack)
 	
-	cc.getSnapshots({typeCode: st.code, params: paramsStr, isHistorical: !!historicalKey}, function(err, res){
+	cc.getSnapshots({typeCode: st.code, params: paramsStr/*, isHistorical: !!historicalKey*/}, function(err, res){
 		if(err){
 			console.log('getView error: ' + err)
 			cb(err)
@@ -68,7 +68,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 		for(var i=0;i<snapshotIds.length;++i){
 			_.assertInt(snapshotIds[i]);
 		}
-		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds, isHistorical: !!historicalKey}, function(err, snapshotsRes){
+		cc.getAllSnapshots({typeCode: st.code, params: paramsStr, snapshotVersionIds: snapshotIds/*, isHistorical: !!historicalKey*/}, function(err, snapshotsRes){
 		
 			if(err){
 				console.log('getAllSnapshots error: ' + err)
@@ -99,7 +99,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 			snapshots.forEach(function(snapshot){
 				//log('snapshot: ' + JSON.stringify(snapshot).slice(0,500))
 				//process.exit(0)
-				api.addSnapshot(snapshot, historicalKey)
+				api.addSnapshot(snapshot)//, historicalKey)
 			})
 		
 			//var key = st.isView ? st.code+':'+JSON.stringify(params) : params;
@@ -113,10 +113,10 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, histori
 				//params: JSON.stringify(params), 
 				viewId: viewId,
 				latestSnapshotVersionId: snapshots[snapshots.length-1].endVersion,//snapshot.latestVersionId,
-				syncId: syncId,
-				isHistorical: !!historicalKey
+				syncId: syncId/*,
+				isHistorical: !!historicalKey*/
 			}
-			if(historicalKey) req.historicalKey = historicalKey
+			//if(historicalKey) req.historicalKey = historicalKey
 			//console.log('beginning view')
 			beginView(req, readyCb);
 
@@ -271,7 +271,7 @@ function makeClient(host, port, clientCb){
 	var rrr = Math.random()
 	//console.log('made client ' + rrr)
 	
-	function changeListenerWrapper(e){
+	/*function changeListenerWrapper(e){
 		_.assertLength(arguments, 1);
 		var op = e.op
 		var edit = e.edit
@@ -283,6 +283,19 @@ function makeClient(host, port, clientCb){
 		//console.log(JSON.stringify(e))
 		//console.log('client got object: ' + id)
 		api.objectListener(id, edits);
+	}*/
+	
+	function defaultBlockListener(e){
+	
+		
+	
+		//var edits = []
+		//var objects = []
+		//var viewObjects = []
+	
+		api.blockUpdate(e)
+	
+		//_.errout('TODO')
 	}
 	
 	var makeCbsWaiting = {}
@@ -380,7 +393,7 @@ function makeClient(host, port, clientCb){
 
 	var dbSchema
 	
-	tcpclient.make(host, port, changeListenerWrapper, objectListenerWrapper, defaultMakeListener, defaultReifyListener, function(serverHandle, syncId){
+	tcpclient.make(host, port, defaultBlockListener,/*changeListenerWrapper, objectListenerWrapper,*/ defaultMakeListener, defaultReifyListener, function(serverHandle, syncId){
 		_.assertInt(syncId)
 		
 		listeningSyncId = syncId
@@ -412,7 +425,7 @@ function makeClient(host, port, clientCb){
 			_.assertFunction(cb)
 			//console.log(uid + ' getting view ' + type + JSON.stringify(params))
 			//_.assert(errorListeners.length > 0)
-			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, historicalKey, function(err){
+			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, /*historicalKey,*/ function(err){
 				if(err){
 					if(cb.length === 1){
 						throw err
@@ -429,11 +442,11 @@ function makeClient(host, port, clientCb){
 				if(cb.length === 1){
 					cb(api.getView(viewId, historicalKey))
 				}else{*/
-				if(historicalKey){
+				/*if(historicalKey){
 					cb(undefined, api.getView(viewId, historicalKey))
-				}else{
-					cb(undefined, api.getView(viewId, historicalKey))
-				}
+				}else{*/
+					cb(undefined, api.getView(viewId))//, historicalKey))
+				//}
 				//}
 			})
 		},function(type, params, historicalKey){
@@ -452,10 +465,11 @@ function makeClient(host, port, clientCb){
 			schema: dbSchema,
 			//schemaName: dbName,
 			internalClient: cc,
-			beginSync: function(listenerCb, objectCb, makeCb, reifyCb, cb){
-				_.assertLength(arguments, 5)
-				_.assertFunction(listenerCb)
-				_.assertFunction(objectCb)
+			beginSync: function(blockCb/*listenerCb, objectCb*/, makeCb, reifyCb, cb){
+				_.assertLength(arguments, 4)
+				//_.assertFunction(listenerCb)
+				//_.assertFunction(objectCb)
+				_.assertFunction(blockCb)
 				_.assertFunction(makeCb)
 				_.assertFunction(reifyCb)
 				//_.assertFunction(versionTimestamps)
@@ -464,7 +478,7 @@ function makeClient(host, port, clientCb){
 					_.assert(temporary < 0)
 					makeCb(temporary, id)
 				}
-				cc.beginSync(listenerCb, objectCb, makeCbWrapper, reifyCb, function(syncId, syncHandle){
+				cc.beginSync(blockCb, makeCbWrapper, reifyCb, function(syncId, syncHandle){
 					_.assertLength(arguments, 2)
 					_.assertInt(syncId)
 					_.assertObject(syncHandle)
@@ -538,30 +552,7 @@ function makeClient(host, port, clientCb){
 				_.assertArray(params)
 				viewGetter(type, params, 0, st, syncId, syncHandle, cb)
 			},
-			/*historicalView: function(type, params, cb){
-				var st = dbSchema[type];
-				if(st === undefined){_.errout('unknown view: ' + type);}
-
-
-				_.assertNot(st.superTypes.abstract);
-				if(arguments.length === 2 && st.isView && st.viewSchema.params.length === 0){
-					cb = params;
-					params = [];
-
-				}else{
-					_.assertLength(arguments, 3)
-				}
-
-				_.assertFunction(cb)
-
-				params = translateParamObjects(st, params)
-				
-				var syncHandle = syncHandles[syncId]
-				_.assertObject(syncHandle)
-				_.assertArray(params)
-				var historicalKey = historicalKeyCounter++
-				viewGetter(type, params, historicalKey, st, syncId, syncHandle, cb)
-			},*/
+			
 			copy: function(id, json, cb){
 				_.assertString(type)
 				if(_.isFunction(json)){

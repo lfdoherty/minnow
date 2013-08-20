@@ -99,6 +99,8 @@ function serializeViewObjects(w, codes, writersByCode, viewObjectEditBuffers){
 }
 
 function serializeViewObject(w, codes, writersByCode, list){
+	_.assertArray(list)
+	
 	w.putInt(list.length)//number of edits
 	
 	for(var j=0;j<list.length;++j){

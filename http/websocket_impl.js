@@ -92,8 +92,8 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 					}
 				})
 
-				function securityFailureCb(){
-					ws.send(JSON.stringify([{type: 'security error', msg: 'tried to access non-accessible view'}]))
+				function securityFailureCb(viewName){
+					ws.send(JSON.stringify([{type: 'security error', msg: 'tried to access non-accessible view: ' + viewName}]))
 				}
 				function deadSyncIdCb(){
 					ws.send(JSON.stringify([{type: 'error', msg: 'sync id is dead or non-existent'}]))

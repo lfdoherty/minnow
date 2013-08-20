@@ -170,7 +170,10 @@ exports.make = function(schema, objectState, query){
 		var sinceEdits = []
 		//console.log(oldEditId + ' edits: ' + JSON.stringify(edits))
 		var syncId
-		edits.forEach(function(e){
+		
+		//edits.forEach(function(e){
+		for(var i=0;i<edits.length;++i){
+			var e = edits[i]
 			if(e.op === editCodes.setSyncId){
 				syncId = e.edit.syncId
 			}
@@ -179,7 +182,8 @@ exports.make = function(schema, objectState, query){
 				e.syncId = syncId
 				sinceEdits.push(e)
 			}
-		})
+		}
+		
 		if(sinceEdits.length > 0){
 			//console.log('updating object: ' + id + ' ' + oldEditId + ': ' + JSON.stringify(sinceEdits))
 			diff.edits.push({op: editCodes.selectTopObject, edit: {id: id}, syncId: -1, editId: sinceEdits[0].editId})
@@ -193,7 +197,7 @@ exports.make = function(schema, objectState, query){
 		diff.got[id] = true
 		diff.added[id] = true
 		_.assertInt(id)
-		var edits = objectState.getObjectEdits(id)
+		var edits = objectState.getObjectBinary(id)//objectState.getObjectEdits(id)
 		diff.addedObjects.push({id: id, edits: edits})
 		updateObjectReffed(id, diff, oldEditId)
 	}

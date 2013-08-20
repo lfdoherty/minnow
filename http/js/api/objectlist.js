@@ -101,7 +101,7 @@ ObjectListHandle.prototype.remove = function(objHandle){
 
 		this.emit(e, 'remove', objHandle)
 	}else{
-		_.errout('tried to remove object not in collection, id: ' + id);
+		console.log('WARNING: tried to remove object not in collection, id: ' + id);
 	}
 }
 
@@ -206,9 +206,9 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		var local = this
 		if(this.parent.isPreparing){
 		}else{
-			setTimeout(function(){//TODO fix this situation somehow - how do we delay emits here until following edits are done?
+			//setTimeout(function(){//TODO fix this situation somehow - how do we delay emits here until following edits are done?
 				local.emit(edit, 'add', res)
-			},10)
+			//},10)
 		}
 		return
 

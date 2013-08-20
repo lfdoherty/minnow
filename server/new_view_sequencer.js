@@ -144,11 +144,12 @@ function makeQueryHandle(syncId, viewCache){
 	
 	return {
 		got: alreadyGot,
-		moveTo: function(editId, changesCb, inclusionsCb, viewInclusionsCb, doneCb){
+		moveTo: function(editId, blockChangesCb/*changesCb, inclusionsCb, viewInclusionsCb,*/){
+			_.assertLength(arguments, 2)
 			
 			if(gotIds.length === 0 && addedViewObjects.length === 0 && editId === qhEditId){
 				//console.log(syncId + ' none: ' +  editId + ' ' + qhEditId)
-				doneCb()
+				blockChangesCb()
 			}else{
 
 				
@@ -177,6 +178,8 @@ function makeQueryHandle(syncId, viewCache){
 				
 				var diff = viewCache.update(addedObjects, addedViewObjects, gotObjectIds, gotViewObjectIds, qhEditId, alreadyGot, lastCache, newCache)
 				
+				diff.destinationSyncId = syncId
+				
 				lastCache = newCache
 
 				//console.log('diff: ' + qhEditId + ' -> ' + editId + ' for ' + syncId + ' ' + JSON.stringify([gotObjectIds,addedObjects]))
@@ -196,10 +199,10 @@ function makeQueryHandle(syncId, viewCache){
 				})
 				
 				if(diff.edits.length > 0 || diff.addedObjects.length > 0 || diff.addedViewObjects.length > 0){
-					changesCb(diff.edits)
-					diff.addedObjects.forEach(function(v){
+					/*diff.addedObjects.forEach(function(v){
 						_.assertInt(v.id)
 						//_.assertArray(v.edits)
+						console.log(syncId + ' added object: ' + v.id)
 						inclusionsCb(v.id, v.edits)//TODO use snap directly
 					})
 					diff.addedViewObjects.forEach(function(v){
@@ -207,6 +210,8 @@ function makeQueryHandle(syncId, viewCache){
 						_.assertArray(v.edits)
 						viewInclusionsCb(v.id, v.edits)//TODO use snap directly
 					})					
+					changesCb(diff.edits)*/
+					blockChangesCb(diff)
 				}
 				
 				addedViewObjects.forEach(function(avo){
@@ -217,7 +222,7 @@ function makeQueryHandle(syncId, viewCache){
 				
 				qhEditId = editId
 				
-				doneCb()
+				//doneCb()
 			}
 			
 		},
@@ -242,7 +247,7 @@ function makeQueryHandle(syncId, viewCache){
 		},
 		add: function(id, lastEditId, changesCb, inclusionsCb, doneCb){
 		
-			//console.log('adding: ' + id + ' at ' + lastEditId)
+			console.log(syncId + ' adding: ' + id + ' at ' + lastEditId)
 			
 			if(alreadyGot[id]){
 				doneCb();
@@ -497,7 +502,8 @@ exports.make = function(schema, ol){
 			}
 			viewCache = vcModule.make(schema, objectState, queryHandle)
 		},
-		makeStream: function(includeObjectCb, editCb, sendViewObjectCb, syncId){
+		makeStream: function(blockChangesCb, /*includeObjectCb, editCb, sendViewObjectCb, */syncId){
+			_.assertLength(arguments, 2)
 		
 			//console.log('making stream')
 	
@@ -554,6 +560,17 @@ exports.make = function(schema, ol){
 				//console.log('moving to: ' + endEditId + ' from ' + lastEditId)
 				var start = Date.now()
 				
+				queryHandle.moveTo(endEditId, function(diff){
+					if(diff){
+						diff.endEditId = endEditId
+						//_.errout('TODO')
+						blockChangesCb(diff)
+					}
+					
+	
+					//console.log('poll took: ' + (Date.now()-start))
+				})
+				/*
 				queryHandle.moveTo(endEditId, function(changes){
 					//console.log('moving')
 					edits = edits.concat(changes)
@@ -573,32 +590,12 @@ exports.make = function(schema, ol){
 					_.assertDefined(snap)
 					sendViewObjectCb(id, snap)
 				}, function(){
-					//console.log(endEditId + ' (' + objectState.getCurrentEditId() + ') moving done: ' + JSON.stringify(edits))
-					//console.log(''+editCb)
-
-					//edits.sort(function(a,b){return a.editId - b.editId;})
-					
-					
-					//TODO does this matter?
-					/*if(edits.length > 0){
-						var curEditId = edits[0].editId
-						edits.forEach(function(e){
-							if(e.editId > curEditId) curEditId = e.editId
-							if(curEditId > e.editId){
-								console.log(JSON.stringify(edits))
-								_.errout('ordering problem')
-							}
-						})
-					}*/
-
-					//console.log(endEditId + ' (' + objectState.getCurrentEditId() + ') moving done: ' + JSON.stringify(edits))
-					//console.log(editCb+'')
 					
 					edits.forEach(function(e){
 						editCb(e)
 					})
 					//rem.decrease(1)
-				})
+				})*/
 				
 				finish()
 

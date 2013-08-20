@@ -211,6 +211,8 @@ function establishSocket(appName, schema, host, cb, errCb){
 					delete makeIdCbListeners[temporary]
 					cb(id)
 				}
+			}else if(data[0] === 'block'){
+				api.blockUpdate(data[1])
 			}else{
 				api.objectListener(data[1], data[2]);
 			}

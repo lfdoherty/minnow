@@ -2,12 +2,7 @@
 setup 9
 	serverInstanceUid string 1
 	connectionId string 2//used for reconnecting by the client
-/*
-confirmReconnect 16
-	manyClientMessagesReceived int 1
 
-reconnectExpired 17
-*/
 newSyncId 8
 	requestId int 1
 	syncId int 2
@@ -16,7 +11,29 @@ newSyncId 8
 //note that 'ready' (and 'open') responses refer to the sync handle, not the client<->server connection in a global sense
 open 1
 	requestId int 1
-	
+
+blockUpdate 17
+	endEditId int 1
+	destinationSyncId int 2
+	edits binary 3//set:editUpdate 3
+	objects binary 4//set:objectUpdate 4
+	viewObjects binary 5//set:viewObjectUpdate 5
+/*
+editUpdate 21
+	editId int 3
+	op byte 1
+	edit binary 2
+
+objectUpdate 19
+	id int 1
+	edits binary 2
+
+viewObjectUpdate 20
+	id string 1
+	edits binary 2
+*/
+/*
+
 update 2
 	editId int 1
 	op byte 5
@@ -33,7 +50,7 @@ updateViewObject 14
 	edits binary 2
 	destinationSyncId int 3
 	//syncId int 4
-
+*/
 //comes after open (and possibly some updates), indicates that the sync handle is ready for use
 ready 3
 	requestId int 1
@@ -68,16 +85,10 @@ reifyObject 15
 	id int 1
 	temporary int 2
 	destinationSyncId int 3
-/*	
-gotVersionTimestamps 12
-	requestId int 1
-	timestamps binary 2
-	destinationSyncId int 4
-	*/
+
 requestError 13
 	err string 1
 	requestId int 2
 	code string 3
 
-/*increaseAck 12
-	frameCount int 1*/
+

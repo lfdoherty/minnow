@@ -162,7 +162,9 @@ PrimitiveListHandle.prototype.changeListener = function(subObj, key, op, edit, s
 		
 	if(lookup.isPrimitiveAddCode[op]){//op.indexOf('add') === 0){
 		if(this.getEditingId() !== syncId){
-			//this.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
+			//console.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
+			//if(this.obj.length > 0) _.errout('TODO')
+			//console.log(new Error().stack)
 			//console.log(JSON.stringify([op, edit, syncId, editId]))
 			_.assertPrimitive(edit.value)
 			_.assert(edit.value != null)

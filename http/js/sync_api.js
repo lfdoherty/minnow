@@ -587,35 +587,27 @@ SyncApi.prototype.objectListener = function(id, edits){
 		var obj = this.objectApiCache[id]
 		var curSyncId = -1
 
-		//var actual
+		if(obj._destroyed) return
+
 		var realEditsEditId = -1
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			if(e.op === editCodes.copied){
-				//actual = edits.slice(i)
 				realEditsEditId = e.editId
 				break
 			}
-		}
-		/*if(realEditsEditId){
-			actual = []
-			for(var i=0;i<edits.length;++i){
-				var e = edits[i]
-				if(e.editId > realEditsEditId){
-					actual.push(e)
-				}
-			}
-		}else{
-			actual = edits
-		}*/
+		}	
 		
+	//	console.log('reapplying ' + edits.length + ' edits')	
+
 
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
+			if(obj._destroyed) return
 			if(e.op === editCodes.setSyncId){
 				curSyncId = e.edit.syncId
 			}else{
-				//console.log(realEditsEditId + ' e; ' + JSON.stringify(e) + ' ' + curSyncId)
+				//console.log(realEditsEditId + ' e; ' + JSON.stringify(e) + ' ' + curSyncId + ' ' + edits.length + ' ' + i)
 				obj.changeListener(undefined, undefined, e.op, e.edit, curSyncId, e.editId, true, realEditsEditId > e.editId)
 			}
 		}
@@ -651,6 +643,8 @@ SyncApi.prototype.objectListener = function(id, edits){
 SyncApi.prototype.addSnapshot = function(snap, historicalKey){
 	var objs = snap.objects;
 	var local = this
+	
+	//console.log('adding snapshot: ' + JSON.stringify(snap))
 
 	Object.keys(objs).forEach(function(idStr){
 		var obj = objs[idStr]
@@ -756,7 +750,40 @@ SyncApi.prototype._destroyed = function(objHandle){
 	//this.currentTopObject = DESTROYED_LOCALLY
 }
 
+SyncApi.prototype.blockUpdate = function(e){
 
+	//console.log('got block update: ' + this.getEditingId())
+
+	//two passes - first we add new objects, then we update existing objects or whatever happens when we already have the object
+	var wasJust = {}
+	for(var i=0;i<e.objects.length;++i){
+		var obj = e.objects[i]
+		//console.log(this.getEditingId()+' obj: ' + JSON.stringify(obj))
+		if(!this.objectApiCache[obj.id]){
+			wasJust[obj.id] = true
+			this.objectListener(obj.id, [].concat(obj.edits))
+		}
+	}
+	for(var i=0;i<e.objects.length;++i){
+		var obj = e.objects[i]
+		if(!wasJust[obj.id] && this.objectApiCache[obj.id]){
+			this.objectListener(obj.id, [].concat(obj.edits))
+		}
+	}
+	
+	for(var i=0;i<e.viewObjects.length;++i){
+		var obj = e.viewObjects[i]
+		//console.log(this.getEditingId()+' view obj: ' + JSON.stringify(obj))
+		this.objectListener(obj.id, obj.edits)
+	}
+	
+	for(var i=0;i<e.edits.length;++i){
+		var edit = e.edits[i]
+		this.changeListener(edit.op, edit.edit, edit.editId)
+	}
+
+	//console.log('...got block update: ' + this.getEditingId())
+}
 
 SyncApi.prototype.changeListener = function(op, edit, editId){
 	_.assertLength(arguments, 3);
@@ -765,7 +792,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 	
 	//console.log(this.getEditingId()+' *** ' + editNames[op])
 
-	console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
+	//console.log(this.getEditingId()+' *** ' + editNames[op] + ': SyncApi changeListener: ' + JSON.stringify(edit) + ' ~ ' + this.currentSyncId + ' ~ ' + editId)
 
 	if(op === editCodes.destroy && this.currentSyncId === this.getEditingId()){
 		return
@@ -1087,7 +1114,8 @@ SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
 
 	if(obj === undefined){
 
-		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
+		var snapStr = JSON.stringify(this.snap)
+		console.log('snap: ' + snapStr.substr(0,5000) + '...\n\n...' + snapStr.substr(snapStr.length-5000))
 		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
 		console.log(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);
@@ -1191,7 +1219,8 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, historic
 
 	if(obj === undefined){
 
-		console.log('snap: ' + JSON.stringify(this.snap).slice(0,5000))
+		var snapStr = JSON.stringify(this.snap)
+		console.log('snap: ' + snapStr.substr(0,5000) + '...\n\n...' + snapStr.substr(snapStr.length-5000))
 		console.log('edits: ' + JSON.stringify(this.editsHappened, null, 2))
 		console.log('cache: ' + JSON.stringify(Object.keys(this.objectApiCache)))
 		console.log(this.editingId + ' no object in snapshot with id: ' + idOrViewKey);

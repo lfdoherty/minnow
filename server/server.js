@@ -195,18 +195,20 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					console.log(new Error().stack)
 				}
 			},
-			beginSync: function(syncId, listenerCb, objectCb, viewObjectCb){
+			beginSync: function(syncId, blockChangesCb){//listenerCb, objectCb, viewObjectCb){
+				_.assertLength(arguments, 2)
 				_.assertInt(syncId)
-				_.assertFunction(listenerCb)
-				_.assertFunction(objectCb)
-				_.assertFunction(viewObjectCb)
+				//_.assertFunction(listenerCb)
+				//_.assertFunction(objectCb)
+				//_.assertFunction(viewObjectCb)
+				_.assertFunction(blockChangesCb)
 				
 				var alreadySent = {}
 				
 				var currentSyncId
 				var currentResponseId
 				var curState = {}
-				function sendEditUpdate(up){
+				/*function sendEditUpdate(up){
 					if(up.syncId === undefined){
 						console.log('ERROR: no syncId: ' + JSON.stringify(up))
 						return
@@ -322,9 +324,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					
 					if(e.type) _.errout('wrong type of edit: ' + JSON.stringify(e))
 					
-					/*if(e.state && e.state.key){
-						_.assertInt(e.state.keyOp)
-					}*/
+					
 					
 					//console.log('got edit for object: ' + JSON.stringify(e))
 					
@@ -357,13 +357,91 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					//_.errout('TODO: ' + id + ' ' + JSON.stringify(edits))
 					//console.log('sending view object: ' + id)
 					viewObjectCb(id, edits, syncId)
+				}*/
+				
+				//function blockChangesCb(diff){
+					//_.errout('tODO')
+				//	
+				//}
+				
+				function maintainEditSequence(up, addEditCb){
+					if(currentSyncId !== up.syncId){
+						currentSyncId = up.syncId
+						addEditCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
+					}
+					
+					//_.assertUndefined(up.id)
+					if(up.state){
+						if(up.id) _.assertEqual(up.id, up.state.top)
+						up.id = up.state.top
+					}
+
+
+					if(up.id !== -1){
+
+						//console.log('currentResponseId: ' + currentResponseId + ' ' + up.id)
+						if(currentResponseId !== up.id){
+							if(_.isString(up.id)){
+								//console.log('selecting: ' + JSON.stringify(up.id))
+								addEditCb(editCodes.selectTopViewObject, {id: up.id}, up.editId)					
+								curState = {}
+							}else{
+								addEditCb(editCodes.selectTopObject, {id: up.id},  up.editId)					
+								//curPath = []
+							}
+						}
+						currentResponseId = up.id
+						
+						if(_.isString(up.id)){
+							
+							if(up.state === undefined) _.errout('no up.state: ' + JSON.stringify(up))
+							
+							_.assertObject(up.state)
+							var newState = up.state//[].concat(up.path)
+							//console.log('editing to match: ' + JSON.stringify(curState) + ' -> ' + JSON.stringify(newState))
+							pathmerger.editToMatch(curState, newState, function(op, edit){
+
+								addEditCb(op, edit, up.editId)					
+							})
+							curState = newState
+						}
+					}
+				}
+				
+				function blockChangesCbWrapper(e){
+				
+					//console.log('sending block to ' + e.destinationSyncId + ' ' + syncId)
+				
+					var res = {
+						destinationSyncId: e.destinationSyncId,
+						endEditId: e.endEditId,
+						addedObjects: e.addedObjects,
+						addedViewObjects: e.addedViewObjects
+					}
+					var newEdits = []
+					var i=0
+					function addEditCb(op, edit, editId){
+						newEdits.push({op: op, edit: edit, editId: editId})
+					}
+					for(;i<e.edits.length;++i){
+						var ed = e.edits[i]
+						maintainEditSequence(ed, addEditCb)
+						//console.log('edit: ' + JSON.stringify(ed))
+						newEdits.push(ed)
+					}
+					res.edits = newEdits
+					blockChangesCb(res)
+
+					//console.log('done sending block to ' + e.destinationSyncId + ' ' + syncId)
+
 				}
 
-				listenerCbs[syncId] = listenerCbWrapper
+				//listenerCbs[syncId] = listenerCbWrapper
+				listenerCbs[syncId] = blockChangesCb
 
 				//console.log('making sequencer')
-				var seq = viewSequencer.makeStream(includeObjectCb, listenerCbWrapper, sendViewObjectCb, syncId)
-				listenerCbWrapper.seq = seq
+				var seq = viewSequencer.makeStream(/*includeObjectCb, listenerCbWrapper, sendViewObjectCb*/blockChangesCbWrapper, syncId)
+				blockChangesCb.seq = seq
 
 				
 				return syncId
