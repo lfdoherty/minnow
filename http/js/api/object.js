@@ -78,7 +78,10 @@ ObjectHandle.prototype.asAt = function(editId){
 	var parent = this.getTopParent()
 	var copy = parent.asAt(editId)
 
-	if(!copy.objectApiCache) return
+	if(!copy.objectApiCache){
+		//_.errout('no cache, cannot construct copy of: ' + this.id())
+		return
+	}
 	
 	var ourCopy = copy.objectApiCache[this.objectId]
 	_.assertDefined(ourCopy)

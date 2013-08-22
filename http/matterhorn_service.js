@@ -249,6 +249,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)
 				vars.applicationName = appName
 				vars.UrlPrefix = secureLocal.host//prefix
+				vars.WebsocketUrl = ''+secureLocal.host+'/ws/'
 				
 				for(var i=0;i<paths.length;++i){
 					var p = paths[i];
