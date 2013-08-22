@@ -10,4 +10,7 @@ empty() 100
 general() 101
 	e one(subset(*entity,{not(~.state)})) 1
 	
+sourcing() 102
+	e one(subset(*entity,{~.copySource.state})) 1
+	
 

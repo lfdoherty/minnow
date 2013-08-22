@@ -41,7 +41,22 @@ function makePropertyRefer(p){
 		if(p.type.key.type === 'object'){
 			if(p.type.value.type === 'object'){
 				//TODO				
-				_.errout('TODO')
+				//_.errout('TODO')
+				return function(state, res){
+					if(state){
+						var keys = Object.keys(state)
+						//console.log('state: ' + JSON.stringify(state))
+						for(var i=0;i<keys.length;++i){
+							var k = keys[i]
+							k = parseInt(k)
+							_.assertInt(k)
+							res.objectIds.push(k)
+							var value = state[k]
+							_.assertInt(value)
+							res.objectIds.push(value)
+						}
+					}
+				}
 			}else if(p.type.value.type === 'view'){
 				return function(state, res){
 					if(state){

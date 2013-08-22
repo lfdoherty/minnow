@@ -108,7 +108,7 @@ exports.immediatePropertyFunction = function(){
 	if(this.parent.put || this.parent.each){
 		return this.parent.part
 	}else{
-		_.assertInt(this.part)
+		//_.assertInt(this.part)
 		return this.part
 	}
 }
