@@ -577,12 +577,14 @@ function changeOnPath(local, op, edit, syncId, editId){
 
 		var ps = subj.typeSchema.propertiesByCode[local.inputProperty];
 		
+		var chp = ch.property(ps.name)
+		
 		if(ps.type.type === 'set' || ps.type.type === 'list'){
-			subj[ps.name].obj = []
+			chp.obj = []
 		}else if(ps.type.type === 'map'){
-			subj[ps.name].obj = {}
+			chp.obj = {}
 		}else{
-			subj[ps.name].obj = undefined
+			chp.obj = undefined
 		}
 		//subj[ps.name] = undefined
 		//subj.obj[local.inputProperty] = undefined
