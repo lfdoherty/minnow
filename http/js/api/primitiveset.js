@@ -23,6 +23,10 @@ function PrimitiveSetHandle(typeSchema, obj, part, parent){
 	}
 }
 
+PrimitiveSetHandle.prototype.clear = function(){
+	this.parent.clearProperty(this.schema.name)
+}
+
 PrimitiveSetHandle.prototype.getName = function(){return this.schema.name;}
 
 PrimitiveSetHandle.prototype.getImmediateProperty = u.immediatePropertyFunction;

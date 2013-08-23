@@ -155,6 +155,11 @@ PrimitiveListHandle.prototype.each = function(cb, endCb){
 	this.obj.forEach(cb)
 	if(endCb) endCb();
 }
+
+PrimitiveListHandle.prototype.clear = function(){
+	this.parent.clearProperty(this.schema.name)
+}
+
 PrimitiveListHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, editId){
 	_.assertLength(arguments, 6);
 

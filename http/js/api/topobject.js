@@ -338,7 +338,14 @@ TopObjectHandle.prototype.replay = function(cb){
 				var prevProp = subjAt[p.name]
 				prev = prevProp.asAt(e.editId-1)
 			}*/
-			propertyIndex[pkey] = undefined
+			/*if(p.type.type === 'set' || p.type.type === 'list'){
+				propertyIndex[pkey] = []
+			}else if(p.type.type === 'map'){
+				propertyIndex[pkey] = {}
+			}else{*/
+				propertyIndex[pkey] = undefined
+			//}
+			
 			if(!prev){
 				console.log('WARNING: cannot find prev: ' + pkey + ' ' + JSON.stringify(Object.keys(propertyIndex)))//subjAt.toJson()) + ' ' + p.name)
 			}else{
@@ -569,7 +576,15 @@ function changeOnPath(local, op, edit, syncId, editId){
 		var subj = local.inputObject!==undefined?local.objectApiCache[local.inputObject]:local
 
 		var ps = subj.typeSchema.propertiesByCode[local.inputProperty];
-		subj[ps.name] = undefined
+		
+		if(ps.type.type === 'set' || ps.type.type === 'list'){
+			subj[ps.name].obj = []
+		}else if(ps.type.type === 'map'){
+			subj[ps.name].obj = {}
+		}else{
+			subj[ps.name].obj = undefined
+		}
+		//subj[ps.name] = undefined
 		//subj.obj[local.inputProperty] = undefined
 	}else{
 		
@@ -1684,11 +1699,26 @@ TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to pref
 	var fakeObject = {}
 
 	var edits = this.edits.concat(this.localEdits||[])
-	
-	var madeIndex = getMadeIndex(edits, this)
 
-	var versions = [edits[madeIndex].editId]
+	var versions
+	var madeIndex
+		
+	if(this.edits.length > 1 && this.edits[1].op === editCodes.copied){
+		
+		madeIndex = 1//this.edits[1].edit.following
+		versions = [this.edits[1].editId]
+		
+	}else if(this.edits.length > 0 && this.edits[0].op === editCodes.copied){
+		madeIndex = 0//this.edits[1].edit.following
+		versions = [this.edits[0].editId]
+	}else{
 	
+		madeIndex = getMadeIndex(edits, this)
+		versions = [edits[madeIndex].editId]
+	}
+	
+	//console.log('madeIndex: ' + madeIndex)
+	//console.log(JSON.stringify(this.edits, null, 2))
 
 	//console.log(JSON.stringify(this.edits, null, 2))
 	//console.log(JSON.stringify(edits))
@@ -1698,16 +1728,18 @@ TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to pref
 		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
 		if(e.op === editCodes.setSyncId) continue
 		if(skip > 0){
+			//console.log('skipping edit ' + editNames[e.op])
 			--skip
 			continue
 		}
+		//console.log('not skipping ' + editNames[e.op])
 		if(e.op === editCodes.made){
 			if(skip === 0){
 				skip = e.edit.following
 				//console.log('skipping ' + skip)
 			}
 		}else if(e.op === editCodes.copied){
-			skip = e.edit.following
+			skip = e.edit.following-1
 			//console.log('skipping ' + skip)
 		}
 		if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){

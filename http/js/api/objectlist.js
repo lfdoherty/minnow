@@ -136,6 +136,10 @@ ObjectListHandle.prototype.removeAt = function(index, many){
 	this.emit(e, 'remove', index)
 }*/
 
+ObjectListHandle.prototype.clear = function(){
+	this.parent.clearProperty(this.schema.name)
+}
+
 ObjectListHandle.prototype.has = function(desiredId){
 	_.assertLength(arguments, 1);
 	

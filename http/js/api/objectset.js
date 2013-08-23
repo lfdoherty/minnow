@@ -78,6 +78,10 @@ ObjectSetHandle.prototype.contains = function(desiredHandle){
 }
 ObjectSetHandle.prototype.has = ObjectSetHandle.prototype.contains
 
+ObjectSetHandle.prototype.clear = function(){
+	this.parent.clearProperty(this.schema.name)
+}
+
 ObjectSetHandle.prototype.get = function(desiredId){
 	_.assertLength(arguments, 1);
 	_.assertInt(desiredId)

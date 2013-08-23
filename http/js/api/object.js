@@ -294,7 +294,13 @@ ObjectHandle.prototype.clearProperty = function(propertyName){
 	var pt = this.typeSchema.properties[propertyName];
 	_.assertDefined(pt);
 	
-	this[propertyName] = undefined
+	if(pt.type.type === 'set' || pt.type.type === 'list'){
+		this[propertyName].obj = []
+	}else if(pt.type.type === 'map'){
+		this[propertyName].obj = {}
+	}else{
+		this[propertyName].obj = undefined
+	}
 	
 	//this.adjustPath(pt.code)
 	this.adjustTopObjectToOwn()

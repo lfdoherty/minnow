@@ -368,6 +368,10 @@ MapHandle.prototype.size = function(){
 }
 MapHandle.prototype.count = MapHandle.prototype.size
 
+MapHandle.prototype.clear = function(){
+	this.parent.clearProperty(this.schema.name)
+}
+
 MapHandle.prototype.toJson = function(){
 	var result = {};
 	if(this.schema.type.value.type === 'primitive'){
