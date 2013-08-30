@@ -37,7 +37,7 @@ selectSubViewObject 55
 	id string 1
 
 setSyncId 50
-	syncId int 1
+	syncId string 1
 selectObject 51
 	id int 1
 selectViewObject 52

@@ -7,6 +7,8 @@ var quicklog = require('quicklog')
 
 var log = quicklog.make('minnow/tcp.server')
 
+var random = require('seedrandom')
+
 var _ = require('underscorem')
 var shared = require('./tcp_shared');
 var bin = require('./../util/bin')
@@ -297,8 +299,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		
 		var rrk = fparse.makeRs()
 
-		function setupConnection(){
-			var syncId = s.makeSyncId()
+		function setupConnection(syncId){
+			_.assertString(syncId)
+			//var syncId = s.makeSyncId()
 		
 			var eHandle = {syncId: syncId}
 			
@@ -340,7 +343,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 
 			s.beginSync(syncId, blockChangesCb)//wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
-			var setupStr = '{"syncId": '+syncId+', "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
+			var setupStr = '{"syncId": "'+syncId+'", "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
 			var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
 			var setupBuffer = new Buffer(setupByteLength+8)
 			bin.writeInt(setupBuffer, 0, setupByteLength)
@@ -485,7 +488,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		
 		function reifyCb(temporary, id, syncId){
 			_.assert(temporary < 0)
-			_.assertInt(syncId)
+			_.assertString(syncId)
 			var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
 			conn.reifications[temporary] = id
 			//console.log('storing reification ' + temporary + ' -> ' + id)
@@ -495,7 +498,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		var reader = {
 			
 			beginSync: function(e){
-				var syncId = s.makeSyncId()
+				var syncId = e.syncId//s.makeSyncId()
+				_.assertString(syncId)
 				conn.openSyncIds.push(syncId)
 				//console.log('adding open syncId: ' + syncId)
 				var ne = {syncId: syncId}
@@ -513,9 +517,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				}
 				
 				s.beginSync(syncId, blockChangesCb)//updater, objectUpdater, viewObjectUpdater);
-				_.assert(e.requestId > 0)
-				var msg = {requestId: e.requestId, syncId: syncId}
-				conn.w.newSyncId(msg)
+				//_.assert(e.requestId > 0)
+				//var msg = {requestId: e.requestId, syncId: syncId}
+				//conn.w.newSyncId(msg)
 				conn.w.flush();
 			},
 			beginView: function(e){
@@ -821,8 +825,11 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes received: ' + totalBytesReceived)
 		})
 		
+		var theSyncId = random.uid()
+		
 		function beginConnectionSetup(){
-			conn = setupConnection()
+		
+			conn = setupConnection(theSyncId)
 
 			conn.deser = deser
 

@@ -80,7 +80,7 @@ function make(schema, ol){
 	function translateTemporary(temp, syncId){
 		//console.log('translating ' + temp + ' (' + syncId + ')')
 		_.assertInt(temp)
-		_.assertInt(syncId)
+		_.assertString(syncId)
 		_.assert(temp < -1)
 		//console.log('translating ' + temp + ' -> ' + real + ' (' + syncId + ')')
 		var real = temporaryIdsBySync[syncId].temporaryIds[temp];
@@ -89,7 +89,7 @@ function make(schema, ol){
 		return real;
 	}
 	function mapTemporary(temp, real, syncId, editId){
-		_.assertInt(syncId)
+		_.assertString(syncId)
 		_.assert(temp < -1)
 		var te = temporaryIdsBySync[syncId]
 		if(te === undefined){
@@ -154,7 +154,7 @@ function make(schema, ol){
 		//_.assertLength(arguments, 8);
 				
 		//_.assertInt(typeCode)
-		_.assertInt(syncId);
+		_.assertString(syncId);
 		_.assertObject(state)
 		_.assertFunction(computeTemporary)
 		_.assertNumber(timestamp)

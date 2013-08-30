@@ -16,6 +16,9 @@ var innerify = require('./innerId').innerify
 
 var bw = require("buffered-writer");
 
+var random = require('seedrandom')
+var QuerySyncId = random.uid()
+
 exports.viewIdStr = viewIdStr
 
 var vcModule = require('./viewfacade')
@@ -725,13 +728,14 @@ exports.make = function(schema, ol){
 	return handle
 }
 
+
 function computeStateEditsForViewObject(id, edits){
 	var oldState = {top: id}
 	var resultEdits = []
 	edits.forEach(function(e){
 		//if(e.op === editCodes.putLong) _.assertInt(e.state.property)
 		pathmerger.editToMatch(oldState, e.state, function(op, edit){
-			resultEdits.push({op: op, edit: edit, editId: e.editId, syncId: -1})
+			resultEdits.push({op: op, edit: edit, editId: e.editId, syncId: QuerySyncId})
 		})
 		resultEdits.push(e)
 		oldState = e.state

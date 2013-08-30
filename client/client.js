@@ -11,6 +11,8 @@ console.log = function(msg){
 }
 */
 
+var random = require('seedrandom')
+
 var _ = require('underscorem');
 
 var schema = require('./../shared/schema');
@@ -43,7 +45,7 @@ var log = require('quicklog').make('minnow/client')
 var historicalKeyCounter = 1
 
 function getView(dbSchema, cc, st, type, params, syncId, api, beginView, /*historicalKey,*/ cb){
-	_.assertInt(syncId)
+	_.assertString(syncId)
 
 	_.assertFunction(cb)
 	var listeningSyncId = syncId
@@ -124,7 +126,7 @@ function getView(dbSchema, cc, st, type, params, syncId, api, beginView, /*histo
 	});
 }
 
-function getSnap(dbSchema, cc, st, type, params, cb){
+function getSnap(dbSchema, cc, st, type, params, changeListener, syncId, wrapper, cb){
 
 	_.assertFunction(cb)
 	
@@ -154,8 +156,10 @@ function getSnap(dbSchema, cc, st, type, params, cb){
 		}
 		
 		//TODO impl and use makeSnap
-		var api = syncApi.make(dbSchema, {}, log);
-		api.setEditingId(-2)
+		var api = syncApi.make(dbSchema, wrapper, log);
+		api.setEditingId(syncId)
+		
+		api.onEdit(changeListener)
 		
 		snapshots.forEach(function(snapshot){
 			api.addSnapshot(snapshot)
@@ -230,72 +234,31 @@ function makeClient(host, port, clientCb){
 
 		if(op === editCodes.make || op === editCodes.copy){// && !edit.forget){
 			_.errout('TODO')
-			//_.assertInt(temporaryId)
-			//_.assert(temporaryId < -1)
-			//makeCbsWaiting[requestId] = {temporary: temporaryId}
 		}
 	}
 	
 	wrapper.make = function(type, json, forget, cb, temporary){
-		//_.assertLength(arguments, 4)
 		_.assert(arguments.length >= 4)
 		_.assertString(type)
-		/*if(_.isFunction(json)){
-			cb = json
-			json = {}
-		}*/
-		return doMake(type, json, forget, cb, temporary)
+		return doMake(cc.getDefaultSyncHandle(), type, json, forget, cb, temporary)
 	}
 	
 	wrapper.copy = function(obj, json, forget, cb, temporary){
-		//_.assertLength(arguments, 4)
 		_.assert(arguments.length >= 4)
 		_.assertInt(obj.id())
-		/*if(_.isFunction(json)){
-			cb = json
-			json = {}
-		}*/
-		return doCopy(obj, json, forget, cb, temporary)
+		return doCopy(cc.getDefaultSyncHandle(), obj, json, forget, cb, temporary)
 	}
-/*	
-	wrapper.makeFork = function(obj, cb, temporary){
-		_.assertLength(arguments, 3)
-		return doFork(obj, cb)
-	}
-*/
+
 	wrapper.forgetLastTemporary = function(){
 		//_.errout('TODO');
 		cc.getDefaultSyncHandle().forgetLastTemporary(listeningSyncId)
 	}
 	
 	var rrr = Math.random()
-	//console.log('made client ' + rrr)
 	
-	/*function changeListenerWrapper(e){
-		_.assertLength(arguments, 1);
-		var op = e.op
-		var edit = e.edit
-		var editId = e.editId;
-		_.assertInt(op);
-		api.changeListener(op, edit, editId);
-	}
-	function objectListenerWrapper(id, edits){
-		//console.log(JSON.stringify(e))
-		//console.log('client got object: ' + id)
-		api.objectListener(id, edits);
-	}*/
 	
 	function defaultBlockListener(e){
-	
-		
-	
-		//var edits = []
-		//var objects = []
-		//var viewObjects = []
-	
 		api.blockUpdate(e)
-	
-		//_.errout('TODO')
 	}
 	
 	var makeCbsWaiting = {}
@@ -329,13 +292,12 @@ function makeClient(host, port, clientCb){
 		return api.makeTemporaryId()
 	}
 	
-	function doMake(type, json, forget, cb, temp){
+	function doMake(dsh, type, json, forget, cb, temp){
 		//_.errout('TODO')
 		var st = dbSchema[type];
 		//var temp = makeTemporary()
 		var edits = jsonutil.convertJsonToEdits(dbSchema, type, json, makeTemporary, temp)
 		
-		var dsh = cc.getDefaultSyncHandle()
 		var requestId = dsh.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length}, listeningSyncId)
 		if(cb){
 			_.assertInt(requestId)
@@ -357,7 +319,7 @@ function makeClient(host, port, clientCb){
 		return edits
 	}	
 	
-	function doCopy(obj, json, forget, cb, temp){
+	function doCopy(dsh, obj, json, forget, cb, temp){
 		//_.errout('TODO')
 		_.assertInt(obj.id())
 		///var st = dbSchema[type];
@@ -366,7 +328,7 @@ function makeClient(host, port, clientCb){
 		
 		var edits = jsonutil.convertJsonToEdits(dbSchema, obj.type(), json, makeTemporary, temp)
 		
-		var dsh = cc.getDefaultSyncHandle()
+		//var dsh = cc.getDefaultSyncHandle()
 		var typeCode = obj.getObjectTypeCode()
 		var following = edits.length+obj.edits.length+(obj.localEdits?obj.localEdits.length:0)
 		//console.log('doCopy following: ' + following + ' ' + edits.length + ' ' + obj.edits.length + ' ' + (obj.localEdits?obj.localEdits.length:0) + ' ' + 1)
@@ -393,9 +355,10 @@ function makeClient(host, port, clientCb){
 
 	var dbSchema
 	
-	tcpclient.make(host, port, defaultBlockListener,/*changeListenerWrapper, objectListenerWrapper,*/ defaultMakeListener, defaultReifyListener, function(serverHandle, syncId){
-		_.assertInt(syncId)
+	tcpclient.make(host, port, defaultBlockListener, defaultMakeListener, defaultReifyListener, function(serverHandle, syncId){
+		//_.assertInt(syncId)
 		
+		//var syncId = random.uid()
 		listeningSyncId = syncId
 		dbSchema = serverHandle.schema;
 	
@@ -416,8 +379,40 @@ function makeClient(host, port, clientCb){
 		
 		_.extend(wrapper, cc);
 		
-		function snapGetter(type, params, st, cb){
-			getSnap(dbSchema, cc, st, type, params, cb)
+		function snapGetter(snapSyncId, type, params, st, cb){
+		
+			var snapHandle = {
+				persistEdit: function(op, edit){//editCodes.copy, {sourceId: obj.id(), typeCode: typeCode, forget: forget, following: following}, listeningSyncId)
+					//TODO
+					//_.errout('tODO')
+					return cc.persistEditGeneric(op, edit, snapSyncId)
+				}
+			}
+			var snapWrapper = {
+			}
+			snapWrapper.make = function(type, json, forget, cb, temporary){
+				_.assert(arguments.length >= 4)
+				_.assertString(type)
+				if(cb) throw new Error('cannot cb after creation from a snap')
+				return doMake(snapHandle, type, json, forget, cb, temporary)
+			}
+
+			snapWrapper.copy = function(obj, json, forget, cb, temporary){
+				_.assert(arguments.length >= 4)
+				_.assertInt(obj.id())
+				if(cb) throw new Error('cannot cb after creation from a snap')
+				return doCopy(snapHandle, obj, json, forget, cb, temporary)
+			}
+			
+			snapWrapper.persistEdit = function(op, edit){
+				return snapHandle.persistEdit(op, edit)
+			}
+
+			snapWrapper.forgetLastTemporary = function(){
+				//_.errout('TODO');
+				snapHandle.forgetLastTemporary(listeningSyncId)
+			}
+			getSnap(dbSchema, cc, st, type, params, changeListener, snapSyncId, snapWrapper, cb)
 			//cb(undefined, api.getView(viewId, historicalKey))
 		}
 		
@@ -465,27 +460,27 @@ function makeClient(host, port, clientCb){
 			schema: dbSchema,
 			//schemaName: dbName,
 			internalClient: cc,
-			beginSync: function(blockCb/*listenerCb, objectCb*/, makeCb, reifyCb, cb){
-				_.assertLength(arguments, 4)
+			beginSync: function(syncId, blockCb, makeCb, reifyCb, cb){
+				_.assertLength(arguments, 5)
 				//_.assertFunction(listenerCb)
 				//_.assertFunction(objectCb)
 				_.assertFunction(blockCb)
 				_.assertFunction(makeCb)
 				_.assertFunction(reifyCb)
+				_.assertString(syncId)
 				//_.assertFunction(versionTimestamps)
 				_.assertFunction(cb)
 				function makeCbWrapper(id, requestId, temporary){
 					_.assert(temporary < 0)
 					makeCb(temporary, id)
 				}
-				cc.beginSync(blockCb, makeCbWrapper, reifyCb, function(syncId, syncHandle){
-					_.assertLength(arguments, 2)
-					_.assertInt(syncId)
+				cc.beginSync(syncId, blockCb, makeCbWrapper, reifyCb, function(syncHandle){
+					_.assertLength(arguments, 1)
 					_.assertObject(syncHandle)
 					
 					syncHandles[syncId] = syncHandle
 
-					cb(syncId, syncHandle)
+					cb(syncHandle)
 				})
 			},
 			serverInstanceUid: cc.serverInstanceUid,
@@ -524,8 +519,11 @@ function makeClient(host, port, clientCb){
 				
 				//var syncHandle = syncHandles[syncId]
 				//_.assertObject(syncHandle)
+				
+				var snapSyncId = random.uid()//-100//TODO
+				
 				_.assertArray(params)
-				snapGetter(type, params, st, cb)
+				snapGetter(snapSyncId, type, params, st, cb)
 			},
 			view: function(type, params, cb){
 	

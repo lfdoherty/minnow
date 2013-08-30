@@ -190,7 +190,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			//console.log('tcp client got setup')
 			readyCb(handle, syncId)
 		},
-		newSyncId: function(e){
+		/*newSyncId: function(e){
 			_.assertInt(e.requestId)
 			//console.log('set newSyncId listener =============================')
 			//console.log('got new syncId: ' + JSON.stringify(e))
@@ -204,14 +204,14 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			//_.assertFunction(syncListenersBySyncId[e.syncId].versionTimestamps)
 			delete syncListenersByRequestId[e.requestId]
 			cb(e.syncId);
-		},
+		},*/
 		blockUpdate: function(e){
 		
 			//console.log('got block update for: ' + e.destinationSyncId)
 		
 			var cb = syncListenersBySyncId[e.destinationSyncId]
 			if(!cb){
-				console.log('ignored block for dead or missing sync listener: ' + e.destinationSyncId)
+				console.log('ignored block for dead or missing sync listener: ' + e.destinationSyncId + ' ' + JSON.stringify(Object.keys(syncListenersBySyncId)))
 				return
 			}
 			_.assertFunction(cb.block);
@@ -421,6 +421,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		if(needed <= buf.length){
 			firstBufs.push(buf.slice(0, needed))
 			var schemaStr = mergeBuffers(firstBufs).toString('utf8')
+			//console.log('str: ' + schemaStr)
 			var all = JSON.parse(schemaStr)
 			syncId = all.syncId
 			setupBasedOnSchema(all.schema)
@@ -569,6 +570,46 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		return nkw.get()
 	}
 	
+	function persistEditGeneric(op, edit, sourceSyncId){
+		_.assertInt(op)
+		
+		var es = editNames[op]
+		
+		_.assertString(sourceSyncId)
+		_.assert(sourceSyncId.length > 0)
+		//console.log('persisting edit: ' + editNames[op])
+		
+		if(es === undefined) _.errout('unknown edit op: ' + op)
+		var editTypeCode = op//es.code
+		
+		var requestId
+		if((op === editCodes.make || op === editCodes.copy) && !edit.forget){
+			requestId = makeRequestId()
+		}
+		
+		backingWriter.forceBeginFrame()
+		
+		var bw = backingWriter.writer
+		bw.putByte(3)
+		bw.putInt(requestId)
+		bw.putByte(editTypeCode)
+		try{
+			bw.startLength()
+			fp.writersByCode[op](bw, edit)
+			bw.endLength()
+		}catch(e){
+			console.log(e)
+			console.log('invalid edit received and not sent to server: ' + JSON.stringify(e));
+			delete callbacks[e.requestId];
+			throw e
+		}
+		bw.putString(sourceSyncId)
+		
+		//if(bw.position > 4*1024) w.flush()
+		
+		return requestId
+	}
+	
 	function makeSyncHandle(syncId, makeCb){
 		_.assertFunction(makeCb)
 		
@@ -589,49 +630,18 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			endView: function(e){
 				w.endView(e);
 			},
-			persistEdit: function(op, edit, sourceSyncId){
-				_.assertInt(op)
-				
-				var es = editNames[op]
-				
-				//console.log('persisting edit: ' + editNames[op])
-				
-				if(es === undefined) _.errout('unknown edit op: ' + op)
-				var editTypeCode = op//es.code
-				
-				var requestId
-				if((op === editCodes.make || op === editCodes.copy) && !edit.forget){
-					requestId = makeRequestId()
-				}
-				
-				backingWriter.forceBeginFrame()
-				
-				var bw = backingWriter.writer
-				bw.putByte(3)
-				bw.putInt(requestId)
-				bw.putByte(editTypeCode)
-				try{
-					bw.startLength()
-					fp.writersByCode[op](bw, edit)
-					bw.endLength()
-				}catch(e){
-					console.log(e)
-					console.log('invalid edit received and not sent to server: ' + JSON.stringify(e));
-					delete callbacks[e.requestId];
-					throw e
-				}
-				bw.putInt(syncId)
-				
-				//if(bw.position > 4*1024) w.flush()
-				
-				return requestId
+			
+			persistEdit: function(op, edit){
+				return persistEditGeneric(op, edit, syncId)
 			},
+			
 			forgetLastTemporary: function(sourceSyncId){
-				_.assertInt(sourceSyncId)
+				_.assertString(sourceSyncId)
 				w.forgetLastTemporary({syncId: sourceSyncId})
 			},
 			close: function(){
 				//_.errout('TODO close sync handle')
+				console.log('closing sync handle: ' + syncId)
 				delete syncListenersBySyncId[syncId]
 				closed[syncId] = true
 				w.endSync({syncId: syncId})
@@ -640,9 +650,9 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		return handle;
 	}
 
-	function wrapper(cb, makeCb, syncId, syncHandle){
+	/*function wrapper(cb, makeCb, syncId, syncHandle){
 		cb(syncId, makeSyncHandle(syncId, makeCb))
-	}
+	}*/
 	
 	var handle = {
 		getDefaultSyncHandle: function(){
@@ -651,25 +661,30 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		serverInstanceUid: function(){
 			return serverInstanceUid;
 		},
+		persistEditGeneric: function(op, edit, sourceSyncId){
+			return persistEditGeneric(op, edit, sourceSyncId)
+		},
 		//even though we provide a default sync handle, we include the ability to create them
 		//for the purposes of proxying.
-		beginSync: function(blockCb/*listenerCb, objectCb*/, makeCb, reifyCb, cb){
-			_.assertLength(arguments, 4)
+		beginSync: function(syncId, blockCb, makeCb, reifyCb, cb){
+			_.assertLength(arguments, 5)
 			//_.assertFunction(listenerCb)
 			//_.assertFunction(objectCb)
 			_.assertFunction(blockCb)
 			_.assertFunction(makeCb)
 			_.assertFunction(reifyCb)
 			_.assertFunction(cb);
-			var e = {};
-			applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
+			_.assertString(syncId)
+			var e = {syncId: syncId};
+			//applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
 
 			log('BEGAN SYNC CLIENT')
 
 			w.beginSync(e);
-			syncListenersByRequestId[e.requestId] = {block: blockCb,/*edit: listenerCb, object: objectCb, */make: makeCb, reify: reifyCb}
+			/*syncListenersByRequestId[e.requestId]*/ 
+			syncListenersBySyncId[syncId] = {block: blockCb, make: makeCb, reify: reifyCb}
 			
-			
+			cb(makeSyncHandle(syncId, makeCb))
 		},
 		
 		getSnapshots: function(e, cb){

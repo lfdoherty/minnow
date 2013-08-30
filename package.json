@@ -1,6 +1,6 @@
 {
   "name": "minnow",
-  "version": "0.3.49",
+  "version": "0.3.50",
   "description": "An auto-syncing, in-memory-canonical relational database",
   "main": "./index",
   "repository": { 

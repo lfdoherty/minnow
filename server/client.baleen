@@ -1,13 +1,15 @@
+/**/
 
 beginSync 1
 	requestId int 1
-	
+	syncId string 2
+
 endSync 2
-	syncId int 1
+	syncId string 1
 
 beginView 7
 	requestId int 1
-	syncId int 5
+	syncId string 5
 	typeCode int 2
 	viewId string 3
 	latestSnapshotVersionId int 4
@@ -17,7 +19,7 @@ persistEdit 3
 	requestId int 1
 	op byte 2
 	edit binary 3
-	syncId int 4
+	syncId string 4
 
 getSnapshots 4
 	requestId int 1
@@ -52,7 +54,7 @@ getSnapshot 6
 	isHistorical int 6
 	
 forgetLastTemporary 8
-	syncId int 1
+	syncId string 1
 /*
 reconnect 10
 	connectionId string 1
@@ -63,7 +65,7 @@ reconnect 10
 
 syncIdUpTo 12
 	editId int 1
-	syncId int 2
+	syncId string 2
 	
 /*increaseAck 12
 	frameCount int 1*/

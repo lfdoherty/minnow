@@ -25,6 +25,8 @@ exports.make = function(app, appName, prefix, identifier){
 					var data = JSON.stringify({syncId: syncId})
 
 					userTokenBySyncId[syncId] = req.userToken
+					
+					console.log('registered sync id user ' + syncId + ' -> ' + req.userToken)
 
 					httpRes.setHeader('Content-Type', 'application/json');
 					httpRes.setHeader('Content-Length', data.length);
@@ -37,7 +39,8 @@ exports.make = function(app, appName, prefix, identifier){
 		receiveUpdates: function(cb){
 			app.post('/mnw/xhr/update/' + appName + '/:syncId', identifier, function(req, res){
 				var msgs = req.body
-				var syncId = parseInt(req.params.syncId)
+				var syncId = req.params.syncId
+				_.assertString(syncId)
 				function replyCb(){
 					res.setHeader('Content-Type', 'text/plain');
 					res.setHeader('Content-Length', '0');
@@ -103,11 +106,11 @@ exports.make = function(app, appName, prefix, identifier){
 	//long poll connections to send update server->client for a sync handle
 	//TODO if no longpoll connection is made for a syncId for awhile, delete it
 	app.get('/mnw/xhr/longpoll/' + appName + '/:syncId', identifier, function(req, res){
-		var syncId = parseInt(req.params.syncId)
+		var syncId = req.params.syncId
 
 		if(userTokenBySyncId[syncId] !== req.userToken){
 			//log('user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
-			console.log('WARNING: user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
+			console.log('WARNING: user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied (syncId: ' + syncId + ')')
 			console.log(req.url)
 			res.send(403)
 			return

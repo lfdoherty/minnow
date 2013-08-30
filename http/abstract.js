@@ -8,6 +8,7 @@ var log = require('quicklog').make('minnow/longpoll')
 
 var newViewSequencer = require('./../server/new_view_sequencer')
 
+var random = require('seedrandom')
 
 exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, impl){
 	_.assertFunction(minnowClient.make)
@@ -19,6 +20,9 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	var intervalHandle = setInterval(function(){
 		Object.keys(syncHandles).forEach(function(key){
 			var sh = syncHandles[key]
+			if(!sh.msgs){
+				console.log('wtf: ' + key + ' ' + sh)
+			}
 			if(sh.msgs.length > 0){
 				impl.sendAllToClient(sh.id, sh.msgs)
 				sh.msgs = []
@@ -32,7 +36,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	impl.exposeBeginSync(function(userToken, replyCb){
 		_.assertLength(arguments, 2)
 		
-		var theSyncId;
+		var theSyncId = random.uid()
 		var sh
 		
 		/*function listenerCb(e){
@@ -53,17 +57,18 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			sh.msgs.push(['reify', id, temporary])
 		}
 
-		minnowClient.beginSync(blockCb,/*listenerCb, objectCb,*/ reifyCb, reifyCb, function(syncId, syncHandle){
-			theSyncId = syncId
+		minnowClient.beginSync(theSyncId, blockCb,/*listenerCb, objectCb,*/ reifyCb, reifyCb, function(syncHandle){
+			//theSyncId = syncId
+			_.assertObject(syncHandle)
 
-			sh = syncHandles[syncId] = syncHandle
-			sh.id = syncId
+			sh = syncHandles[theSyncId] = syncHandle
+			sh.id = theSyncId
 			sh.msgs = []
 			//log('got sync handle: ' + syncId)
 			//console.log('got sync handle: ' + syncId)
-			if(listeners.newSync) listeners.newSync(userToken, syncId)
+			if(listeners.newSync) listeners.newSync(userToken, theSyncId)
 			
-			replyCb(syncId)
+			replyCb(theSyncId)
 
 		})
 	}, function(userToken, syncId){//called when the sync handle is ended
@@ -79,7 +84,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	if(listeners.heartbeat){
 		setInterval(function(){
 			Object.keys(syncHandles).forEach(function(key){
-				var syncId = parseInt(key)
+				var syncId = key//parseInt(key)
 				listeners.heartbeat(syncId)
 			})
 		},5000)
@@ -179,7 +184,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 
 		var syncHandle = syncHandles[syncId]
 		if(syncHandle === undefined){
-			console.log('WARNING: no known sync handle for syncId: ' + syncId)
+			console.log('WARNING: no known sync handle for syncId: ' + syncId + ' ' + JSON.stringify(Object.keys(syncHandles)))
+			console.log(new Error().stack)
 			deadSyncHandleCb()
 			return
 		}

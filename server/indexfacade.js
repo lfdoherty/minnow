@@ -221,10 +221,12 @@ function makeSinglePropertyIndex(objSchema, property, propertyIndex, makeReverse
 			updateListeners(id, oldValue, undefined)
 		}else if(c.type === 'insert'){
 			var old = index[id]
-			_.assertInt(c.index)
-			var oldValue = index[id]
-			var newValue = index[id] = old.substr(0, c.index) + c.value + old.substr(c.index)
-			updateListeners(id, oldValue, newValue)
+			if(old !== undefined){
+				_.assertInt(c.index)
+				var oldValue = index[id]
+				var newValue = index[id] = old.substr(0, c.index) + c.value + old.substr(c.index)
+				updateListeners(id, oldValue, newValue)
+			}
 		}else{
 			_.errout('TODO?: '  + JSON.stringify(c))
 		}

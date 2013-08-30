@@ -585,7 +585,7 @@ SyncApi.prototype.objectListener = function(id, edits){
 	
 	if(this.objectApiCache[id] !== undefined && _.isInt(id)){
 		var obj = this.objectApiCache[id]
-		var curSyncId = -1
+		var curSyncId = '-1'
 
 		if(obj._destroyed) return
 
@@ -892,7 +892,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 			currentTopObject = DESTROYED_REMOTELY
 			console.log('destroyed current object')
 		}else{
-			_.assertInt(local.currentSyncId)
+			_.assertString(local.currentSyncId)
 			if(currentTopObject.parent !== local){
 				_.errout('current top object parent is wrong: ' + currentTopObject.parent)
 			}
@@ -1069,18 +1069,6 @@ SyncApi.prototype.reifyExternalObject = function(temporaryId, realId){
 		}
 		delete this.reificationListeners[temporaryId]
 	}
-	/*var local = this
-	var keys = Object.keys(this.objectApiCache)
-	for(var i=0;i<keys.length;++i){
-		var key = keys[i]
-		var n = local.objectApiCache[key]
-		//console.log('reifying: ' + n)
-		if(!n._destroyed){
-			n.reifyParentEdits(temporaryId, realId)
-		}else{
-			console.log('WARNING: destroyed object still in objectApiCache')
-		}
-	}//*/
 }
 
 SyncApi.prototype.reifyObject = SyncApi.prototype.reifyExternalObject

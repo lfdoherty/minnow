@@ -138,14 +138,19 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//_.assertFunction(listenerCb);
 				_.assertLength(arguments, 2)
 				_.assertFunction(readyCb);
-				
+				_.assertString(e.syncId)
+				console.log('syncId: ' + e.syncId)
+				console.log(JSON.stringify(Object.keys(listenerCbs)))
 				var listenerCb = listenerCbs[e.syncId]
 				_.assertFunction(listenerCb)
 				//log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
 			},
 			afterNextSyncHandleUpdate: function(syncId, cb){
-				listenerCbs[syncId].seq.afterNextUpdate(cb)
+				var backHandle = listenerCbs[syncId]
+				if(backHandle){
+					backHandle.seq.afterNextUpdate(cb)
+				}
 			},
 			persistEdit: function(op, state, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
@@ -153,15 +158,21 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//_.assertInt(id)
 				_.assertInt(op)				
 				//_.assertArray(path)
-				_.assertInt(syncId);
+				_.assertString(syncId);
+				_.assert(syncId.length > 0)
+				//console.log('persistEdit syncId: ' + syncId)
 				//_.assertFunction(cb)
 
 				if(op === editCodes.make || op === editCodes.copy){
 					var id = objectState.addEdit(op, state, edit, syncId, computeTemporaryId)
 
 					if(!edit.forget){
-						listenerCbs[syncId].seq.subscribeToObject(id)
+						var backHandle = listenerCbs[syncId]
+						if(backHandle){
+							backHandle.seq.subscribeToObject(id)
+						}
 					}
+					_.assertInt(id)
 					return id
 				}else{
 					objectState.addEdit(op, state, edit, syncId, computeTemporaryId, reifyCb);
@@ -175,13 +186,13 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				cb(timestamps)
 			},
 			forgetTemporary: function(temporary, syncId){
-				_.assertInt(syncId)
+				_.assertString(syncId)
 				objectState.forgetTemporary(temporary, syncId)
 			},
-			makeSyncId: function(){
+			/*makeSyncId: function(){
 				var syncId = ap.makeNewSyncId();
 				return syncId
-			},
+			},*/
 			syncIdUpTo: function(syncId, editId){
 				ap.syncIdUpTo(syncId, editId)
 			},
@@ -197,7 +208,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 			},
 			beginSync: function(syncId, blockChangesCb){//listenerCb, objectCb, viewObjectCb){
 				_.assertLength(arguments, 2)
-				_.assertInt(syncId)
+				_.assertString(syncId)
 				//_.assertFunction(listenerCb)
 				//_.assertFunction(objectCb)
 				//_.assertFunction(viewObjectCb)
@@ -366,6 +377,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				
 				function maintainEditSequence(up, addEditCb){
 					if(currentSyncId !== up.syncId){
+						//console.log('syncId changed from ' + currentSyncId + ' to ' + up.syncId)
 						currentSyncId = up.syncId
 						addEditCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
 					}

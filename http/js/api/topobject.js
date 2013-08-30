@@ -128,7 +128,7 @@ TopObjectHandle.prototype.makeHistorical = function(historicalKey){
 
 		//console.log('realEdits: ' + JSON.stringify(this.realEdits, null, 2))
 		
-		s.currentSyncId=-1
+		s.currentSyncId='-1'
 		//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
 		
 		//console.log('advancing edits: ' + s.realEdits.length + ' ' + version + ' ' + this.id())
@@ -728,6 +728,7 @@ TopObjectHandle.prototype._getVersions = function(source){
 	//console.log('looking over(' + source + '): ' + JSON.stringify(this.edits, null, 2))// + ' ' + path.length)
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]
+		if(e.op === editCodes.setSyncId) continue
 		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
 		//console.log(JSON.stringify([same, versions, e]))
 		if(!did){
@@ -873,7 +874,7 @@ TopObjectHandle.prototype.prepare = function prepare(){
 	var realEdits = [].concat(this.edits).concat(this.localEdits||[])
 
 	//apply edits
-	s.inputSyncId=-1
+	s.inputSyncId='-1'
 	s.inputObject = undefined
 	//this.log(this.objectId, ' preparing topobject with edits:', this.realEdits)
 	
@@ -1147,8 +1148,12 @@ TopObjectHandle.prototype.reifyEdit = function(index, temporary, real){
 		e.edit = {id: real, typeCode: e.edit.typeCode}
 	//	this.source[sourceIndex] = {
 	}else{
-		_.assertEqual(e.edit.id, temporary)
-		e.edit.id = real
+		if(e.edit.id !== temporary){
+			console.log('ERROR - could not reify: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+		}else{
+			//_.assertEqual(e.edit.id, temporary)
+			e.edit.id = real
+		}
 	}
 }
 
@@ -1400,7 +1405,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	
 	_.assertInt(op)
 	_.assertObject(edit)
-	_.assertInt(syncId)
+	_.assertString(syncId)
 	
 	var ownSyncId = this.getEditingId()
 	
@@ -1628,7 +1633,7 @@ TopObjectHandle.prototype.version = function(editId){
 				newEdits.push(e)
 			}
 		}
-		n.inputSyncId=-1
+		n.inputSyncId='-1'
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			if(e.op === editCodes.setSyncId){

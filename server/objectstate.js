@@ -850,7 +850,7 @@ exports.make = function(schema, ap, ol){
 			if(op !== editCodes.make && op !== editCodes.copy && op !== editCodes.forgetTemporary){
 				_.assertInt(state.object);
 			}
-			_.assertInt(syncId);
+			_.assertString(syncId);
 			_.assertInt(op)
 			//TODO support merge models
 			

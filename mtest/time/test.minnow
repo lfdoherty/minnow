@@ -1,0 +1,14 @@
+
+entity 1
+	truth boolean 1
+
+general() 100
+	all *entity 1
+	times map(versions(*entity), {~}, {timestamp(~)}) 2
+
+generalTrue() 102
+	all subset(*entity,{~.truth}) 1
+	times map(versions(*entity), {~}, {timestamp(~)}) 2
+	
+empty() 101
+

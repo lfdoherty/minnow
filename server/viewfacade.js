@@ -9,6 +9,9 @@ var makePropertyDiffer = require('./sync_property_diff').make
 var makePropertyRefer = require('./sync_property_refer').make
 var makeViewStateConverter = require('./sync_state_edits').make
 
+var random = require('seedrandom')
+var RandomSyncId = random.uid()
+
 function stub(){}
 
 function makeDiffer(objSchema){
@@ -186,7 +189,7 @@ exports.make = function(schema, objectState, query){
 		
 		if(sinceEdits.length > 0){
 			//console.log('updating object: ' + id + ' ' + oldEditId + ': ' + JSON.stringify(sinceEdits))
-			diff.edits.push({op: editCodes.selectTopObject, edit: {id: id}, syncId: -1, editId: sinceEdits[0].editId})
+			diff.edits.push({op: editCodes.selectTopObject, edit: {id: id}, syncId: RandomSyncId, editId: sinceEdits[0].editId})
 			diff.edits = diff.edits.concat(sinceEdits)
 		}
 		updateObjectReffed(id, diff, oldEditId)
@@ -295,8 +298,8 @@ exports.make = function(schema, objectState, query){
 					//TODO setTopObject, etc.
 					//_.errout('TODO: ' + JSON.stringify(edits))
 					var curEditId = objectState.getCurrentEditId()-1
-					edits.forEach(function(e){e.syncId = -1;e.editId = curEditId})
-					diff.edits.push({op: editCodes.selectTopViewObject, edit: {id: id}, syncId: -1, editId: curEditId})
+					edits.forEach(function(e){e.syncId = RandomSyncId;e.editId = curEditId})
+					diff.edits.push({op: editCodes.selectTopViewObject, edit: {id: id}, syncId: RandomSyncId, editId: curEditId})
 					diff.edits = diff.edits.concat(edits)
 				}
 			}
