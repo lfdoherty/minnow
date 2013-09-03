@@ -18,6 +18,8 @@ exports.twoCreationTimestamps = function(config, done){
 						var timestamps = []
 						c.all.each(function(e){
 							var firstVersion = e.versionsSelf()[0]
+							console.log('firstVersion: ' + firstVersion)
+							console.log('times: ' + JSON.stringify(c.times.toJson()))
 							timestamps.push(c.times.value(firstVersion))
 						})
 						console.log('timestamps: ' + JSON.stringify(timestamps))

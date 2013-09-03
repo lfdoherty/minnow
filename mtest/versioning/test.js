@@ -217,6 +217,126 @@ exports.copyVersionsAfterChange = function(config, done){
 		})
 	})
 }
+
+exports.copyManyVersionsAfterChange = function(config, done){
+	minnow.makeServer(config, function(){
+		minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+			
+				var hasReverted = false
+				
+				done.poll(function(){
+					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
+					/*if(c.has('e') && c.e.text.versions().length === 4){
+						done()
+						return true
+					}*/
+					if(c.all.count() === 2){
+						var versionSets = []
+						c.all.each(function(v){
+							versionSets.push(v.versionsSelf())
+						})
+						//versionSets.push([])
+						versionSets.sort(function(a,b){return a.length - b.length;})
+						
+						console.log('version sets: ' + JSON.stringify(versionSets))
+						
+						//_.assertEqual(versionSets[0].length, 1)
+						//console.log(
+						if(versionSets[0].length === 2){
+							//_.assertEqual(versionSets[1].length, 2)
+							
+							done()
+						}
+						//console.log(versionSets[1].length)
+						//
+					}
+				})
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('entity', {text: 'test1'}, function(){
+						
+							for(var i=0;i<20;++i){
+								e.text.set(e.text.value()+'a')
+							}
+							setTimeout(function(){
+						
+								var c = e.copy({description: 'desc1', text: 'test2'})
+								c.text.set('test3')
+							},200)
+						})
+						//e.text.set('test1')
+						/*e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	*/
+					})
+				})
+				
+			})
+		})
+	})
+}
+
+exports.copyManyVersionsImmediate = function(config, done){
+	minnow.makeServer(config, function(){
+		/*minnow.makeClient(config.port, function(client){
+			client.view('general', function(err, c){
+			
+				var hasReverted = false
+				
+				done.poll(function(){
+					//if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
+
+					if(c.all.count() === 2){
+						var versionSets = []
+						c.all.each(function(v){
+							versionSets.push(v.versionsSelf())
+						})
+						//versionSets.push([])
+						versionSets.sort(function(a,b){return a.length - b.length;})
+						
+						console.log('version sets: ' + JSON.stringify(versionSets))
+						
+						//_.assertEqual(versionSets[0].length, 1)
+						//console.log(
+						if(versionSets[0].length === 2){
+							//_.assertEqual(versionSets[1].length, 2)
+							
+							done()
+						}
+						//console.log(versionSets[1].length)
+						//
+					}
+				})*/
+
+				minnow.makeClient(config.port, function(otherClient){
+					otherClient.view('empty', function(err, v){
+						var e = v.make('entity', {text: 'test1'}, function(){
+						
+							for(var i=0;i<20;++i){
+								e.text.set(e.text.value()+'a')
+							}
+							setTimeout(function(){
+						
+								var c = e.copy({description: 'desc1', text: 'test2'})
+								//c.text.set('test3')
+								console.log(JSON.stringify(c.versionsSelf()))
+								_.assertEqual(c.versionsSelf().length, 1)	
+								done()
+							},200)
+						})
+						//e.text.set('test1')
+						/*e.text.set('test2')
+						e.description.set('desc1')
+						e.text.set('test3')	*/
+					})
+				})
+				
+			//})
+		//})
+	})
+}
 exports.copyVersionsWithUuid = function(config, done){
 	minnow.makeServer(config, function(){
 		minnow.makeClient(config.port, function(client){

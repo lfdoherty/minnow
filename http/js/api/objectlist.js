@@ -181,6 +181,7 @@ ObjectListHandle.prototype.get = function(desiredId){
 ObjectListHandle.prototype.each = function(cb, endCb){
 
 	this.obj.forEach(function(obj, index){
+		if(obj.isDestroyed()) return
 		obj.prepare()
 		cb(obj, index)
 	})
@@ -320,17 +321,23 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 			this.obj.splice(index, 1);
 
 			res.prepare()
+			//console.log('emitting remove')
 			return this.emit(edit, 'remove', res)
 		}
 	}else if(op === editCodes.addExisting || op === editCodes.addExistingViewObject){
 		var addedObj = this.getObjectApi(edit.id)
 		_.assertDefined(addedObj)
 		
-		if(this.obj.indexOf(addedObj) !== -1) return
+		//if(this.obj.indexOf(addedObj) !== -1) return
 		
-		this.obj.push(addedObj)
+		//try{
+		if(addedObj.isDestroyed()) return
+		
 		addedObj.prepare()
+		this.obj.push(addedObj)
 		return this.emit(edit, 'add', addedObj)
+		//}catch(e){
+		//}
 	}else if(op === editCodes.unshiftExisting){
 		var addedObj = this.getObjectApi(edit.id)
 		//_.assertDefined(addedObj)

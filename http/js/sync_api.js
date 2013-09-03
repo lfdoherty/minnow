@@ -925,21 +925,12 @@ SyncApi.prototype.copyExternalObject = function(obj, json, forget, cb){
 			(obj.edits?obj.edits.length:0)+
 			(obj.localEdits?obj.localEdits.length:0)
 			
-	//console.log('following: ' + following)
+	//console.log('following: ' + following + ' ' + (obj.edits?obj.edits.length:0)+ ' ' + (obj.localEdits?obj.localEdits.length:0))
 	
-	var copyEdits = [{op: editCodes.copied, edit: {sourceId: obj.id(), typeCode: this.schema[typeName].code, temporary: temporary, following:
+	/*var copyEdits = [{op: editCodes.copied, edit: {sourceId: obj.id(), typeCode: this.schema[typeName].code, temporary: temporary, following:
 			following
-		}, editId: -2}]
-	//var newEdits = edits
-	/*var allEdits = copyEdits
-		.concat(obj.edits)
-		.concat(obj.localEdits||[])
-		.concat(edits)*/
-
-	/*var oldHandle = this.objectApiCache[this.currentObjectId]
-	if(oldHandle){
-		oldHandle.currentPath = undefined
-	}*/
+		}, editId: -2}]*/
+	
 	
 	this.currentObjectId = temporary//TODO only if !forget?
 	
@@ -948,7 +939,20 @@ SyncApi.prototype.copyExternalObject = function(obj, json, forget, cb){
 	if(!forget){
 		var t = this.schema[typeName]
 		var n = new TopObjectHandle(this.schema, t, [], this, temporary);
-		n.localEdits = obj.edits.concat(obj.localEdits||[]).concat([{op: editCodes.clearObject, edit: {}}]).concat(edits)
+		n.edits = [].concat(JSON.parse(JSON.stringify(obj.edits)))
+		
+		for(var i=0;i<n.edits.length;++i){
+			var e = n.edits[i]
+			e.fromCopy = true
+		}
+		
+		//n.skipCopied = obj.edits.length
+		n.localEdits = /*obj.edits.concat*/(obj.localEdits||[]).concat([{op: editCodes.clearObject, edit: {}}]).concat(edits)
+
+		for(var i=0;i<n.localEdits.length;++i){
+			var e = n.localEdits[i]
+			e.fromCopy = true
+		}
 		//console.log('created temporary lookup: ' + temporary)
 		this.objectApiCache[temporary] = n;
 		return n

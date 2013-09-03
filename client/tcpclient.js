@@ -528,6 +528,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		}catch(e){
 			console.log(e.stack)
 			console.log('WARNING: deserialization error: ' + (''+e) + '\n' + e.stack)
+			console.log(new Error().stack)
 			client.removeListener('data', dataListener)
 			client.destroy()
 			clientDestroyed = true

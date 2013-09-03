@@ -564,6 +564,7 @@ function changeOnPath(local, op, edit, syncId, editId){
 				return
 			}
 			
+			if(setObj.isDestroyed()) return
 
 			//subj.obj[local.inputProperty] = setObj;
 			setObj.prepare()
@@ -1016,6 +1017,7 @@ TopObjectHandle.prototype.persistEdit = function(op, edit){
 	this.currentSyncId = this.getEditingId()
 	
 	if(!this.localEdits) this.localEdits = []
+	//console.log('pushing local edit: ' + editNames[op] + ' ' + this.localEdits.length)
 	this.localEdits.push({op: op, edit: edit})
 	
 	this.parent.persistEdit(this.getObjectTypeCode(), this.getObjectId(), op, edit)
@@ -1423,6 +1425,13 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	
 	this.inputSyncId = syncId
 	
+	
+	
+	//console.log('following*: ' + (this.edits?this.edits.length:0)+ ' ' + (this.localEdits?this.localEdits.length:0))
+
+	//console.log(this.objectId + ' updating path?: ' + editNames[op])
+	var did = updateInputPath(this, op, edit, editId)
+
 	if(!isNotExternal || ownSyncId === syncId){
 		if(!this.edits)_.errout('no this.edits: ' + this.objectId + ' ' + this.constructor + ' '+ this._destroyed)
 		this.edits.push({op: op, edit: edit, editId: editId})
@@ -1436,15 +1445,20 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 				}
 				//
 			}else{
-				//console.log('shifting ' + editNames[this.localEdits[0].op])
-				this.localEdits.shift()
+				if(!did || op === editCodes.made || op === editCodes.copied){
+					while(this.localEdits.length > 0){
+						var remd = this.localEdits.shift()
+						//console.log('shifting ' + editNames[remd.op])
+						if(remd.op === op){
+							break
+						}
+					}
+				}else{
+					console.log('did: ' + editNames[op])
+				}
 			}
 		}
 	}
-
-	//console.log(this.objectId + ' updating path?: ' + editNames[op])
-	var did = updateInputPath(this, op, edit, editId)
-
 
 	if(this.localEdits && ownSyncId === syncId){
 	//	console.log('skipping own ' + syncId)
@@ -1702,7 +1716,16 @@ function getMadeIndex(edits, top){
 	_.assertInt(madeIndex)
 	return madeIndex
 }
-TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to preforking
+TopObjectHandle.prototype.hasLocalChanges = function(){
+	//return this.localEdits && this.localEdits.length > 0
+	if(!this.localEdits) return
+	var found = false
+	this.localEdits.forEach(function(e){
+		if(!e.fromCopy) found = true
+	})
+	return found
+}
+TopObjectHandle.prototype.versionsSelf = function(){
 	var fakeObject = {}
 
 	var edits = this.edits.concat(this.localEdits||[])
@@ -1746,11 +1769,12 @@ TopObjectHandle.prototype.versionsSelf = function(){//omits versions due to pref
 				//console.log('skipping ' + skip)
 			}
 		}else if(e.op === editCodes.copied){
-			skip = e.edit.following-1
+			skip = e.edit.following+1 - i
 			//console.log('skipping ' + skip)
 		}
 		if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){
 			if(e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) continue
+			if(e.fromCopy) continue
 			//if(this.isa('quote')) console.log(this.id() + ' * ' + editNames[e.op] + ' ' + JSON.stringify(e))
 			//console.log('added version for: ' + editNames[e.op] + ' ' + JSON.stringify(e))
 			versions.push(e.editId)
