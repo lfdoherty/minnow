@@ -953,6 +953,7 @@ SyncApi.prototype.copyExternalObject = function(obj, json, forget, cb){
 			var e = n.localEdits[i]
 			e.fromCopy = true
 		}
+		n.locallyCopied = true
 		//console.log('created temporary lookup: ' + temporary)
 		this.objectApiCache[temporary] = n;
 		return n

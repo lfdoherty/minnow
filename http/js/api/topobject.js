@@ -1434,8 +1434,20 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 
 	if(!isNotExternal || ownSyncId === syncId){
 		if(!this.edits)_.errout('no this.edits: ' + this.objectId + ' ' + this.constructor + ' '+ this._destroyed)
-		this.edits.push({op: op, edit: edit, editId: editId})
-		//console.log(this.objectId + ' pushing edit: ' + JSON.stringify({op: op, edit: edit, editId: editId}))
+		var skipPushing = false
+		if(this.locallyCopied){
+			for(var i=0;i<this.edits.length;++i){
+				var e = this.edits[i]
+				if(e.editId === editId){
+					skipPushing = true
+					break
+				}
+			}
+		}
+		if(!skipPushing){
+			this.edits.push({op: op, edit: edit, editId: editId})
+			//console.log(this.objectId + ' pushing edit: ' + JSON.stringify({op: op, edit: edit, editId: editId}))
+		}
 		
 		if(ownSyncId === syncId){
 			if(!this.localEdits || this.localEdits.length === 0){
@@ -1453,9 +1465,9 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 							break
 						}
 					}
-				}else{
-					console.log('did: ' + editNames[op])
-				}
+				}//else{
+					//console.log('did: ' + editNames[op])
+				//}
 			}
 		}
 	}
@@ -1725,6 +1737,18 @@ TopObjectHandle.prototype.hasLocalChanges = function(){
 	})
 	return found
 }
+TopObjectHandle.prototype.isCopyAncestor = function(obj){
+	var id = this.objectId
+	if(obj.type() !== this.type()) return false
+	for(var i=0;i<obj.edits.length;++i){
+		var e = obj.edits[i]
+		if(e.op === editCodes.copied && e.edit.sourceId === id){
+			return true
+		}
+	}
+	return false
+}
+
 TopObjectHandle.prototype.versionsSelf = function(){
 	var fakeObject = {}
 
@@ -1732,8 +1756,17 @@ TopObjectHandle.prototype.versionsSelf = function(){
 
 	var versions
 	var madeIndex
-		
-	if(this.edits.length > 1 && this.edits[1].op === editCodes.copied){
+	
+	var copiedIndex
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		if(e.op === editCodes.copied) copiedIndex = i
+	}
+	
+	if(copiedIndex !== undefined){
+		madeIndex = copiedIndex//this.edits[1].edit.following
+		versions = [this.edits[copiedIndex].editId]
+	}else if(this.edits.length > 1 && this.edits[1].op === editCodes.copied){
 		
 		madeIndex = 1//this.edits[1].edit.following
 		versions = [this.edits[1].editId]
@@ -1758,7 +1791,7 @@ TopObjectHandle.prototype.versionsSelf = function(){
 		var did = updateInputPath(fakeObject, e.op, e.edit, e.editId)
 		if(e.op === editCodes.setSyncId) continue
 		if(skip > 0){
-			//console.log('skipping edit ' + editNames[e.op])
+			//console.log('skipping edit ' + editNames[e.op] + ' ' + i + ' ' + e.editId + ' ' + skip)
 			--skip
 			continue
 		}
@@ -1769,14 +1802,14 @@ TopObjectHandle.prototype.versionsSelf = function(){
 				//console.log('skipping ' + skip)
 			}
 		}else if(e.op === editCodes.copied){
-			skip = e.edit.following+1 - i
+			skip = e.edit.following - i
 			//console.log('skipping ' + skip)
 		}
 		if(!did && e.editId !== versions[versions.length-1] && i > madeIndex){
 			if(e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) continue
 			if(e.fromCopy) continue
 			//if(this.isa('quote')) console.log(this.id() + ' * ' + editNames[e.op] + ' ' + JSON.stringify(e))
-			//console.log('added version for: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			//console.log(i + ' added version for: ' + editNames[e.op] + ' ' + JSON.stringify(e))
 			versions.push(e.editId)
 		}
 	}

@@ -196,7 +196,7 @@ exports.copyVersionsAfterChange = function(config, done){
 							
 							done()
 						}
-						//console.log('version sets: ' + JSON.stringify(versionSets))
+						console.log('version sets: ' + JSON.stringify(versionSets))
 					}
 				})
 
@@ -358,11 +358,13 @@ exports.copyVersionsWithUuid = function(config, done){
 						//versionSets.push([])
 						versionSets.sort(function(a,b){return a.length - b.length;})
 						
+						console.log('version sets: ' + JSON.stringify(versionSets))
+						
 						_.assertEqual(versionSets[0].length, 1)
 						_.assertEqual(versionSets[1].length, 1)
 						
 						done()
-						//console.log('version sets: ' + JSON.stringify(versionSets))
+						
 					}
 				})
 
