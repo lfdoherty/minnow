@@ -4,6 +4,8 @@ var _ = require('underscorem');
 
 //var editstreamer = require('./editstreamer')
 
+var seedrandom = require('seedrandom')
+
 var fs = require('fs')
 
 var stub = function(){}
@@ -80,7 +82,8 @@ function make(schema, ol){
 	function translateTemporary(temp, syncId){
 		//console.log('translating ' + temp + ' (' + syncId + ')')
 		_.assertInt(temp)
-		_.assertString(syncId)
+		_.assertBuffer(syncId)
+		_.assertLength(syncId, 16)
 		_.assert(temp < -1)
 		//console.log('translating ' + temp + ' -> ' + real + ' (' + syncId + ')')
 		var real = temporaryIdsBySync[syncId].temporaryIds[temp];
@@ -89,11 +92,12 @@ function make(schema, ol){
 		return real;
 	}
 	function mapTemporary(temp, real, syncId, editId){
-		_.assertString(syncId)
+		_.assertBuffer(syncId)
+		var syncIdStr = seedrandom.uuidBufferToString(syncId)
 		_.assert(temp < -1)
-		var te = temporaryIdsBySync[syncId]
+		var te = temporaryIdsBySync[syncIdStr]
 		if(te === undefined){
-			te = temporaryIdsBySync[syncId] = {
+			te = temporaryIdsBySync[syncIdStr] = {
 				/*mappedIds: {}, */
 				temporaryIds: {},
 				//editIdsHistory: [],
@@ -154,7 +158,8 @@ function make(schema, ol){
 		//_.assertLength(arguments, 8);
 				
 		//_.assertInt(typeCode)
-		_.assertString(syncId);
+		_.assertBuffer(syncId);
+		_.assertLength(syncId, 16);
 		_.assertObject(state)
 		_.assertFunction(computeTemporary)
 		_.assertNumber(timestamp)

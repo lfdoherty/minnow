@@ -66,6 +66,7 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 								if(closed) return
 								
 								syncId = theSyncId
+								_.assertBuffer(theSyncId)
 
 								senders[syncId] = send
 

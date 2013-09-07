@@ -48,6 +48,11 @@ exports.setString = makeWrapper(
 	function(c){return c.v.stringValue.value() === 'test'}, 
 	function(obj){obj.stringValue.set('test')})
 
+var uuid = 'ABABABABABABABABABABAB'
+exports.setUuid = makeWrapper(
+	function(c){return c.v.uuidValue.value()+'' === uuid}, 
+	function(obj){obj.uuidValue.set(uuid)})
+
 
 exports.insertStringBack = makeWrapper(
 	function(c){return c.v.stringValue.value() === 'testB'}, 

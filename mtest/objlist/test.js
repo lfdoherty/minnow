@@ -12,7 +12,9 @@ exports.append = function(config, done){
 					if(c.has('s') && c.s.data.size() === 1){
 						done()
 						return true
-					}
+					}//else{
+					//	console.log(c.has('s') + ' '+ c.s.data.size())
+					//}
 				})
 
 				minnow.makeClient(config.port, function(otherClient){

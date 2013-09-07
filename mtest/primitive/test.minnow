@@ -4,6 +4,7 @@ entity 1
 	stringValue string 2 optional
 	booleanValue boolean 3 optional
 	longValue long 4 optional
+	uuidValue uuid 5 optional
 	
 general() 100
 	v one(*entity) 1

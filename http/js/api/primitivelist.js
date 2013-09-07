@@ -166,7 +166,7 @@ PrimitiveListHandle.prototype.changeListener = function(subObj, key, op, edit, s
 	if(this.latestVersionId < editId) this.latestVersionId = editId
 		
 	if(lookup.isPrimitiveAddCode[op]){//op.indexOf('add') === 0){
-		if(this.getEditingId() !== syncId){
+		if(this.getEditingId().toString() !== syncId.toString()){
 			//console.log('pushing ' + edit.value + ' onto ' + JSON.stringify(this.obj) + ' ' + JSON.stringify([edit, editId]) + ' ' + this.getEditingId() + ' ' + syncId)
 			//if(this.obj.length > 0) _.errout('TODO')
 			//console.log(new Error().stack)
@@ -180,7 +180,7 @@ PrimitiveListHandle.prototype.changeListener = function(subObj, key, op, edit, s
 			return stub;
 		}
 	}else if(op === editCodes.shift){
-		if(this.getEditingId() !== syncId){
+		if(this.getEditingId().toString() !== syncId.toString()){
 
 			_.assert(this.obj.length >= 1);
 			var shifted = this.obj.shift();
@@ -191,7 +191,7 @@ PrimitiveListHandle.prototype.changeListener = function(subObj, key, op, edit, s
 			return stub;
 		}
 	}else if(lookup.isPrimitiveRemoveCode[op]){//op.indexOf('remove') === 0){
-		if(this.getEditingId() !== syncId){
+		if(this.getEditingId().toString() !== syncId.toString()){
 			var index = this.obj.indexOf(edit.value);
 			if(index === -1){
 				this.log('ignoring invalid remove: ' + edit.value);

@@ -37,7 +37,7 @@ selectSubViewObject 55
 	id string 1
 
 setSyncId 50
-	syncId string 1
+	syncId uuid 1
 selectObject 51
 	id int 1
 selectViewObject 52
@@ -59,9 +59,11 @@ selectBooleanKey 68
 
 delKey 119
 
+/*
 //TODO should this be a 'destination set'?  how do we optimize large-multicast scenarios?
 setDestinationSyncId 70 //used for multiplexed server->client streams (where proxying is occuring.)
-	syncId int 1
+	syncId uuid 1
+*/
 
 reset 58//equivalent to ascend <depth>, sets the pointer back to the root of the object
 //these are more optimal special cases
@@ -83,6 +85,9 @@ setBoolean 78
 	value boolean 1
 setReal 141
 	value string 1
+
+setUuid 38
+	value uuid 1
 	
 insertString 49
 	value string 1

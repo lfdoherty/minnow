@@ -5,7 +5,7 @@ setup 9
 /*
 newSyncId 8
 	requestId int 1
-	syncId string 2
+	syncId uuid 2
 */
 
 //indicates that a sync handle has been created, and instructs the handle to wait for updates
@@ -15,7 +15,7 @@ open 1
 
 blockUpdate 17
 	endEditId int 1
-	destinationSyncId string 2
+	destinationSyncId uuid 2
 	edits binary 3//set:editUpdate 3
 	objects binary 4//set:objectUpdate 4
 	viewObjects binary 5//set:viewObjectUpdate 5
@@ -39,17 +39,17 @@ update 2
 	editId int 1
 	op byte 5
 	edit binary 2
-	destinationSyncId string 3
+	destinationSyncId uuid 3
 
 updateObject 11
 	id int 1
 	edits binary 2
-	destinationSyncId string 3
+	destinationSyncId uuid 3
 
 updateViewObject 14
 	id string 1
 	edits binary 2
-	destinationSyncId string 3
+	destinationSyncId uuid 3
 	//syncId int 4
 */
 //comes after open (and possibly some updates), indicates that the sync handle is ready for use
@@ -79,13 +79,13 @@ objectMade 10
 	requestId int 1
 	id int 2
 	temporary int 3
-	destinationSyncId string 4
+	destinationSyncId uuid 4
 
 	
 reifyObject 15
 	id int 1
 	temporary int 2
-	destinationSyncId string 3
+	destinationSyncId uuid 3
 
 requestError 13
 	err string 1

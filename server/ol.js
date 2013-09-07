@@ -66,7 +66,7 @@ OlReaders.prototype.copy = function(e, timestamp){
 }
 OlReaders.prototype.setSyncId = function(e){
 	//_.assert(e.syncId > 0)
-	_.assertString(e.syncId)
+	_.assertBuffer(e.syncId)
 	this.currentSyncId = e.syncId
 }
 OlReaders.prototype.selectTopObject = function(e,timestamp){
@@ -187,6 +187,19 @@ FakeIntStringMap.prototype.put = function(key, value){
 	this.data[key] = value
 }
 
+function FakeIntBufferMap(){
+	this.data = {}
+}
+FakeIntBufferMap.prototype.get = function(key){
+	if(!_.isInt(key)) _.errout('key not an int: ' + key)
+	return this.data[key]
+}
+FakeIntBufferMap.prototype.put = function(key, value){
+	if(!_.isInt(key)) _.errout('key not an int: ' + key)
+	if(!_.isBuffer(value)) _.errout('value not a buffer: ' + value)
+	this.data[key] = value
+}
+
 function Ol(schema){
 	_.assertObject(schema)
 	
@@ -216,7 +229,7 @@ function Ol(schema){
 	
 	this.syncIdsByEditId = new IntIntMap()
 	this.timestamps = new IntLongMap()
-	this.objectCurrentSyncId = new FakeIntStringMap()//new IntIntMap()
+	this.objectCurrentSyncId = new FakeIntBufferMap()//new IntIntMap()
 	this.lastEditId = new IntIntMap()
 	
 	//this.objectCurrentSyncId = new FakeIntIntMap()
@@ -293,7 +306,10 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
-	_.assertString(syncId)
+
+	_.assertBuffer(syncId)
+	_.assertLength(syncId, 16)
+	
 	//_.assert(syncId > 0)
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
 	this.olc.addEdit(id, {op: editCodes.made, edit: {typeCode: edit.typeCode, id: this.idCounter, following: edit.following}, editId: editId})
@@ -942,7 +958,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	if(objCurrentSyncId !== syncId){//TODO skip for reads from append log?
 		//_.assert(syncId > 0)
 		//console.log('current sync id changed ' + objCurrentSyncId + ' -> ' + syncId)
-		_.assertString(syncId)
+		_.assertBuffer(syncId)
 		this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
 		this.objectCurrentSyncId.put(id, syncId)
 		this.syncIdsByEditId.put(this.readers.lastVersionId, syncId)

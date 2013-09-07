@@ -36,7 +36,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	impl.exposeBeginSync(function(userToken, replyCb){
 		_.assertLength(arguments, 2)
 		
-		var theSyncId = random.uid()
+		var theSyncId = random.uidBuffer()
 		var sh
 		
 		/*function listenerCb(e){
@@ -68,7 +68,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			//console.log('got sync handle: ' + syncId)
 			if(listeners.newSync) listeners.newSync(userToken, theSyncId)
 			
-			replyCb(theSyncId)
+			replyCb(theSyncId)//.toString())
 
 		})
 	}, function(userToken, syncId){//called when the sync handle is ended
@@ -117,6 +117,10 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	impl.receiveUpdates(function(userToken, syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb){
 	
 		_.assertFunction(deadSyncHandleCb)
+		_.assertBuffer(syncId)
+		_.assertLength(syncId.toString(), 22)
+		//_.assertString(syncId)
+		//var syncIdBuf = seedrandom.uuidStringToBuffer(syncId)
 		
 		var failed = false
 		

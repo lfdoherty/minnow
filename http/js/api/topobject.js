@@ -725,6 +725,7 @@ TopObjectHandle.prototype._getVersions = function(source){
 	//_.assert(path.length > 0)
 	var fakeObject = {}
 	var same = false
+	if(this.edits.length === 0) return []
 	var versions = [this.edits[0].editId]
 	//console.log('looking over(' + source + '): ' + JSON.stringify(this.edits, null, 2))// + ' ' + path.length)
 	for(var i=0;i<this.edits.length;++i){
@@ -1319,7 +1320,7 @@ function maintainPath(local, op, edit, syncId, editId, forceOwnProcessing){
 		if(!local.objectApiCache) local.objectApiCache = {}
 		local.objectApiCache[edit.id] = n
 
-		if(local.getEditingId() === syncId && !forceOwnProcessing){
+		if(local.getEditingId().toString() === syncId.toString() && !forceOwnProcessing){
 			return
 		}
 		local[property.name] = n
@@ -1407,7 +1408,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	
 	_.assertInt(op)
 	_.assertObject(edit)
-	_.assertString(syncId)
+	//_.assertString(syncId)
 	
 	var ownSyncId = this.getEditingId()
 	
@@ -1421,7 +1422,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	
 	if(this._destroyed) return
 
-	//console.log(this.getEditingId() + ': ' + this.objectId + ' got edit: ' + JSON.stringify([op, edit, syncId, editId, isNotExternal]))
+	//console.log(this.getEditingId() + ': ' + this.objectId + ' got edit: ' + JSON.stringify([op, edit, syncId, editId, isNotExternal]) + ' ' + syncId)
 	
 	this.inputSyncId = syncId
 	
@@ -1432,7 +1433,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 	//console.log(this.objectId + ' updating path?: ' + editNames[op])
 	var did = updateInputPath(this, op, edit, editId)
 
-	if(!isNotExternal || ownSyncId === syncId){
+	if(!isNotExternal || ownSyncId.toString() === syncId.toString()){
 		if(!this.edits)_.errout('no this.edits: ' + this.objectId + ' ' + this.constructor + ' '+ this._destroyed)
 		var skipPushing = false
 		if(this.locallyCopied){
@@ -1449,7 +1450,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 			//console.log(this.objectId + ' pushing edit: ' + JSON.stringify({op: op, edit: edit, editId: editId}))
 		}
 		
-		if(ownSyncId === syncId){
+		if(ownSyncId.toString() === syncId.toString()){
 			if(!this.localEdits || this.localEdits.length === 0){
 				if(!this.isView()){
 					//console.log('WARNING: no localEdits or zero length, but got an own edit(' + syncId+'): ' + JSON.stringify(this.localEdits))
@@ -1472,7 +1473,7 @@ TopObjectHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 		}
 	}
 
-	if(this.localEdits && ownSyncId === syncId){
+	if(this.localEdits && ownSyncId.toString() === syncId.toString()){
 	//	console.log('skipping own ' + syncId)
 		return	
 	}

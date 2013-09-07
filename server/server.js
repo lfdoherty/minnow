@@ -43,7 +43,7 @@ function openUid(dataDir, cb){
 				cb(uid)
 			})
 		}else{
-			var uid =  seedrandom.uid()
+			var uid = seedrandom.uid()
 			fs.writeFileSync(fn, uid, 'utf8');
 			cb(uid)
 		}
@@ -103,6 +103,17 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 		
 		var listenerCbs = {}
 		
+		function getListener(syncId){
+			var listener = listenerCbs[syncId]//seedrandom.uuidBufferToString(syncId)]
+			if(!listener){
+				console.log('keys: ' + JSON.stringify(Object.keys(listenerCbs)) +', but no: ' + syncId)
+			}
+			return listener
+		}
+		function destroyListener(syncId){
+			delete listenerCbs[seedrandom.uuidBufferToString(syncId)]
+		}
+		
 		var ended = false
 		
 		var handle = {
@@ -138,10 +149,13 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//_.assertFunction(listenerCb);
 				_.assertLength(arguments, 2)
 				_.assertFunction(readyCb);
-				_.assertString(e.syncId)
-				console.log('syncId: ' + e.syncId)
-				console.log(JSON.stringify(Object.keys(listenerCbs)))
-				var listenerCb = listenerCbs[e.syncId]
+				//_.assertString(e.syncId)
+				_.assertBuffer(e.syncId)
+				_.assertLength(e.syncId, 16)
+				
+				//console.log('syncId: ' + e.syncId)
+				//console.log(JSON.stringify(Object.keys(listenerCbs)))
+				var listenerCb = getListener(e.syncId)//listenerCbs[seedrandom.uuidBufferToString(e.syncId)]
 				_.assertFunction(listenerCb)
 				//log('beginView: ', e)
 				return viewState.beginView(e, listenerCb.seq, readyCb)
@@ -158,7 +172,9 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//_.assertInt(id)
 				_.assertInt(op)				
 				//_.assertArray(path)
-				_.assertString(syncId);
+				_.assertBuffer(syncId);
+				_.assertLength(syncId,16);
+				
 				_.assert(syncId.length > 0)
 				//console.log('persistEdit syncId: ' + syncId)
 				//_.assertFunction(cb)
@@ -167,7 +183,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					var id = objectState.addEdit(op, state, edit, syncId, computeTemporaryId)
 
 					if(!edit.forget){
-						var backHandle = listenerCbs[syncId]
+						var backHandle = getListener(syncId)
 						if(backHandle){
 							backHandle.seq.subscribeToObject(id)
 						}
@@ -186,7 +202,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				cb(timestamps)
 			},
 			forgetTemporary: function(temporary, syncId){
-				_.assertString(syncId)
+				_.assertBuffer(syncId)
 				objectState.forgetTemporary(temporary, syncId)
 			},
 			/*makeSyncId: function(){
@@ -197,9 +213,11 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				ap.syncIdUpTo(syncId, editId)
 			},
 			endSync: function(syncId){
-				if(listenerCbs[syncId]){
-					listenerCbs[syncId].seq.end()
-					delete listenerCbs[syncId]
+				var listener = getListener(syncId)
+				if(listener){//Cbs[syncId]){
+					listener.seq.end()
+					//delete listenerCbs[syncId]
+					destroyListener(syncId)
 					console.log('deleted seq for: ' + syncId)
 				}else{
 					console.log('WARNING: tried to end sync handle that does not exist or was already ended: ' + syncId)
@@ -208,7 +226,10 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 			},
 			beginSync: function(syncId, blockChangesCb){//listenerCb, objectCb, viewObjectCb){
 				_.assertLength(arguments, 2)
-				_.assertString(syncId)
+				_.assertBuffer(syncId)
+				_.assertLength(syncId, 16)
+				//_.assertNot(syncId.toString === Buffer.toString)
+				//throw new Error('here')
 				//_.assertFunction(listenerCb)
 				//_.assertFunction(objectCb)
 				//_.assertFunction(viewObjectCb)
@@ -379,6 +400,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					if(currentSyncId !== up.syncId){
 						//console.log('syncId changed from ' + currentSyncId + ' to ' + up.syncId)
 						currentSyncId = up.syncId
+						_.assertBuffer(up.syncId)
 						addEditCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
 					}
 					
@@ -449,6 +471,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				}
 
 				//listenerCbs[syncId] = listenerCbWrapper
+				//console.log('converting: ' + syncId)
 				listenerCbs[syncId] = blockChangesCb
 
 				//console.log('making sequencer')

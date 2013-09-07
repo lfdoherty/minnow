@@ -45,7 +45,9 @@ var log = require('quicklog').make('minnow/client')
 var historicalKeyCounter = 1
 
 function getView(dbSchema, cc, st, type, params, syncId, api, beginView, /*historicalKey,*/ cb){
-	_.assertString(syncId)
+	//_.assertString(syncId)
+	_.assertBuffer(syncId)
+	_.assertLength(syncId, 16)
 
 	_.assertFunction(cb)
 	var listeningSyncId = syncId
@@ -258,6 +260,13 @@ function makeClient(host, port, clientCb){
 	
 	
 	function defaultBlockListener(e){
+		/*var ne = {
+			endEditId: e.endEditId,
+			edits: e.edits,
+			viewObjects: e.viewObjects,
+			objects: e.objects
+		}
+		throw new Error(JSON.stringify(e))*/
 		api.blockUpdate(e)
 	}
 	
@@ -467,7 +476,7 @@ function makeClient(host, port, clientCb){
 				_.assertFunction(blockCb)
 				_.assertFunction(makeCb)
 				_.assertFunction(reifyCb)
-				_.assertString(syncId)
+				_.assertBuffer(syncId)
 				//_.assertFunction(versionTimestamps)
 				_.assertFunction(cb)
 				function makeCbWrapper(id, requestId, temporary){
@@ -520,7 +529,7 @@ function makeClient(host, port, clientCb){
 				//var syncHandle = syncHandles[syncId]
 				//_.assertObject(syncHandle)
 				
-				var snapSyncId = random.uid()//-100//TODO
+				var snapSyncId = random.uidBuffer()//-100//TODO
 				
 				_.assertArray(params)
 				snapGetter(snapSyncId, type, params, st, cb)

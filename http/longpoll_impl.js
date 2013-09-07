@@ -2,6 +2,8 @@
 var _ = require('underscorem')
 var log = require('quicklog').make('minnow/longpoll')
 
+var seedrandom = require('seedrandom')
+
 exports.make = function(app, appName, prefix, identifier){
 	_.assertLength(arguments, 4)
 
@@ -22,7 +24,7 @@ exports.make = function(app, appName, prefix, identifier){
 			app.get('/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
 				
 				cb(req.userToken, function(syncId){
-					var data = JSON.stringify({syncId: syncId})
+					var data = JSON.stringify({syncId: syncId.toString()})
 
 					userTokenBySyncId[syncId] = req.userToken
 					
@@ -39,8 +41,8 @@ exports.make = function(app, appName, prefix, identifier){
 		receiveUpdates: function(cb){
 			app.post('/mnw/xhr/update/' + appName + '/:syncId', identifier, function(req, res){
 				var msgs = req.body
-				var syncId = req.params.syncId
-				_.assertString(syncId)
+				var syncId = seedrandom.uuidStringToBuffer(req.params.syncId)
+				//_.assertBuffer(syncId)
 				function replyCb(){
 					res.setHeader('Content-Type', 'text/plain');
 					res.setHeader('Content-Length', '0');

@@ -892,7 +892,7 @@ SyncApi.prototype.changeListener = function(op, edit, editId){
 			currentTopObject = DESTROYED_REMOTELY
 			console.log('destroyed current object')
 		}else{
-			_.assertString(local.currentSyncId)
+			//_.assertString(local.currentSyncId)
 			if(currentTopObject.parent !== local){
 				_.errout('current top object parent is wrong: ' + currentTopObject.parent)
 			}
@@ -1293,10 +1293,12 @@ var TimestampHandle = require('./api/timestamp')
 var LongHandle = require('./api/long')
 var RealHandle = require('./api/real')
 var BooleanHandle = require('./api/boolean')
+var UuidHandle = require('./api/uuid')
 addCommonFunctions(TimestampHandle.prototype);
 addCommonFunctions(LongHandle.prototype);
 addCommonFunctions(RealHandle.prototype);
 addCommonFunctions(BooleanHandle.prototype);
+addCommonFunctions(UuidHandle.prototype);
 
 var ObjectHandle = require('./api/object')
 addCommonFunctions(ObjectHandle.prototype);
@@ -1316,6 +1318,7 @@ function getClassForType(type, isView){
 		else if(type.primitive === 'timestamp') return TimestampHandle;
 		else if(type.primitive === 'boolean') return BooleanHandle;
 		else if(type.primitive === 'binary') return BinaryHandle;
+		else if(type.primitive === 'uuid') return UuidHandle;
 		else{
 			_.errout('unknown primitive type, no class defined: ' + JSON.stringify(type));
 		}

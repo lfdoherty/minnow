@@ -17,6 +17,7 @@ var bin = require('./../util/bin')
 var bufw = require('./../util/bufw')
 var fp = shared.editFp
 
+var random = require('seedrandom')
 
 var editCodes = fp.codes
 var editNames = fp.names
@@ -423,7 +424,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			var schemaStr = mergeBuffers(firstBufs).toString('utf8')
 			//console.log('str: ' + schemaStr)
 			var all = JSON.parse(schemaStr)
-			syncId = all.syncId
+			syncId = random.uuidStringToBuffer(all.syncId)
 			setupBasedOnSchema(all.schema)
 			
 			if(buf.length > needed){
@@ -576,7 +577,10 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		
 		var es = editNames[op]
 		
-		_.assertString(sourceSyncId)
+		//_.assertString(sourceSyncId)
+		_.assertBuffer(sourceSyncId)
+		_.assertLength(sourceSyncId, 16)
+		
 		_.assert(sourceSyncId.length > 0)
 		//console.log('persisting edit: ' + editNames[op])
 		
@@ -604,7 +608,8 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			delete callbacks[e.requestId];
 			throw e
 		}
-		bw.putString(sourceSyncId)
+		//bw.putString(sourceSyncId)
+		bw.putUuid(sourceSyncId)
 		
 		//if(bw.position > 4*1024) w.flush()
 		
@@ -613,6 +618,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 	
 	function makeSyncHandle(syncId, makeCb){
 		_.assertFunction(makeCb)
+		_.assertBuffer(syncId)
 		
 		var handle = {
 			beginView: function(e, cb){
@@ -637,7 +643,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			},
 			
 			forgetLastTemporary: function(sourceSyncId){
-				_.assertString(sourceSyncId)
+				_.assertBuffer(sourceSyncId)
 				w.forgetLastTemporary({syncId: sourceSyncId})
 			},
 			close: function(){
@@ -675,7 +681,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			_.assertFunction(makeCb)
 			_.assertFunction(reifyCb)
 			_.assertFunction(cb);
-			_.assertString(syncId)
+			_.assertBuffer(syncId)
 			var e = {syncId: syncId};
 			//applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
 

@@ -8,6 +8,8 @@ exports.openViewWithSnapshots = openViewWithSnapshots
 
 function openView(syncId, api, schema, host, appName, viewName, params, sendFacade, readyCb){
 	//console.log('paramsStr: ' + paramsStr + ' ' + JSON.stringify(params))
+	_.assertString(syncId)
+	_.assertLength(syncId, 22)
 	//_.assertArray(params)
 
 	var typeCode = schema[viewName].code

@@ -44,7 +44,8 @@ var typeSuffix = {
 	int: 'Int',
 	long: 'Long',
 	boolean: 'Boolean',
-	string: 'String'
+	string: 'String',
+	uuid: 'Uuid'
 }
 var mapSelect = {
 	int: 'selectIntKey',
@@ -69,7 +70,8 @@ var setOp = {
 	long: 'setLong',
 	boolean: 'setBoolean',
 	string: 'setString',
-	real: 'setReal'
+	real: 'setReal',
+	uuid: 'setUuid'
 }
 function getTypeSuffix(primitive){
 	var ts = typeSuffix[primitive]
@@ -115,7 +117,19 @@ function generatePropertyConverter(p, dbSchema){
 			}
 			edits.push({op: primitiveSetOp,  edit: {value: v}})
 		}
-	}else if(p.type.type === 'map'){
+	}/*else if(p.type.type === 'uuid'){
+		var primitiveSetOp = editCodes.setUuid
+		//if(primitiveSetOp === undefined) _.errout('TODO: ' + p.type.primitive)
+		converter = function(v, makeTemporaryId, edits){
+			_.assertDefined(v)
+			_.assertBuffer(v)
+			//assertPrimitiveType(v,p.type.primitive, p.name,p);
+			if(p.type.primitive === 'real'){
+				value = value+''
+			}
+			edits.push({op: primitiveSetOp,  edit: {value: v}})
+		}
+	}*/else if(p.type.type === 'map'){
 		
 		if(p.type.key.type === 'primitive' && p.type.value.type === 'primitive'){
 			if(!mapSelect[p.type.key.primitive]) _.errout('do not know what selector edit to use: ' +p.type.key.primitive)

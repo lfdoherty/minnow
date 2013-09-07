@@ -17,7 +17,7 @@ var innerify = require('./innerId').innerify
 var bw = require("buffered-writer");
 
 var random = require('seedrandom')
-var QuerySyncId = random.uid()
+var QuerySyncId = random.uidBuffer()
 
 exports.viewIdStr = viewIdStr
 
@@ -309,6 +309,8 @@ function parsePart(ps){
 		return undefined
 	}else if(parseInt(ps)+'' === ps){
 		return parseInt(ps)
+	}else if(ps.length === 22 && ps.indexOf('"') === -1){
+		return random.uuidStringToBuffer(ps)
 	}else if(ps.indexOf('_') !== -1 && ps.indexOf('"') === -1){
 		return parseComplexId(ps)
 	}else{

@@ -300,8 +300,11 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		var rrk = fparse.makeRs()
 
 		function setupConnection(syncId){
-			_.assertString(syncId)
+			_.assertBuffer(syncId)
+			_.assertLength(syncId, 16)
 			//var syncId = s.makeSyncId()
+			
+			var syncIdStr = random.uuidBufferToString(syncId)
 		
 			var eHandle = {syncId: syncId}
 			
@@ -332,6 +335,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				var binObjects = serializeObjects(diff)
 				var binViewObjects = serializeViewObjects(diff)
 				
+				_.assertBuffer(diff.destinationSyncId)
+				//console.log('block for: ' + diff.destinationSyncId)
+				
 				w.blockUpdate({
 					endEditId: diff.endEditId,
 					destinationSyncId: diff.destinationSyncId,
@@ -343,7 +349,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 
 			s.beginSync(syncId, blockChangesCb)//wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
-			var setupStr = '{"syncId": "'+syncId+'", "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
+			var setupStr = '{"syncId": "'+syncIdStr+'", "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
 			var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
 			var setupBuffer = new Buffer(setupByteLength+8)
 			bin.writeInt(setupBuffer, 0, setupByteLength)
@@ -488,7 +494,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		
 		function reifyCb(temporary, id, syncId){
 			_.assert(temporary < 0)
-			_.assertString(syncId)
+			_.assertBuffer(syncId)
+			_.assertLength(syncId, 16)
+			
 			var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
 			conn.reifications[temporary] = id
 			//console.log('storing reification ' + temporary + ' -> ' + id)
@@ -499,7 +507,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			
 			beginSync: function(e){
 				var syncId = e.syncId//s.makeSyncId()
-				_.assertString(syncId)
+				_.assertBuffer(syncId)
 				conn.openSyncIds.push(syncId)
 				//console.log('adding open syncId: ' + syncId)
 				var ne = {syncId: syncId}
@@ -825,7 +833,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes received: ' + totalBytesReceived)
 		})
 		
-		var theSyncId = random.uid()
+		var theSyncId = random.uidBuffer()
 		
 		function beginConnectionSetup(){
 		

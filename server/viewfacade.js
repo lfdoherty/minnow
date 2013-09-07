@@ -10,7 +10,7 @@ var makePropertyRefer = require('./sync_property_refer').make
 var makeViewStateConverter = require('./sync_state_edits').make
 
 var random = require('seedrandom')
-var RandomSyncId = random.uid()
+var RandomSyncId = random.uidBuffer()
 
 function stub(){}
 
