@@ -88,6 +88,7 @@ function make(schema, ol){
 		//console.log('translating ' + temp + ' -> ' + real + ' (' + syncId + ')')
 		var real = temporaryIdsBySync[syncId].temporaryIds[temp];
 		//console.log(JSON.stringify(temporaryIdsBySync[syncId]))
+		if(!real) console.log('ERROR, cannot translate temporary id: ' + temp)
 		_.assertInt(real)
 		return real;
 	}

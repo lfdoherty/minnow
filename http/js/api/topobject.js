@@ -351,7 +351,7 @@ TopObjectHandle.prototype.replay = function(cb){
 			}else{
 				cb(curObj, 'clear', p.name, e.editId, prev)
 			}
-		}else if(e.op === editCodes.setString || e.op === editCodes.setBoolean || e.op === editCodes.setLong || e.op === editCodes.setInt){
+		}else if(e.op === editCodes.setString || e.op === editCodes.setBoolean || e.op === editCodes.setLong || e.op === editCodes.setInt || e.op === editCodes.setUuid){
 			var beforeValue = propertyIndex[pkey]//curObj.asAt(e.editId-1)[p.name].value()
 			propertyIndex[pkey] = e.edit.value
 			cb(curObj, 'set', p.name, e.editId, e.edit.value, beforeValue)
@@ -1144,19 +1144,23 @@ TopObjectHandle.prototype.reifyEdit = function(index, temporary, real){
 		//sourceIndex = index
 	}
 	//console.log(this.objectId + ' ' + this.edits.length + ' ' + index + ' ' + temporary + ' ' + real + ' ' + this.localEdits.length + ' ' + e.edit.id)
-	_.assertDefined(e)
-	if(e.op === editCodes.addNew){
-		_.assertEqual(e.edit.temporary, temporary)
-		e.op = editCodes.addedNew
-		e.edit = {id: real, typeCode: e.edit.typeCode}
-	//	this.source[sourceIndex] = {
-	}else{
-		if(e.edit.id !== temporary){
-			console.log('ERROR - could not reify: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+	if(e){
+		_.assertDefined(e)
+		if(e.op === editCodes.addNew){
+			_.assertEqual(e.edit.temporary, temporary)
+			e.op = editCodes.addedNew
+			e.edit = {id: real, typeCode: e.edit.typeCode}
+		//	this.source[sourceIndex] = {
 		}else{
-			//_.assertEqual(e.edit.id, temporary)
-			e.edit.id = real
+			if(e.edit.id !== temporary){
+				console.log('ERROR - could not reify: ' + editNames[e.op] + ' ' + JSON.stringify(e))
+			}else{
+				//_.assertEqual(e.edit.id, temporary)
+				e.edit.id = real
+			}
 		}
+	}else{
+		console.log('could not locate edit: ' + index + ' to reify ' + temporary + ' -> ' + real)
 	}
 }
 

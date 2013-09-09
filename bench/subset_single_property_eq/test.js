@@ -3,7 +3,7 @@ var minnow = require('./../../client/client')
 var u = require('./../util')
 u.reset(run)
 
-var N = 1*1000*100
+var N = 1*1000*1000
 
 //N=100K in 4968ms
 //N=1M in 42261ms (~23,000 ops/sec)

@@ -156,7 +156,7 @@ function makePropertyDiffer(p){
 		return function(a,b){
 			if(a !== b){
 				if(b === undefined){
-					_.errout('TODO')
+					return [{op: editCodes.clearProperty, edit: {}}]
 				}else{
 					return [{op: setOp, edit: {value: b}}]
 				}

@@ -75,7 +75,11 @@ PrimitiveSetHandle.prototype.add = function(value){
 	var e = {value: value}
 	var ts = typeSuffix[this.schema.type.members.primitive]
 	_.assertString(ts)
-	this.adjustCurrentProperty(this.schema.code)
+
+	//this.adjustTopObjectToOwn()
+	//this.adjustCurrentObject(this.getImmediateObject())
+	
+	//this.adjustCurrentProperty(this.schema.code)
 	this.saveEdit(editCodes['add'+ts], e);
 		
 	this.emit(e, 'add', value)//()
