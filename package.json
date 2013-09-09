@@ -1,6 +1,6 @@
 {
   "name": "minnow",
-  "version": "0.3.53",
+  "version": "0.3.54",
   "description": "An auto-syncing, in-memory-canonical relational database",
   "main": "./index",
   "repository": { 
@@ -23,7 +23,7 @@
     "xmlhttprequest": ">=1.4.2",
     "ws": ">=0.4.21",
     "buffered-writer": "~0.2.3",
-    "primitivemap": "*",
+    "primitivemap": ">=0.0.6",
     "stack-count": "*"
   },
   "devDependencies": {
