@@ -17,7 +17,7 @@ var innerify = require('./innerId').innerify
 var bw = require("buffered-writer");
 
 var random = require('seedrandom')
-var QuerySyncId = random.uidBuffer()
+var QuerySyncId = random.uid()
 
 exports.viewIdStr = viewIdStr
 

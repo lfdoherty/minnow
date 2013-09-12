@@ -19,6 +19,7 @@ exports.make = function(app, appName, prefix, identifier){
 			}
 		},
 		exposeBeginSync: function(cb, endCb){
+			if(endingCb) throw new Error('overwrite problem')
 			endingCb = endCb
 			
 			app.get('/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
@@ -100,7 +101,8 @@ exports.make = function(app, appName, prefix, identifier){
 			delete longPollCaller[k]
 			delete userTokenBySyncId[k]
 			
-			endingCb(userToken, parseInt(k))
+			console.log('calling ending')
+			endingCb(userToken, k)
 			
 		})
 	},5000)
@@ -120,7 +122,7 @@ exports.make = function(app, appName, prefix, identifier){
 
 		lastStartedWaiting[syncId] = Date.now()
 		isOpen[syncId] = true
-		console.log('open: ' + syncId)
+		console.log('long poll (keep) open: ' + syncId)
 				
 		function sendContent(content){
 			var data = new Buffer(content)
@@ -139,7 +141,7 @@ exports.make = function(app, appName, prefix, identifier){
 		req.on('close', function(err){
 			//console.log('req close: ' + err)
 			isOpen[syncId] = false
-			console.log('*closed: ' + syncId)
+			console.log('*long poll closed poll: ' + syncId)
 			lastStartedWaiting[syncId] = Date.now()
 			stillOpen = false
 		})

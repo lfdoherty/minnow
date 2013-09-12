@@ -66,7 +66,7 @@ OlReaders.prototype.copy = function(e, timestamp){
 }
 OlReaders.prototype.setSyncId = function(e){
 	//_.assert(e.syncId > 0)
-	_.assertBuffer(e.syncId)
+	_.assertString(e.syncId)
 	this.currentSyncId = e.syncId
 }
 OlReaders.prototype.selectTopObject = function(e,timestamp){
@@ -229,7 +229,7 @@ function Ol(schema){
 	
 	this.syncIdsByEditId = new IntIntMap()
 	this.timestamps = new IntLongMap()
-	this.objectCurrentSyncId = new FakeIntBufferMap()//new IntIntMap()
+	this.objectCurrentSyncId = new FakeIntStringMap()//new IntIntMap()
 	this.lastEditId = new IntIntMap()
 	
 	//this.objectCurrentSyncId = new FakeIntIntMap()
@@ -307,8 +307,8 @@ Ol.prototype._make = function make(edit, timestamp, syncId){
 	var id = this.idCounter
 	this.olc.assertUnknown(id)
 
-	_.assertBuffer(syncId)
-	_.assertLength(syncId, 16)
+	_.assertString(syncId)
+	_.assertLength(syncId, 8)
 	
 	//_.assert(syncId > 0)
 	this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: editId})
@@ -958,7 +958,7 @@ Ol.prototype.persist = function(op, edit, syncId, timestamp, id){
 	if(objCurrentSyncId !== syncId){//TODO skip for reads from append log?
 		//_.assert(syncId > 0)
 		//console.log('current sync id changed ' + objCurrentSyncId + ' -> ' + syncId)
-		_.assertBuffer(syncId)
+		_.assertString(syncId)
 		this.olc.addEdit(id, {op: editCodes.setSyncId, edit: {syncId: syncId}, editId: this.readers.lastVersionId})					
 		this.objectCurrentSyncId.put(id, syncId)
 		this.syncIdsByEditId.put(this.readers.lastVersionId, syncId)

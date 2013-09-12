@@ -1,6 +1,6 @@
 {
   "name": "minnow",
-  "version": "0.3.55",
+  "version": "0.3.56",
   "description": "An auto-syncing, in-memory-canonical relational database",
   "main": "./index",
   "repository": { 
@@ -16,7 +16,7 @@
     "myrtle-parser": "git://github.com/lfdoherty/myrtle-parser.git",
     "rimraf": "*",
     "seedrandom": ">=0.1.1",
-    "structures": "git://github.com/lfdoherty/structures.git",
+    "miscdatastructures": "git://github.com/lfdoherty/structures.git",
     "underscorem": ">=0.1.7",
     "fparse": "git://github.com/lfdoherty/fparse.git",
     "quicklog": "git://github.com/lfdoherty/quicklog.git",

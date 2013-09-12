@@ -46,8 +46,8 @@ var historicalKeyCounter = 1
 
 function getView(dbSchema, cc, st, type, params, syncId, api, beginView, /*historicalKey,*/ cb){
 	//_.assertString(syncId)
-	_.assertBuffer(syncId)
-	_.assertLength(syncId, 16)
+	_.assertString(syncId)
+	_.assertLength(syncId, 8)
 
 	_.assertFunction(cb)
 	var listeningSyncId = syncId
@@ -529,7 +529,7 @@ function makeClient(host, port, clientCb){
 				//var syncHandle = syncHandles[syncId]
 				//_.assertObject(syncHandle)
 				
-				var snapSyncId = random.uidBuffer()//-100//TODO
+				var snapSyncId = random.uid()//-100//TODO
 				
 				_.assertArray(params)
 				snapGetter(snapSyncId, type, params, st, cb)

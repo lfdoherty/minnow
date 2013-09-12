@@ -300,11 +300,11 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		var rrk = fparse.makeRs()
 
 		function setupConnection(syncId){
-			_.assertBuffer(syncId)
-			_.assertLength(syncId, 16)
+			_.assertString(syncId)
+			_.assertLength(syncId, 8)
 			//var syncId = s.makeSyncId()
 			
-			var syncIdStr = random.uuidBufferToString(syncId)
+//			var syncIdStr = random.uuidBufferToString(syncId)
 		
 			var eHandle = {syncId: syncId}
 			
@@ -335,7 +335,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				var binObjects = serializeObjects(diff)
 				var binViewObjects = serializeViewObjects(diff)
 				
-				_.assertBuffer(diff.destinationSyncId)
+				_.assertString(diff.destinationSyncId)
 				//console.log('block for: ' + diff.destinationSyncId)
 				
 				w.blockUpdate({
@@ -349,7 +349,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 
 			s.beginSync(syncId, blockChangesCb)//wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
-			var setupStr = '{"syncId": "'+syncIdStr+'", "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
+			var setupStr = '{"syncId": "'+random.uuidStringToBase64(syncId)+'", "schema": '+schemaStr+'}'//JSON.stringify({syncId: syncId, schema: appSchema})
 			var setupByteLength = Buffer.byteLength(setupStr, 'utf8')
 			var setupBuffer = new Buffer(setupByteLength+8)
 			bin.writeInt(setupBuffer, 0, setupByteLength)
@@ -494,8 +494,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		
 		function reifyCb(temporary, id, syncId){
 			_.assert(temporary < 0)
-			_.assertBuffer(syncId)
-			_.assertLength(syncId, 16)
+			_.assertString(syncId)
+			_.assertLength(syncId, 8)
 			
 			var msg = {id: id, temporary: temporary, destinationSyncId: syncId}
 			conn.reifications[temporary] = id
@@ -833,7 +833,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			//if(Math.random() < .1) console.log('(' + buf.length + ') total bytes received: ' + totalBytesReceived)
 		})
 		
-		var theSyncId = random.uidBuffer()
+		var theSyncId = random.uid()
 		
 		function beginConnectionSetup(){
 		

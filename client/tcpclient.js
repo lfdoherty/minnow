@@ -424,7 +424,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			var schemaStr = mergeBuffers(firstBufs).toString('utf8')
 			//console.log('str: ' + schemaStr)
 			var all = JSON.parse(schemaStr)
-			syncId = random.uuidStringToBuffer(all.syncId)
+			syncId = random.uuidBase64ToString(all.syncId)
 			setupBasedOnSchema(all.schema)
 			
 			if(buf.length > needed){
@@ -578,8 +578,8 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		var es = editNames[op]
 		
 		//_.assertString(sourceSyncId)
-		_.assertBuffer(sourceSyncId)
-		_.assertLength(sourceSyncId, 16)
+		_.assertString(sourceSyncId)
+		_.assertLength(sourceSyncId, 8)
 		
 		_.assert(sourceSyncId.length > 0)
 		//console.log('persisting edit: ' + editNames[op])
@@ -618,7 +618,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 	
 	function makeSyncHandle(syncId, makeCb){
 		_.assertFunction(makeCb)
-		_.assertBuffer(syncId)
+		_.assertString(syncId)
 		
 		var handle = {
 			beginView: function(e, cb){
@@ -643,7 +643,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			},
 			
 			forgetLastTemporary: function(sourceSyncId){
-				_.assertBuffer(sourceSyncId)
+				_.assertString(sourceSyncId)
 				w.forgetLastTemporary({syncId: sourceSyncId})
 			},
 			close: function(){

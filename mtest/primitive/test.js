@@ -3,6 +3,8 @@ var minnow = require('./../../client/client')//this is the minnow include
 
 var _ = require('underscorem')
 
+var seedrandom = require('seedrandom')
+
 function makeWrapper(check, set){
 	return function(config, done){
 		minnow.makeServer(config, function(){
@@ -48,7 +50,7 @@ exports.setString = makeWrapper(
 	function(c){return c.v.stringValue.value() === 'test'}, 
 	function(obj){obj.stringValue.set('test')})
 
-var uuid = 'ABABABABABABABABABABAB'
+var uuid = seedrandom.uid()//'ABABABABABABABABABABAB'
 exports.setUuid = makeWrapper(
 	function(c){return c.v.uuidValue.value()+'' === uuid}, 
 	function(obj){obj.uuidValue.set(uuid)})

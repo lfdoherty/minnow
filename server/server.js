@@ -150,8 +150,8 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				_.assertLength(arguments, 2)
 				_.assertFunction(readyCb);
 				//_.assertString(e.syncId)
-				_.assertBuffer(e.syncId)
-				_.assertLength(e.syncId, 16)
+				_.assertString(e.syncId)
+				_.assertLength(e.syncId, 8)
 				
 				//console.log('syncId: ' + e.syncId)
 				//console.log(JSON.stringify(Object.keys(listenerCbs)))
@@ -172,8 +172,8 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//_.assertInt(id)
 				_.assertInt(op)				
 				//_.assertArray(path)
-				_.assertBuffer(syncId);
-				_.assertLength(syncId,16);
+				_.assertString(syncId);
+				_.assertLength(syncId,8);
 				
 				_.assert(syncId.length > 0)
 				//console.log('persistEdit syncId: ' + syncId)
@@ -202,7 +202,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				cb(timestamps)
 			},
 			forgetTemporary: function(temporary, syncId){
-				_.assertBuffer(syncId)
+				_.assertString(syncId)
 				objectState.forgetTemporary(temporary, syncId)
 			},
 			/*makeSyncId: function(){
@@ -226,8 +226,8 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 			},
 			beginSync: function(syncId, blockChangesCb){//listenerCb, objectCb, viewObjectCb){
 				_.assertLength(arguments, 2)
-				_.assertBuffer(syncId)
-				_.assertLength(syncId, 16)
+				_.assertString(syncId)
+				_.assertLength(syncId, 8)
 				//_.assertNot(syncId.toString === Buffer.toString)
 				//throw new Error('here')
 				//_.assertFunction(listenerCb)
@@ -400,7 +400,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					if(currentSyncId !== up.syncId){
 						//console.log('syncId changed from ' + currentSyncId + ' to ' + up.syncId)
 						currentSyncId = up.syncId
-						_.assertBuffer(up.syncId)
+						_.assertString(up.syncId)
 						addEditCb(editCodes.setSyncId, {syncId: up.syncId}, up.editId)					
 					}
 					

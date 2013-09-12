@@ -77,7 +77,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			if(listeners.closeSync) listeners.closeSync(userToken, syncId)
 			delete syncHandles[syncId]
 		}else{
-			log.warn('cannot find sync id to close: ' + syncId)
+			console.log('WARNING: cannot find sync id to close: ' + syncId)
 		}
 	})
 	
