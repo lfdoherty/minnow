@@ -4,7 +4,7 @@ var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
 
-var innerify = require('./innerId').innerify
+var innerify = require('./../http/js/innerId').innerify
 
 
 exports.make = function(schema){

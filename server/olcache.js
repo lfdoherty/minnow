@@ -99,7 +99,7 @@ exports.make = function(){
 	}
 	var handle = {
 		addEdit: function(id, edit){
-			_.assertInt(id)
+			_.assertString(id)
 			_.assertInt(edit.op)
 					
 			if(CACHE_SIZE === 0){

@@ -7,6 +7,8 @@ var _ = require('underscorem')
 var ObjectHandle = require('./object')
 var ObjectListHandle = require('./objectlist')
 
+var seedrandom = require('seedrandom')
+
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
 var editNames = lookup.names
@@ -45,7 +47,7 @@ ObjectSetHandle.prototype._forceRemove = function(id, editId){
 }
 ObjectSetHandle.prototype._forceAdd = function(res, editId){
 	//_.errout('TODO')
-	var already = this.get(res.id());
+	var already = this.get(res._internalId());
 	if(already){
 		console.log('WARNING: ignored invalid forceAdd: ' + res.id + ' ' + editId)
 		return
@@ -84,7 +86,7 @@ ObjectSetHandle.prototype.clear = function(){
 
 ObjectSetHandle.prototype.get = function(desiredId){
 	_.assertLength(arguments, 1);
-	_.assertInt(desiredId)
+	_.assertString(desiredId)
 	
 	var a = u.findObj(this.obj, desiredId)
 	if(!a) return;
@@ -130,29 +132,29 @@ ObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, syncI
 		return this.emit(edit, 'add', addedObj)
 	}else if(op === editCodes.addedNew){
 		var id = edit.id//edit.obj.object.meta.id
-		var temporary = edit.temporary
+		//var temporary = edit.temporary
 
-		_.assertInt(id)
+		_.assertString(id)
 
 		var res = this.wrapObject(id, edit.typeCode, [], this)
 		if(res === undefined) _.errout('failed to wrap object: ' + id)
 		this.obj.push(res)
 		res.prepare()
 		return this.emit(edit, 'add', res, editId)
-	}else if(op === editCodes.addNew){
+	}/*else if(op === editCodes.addedNew){
 		//var id = edit.id//edit.obj.object.meta.id
-		var temporary = edit.temporary
+		//var temporary = edit.temporary
 
 		//_.assertInt(id)
-		_.assertInt(edit.temporary)
+		//_.assertInt(edit.temporary)
 
-		var res = this.wrapObject(temporary, edit.typeCode, [], this)
-		if(res === undefined) _.errout('failed to wrap object: ' + temporary)
+		var res = this.wrapObject(edit.id, edit.typeCode, [], this)
+		if(res === undefined) _.errout('failed to wrap object: ' + edit.id)
 		this.obj.push(res)
 		res.prepare()
 		return this.emit(edit, 'add', res, editId)
-	}if(op === editCodes.remove){
-		_.assertInt(subObj)
+	}*/if(op === editCodes.remove){
+		_.assertString(subObj)
 		var res = this.get(subObj);
 		var index = this.obj.indexOf(res)
 		if(index === -1){
@@ -204,8 +206,8 @@ ObjectSetHandle.prototype.add = function(objHandle){
 	
 	var id = objHandle._internalId()
 	//this.log('id: ' + id)
-	_.assertInt(id)
-	_.assert(id > 0 || id < -1)
+	_.assertString(id)
+	//_.assert(id > 0 || id < -1)
 	var ee = {id: id, typeCode: objHandle.typeSchema.code}
 	
 	this.saveEdit(editCodes.addExisting, ee);
@@ -228,12 +230,13 @@ ObjectSetHandle.prototype.addNew = function(typeName, json){
 	
 	var type = u.getOnlyPossibleType(this, typeName);	
 	
-	var temporary = this.makeTemporaryId()
+	//var temporary = this.makeTemporaryId()
+	var id = seedrandom.uid()
 
 	var local = this
-	var n = this._makeAndSaveNew(json, type, temporary, undefined, function(fc){
-		var edit = {typeCode: type.code, temporary: temporary, following: fc}
-		local.saveEdit(editCodes.addNew, edit)
+	var n = this._makeAndSaveNew(json, type, id, undefined, function(fc){
+		var edit = {typeCode: type.code, id: id, following: fc}
+		local.saveEdit(editCodes.addedNew, edit)
 	})
 	
 	if(n === undefined) _.errout('failed to addNew')

@@ -64,7 +64,7 @@ function makeObjectPropertyTracker(id, pc){
 	return f
 }
 
-var innerify = require('./innerId').innerify
+var innerify = require('./../http/js/innerId').innerify
 
 function indexOfRawId(arr, id){
 	for(var i=0;i<arr.length;++i){
@@ -843,33 +843,33 @@ exports.make = function(schema, ap, ol){
 		isDeleted: function(id){
 			return ol.isDeleted(id)
 		},
-		addEdit: function(op, state, edit, syncId, computeTemporary, reifyCb){
+		addEdit: function(op, state, edit, syncId){//, computeTemporary, reifyCb){
 			//_.assertLength(arguments, 7);
 
 			//console.log('adding edit: ' + JSON.stringify(arguments))
-			if(op !== editCodes.make && op !== editCodes.copy && op !== editCodes.forgetTemporary){
-				_.assertInt(state.object);
+			if(op !== editCodes.made && op !== editCodes.copied){// && op !== editCodes.forgetTemporary){
+				_.assertString(state.object);
 			}
 			_.assertString(syncId);
 			_.assertLength(syncId,8);
 			_.assertInt(op)
 			//TODO support merge models
 			
-			if(op === editCodes.make || op === editCodes.copy){
-				return ap.persistEdit({}, op, edit, syncId, computeTemporary, Date.now())//TODO this timestamp is inconsistent with what will be serialized
+			if(op === editCodes.made || op === editCodes.copied){
+				return ap.persistEdit({}, op, edit, syncId, Date.now())//TODO this timestamp is inconsistent with what will be serialized
 			}else{
-				_.assertInt(state.top)
-				_.assert(state.object < -1 || state.object > 0)
+				_.assertString(state.top)
+				//_.assert(state.object < -1 || state.object > 0)
 				
-				if(state.object < -1){
+				/*if(state.object < -1){
 					state.object = ap.translateTemporaryId(state.object, syncId)
 				}
 				_.assert(state.object > 0)
 				if(state.top < -1){
 					state.top = ap.translateTemporaryId(state.top, syncId)
-				}
+				}*/
 				//console.log('state.top: ' + state.top)
-				_.assert(state.top > 0)
+				//_.assert(state.top > 0)
 				//pm(id, state, op, edit, syncId, computeTemporary, reifyCb)
 				
 				//console.log(new Error().stack)
@@ -902,9 +902,9 @@ exports.make = function(schema, ap, ol){
 				//state.topTypeCode = handle.getObjectType(state.top)
 				//state.objTypeCode = handle.getObjectType(objId||id)
 				//state.top = id 
-				_.assertInt(state.object)
+				_.assertString(state.object)
 				
-				ap.persistEdit(state, op, edit, syncId, computeTemporary, Date.now(), reifyCb)
+				ap.persistEdit(state, op, edit, syncId, Date.now())//, reifyCb)
 			}
 		},
 
@@ -1081,7 +1081,8 @@ exports.make = function(schema, ap, ol){
 			//_.assertInt(startEditId)
 			//_.assertInt(endEditId)
 			//_.assertObject(already)
-			_.assert(id > 0)
+			_.assertString(id)
+			//_.assert(id > 0)
 
 			var edits = ol.getObjectEdits(id)//, cb)
 

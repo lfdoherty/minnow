@@ -245,7 +245,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 		for(var i=0;i<diff.addedObjects.length;++i){
 			var obj = diff.addedObjects[i]
 			_.assertBuffer(obj.edits)
-			tw.putInt(obj.id)
+			tw.putUuid(obj.id)
 			tw.putBuffer(obj.edits)
 		}
 		//serializeViewObject(tw, fp.codes, fp.writersByCode, obj)
@@ -329,6 +329,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				w.updateViewObject(ob);
 			}*/
 			
+			console.log('server sending syncId: ' + syncId)
+			
 			function blockChangesCb(diff){
 				//_.errout('tODO')
 				var binEdits = serializeEdits(diff)
@@ -346,6 +348,8 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 					viewObjects: binViewObjects
 				})
 			}
+			
+			console.log('beginSync: ' + syncId)
 
 			s.beginSync(syncId, blockChangesCb)//wrappedListenerCb, wrappedObjCb, viewObjectCb)
 		
@@ -507,9 +511,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			
 			beginSync: function(e){
 				var syncId = e.syncId//s.makeSyncId()
-				_.assertBuffer(syncId)
+				_.assertString(syncId)
 				conn.openSyncIds.push(syncId)
-				//console.log('adding open syncId: ' + syncId)
+				console.log('adding open syncId: ' + syncId)
 				var ne = {syncId: syncId}
 				/*var updater = conn.sendEditUpdate.bind(ne)
 				function objectUpdater(ob){
@@ -600,42 +604,43 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 				
 				var wasPathUpdate = pu.update(e)
 				if(wasPathUpdate){
-					_.assert(currentId > 0)
+					//_.assert(currentId > 0)
 					//s.updatePath(currentId, pu.getPath(), syncId)
+					//console.log('was path update')
 					return
 				}
 				
-				var tg = getTemporaryGenerator(syncId)
+				//var tg = getTemporaryGenerator(syncId)
 				
-				if(op === editCodes.make || op === editCodes.copy){
+				if(op === editCodes.made || op === editCodes.copied){
 				
-					currentId = -1
+					currentId = e.edit.id
 
 					if(pu) pu.reset()
 					
 					var state = pu.getAll()
 							
 					//console.log('make - persisting with state: ' + JSON.stringify(state))
-					var id = s.persistEdit(op, state, e.edit, syncId, tg)
+					var id = s.persistEdit(op, state, e.edit, syncId)//, tg)
 
 					pu.setTop(id)
 					pu.setObject(id)
 					
-					_.assertInt(id)
+					_.assertString(id)
 
-					conn.currentIdFor[syncId] = id//this works because make can be executed synchronously
+					conn.currentIdFor[syncId] = e.edit.id//this works because make can be executed synchronously
 				
 					if(!e.edit.forget){
-						conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
+						//conn.reifications[lastTemporaryId[syncId]] = id//if we're forgetting, the object will never be re-selected via selectTopObject
 						
 						
-						var msg = {requestId: e.requestId, id: id, temporary: lastTemporaryId[syncId], destinationSyncId: syncId}
-						_.assert(lastTemporaryId[syncId] < 0)
+						var msg = {requestId: e.requestId, id: id, destinationSyncId: syncId}
+						//_.assert(lastTemporaryId[syncId] < 0)
 						
 						//TODO delay this until sync handle updates to the editId of the object creation
 						
 						//console.log('would do here: ' + JSON.stringify(msg))
-						reifyCb(msg.temporary, msg.id, msg.destinationSyncId)
+						//reifyCb(msg.temporary, msg.id, msg.destinationSyncId)
 						s.afterNextSyncHandleUpdate(syncId, function(){
 							//console.log('sending objectMade: ' + JSON.stringify(msg))
 							conn.w.objectMade(msg);
@@ -650,6 +655,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 					
 					if(currentId === undefined){
 						log.err('current id is not defined, cannot save edit: ', [ op, pu.getAll(), e.edit, syncId])
+						//console.log('destroying')
 						c.destroy()
 					}else{
 						//try{
@@ -659,7 +665,7 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 							state.top = currentId
 							if(!state.object) state.object = state.top
 							//console.log('persisting with state: ' + JSON.stringify(state))
-							s.persistEdit(op, state, e.edit, syncId, tg, reifyCb)
+							s.persistEdit(op, state, e.edit, syncId)//, tg, reifyCb)
 						/*}catch(e){
 							throw e
 						}*/
@@ -682,11 +688,11 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 					w.gotVersionTimestamps({requestId: e.requestId, timestamps: tb, destinationSyncId: e.syncId})
 				})
 			},
-			forgetLastTemporary: function(e){
+			/*forgetLastTemporary: function(e){
 				var temporaryId = lastTemporaryId[e.syncId]
 				_.assertInt(temporaryId)
 				s.forgetTemporary(temporaryId, e.syncId)
-			},
+			},*/
 			getSnapshots: function(e){
 				s.getSnapshots(e, function(err, versionList){
 					if(err){

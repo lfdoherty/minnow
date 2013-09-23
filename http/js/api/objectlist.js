@@ -2,6 +2,7 @@
 
 var u = require('./util')
 var _ = require('underscorem')
+var seedrandom = require('seedrandom')
 module.exports = ObjectListHandle
 
 var jsonutil = require('./../jsonutil')
@@ -163,7 +164,7 @@ ObjectListHandle.prototype.indexOf = function(obj){
 
 ObjectListHandle.prototype.get = function(desiredId){
 	_.assertLength(arguments, 1);
-	_.assertInt(desiredId)
+	_.assertString(desiredId)
 	
 	var res = u.findObj(this.obj, desiredId)
 	
@@ -199,9 +200,9 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 	
 	if(op === editCodes.addedNew){
 		var id = edit.id
-		var temporary = edit.temporary
+		//var temporary = edit.temporary
 
-		_.assertInt(id)
+		_.assertString(id)
 
 		var res = this.wrapObject(id, edit.typeCode, [], this)
 		
@@ -219,9 +220,9 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 
 	}else if(op === editCodes.unshiftedNew){
 		var id = edit.id
-		var temporary = edit.temporary
+		//var temporary = edit.temporary
 
-		_.assertInt(id)
+		_.assertString(id)
 
 		var res = this.wrapObject(id, edit.typeCode, [], this)
 		
@@ -229,8 +230,8 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		res.prepare()
 		return this.emit(edit, 'add', res)
 
-	}else if(op === editCodes.addNew){
-		var temporary = edit.temporary
+	}/*else if(op === editCodes.addNew){
+		//var temporary = edit.temporary
 
 		var res = this.wrapObject(temporary, edit.typeCode, [], this)
 		this.saveTemporaryForLookup(temporary, res, this)
@@ -245,9 +246,9 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		this.obj.unshift(res)
 		res.prepare()
 		return this.emit(edit, 'add', res)
-	}if(op === editCodes.addedNewAt){
+	}*/if(op === editCodes.addedNewAt){
 		var id = edit.id
-		var temporary = edit.temporary
+		//var temporary = edit.temporary
 
 		_.assertInt(id)
 
@@ -257,7 +258,7 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		res.prepare()
 		return this.emit(edit, 'add', res, edit.index)
 
-	}else if(op === editCodes.addNewAt){
+	}/*else if(op === editCodes.addNewAt){
 		var temporary = edit.temporary
 
 		var res = this.wrapObject(temporary, edit.typeCode, [], this)
@@ -266,7 +267,7 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 		this.obj.splice(edit.index, 0, res)
 		res.prepare()
 		return this.emit(edit, 'add', res, edit.index)
-	}else if(op === editCodes.addLocalInner){
+	}*/else if(op === editCodes.addLocalInner){
 		var objHandle = this.getInnerObject(edit.id)
 		
 		if(!objHandle){
@@ -291,12 +292,27 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 
 			return this.emit(edit, 'replace', objHandle, newObj)
 		}
-	}else if(op === editCodes.replacedNew){
+	}/*else if(op === editCodes.replacedNew){
 
 		var removeId = edit.oldId
 		var objHandle = this.get(removeId);
 	
 		_.assertObject(objHandle);
+		
+		var res = this.wrapObject(edit.newId, edit.typeCode, [], this)
+		doListReplace(this, objHandle, res);
+		res.prepare()
+		objHandle.prepare()
+
+		return this.emit(edit, 'replace', objHandle, res)				
+	}*/else if(op === editCodes.replacedInternalNew || op === editCodes.replacedExternalNew){
+
+		var removeId = edit.id
+		var objHandle = this.get(removeId);
+	
+		_.assertObject(objHandle);
+		
+		console.log('edit: ' + JSON.stringify(edit))
 		
 		var res = this.wrapObject(edit.newId, edit.typeCode, [], this)
 		doListReplace(this, objHandle, res);
@@ -415,13 +431,13 @@ ObjectListHandle.prototype.changeListener = function(subObj, key, op, edit, sync
 			this.emit(edit, 'addAfter', objHandle, beforeHandle)
 		}
 	}else if(op === editCodes.addedNewAfter){
-		if(edit.temporary !== 0){
+		/*if(edit.temporary !== 0){
 			var temporary = edit.temporary
 			var objHandle = this.wrapObject(temporary, edit.typeCode, [], this)
 			this.saveTemporaryForLookup(temporary, objHandle, this)
-		}else{
+		}else{*/
 			var objHandle = this.wrapObject(edit.id, edit.typeCode, [], this)
-		}
+		//}
 		
 		var beforeHandle = this.get(subObj);
 		if(beforeHandle === undefined){
@@ -539,21 +555,24 @@ ObjectListHandle.prototype.replaceNew = function(objHandle, typeName, json){
 
 	this.obj.splice(this.obj.indexOf(objHandle), 1)
 
-	var id = objHandle._internalId()
-	var type = u.getOnlyPossibleType(this, typeName);
-
-	var e = {typeCode: type.code, id: id}
+	var oldId = objHandle._internalId()
 	
-	var temporary = this.makeTemporaryId()
+	var newId = seedrandom.uid()
+	//_.assertString(id)
+	var type = u.getOnlyPossibleType(this, typeName);
+	var e = {typeCode: type.code, id: oldId, newId: newId}
+	//_.assertInt(e.newType)
+	
+	//var temporary = this.makeTemporaryId()
 	//console.log('doing replaceNew')
 	if(objHandle.isInner()){
-		this.saveEdit(editCodes.replaceInternalNew, e)
+		this.saveEdit(editCodes.replacedInternalNew, e)
 	}else{
-		this.saveEdit(editCodes.replaceExternalNew, e)
+		this.saveEdit(editCodes.replacedExternalNew, e)
 
 	}
 	
-	var n = this._makeAndSaveNew(json, type, temporary)
+	var n = this._makeAndSaveNew(json, type, newId)
 	_.assertObject(n)
 
 	this.obj.push(n)
@@ -698,9 +717,10 @@ ObjectListHandle.prototype.addNewAt = function(index, typeName, json, cb){
 	var type = u.getOnlyPossibleType(this, typeName);
 	
 
-	var temporary = this.makeTemporaryId()
-	this.saveEdit(editCodes.addNewAt, {typeCode: type.code, index: index, temporary: temporary})
-	var n = this._makeAndSaveNew(json, type, temporary)
+	//var temporary = this.makeTemporaryId()
+	var id = seedrandom.uid()
+	this.saveEdit(editCodes.addedNewAt, {typeCode: type.code, index: index, id: id})
+	var n = this._makeAndSaveNew(json, type, id)
 	_.assertObject(n)
 
 	
@@ -807,11 +827,12 @@ ObjectListHandle.prototype.addNew = function(typeName, json, cb){
 	
 	var type = u.getOnlyPossibleType(this, typeName);
 
-	var temporary = this.makeTemporaryId()	
+	//var temporary = this.makeTemporaryId()	
+	var id = seedrandom.uid()
 
 	var local = this
-	var n = this._makeAndSaveNew(json, type, temporary, undefined, function(fc){
-		local.saveEdit(editCodes.addNew, {typeCode: type.code, temporary: temporary, following: fc})
+	var n = this._makeAndSaveNew(json, type, id, undefined, function(fc){
+		local.saveEdit(editCodes.addedNew, {typeCode: type.code, id: id, following: fc})
 	})
 	_.assertObject(n)
 	

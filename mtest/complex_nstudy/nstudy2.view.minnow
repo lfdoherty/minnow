@@ -1,6 +1,6 @@
 
 //we have to be careful we don't send out user objects, since that includes private info.
-addon(user user, sessionId int) 100
+addon(user user, sessionId uuid) 100
 	userId user.id 1
 	username user.email 2
 	userData user.data 3
@@ -9,7 +9,7 @@ addon(user user, sessionId int) 100
 	userChats map(chatsByUser(user),{~.chatUid},{count(~.comments)}) 9
 	sidebarWidth user.data.sidebarWidth 10
 
-currentSession(sessionId int){
+currentSession(sessionId uuid){
 	one(subset(*userSession,{eq(~.syncId,sessionId)}))
 }
 
@@ -43,7 +43,7 @@ getChat(chat chat) 141
 getChatByUid(chatUid string) 134
 	chat chatByUid(chatUid) 1
 
-theUser(userId int){
+theUser(userId uuid){
 	user(userId)
 }
 

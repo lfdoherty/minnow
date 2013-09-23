@@ -26,7 +26,7 @@ editUpdate 21
 	edit binary 2
 
 objectUpdate 19
-	id int 1
+	id uuid 1
 	edits binary 2
 
 viewObjectUpdate 20
@@ -42,7 +42,7 @@ update 2
 	destinationSyncId uuid 3
 
 updateObject 11
-	id int 1
+	id uuid 1
 	edits binary 2
 	destinationSyncId uuid 3
 
@@ -72,21 +72,22 @@ gotFullSnapshot 18
 gotSnapshot 6
 	requestId int 1
 	snap binary 3 //structure is 4-byte latestVersionId, followed by update objects
-	
+
+
 //this is the response to a persistEdit request with op==='make'
 //TODO generalize this for all temporaries as a temporary->id message?
 objectMade 10
 	requestId int 1
-	id int 2
-	temporary int 3
+	id uuid 2
+	//temporary int 3
 	destinationSyncId uuid 4
-
+/*
 	
 reifyObject 15
 	id int 1
 	temporary int 2
 	destinationSyncId uuid 3
-
+*/
 requestError 13
 	err string 1
 	requestId int 2

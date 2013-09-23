@@ -20,6 +20,8 @@ function makePropertyDiffer(p){
 					for(var i=0;i<b.length;++i){
 						var v = b[i]
 						//if(b.indexOf(v) < i) _.errout('TODO FIXME')
+						_.assertString(v)
+						_.assertLength(v, 8)
 						changes.push({op: editCodes.addExisting, edit: {id: v}})
 					}
 					return changes
@@ -42,6 +44,8 @@ function makePropertyDiffer(p){
 					var v = b[i]
 					//if(b.indexOf(v) < i) _.errout('TODO FIXME: ' + JSON.stringify(p))
 					if(!has[v]){
+						_.assertString(v)
+						_.assertLength(v, 8)
 						changes.push({op: editCodes.addExisting, edit: {id: v}})
 					}else{
 						hasB[v] = true

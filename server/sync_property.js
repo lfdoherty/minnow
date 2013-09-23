@@ -79,6 +79,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 							}
 						}
 					}
+					//console.log('*all: ' + JSON.stringify(result))
 					return result
 				}
 				mapSetGetter.index = index
@@ -99,6 +100,7 @@ exports.make = function(s, staticBindings, rel, recurse){
 						all.push(res)
 					}
 				}
+				
 				return all
 			}
 			setGetter.index = index

@@ -25,7 +25,8 @@ var matterhorn = require('matterhorn');
 var serviceModule = require('./service')
 
 var log = require('quicklog').make('minnow/matterhorn-service')
-var newViewSequencer = require('./../server/new_view_sequencer')
+//var newViewSequencer = require('./../server/new_view_sequencer')
+var pu = require('./js/paramutil')
 
 function sendData(req, res, data, zippedData){
 	var compHeader = req.header('Accept-Encoding');
@@ -78,11 +79,12 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	local.serveJavascript(exports, 'schema', generateSchemaUrl);
 	secureLocal.serveJavascript(exports, 'schema', generateSchemaUrl);
 	
-	function generateSnapHistorical(req, res){
+	/*function generateSnapHistorical(req, res){
 		generateSnapInner(req, res, function(viewId, snapshotId, previousId, paramStr, cb){
 			service.getViewFileHistorical(viewId, snapshotId, previousId, paramStr, cb)
 		})	
-	}
+	}*/
+/*
 	function generateSnap(req, res){
 		generateSnapInner(req, res, service.getViewFile)
 	}
@@ -124,10 +126,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				var key = viewId+':'+paramStr+':'+snapshotId+':'+previousId;
 				//TODO cache zipped snapshots
 		
-				/*if(bb[key]){
-					sendData(res, bb[key]);
-					return;
-				}*/
+		
 		
 				getViewFile(viewId, snapshotId, previousId, paramStr, function(err, jsStr){
 				
@@ -156,7 +155,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	}
 	local.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
 	secureLocal.get(snapPath + ':serverUid/:viewId/:snapshotId/:previousId/:params', authenticator, generateSnap);
-
+*/
 	return {
 		getViewState: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
@@ -166,15 +165,16 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 			var viewCode = viewSchema.code
 
 			//TODO convert inner id strings to innerify objects
+			//console.log('params: ' + JSON.stringify(params))
 			var newParams = []
 			viewSchema.viewSchema.params.forEach(function(p, index){
 				if(p.type.type === 'object'){
 					var id = params[index]
-					if(_.isString(id)){
-						newParams[index] = newViewSequencer.parseInnerId(id)
-					}else{
+					//if(_.isString(id) && i){
+					//	newParams[index] = pu.parseInnerId(id)//pu.parseId(id)
+					//}else{
 						newParams[index] = id
-					}
+					//}
 				}else{
 					//console.log(JSON.stringify(p.type))
 					newParams[index] = params[index]
@@ -198,7 +198,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.snapshotIds = [lastSeenVersionId]
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = newViewSequencer.viewIdStr(baseTypeCode,params)
+				vars.baseId = pu.viewIdStr(baseTypeCode,params,viewSchema)
 				vars.applicationName = appName
 				vars.UrlPrefix = secureLocal.host
 				vars.minnowSnap = snap//JSON.parse(snap)
@@ -207,32 +207,14 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				cb(vars, [])//[schemaUrl])
 			})
 		},
-		getViewTags: function(viewName, params, vars, res, cb){
+		/*getViewTags: function(viewName, params, vars, res, cb){
 			_.assertLength(arguments, 5);
 
 			var viewSchema = minnowClient.schema[viewName]
 			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
 			var viewCode = viewSchema.code
 
-			var newParams = []
-			viewSchema.viewSchema.params.forEach(function(p, index){
-				if(p.type.type === 'object'){
-					var id = params[index]
-					if(_.isString(id)){
-						newParams[index] = newViewSequencer.parseInnerId(id)
-					}else{
-						newParams[index] = id
-					}
-				}else{
-					//console.log(JSON.stringify(p.type))
-					newParams[index] = params[index]
-				}
-			})
 
-			params = newParams
-
-			if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
-			
 			service.getViewFiles(viewName, params, function(err, snapshotIds, paths, lastSeenVersionId){
 				
 				if(err){
@@ -246,7 +228,7 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.snapshotIds = snapshotIds;
 				vars.lastId = lastSeenVersionId;
 				vars.baseTypeCode = viewCode;
-				vars.baseId = newViewSequencer.viewIdStr(vars.baseTypeCode,params)
+				vars.baseId = pu.viewIdStr(vars.baseTypeCode,params,viewSchema)
 				vars.applicationName = appName
 				vars.UrlPrefix = secureLocal.host//prefix
 				vars.WebsocketUrl = ''+secureLocal.host+'/ws/'
@@ -261,6 +243,6 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				cb(vars, result);
 			});
 			
-		}
+		}*/
 	};
 }

@@ -80,3 +80,63 @@ function postJson(url, content, cb, errCb){
 
 exports.getJson = getJson
 exports.postJson = postJson
+
+
+function getString(url, cb, errCb){
+	//if(arguments.length !== 2) throw new Error('getJson(url,cb) should not be called with ' + arguments.length + ' arguments')
+    var xhr = new XMLHttpRequest();  
+    
+  	if(typeof(url) !== 'string') throw new Error('url must be a string: ' + url + ' ' + typeof(url))
+    
+   // console.log('getJson: ' + url)
+    
+    xhr.open("GET", url, true);
+	xhr.onreadystatechange = function (oEvent) {  
+		//console.log('xhr.readyState: ' + xhr.readyState)
+		if (xhr.readyState === 4) {
+			if (xhr.status === 200) {  
+				if(cb){
+					cb(xhr.responseText)
+				}else{
+					console.log('WARNING: no cb')
+				}
+			} else {  
+				console.log("Error", xhr.statusText, xhr.status, url);  
+				if(errCb) errCb(xhr.status, xhr.responseText)
+			}  
+		}  
+	};  
+	xhr.send(null); 
+}
+
+function postString(url, content, cb, errCb){
+	//if(arguments.length !== 3) throw new Error('postJson(url,content,cb) should not be called with ' + arguments.length + ' arguments')
+
+    var xhr = new XMLHttpRequest();  
+    
+    //console.log('postJson: ' + url)
+    
+    xhr.open("POST", url, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain');
+    xhr.onreadystatechange = function (oEvent) {  
+		if (xhr.readyState === 4) {  
+			if (xhr.status === 200) {  
+				//try{
+					//var json = JSON.parse(xhr.responseText)
+					cb(xhr.responseText)
+				//}catch(e){
+				//throw new Error('cannot parse getJson response: ' + xhr.responseText + ' ' + url)
+				//} 
+				cb()
+			} else {  
+				console.log("Error", xhr.statusText, url);  
+				if(errCb) errCb(xhr.status)
+			}  
+		}  
+	};  
+	xhr.send(content)
+}
+
+
+exports.getString = getString
+exports.postString = postString

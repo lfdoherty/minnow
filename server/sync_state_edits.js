@@ -26,7 +26,14 @@ function makeViewStatePropertyConverter(p){
 				if(!state) return []
 				var edits = []
 				for(var i=0;i<state.length;++i){
-					edits.push({op: editCodes.addExisting, edit: {id: state[i]}})
+					var id = state[i]
+					//_.assertString(id)
+					//_.assertLength(id, 8)
+					if(_.isString(id)){
+						edits.push({op: editCodes.addExisting, edit: {id: id}})
+					}else{
+						edits.push({op: editCodes.addExistingInner, edit: {top: id.top, inner: id.inner}})
+					}
 				}
 				return edits
 			}

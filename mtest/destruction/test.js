@@ -3,6 +3,8 @@ var minnow = require('./../../client/client')
 
 var _ = require('underscorem')
 
+var seedrandom = require('seedrandom')
+
 //function done.poll(f){var ci=setInterval(wf,10);function wf(){if(f()){clearInterval(ci)}}}
 
 exports.addNewFromJson = function(config, done){
@@ -49,6 +51,7 @@ exports.gracefulFailureForDestroyedIdView = function(config, done){
 				if(err) throw err
 				
 				var e = c.make('entity', function(id){
+					_.assertString(id)
 					e.del()
 					//setTimeout(function(){
 						minnow.makeClient(config.port, function(otherClient){
@@ -79,7 +82,7 @@ exports.gracefulFailureNonexistentIdView = function(config, done){
 				_.assert(e.code === 'InvalidParamId')//indexOf('invalid object id') !== -1)
 				done()
 			})*/
-			client.view('specific', [5005], function(err, v){
+			client.view('specific', [seedrandom.uid()], function(err, v){
 				//console.log(JSON.stringify(v.toJson()))
 				//_.assertNot(v.has('e'))
 				if(err){

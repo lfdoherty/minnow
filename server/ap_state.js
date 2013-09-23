@@ -42,7 +42,7 @@ function make(schema, ol){
 	
 	var ap;
 	
-	var syncIdCounter = 1
+	/*var syncIdCounter = 1
 	
 	function makeNewSyncId(){
 		ap.madeSyncId({})
@@ -50,7 +50,7 @@ function make(schema, ol){
 		log('created new sync id: ' + syncId)
 		++syncIdCounter;
 		return syncId;
-	}
+	}*/
 	
 	var broadcaster
 	/*
@@ -78,7 +78,7 @@ function make(schema, ol){
 		return result;
 	}*/
 	
-	var temporaryIdsBySync = {};
+	/*var temporaryIdsBySync = {};
 	function translateTemporary(temp, syncId){
 		//console.log('translating ' + temp + ' (' + syncId + ')')
 		_.assertInt(temp)
@@ -99,16 +99,14 @@ function make(schema, ol){
 		var te = temporaryIdsBySync[syncId]
 		if(te === undefined){
 			te = temporaryIdsBySync[syncId] = {
-				/*mappedIds: {}, */
+				
 				temporaryIds: {},
 				//editIdsHistory: [],
 				//temporaryHistory: []
 			}
 		}
 		
-		/*if(te.mappedIds[real] !== undefined){
-			_.errout('real id already mapped: ' + real);
-		}*/
+
 		if(te.temporaryIds[temp] !== undefined){
 			_.errout('temporary id already mapped ' + temp + ' -> ' + temporaryIds[temp] + ', now being mapped to ' + real);
 		}
@@ -118,7 +116,7 @@ function make(schema, ol){
 		//te.mappedIds[real] = true;
 		
 		//console.log('mapped temporary ' + temp + ' -> ' + real + ' ' + syncId + ' ' + editId)
-	}
+	}*/
 
 	function saveEdit(typeCode, id, op, e, syncId, timestamp){
 		_.assertNumber(timestamp)
@@ -127,14 +125,14 @@ function make(schema, ol){
 		
 		//console.log('saving edit: ', id, op, e, syncId)
 
-		if(op === editCodes.selectObject){
+		/*if(op === editCodes.selectObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.selectSubObject){
 			if(e.id < 0) e.id = translateTemporary(e.id, syncId)
 		}else if(op === editCodes.selectObjectKey){
 			//console.log('key: ' + e.key)
 			if(e.key < 0) e.key = translateTemporary(e.key, syncId)
-		}
+		}*/
 
 		
 		if(currentId !== id && id !== -1){
@@ -155,14 +153,15 @@ function make(schema, ol){
 	var currentId
 	var currentSyncId
 	
-	function persistEdit(state, op, e, syncId, computeTemporary, timestamp, reifyCb){
+	function persistEdit(state, op, e, syncId, timestamp){//, reifyCb){
+		_.assertLength(arguments, 5)
 		//_.assertLength(arguments, 8);
 				
 		//_.assertInt(typeCode)
 		_.assertString(syncId);
 		_.assertLength(syncId, 8);
 		_.assertObject(state)
-		_.assertFunction(computeTemporary)
+		//_.assertFunction(computeTemporary)
 		_.assertNumber(timestamp)
 		//_.assertInt(id)
 
@@ -180,7 +179,7 @@ function make(schema, ol){
 		if(pathControlEdits[op]){
 			_.errout('invalid path edit being persisted instead of saved: ' + editNames[op])
 		}
-		if(op === editCodes.setObject){
+		/*if(op === editCodes.setObject){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
@@ -216,15 +215,15 @@ function make(schema, ol){
 			if(e.id < 0){
 				e.id = translateTemporary(e.id, syncId)
 			}
-		}
+		}*/
 		
-		if(op !== editCodes.make && op !== editCodes.copy && stateTop < -1){//note that -1 is not a valid temporary id - that is reserved
+		/*if(op !== editCodes.made && op !== editCodes.copied && stateTop < -1){//note that -1 is not a valid temporary id - that is reserved
 			//_.assertInt(id)
 			var newId = translateTemporary(top, syncId);
 			//console.log('translated temporary id ' + id + ' -> ' + newId + ' (' + syncId + ')');
 			_.assertInt(newId)
 			stateTop = newId
-		}
+		}*/
 		
 		if(currentSyncId !== syncId){
 			//console.log('setting syncId ' + currentSyncId + ' -> ' + syncId)
@@ -247,7 +246,7 @@ function make(schema, ol){
 		//var realOp = n.op
 		//var realEdit = n.edit
 
-		if(op === editCodes.make || op === editCodes.copy){
+		if(op === editCodes.made || op === editCodes.copied){
 			currentId = newId
 		}else if(currentId !== stateTop && stateTop !== -1){
 			ap.selectTopObject({id: stateTop})
@@ -258,26 +257,26 @@ function make(schema, ol){
 		
 		var currentEditId = ol.getLatestVersionId()
 		
-		if(op === editCodes.putNew){
-			var temporary = computeTemporary()
-			mapTemporary(temporary, newId, syncId, currentEditId)
-			if(reifyCb) reifyCb(temporary, newId, syncId)
+		/*if(op === editCodes.putNew){
+			//var temporary = computeTemporary()
+			//mapTemporary(temporary, newId, syncId, currentEditId)
+			//if(reifyCb) reifyCb(temporary, newId, syncId)
 		}else if(op === editCodes.setToNew){
 			//e.id = newId
-			var temporary = computeTemporary()
-			mapTemporary(temporary, newId, syncId, currentEditId)
-			if(reifyCb) reifyCb(temporary, newId, syncId)
+			//var temporary = computeTemporary()
+			//mapTemporary(temporary, newId, syncId, currentEditId)
+			//if(reifyCb) reifyCb(temporary, newId, syncId)
 		}else if(op === editCodes.addNew || op === editCodes.unshiftNew || op === editCodes.replaceInternalNew || op === editCodes.replaceExternalNew || op === editCodes.addNewAt || op === editCodes.addNewAfter){
-			var temporary = computeTemporary()
-			mapTemporary(temporary, newId, syncId, currentEditId)
-			if(reifyCb) reifyCb(temporary, newId, syncId)
+			//var temporary = computeTemporary()
+			//mapTemporary(temporary, newId, syncId, currentEditId)
+			//if(reifyCb) reifyCb(temporary, newId, syncId)
 		}else if(op === editCodes.setToNew){
-			var temporary = computeTemporary()
+			//var temporary = computeTemporary()
 			//e.id = newId
 			//TODO why no mapTemporary?
-			mapTemporary(temporary, newId, syncId, currentEditId)
-			if(reifyCb) reifyCb(temporary, newId, syncId)
-		}
+			//mapTemporary(temporary, newId, syncId, currentEditId)
+			//if(reifyCb) reifyCb(temporary, newId, syncId)
+		}*/
 			
 		//log(editId, id, path, op, edit, syncId)
 		
@@ -286,12 +285,12 @@ function make(schema, ol){
 		//if(Math.random() < .001) console.log('w: ' + JSON.stringify(temporaryIdsBySync).length)
 	 
 		if(op === editCodes.make || op === editCodes.copy){
-			var temporary = computeTemporary()
+			/*var temporary = computeTemporary()
 			_.assertInt(temporary)
 			_.assertInt(newId)
 			mapTemporary(temporary, newId, syncId, currentEditId)
-			
-			_.assertInt(newId)
+			*/
+			_.assertString(newId)
 			return newId;
 		}
 	}		
@@ -301,10 +300,10 @@ function make(schema, ol){
 		},*/
 		persistEdit: persistEdit,
 		saveEdit: saveEdit,
-		makeNewSyncId: makeNewSyncId,
+		/*makeNewSyncId: makeNewSyncId,
 		translateTemporaryId: function(id, syncId){
 			return translateTemporary(id, syncId)
-		},
+		},*/
 		syntheticEditId: function(){
 			ap.syntheticEdit({})
 			return ol.syntheticEditId()
@@ -316,7 +315,7 @@ function make(schema, ol){
 			//delete te.mappedIds[real]
 			return
 		},
-		syncIdUpTo: function(syncId, upToEditId){
+		//syncIdUpTo: function(syncId, upToEditId){
 			//_.errout('TODO: ' + syncId + ' ' + editId)
 			/*
 			var te = temporaryIdsBySync[syncId]
@@ -339,7 +338,7 @@ function make(schema, ol){
 			te.temporaryHistory = te.temporaryHistory.slice(i-1)
 			te.editIdsHistory = te.editIdsHistory.slice(i-1)
 			*/
-		}
+		//}
 	};
 		
 	return {

@@ -7,6 +7,8 @@ var syncProperty = require('./sync_property')
 var syncSwitch = require('./sync_switch')
 //var syncPreforked = require('./sync_preforked')
 
+var pu = require('./../http/js/paramutil')
+
 var syncMultimapOptimization = require('./sync_multimap_optimization')
 var mapValueOptimization = require('./sync_map_value_optimization')
 var genericOperatorIndex = require('./generic_operator_index')
@@ -86,7 +88,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 						paramValues.push(pv)//TODO test creating view with multiple params
 					}
 					//var mutatorKey = bindings.__mutatorKey
-					var viewId = nvs.viewIdStr(typeCode, paramValues)//, mutatorKey)
+					var viewId = pu.viewIdStr(typeCode, paramValues, viewSchema)//, mutatorKey)
 					//_.errout('TODO: make view id: ' + JSON.stringify(paramValues))
 					//console.log('made view id: ' + viewId + ' ' + rel.view)
 					return viewId
@@ -264,7 +266,7 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 		var bindingKey = rel.name
 		function paramFunc(bindings){
 			var v = bindings[bindingKey]
-			//console.log('got param ' + rel.name + ': ' + v)
+			//if(!v && isNaN(v)) console.log('got param ' + rel.name + ': ' + v)
 			return v
 			//_.errout('TODO: ' + JSON.stringify([bindings, rel]))
 		}
@@ -296,6 +298,8 @@ exports.makeRelFunction = function(s, staticBindings, rel){
 				var handle = {
 					get: function(v){
 						bindings[implicit] = v
+						//console.log('macro get: ' + v)
+						//if(v+'' === 'NaN') _.errout('NaN macro value')
 						var result = exprFunc(bindings)
 						//console.log('macro get ' + v + ' -> ' + JSON.stringify(result))
 						return result

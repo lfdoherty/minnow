@@ -6,11 +6,16 @@ var setInterval = timers.setInterval
 var clearTimeout = timers.clearTimeout
 
 var _ = require('underscorem')
+var seedrandom = require('seedrandom')
 
 var xhrHttp = require('./bxhr')
 
+var b64 = require('./b64')
+
 var postJson = xhrHttp.postJson
 var getJson = xhrHttp.getJson
+var postString = xhrHttp.postString
+var getString = xhrHttp.getString
 
 var syncApi = require('./sync_api')
 var jsonutil = require('./jsonutil')
@@ -38,7 +43,7 @@ function establishSocket(appName, schema, host, cb, errCb){
 
 		if(closed) return
 
-		var syncId = json.syncId
+		var syncId = seedrandom.uuidBase64ToString(json.syncId)
 
 
 		var editListeners = []
@@ -63,63 +68,69 @@ function establishSocket(appName, schema, host, cb, errCb){
 				sendFacade.send(e)//{type: 'setup view', snapshotVersion: snapshotVersion, uid: uid})
 			},
 			persistEdit: function(op, edit){
+				if(op == undefined) _.errout('unknown op: ' + JSON.stringify(edit))
 				_.assertInt(op)
 				_.assertObject(edit)
 				sendFacade.send({data: {op: op, edit: edit}});
 			},
-			make: function(type, json, forget, cb, temporary){
+			make: function(type, json, forget, cb, id){
 
 				_.assertLength(arguments, 5)
+				_.assertString(id)
 				
 				var st = schema[type];
 
-				var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api))
+				
+				var edits = jsonutil.convertJsonToEdits(schema, type, json, id)
 
-				sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length})
+				sendFacade.persistEdit(editCodes.made, {id: id, typeCode: st.code, forget: forget, following: edits.length})
 
 				if(cb) {
-					makeIdCbListeners[temporary] = cb
-					//console.log('setup cb: ' + temporary)
+					makeIdCbListeners[id] = cb
+					//console.log('setup cb: ' + id)
 				}
 
 				edits.forEach(function(e){
 					sendFacade.persistEdit(e.op, e.edit);
 				})
-				if(forget){
+				/*if(forget){
 					sendFacade.forgetLastTemporary()
-				}
+				}*/
 				return edits
 			},
-			copy: function(obj, json, forget, cb, temporary){
+			copy: function(obj, json, forget, cb, id){
 				_.assertLength(arguments, 5)
-				_.assertInt(obj.id())
+				_.assertString(obj.id())
+				_.assertLength(obj._internalId(), 8)
+				_.assertString(id)
+				_.assertLength(id, 8)
 				
 				//var st = schema[type];
 
 				var edits = jsonutil.convertJsonToEdits(schema, obj.type(), json, api.makeTemporaryId.bind(api))
 
-				sendFacade.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: obj.getObjectTypeCode(), forget: forget, 
+				sendFacade.persistEdit(editCodes.copied, {id: id, sourceId: obj._internalId(), typeCode: obj.getObjectTypeCode(), forget: forget, 
 					following: edits.length+
 					(obj.edits?obj.edits.length:0)+
 					(obj.localEdits?obj.localEdits.length:0)//})
 				})
 
 				if(cb) {
-					makeIdCbListeners[temporary] = cb
-					//console.log('setup cb: ' + temporary)
+					makeIdCbListeners[id] = cb
+					//console.log('setup cb: ' + id)
 				}
 
 				edits.forEach(function(e){
 					sendFacade.persistEdit(e.op, e.edit);
 				})
-				if(forget){
+				/*if(forget){
 					sendFacade.forgetLastTemporary()
-				}
+				}*/
 				return edits
 			},
-			forgetLastTemporary: function(){
+			/*forgetLastTemporary: function(){
 				sendFacade.send({type: 'forgetLastTemporary'});
-			},
+			},*/
 			addEditListener: function(listener){
 				editListeners.push(listener)
 			}
@@ -150,8 +161,8 @@ function establishSocket(appName, schema, host, cb, errCb){
 		    }
 		}	
 		function sendMessage(syncId, msg){
-		    var sendUrl = '/mnw/xhr/update/' + appName + '/' + syncId
-		    postJson(host+sendUrl, msg, function(){
+		    var sendUrl = '/mnw/xhr/update/' + appName + '/' + seedrandom.uuidStringToBase64(syncId)
+		    postString(host+sendUrl, b64.encode(JSON.stringify(msg)), function(){
 		    	sendMessageTimeoutHandle = setTimeout(sendMessages, 100);	
 		    })
 		}
@@ -159,10 +170,12 @@ function establishSocket(appName, schema, host, cb, errCb){
 
 		sendMessages()
 
-		var pollUrl = '/mnw/xhr/longpoll/' + appName + '/' + syncId
+		var pollUrl = '/mnw/xhr/longpoll/' + appName + '/' + seedrandom.uuidStringToBase64(syncId)
 		function pollServer(){
-			getJson(host+pollUrl, function(msgs){
+			getString(host+pollUrl, function(msgs){
 				if(closed) return
+				msgs = b64.decode(msgs)
+				msgs = JSON.parse(msgs)
 				//console.log('got messages: ' + JSON.stringify(msgs))
 				msgs.forEach(takeMessage)
 				pollServer()
@@ -203,12 +216,12 @@ function establishSocket(appName, schema, host, cb, errCb){
 				api.changeListener(data[1], data[2], data[3]);
 			}else if(data[0] === 'reify'){
 				var id = data[1]
-				var temporary = data[2]
-				api.reifyExternalObject(temporary, id)
-				//console.log('reifying temporary: ' + temporary)
-				if(makeIdCbListeners[temporary] !== undefined){
-					var cb = makeIdCbListeners[temporary]
-					delete makeIdCbListeners[temporary]
+				//var temporary = data[2]
+				//api.reifyExternalObject(temporary, id)
+				//console.log('reifying: ' + id)
+				if(makeIdCbListeners[id] !== undefined){
+					var cb = makeIdCbListeners[id]
+					delete makeIdCbListeners[id]
 					cb(id)
 				}
 			}else if(data[0] === 'block'){

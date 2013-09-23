@@ -4,5 +4,5 @@ entity 1
 	
 general() 100
 
-specific(entityId int) 101
+specific(entityId string) 101
 	subj entity(entityId) 1

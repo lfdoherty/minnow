@@ -28,3 +28,9 @@ var m = {
 	codes : codes
 }
 require('fs').writeFileSync(__dirname+'/../http/js/editlookup.json', JSON.stringify(m))
+
+var editReadersStr = require('fparse').makeReaderConfig(editSchema)
+//editReadersStr = '\nvar rs = require("./rs");\n' + editReadersStr
+//editReadersStr += '\nexports.read = read'
+require('fs').writeFileSync(__dirname+'/../http/js/edit_readers.js', editReadersStr)
+

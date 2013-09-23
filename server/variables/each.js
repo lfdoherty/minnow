@@ -57,6 +57,10 @@ schema.addFunction('each', {
 		for(var i=0;i<input.length;++i){
 			var v = input[i]
 			//console.log('value: ' + v)
+			//_.assertString(v)
+			//_.assertDefined(v)
+			//_.assert(v != NaN)
+			//_.assert(v+'' !== 'NaN')
 			var vs = macro.get(v)
 			if(vs !== undefined){
 				results.push(vs)

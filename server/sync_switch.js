@@ -56,13 +56,13 @@ function makeSwitchFunction(valueExpr, caseValues, caseExprs, defaultExpr, rel){
 				var res = caseExprs[i](bindings)
 				//console.log(JSON.stringify(caseExprs[0]))
 				//_.errout(caseExprs[0])//
-				//if(caseExprs[0].view === 'list') console.log('case result: ' + value + ' -> ' + JSON.stringify(res))
+				//console.log('case result: ' + value + ' -> ' + JSON.stringify(res))
 				return res
 			}
 		}
 		if(defaultExpr){
 			var res = defaultExpr(bindings)
-			if(caseExprs[0].view === 'list') console.log('default result: ' + value + ' -> ' + JSON.stringify(res))
+			//if(caseExprs[0].view === 'list') console.log('default result: ' + value + ' -> ' + JSON.stringify(res))
 			return res
 		}else{
 			console.log('WARNING: no case matched and no default case provided')

@@ -9,10 +9,13 @@ var _ = require('underscorem')
 
 var syncApi = require('./sync_api')
 var jsonutil = require('./jsonutil')
+var b64 = require('./b64')
+var arraystring = require('./arraystring')
 
 exports.openSocket = openSocket
 
 var shared = require('./update_shared')
+var random = require('seedrandom')
 
 var WebSocket = global.WebSocket
 
@@ -59,16 +62,19 @@ function openSocket(appName, host, cb, errCb, closeCb){
 	var url = wsHost
 	//console.log('url: ' + url)
 	var ws = new WebSocket(url);
+	//ws.binaryType = "arraybuffer";
+	
+	console.log('here')
 	
 	ws.onopen = function() {
 
-		//console.log('websocket connection opened: ' + Date.now())
-		ws.send(JSON.stringify({token: getCookieToken(), url: document.location.href}))
+		console.log('websocket connection opened: ' + Date.now())
+		send({token: getCookieToken(), url: document.location.href})
 		cb(establishSocketFully)
 	}
 	
 	function heartbeat(){
-		ws.send('heartbeat');
+		send('heartbeat')
 	}
 	
 	var heartbeatHandle = setInterval(function(){
@@ -76,7 +82,7 @@ function openSocket(appName, host, cb, errCb, closeCb){
 	}, 30000);
 	
 	function send(msg){
-		msg = JSON.stringify(msg)
+		msg = b64.encode(JSON.stringify(msg))
 		//if(msgBuf) msgBuf.push(msg)
 		///else 
 		ws.send(msg)
@@ -100,7 +106,7 @@ function openSocket(appName, host, cb, errCb, closeCb){
 	
 	var msgsBuffer = []
 	ws.onmessage = function(msg) {
-		msgsBuffer.push(JSON.parse(msg.data))
+		msgsBuffer.push(JSON.parse(b64.decode(msg.data)))
 	}
 	
 	var schema
@@ -160,62 +166,69 @@ function openSocket(appName, host, cb, errCb, closeCb){
 			_.assertInt(op)
 			_.assertObject(edit)
 			//console.log('sending edit: ' + JSON.stringify({op: op, edit: edit}))
+			//if(op === 21){
+			//	console.log('id length: ' + edit.id.length)
+			//}
 			send({data: {op: op, edit: edit}});
 		},
-		make: function(type, json, forget, cb, temporary){
+		make: function(type, json, forget, cb, id){
 
 			_.assertLength(arguments, 5)
 			
 			var st = schema[type];
+			
+			//var id = random.uid()
 
-			var edits = jsonutil.convertJsonToEdits(schema, type, json, api.makeTemporaryId.bind(api), temporary)
+			var edits = jsonutil.convertJsonToEdits(schema, type, json, id)//api.makeTemporaryId.bind(api), temporary)
 
-			sendFacade.persistEdit(editCodes.make, {typeCode: st.code, forget: forget, following: edits.length})
+			sendFacade.persistEdit(editCodes.made, {id: id, typeCode: st.code, forget: forget, following: edits.length})
 
 			if(cb) {
-				makeIdCbListeners[temporary] = cb
+				makeIdCbListeners[id] = cb
 				//console.log('setup cb: ' + temporary)
 			}
 
 			edits.forEach(function(e){
 				sendFacade.persistEdit(e.op, e.edit);
 			})
-			if(forget){
+			/*if(forget){
 				sendFacade.forgetLastTemporary()
-			}
+			}*/
 			return edits
 		},
-		copy: function(obj, json, forget, cb, temporary){
+		copy: function(obj, json, forget, cb, id){
 
 			
 			_.assertLength(arguments, 5)
-			_.assertInt(obj.id())
+			_.assertString(obj.id())
 			
-			var edits = jsonutil.convertJsonToEdits(schema, obj.type(), json, api.makeTemporaryId.bind(api))
+			//var id = random.uid()
+			
+			var edits = jsonutil.convertJsonToEdits(schema, obj.type(), json, id)//api.makeTemporaryId.bind(api))
 
-			sendFacade.persistEdit(editCodes.copy, {sourceId: obj.id(), typeCode: obj.getObjectTypeCode(), forget: forget, 
+			sendFacade.persistEdit(editCodes.copied, {id: id, sourceId: obj._internalId(), typeCode: obj.getObjectTypeCode(), forget: forget, 
 				following: 
 					edits.length+
 					(obj.edits?obj.edits.length:0)+
 					(obj.localEdits?obj.localEdits.length:0)})
 
 			if(cb) {
-				makeIdCbListeners[temporary] = cb
+				makeIdCbListeners[id] = cb
 				//console.log('setup cb: ' + temporary)
 			}
 
 			edits.forEach(function(e){
 				sendFacade.persistEdit(e.op, e.edit);
 			})
-			if(forget){
+			/*if(forget){
 				sendFacade.forgetLastTemporary()
-			}
+			}*/
 			return edits
 		},
-		forgetLastTemporary: function(){
+		/*forgetLastTemporary: function(){
 			//_.errout('TODO')
 			send({type: 'forgetLastTemporary'})
-		},
+		},*/
 		addEditListener: function(listener){
 			_.assert(editListeners.indexOf(listener) === -1)
 			
@@ -242,14 +255,15 @@ function openSocket(appName, host, cb, errCb, closeCb){
 			api.changeListener(data[1], data[2], data[3]);
 		}else if(data[0] === 'reify'){
 			var id = data[1]
-			var temporary = data[2]
-			api.reifyExternalObject(temporary, id)
+			/*var temporary = data[2]
+			api.reifyExternalObject(temporary, id)*/
 			//console.log('reifying temporary: ' + temporary)
-			if(makeIdCbListeners[temporary] !== undefined){
-				var cb = makeIdCbListeners[temporary]
-				delete makeIdCbListeners[temporary]
+			if(makeIdCbListeners[id] !== undefined){
+				var cb = makeIdCbListeners[id]
+				delete makeIdCbListeners[id]
 				cb(id)
 			}
+			//console.log('WARNING: got reify')
 		}else if(data[0] === 'block'){
 			api.blockUpdate(data[1])
 		}else if(data.type){
@@ -296,9 +310,10 @@ function openSocket(appName, host, cb, errCb, closeCb){
 		fullCb = fullCbParam
 		
 		ws.onmessage = function(msg) {
-			msg = msg.data
+			//msg = msg.data
 			//console.log('message: ' + msg)
-			var msgs = JSON.parse(msg)
+			var decodedMsg = b64.decode(msg.data)
+			var msgs = JSON.parse(decodedMsg)
 			processMsgs(msgs)
 		}
 	

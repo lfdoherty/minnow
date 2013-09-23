@@ -52,9 +52,9 @@ getSnapshot 6
 	previousVersionId int 4
 	latestVersionId int 5
 	isHistorical int 6
-	
+	/*
 forgetLastTemporary 8
-	syncId uuid 1
+	syncId uuid 1*/
 /*
 reconnect 10
 	connectionId string 1

@@ -100,7 +100,7 @@ exports.versionPrimitive = function(config, done){
 				var hasReverted = false
 				
 				done.poll(function(){
-					if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()))
+					if(c.has('e')) console.log('versions: ' + c.e.text.value() + ' ' + JSON.stringify(c.e.text.versions()) + ' ' + c.has('e'))
 					if(c.has('e') && c.e.text.versions().length === 4){
 						done()
 						return true

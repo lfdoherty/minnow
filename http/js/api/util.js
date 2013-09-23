@@ -11,7 +11,7 @@ var editNames = lookup.names
 function stub(){}
 
 function viewReadonlyFunction(){
-	throw new Error('cannot modify a view object')
+	throw new Error('cannot modify a view object: ')// + this.objectId)
 }
 exports.viewReadonlyFunction = viewReadonlyFunction
 
@@ -151,7 +151,7 @@ exports.primitiveChangeListener = function changeListener(subObj, key, op, edit,
 }
 
 function findObj(arr, desiredId){
-	_.assertInt(desiredId)
+	_.assertString(desiredId)
 	//console.log('finding: ' + desiredId)
 	//console.log(JSON.stringify(arr))
 	//console.log('out of: ' + JSON.stringify(_.map(arr, function(v){return v.id();})))
@@ -238,7 +238,8 @@ var typeSuffix = {
 	int: 'Int',
 	long: 'Long',
 	boolean: 'Boolean',
-	real: 'Real'
+	real: 'Real',
+	uuid: 'Uuid'
 }
 
 var primitiveTypeChecker = {
@@ -249,8 +250,9 @@ var primitiveTypeChecker = {
 	real: function(v){_.assertReal(v);}
 }
 function objectIdTypeChecker(v){
-	_.assertInt(v)
-	_.assert(v !== -1)
+	_.assertString(v)
+	_.assertLength(v, 8)
+	//_.assert(v !== -1)
 }
 
 exports.getAddOperator = function(schema){

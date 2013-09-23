@@ -1,8 +1,11 @@
 
 var _ = require('underscorem')
 var log = require('quicklog').make('minnow/longpoll')
+var b64 = require('./js/b64')
 
 var seedrandom = require('seedrandom')
+var stringToBuffer = require('./js/arraystring').stringToBuffer
+var bufferToString = require('./js/arraystring').bufferToString
 
 exports.make = function(app, appName, prefix, identifier){
 	_.assertLength(arguments, 4)
@@ -25,7 +28,7 @@ exports.make = function(app, appName, prefix, identifier){
 			app.get('/mnw/sync/'+appName+'/:random', identifier, function(req, httpRes){
 				
 				cb(req.userToken, function(syncId){
-					var data = JSON.stringify({syncId: syncId.toString()})
+					var data = JSON.stringify({syncId: seedrandom.uuidStringToBase64(syncId)})
 
 					userTokenBySyncId[syncId] = req.userToken
 					
@@ -41,23 +44,51 @@ exports.make = function(app, appName, prefix, identifier){
 		},
 		receiveUpdates: function(cb){
 			app.post('/mnw/xhr/update/' + appName + '/:syncId', identifier, function(req, res){
-				var msgs = req.body
-				var syncId = seedrandom.uuidStringToBuffer(req.params.syncId)
-				//_.assertBuffer(syncId)
-				function replyCb(){
-					res.setHeader('Content-Type', 'text/plain');
-					res.setHeader('Content-Length', '0');
-					res.setHeader('Cache-Control', 'no-cache, no-store');
+				
+				var contentLength = req.headers['content-length']
+				contentLength = parseInt(contentLength)
+				
+				var str
+				req.setEncoding('ascii')
+				req.on('readable', function (){
+					str = req.read(contentLength)
+				})
+				req.on('end', function (){
+					if(!str) throw new Error('never got content: ' + contentLength)
+					
+					_.assertString(str)
+					end(str)
+				})
+				
+				function end(body){
+					//_.assertBuffer(buf)
+					//console.log(JSON.stringify(req.headers))
+					//console.log(JSON.stringify(Object.keys(req)))
+					//console.log(JSON.stringify(req.body))
+					//_.assertBuffer(req.body)
+					_.assertString(body)
+					var decoded = b64.decode(body)
+					//console.log('body: ' + body)
+					//console.log('decoded: ' + decoded)
+					//var decoded = bufferToString(buf)
+					var msgs = JSON.parse(decoded)
+					var syncId = seedrandom.uuidBase64ToString(req.params.syncId)
+					//_.assertBuffer(syncId)
+					function replyCb(){
+						res.setHeader('Content-Type', 'text/plain');
+						res.setHeader('Content-Length', '0');
+						res.setHeader('Cache-Control', 'no-cache, no-store');
 
-					res.end()
+						res.end()
+					}
+					function securityFailureCb(){
+						res.send(403)
+					}
+					function deadSyncHandleCb(){
+						res.send(400)
+					}
+					cb(req.userToken,syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb)
 				}
-				function securityFailureCb(){
-					res.send(403)
-				}
-				function deadSyncHandleCb(){
-					res.send(400)
-				}
-				cb(req.userToken,syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb)
 			})
 		},
 		sendAllToClient: sendToClient,
@@ -110,7 +141,7 @@ exports.make = function(app, appName, prefix, identifier){
 	//long poll connections to send update server->client for a sync handle
 	//TODO if no longpoll connection is made for a syncId for awhile, delete it
 	app.get('/mnw/xhr/longpoll/' + appName + '/:syncId', identifier, function(req, res){
-		var syncId = req.params.syncId
+		var syncId = seedrandom.uuidBase64ToString(req.params.syncId)
 
 		if(userTokenBySyncId[syncId] !== req.userToken){
 			//log('user(' + req.userToken + ') attempted to access sync handle of user(' + userTokenBySyncId[syncId] + ') - access denied')
@@ -125,10 +156,11 @@ exports.make = function(app, appName, prefix, identifier){
 		console.log('long poll (keep) open: ' + syncId)
 				
 		function sendContent(content){
-			var data = new Buffer(content)
-		    res.setHeader('Content-Type', 'application/json');
+			var data = b64.encode(content)
+		  //  res.setHeader('Content-Type', 'application/json');
 		    res.setHeader('Content-Length', data.length);
 		    res.header('Cache-Control', 'no-cache, no-store')
+		    //res.setHeader('Content-Type', 'application/binary');
 			res.send(data)
 			isOpen[syncId] = false
 			lastStartedWaiting[syncId] = Date.now()

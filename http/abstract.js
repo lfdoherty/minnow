@@ -6,7 +6,8 @@ exports.module = module
 
 var log = require('quicklog').make('minnow/longpoll')
 
-var newViewSequencer = require('./../server/new_view_sequencer')
+//var newViewSequencer = require('./../server/new_view_sequencer')
+var pu = require('./js/paramutil')
 
 var random = require('seedrandom')
 
@@ -36,7 +37,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	impl.exposeBeginSync(function(userToken, replyCb){
 		_.assertLength(arguments, 2)
 		
-		var theSyncId = random.uidBuffer()
+		var theSyncId = random.uid()
 		var sh
 		
 		/*function listenerCb(e){
@@ -51,10 +52,13 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			blockListener(sh, e)
 		}
 		
-		function reifyCb(temporary, id){
-			_.assert(temporary < 0)
-			_.assert(id > 0)
-			sh.msgs.push(['reify', id, temporary])
+		function reifyCb(id){
+			_.assertLength(arguments, 1)
+			//_.assert(temporary < 0)
+			//_.assert(id > 0)
+			//console.log('reifying: ' + id)
+			sh.msgs.push(['reify', id])
+			//throw new Error('invalid reification')
 		}
 
 		minnowClient.beginSync(theSyncId, blockCb,/*listenerCb, objectCb,*/ reifyCb, reifyCb, function(syncHandle){
@@ -117,8 +121,8 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 	impl.receiveUpdates(function(userToken, syncId, msgs, replyCb, securityFailureCb, deadSyncHandleCb){
 	
 		_.assertFunction(deadSyncHandleCb)
-		_.assertBuffer(syncId)
-		_.assertLength(syncId.toString(), 22)
+		_.assertString(syncId)
+		_.assertLength(syncId, 8)
 		//_.assertString(syncId)
 		//var syncIdBuf = seedrandom.uuidStringToBuffer(syncId)
 		
@@ -128,12 +132,14 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 			var start = Date.now()
 			var snapshotId = parseInt(msg.snapshotVersion);
 			
-			//console.log('msg.viewId: ' + msg.viewId + ' ' + JSON.stringify(msg))
+			console.log('msg.viewId: ' + msg.viewId + ' ' + JSON.stringify(msg))
 			_.assertString(msg.viewId)
 			
 			//log(JSON.stringify(Object.keys(schema)))
-			var viewCode = schema[msg.viewName].code
+			var viewSchema = schema[msg.viewName]
+			var viewCode = viewSchema.code
 			_.assertInt(viewCode)
+			
 
 			var viewName = schema._byCode[viewCode].name
 			var securitySetting
@@ -183,7 +189,7 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 
 					sh.msgs.push({type: 'ready', uid: msg.uid})
 				})
-			}, newViewSequencer.parseViewId(msg.viewId).rest, userToken)
+			}, pu.parseViewId(msg.viewId, schema).rest, userToken)
 		}
 
 		var syncHandle = syncHandles[syncId]
@@ -201,10 +207,13 @@ exports.load = function(schema, viewSecuritySettings, minnowClient, listeners, i
 				doViewSetup(msg)
 			}else if(msg.type === 'forgetLastTemporary'){
 				syncHandle.forgetLastTemporary(syncId)
+			}else if(msg.type === 'heartbeat'){
 			}else{
-				msg = msg.data
+				//var msg = msg.data
+				
+			//	console.log('got msg: ' + JSON.stringify(msg) + ' ' + msg.type)
 
-				syncHandle.persistEdit(msg.op, msg.edit, syncId)
+				syncHandle.persistEdit(msg.data.op, msg.data.edit, syncId)
 			}
 		})
 

@@ -35,72 +35,21 @@ function deserializeSnapshotVersionIds(buf){
 	}
 	return versions
 }
-function deserializeAllSnapshots(readers, readersByCode, names, snapshots){
+function deserializeAllSnapshots(snapshots){
+	_.assertLength(arguments, 1)
 	_.assertBuffer(snapshots)
 	var r = fparse.makeSingleReader(snapshots)
 	var manySnaps = r.readByte()//readInt()
 	var snaps = []
 	//log('many snaps: ' + manySnaps)
 	for(var i=0;i<manySnaps;++i){
-		var objects = deserializeSnapshotInternal(readers, readersByCode, names, r)
+		var objects = fp.deserializeSnapshotInternal(r)
 		snaps.push(objects)
 	}
 	return snaps
 }
 
-function deserializeSnapshotInternal(readers, readersByCode, names, rs){
-	var startEditId = rs.readInt()
-	var endEditId = rs.readInt()
-	
-	//console.log(startEditId + ' -> ' + endEditId)
-	
-	var manyObjects = rs.readInt()
-	var objects = {}
-	//console.log('many objects: ' + manyObjects)
-	//console.log(new Error().stack)
-	for(var i=0;i<manyObjects;++i){
-		var edits = []
-		var e = readers.selectTopObject(rs)
-		var id = e.id
-		objects[id] = edits
 
-		var many = rs.readInt()
-		//console.log('many edits: ' + many)
-		for(var j=0;j<many;++j){
-			var code = rs.readByte()
-			var editId = rs.readInt()
-			//var name = names[code]
-			//console.log('getting name(' + code + '): ' + name + ' ' + editId)
-			//_.assertString(name)
-			var e = readersByCode[code](rs)
-			//console.log('got e: ' +code+' ' + editId + ' ' +  JSON.stringify(e))
-			edits.push({op: code, edit: e, editId: editId})
-		}
-	}
-	var manyViewObjects = rs.readInt()
-	//console.log('many view objects: ' + manyViewObjects)
-	for(var i=0;i<manyViewObjects;++i){
-		var edits = []
-		var e = readers.selectTopViewObject(rs)
-		var id = e.id
-		objects[id] = edits
-		var many = rs.readInt()
-		//console.log('many: ' + many)
-		for(var j=0;j<many;++j){
-			var code = rs.readByte()
-			var editId = rs.readInt()
-			//console.log(JSON.stringify(names))
-			//if(name === undefined) _.errout(editId + ' cannot find name for code: ' + code)
-			var e = readersByCode[code](rs)
-			edits.push({op: code, edit: e, editId: editId})
-		}
-	}
-	return {startVersion: startEditId, endVersion: endEditId, objects: objects}
-}
-function deserializeSnapshot(readers, readersByCode, names, snap){
-	var rs = fparse.makeSingleReader(snap)
-	return deserializeSnapshotInternal(readers, readersByCode, names, rs)
-}
 
 var flushFunctions = []
 var flushIntervalHandle = setInterval(function(){
@@ -238,7 +187,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			var objects = []
 			//console.log('many objects: ' + many)
 			for(var i=0;i<many;++i){
-				var id = r.readInt()
+				var id = r.readUuid()//readInt()
 				var buf = r.readData()
 				objects.push({id: id, edits: readObject(buf)})
 			}
@@ -357,7 +306,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			var syncListener = syncListenersBySyncId[e.destinationSyncId]
 			if(syncListener){
 				var makeCb = syncListener.make
-				makeCb(e.id, e.requestId, e.temporary)
+				makeCb(e.id, e.requestId)
 			}else{
 				console.log('WARNING: sync listener not found for ' + e.destinationSyncId)
 			}
@@ -425,6 +374,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			//console.log('str: ' + schemaStr)
 			var all = JSON.parse(schemaStr)
 			syncId = random.uuidBase64ToString(all.syncId)
+			//console.log('converted ' + all.syncId + ' to ' + syncId)
 			setupBasedOnSchema(all.schema)
 			
 			if(buf.length > needed){
@@ -581,14 +531,14 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		_.assertString(sourceSyncId)
 		_.assertLength(sourceSyncId, 8)
 		
-		_.assert(sourceSyncId.length > 0)
+		//_.assert(sourceSyncId.length > 0)
 		//console.log('persisting edit: ' + editNames[op])
 		
 		if(es === undefined) _.errout('unknown edit op: ' + op)
 		var editTypeCode = op//es.code
 		
 		var requestId
-		if((op === editCodes.make || op === editCodes.copy) && !edit.forget){
+		if((op === editCodes.made || op === editCodes.copied) && !edit.forget){
 			requestId = makeRequestId()
 		}
 		
@@ -649,6 +599,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			close: function(){
 				//_.errout('TODO close sync handle')
 				console.log('closing sync handle: ' + syncId)
+				console.log(new Error().stack)
 				delete syncListenersBySyncId[syncId]
 				closed[syncId] = true
 				w.endSync({syncId: syncId})
@@ -681,7 +632,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			_.assertFunction(makeCb)
 			_.assertFunction(reifyCb)
 			_.assertFunction(cb);
-			_.assertBuffer(syncId)
+			_.assertString(syncId)
 			var e = {syncId: syncId};
 			//applyRequestId(e, wrapper.bind(undefined, cb, makeCb));
 
@@ -712,7 +663,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 					cb(err)
 				}else{
 					//res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
-					res.snapshot = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snapshot)
+					//res.snapshot = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snapshot)
 					cb(undefined, res)
 				}
 			});
@@ -726,7 +677,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 					cb(err)
 					return
 				}
-				res.snapshots = deserializeAllSnapshots(fp.readers, fp.readersByCode, fp.names, res.snapshots)
+				res.snapshots = deserializeAllSnapshots(res.snapshots)
 				cb(undefined, res)
 			});
 			w.getAllCurrentSnapshots(e);
@@ -750,7 +701,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 				}
 				//console.log('getAllSnapshots: ' + e.isHistorical)
 
-				res.snapshots = deserializeAllSnapshots(fp.readers, fp.readersByCode, fp.names, res.snapshots)
+				res.snapshots = deserializeAllSnapshots(res.snapshots)
 				//log('deserialized: ' + JSON.stringify(res).slice(0,500))
 				cb(undefined, res)
 			});
@@ -767,7 +718,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 					cb(err)
 					return
 				}
-				res.snap = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snap)
+				res.snap = res.snap//deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snap)
 				cb(undefined, res)
 			});
 			w.getSnapshot(e);

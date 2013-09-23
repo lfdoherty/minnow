@@ -13,9 +13,9 @@ InnerId.prototype.toString = function(){
 
 function innerify(objId, id){
 	//_.assertInt(id)
-	if(id !== undefined) _.assertInt(id)
+	if(id !== undefined) _.assertString(id)
 	//_.assertInt(objId)//TODO if not, use top from this
-	if(!_.isInt(objId)) objId = objId.top
+	if(objId.top) objId = objId.top//!_.isInt(objId)) objId = objId.top
 	return new InnerId(objId, id)//{top: objId, inner: id}
 }
 

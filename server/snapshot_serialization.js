@@ -69,11 +69,14 @@ function serializeSnapshot(startEditId, endEditId, objectEditBuffers, viewObject
 		writersByCode[editCodes.selectTopObject](w, {id: e.id})
 
 		if(!Buffer.isBuffer(e.edits)){
+			console.log('error: ' + JSON.stringify(e.edits))
+		}
+		/*if(!Buffer.isBuffer(e.edits)){
 			serializeViewObject(w, codes, writersByCode, e.edits)
-		}else{
+		}else{*/
 			_.assertBuffer(e.edits)
 			w.putData(e.edits, 0, e.edits.length)
-		}
+		//}
 	}
 
 	serializeViewObjects(w, codes, writersByCode, viewObjectEditBuffers)
@@ -89,6 +92,7 @@ function serializeViewObjects(w, codes, writersByCode, viewObjectEditBuffers){
 	for(var i=0;i<viewObjectEditBuffers.length;++i){
 		var e = viewObjectEditBuffers[i]
 		var id = e.id//viewIds[i]
+		_.assertString(id)
 		var list = e.edits//viewObjectEditBuffers[id]
 		//console.log('writing view object: ' + id)
 

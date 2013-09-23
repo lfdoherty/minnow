@@ -21,7 +21,7 @@ function compute(m){
 	var keys = Object.keys(m)
 	var kvs = []
 	keys.forEach(function(key){
-		kvs.push([parseInt(key), m[key]])
+		kvs.push([key, m[key]])
 	})
 	
 	kvs.sort(function(a,b){return a[1]-b[1];})
@@ -31,7 +31,7 @@ function compute(m){
 		resultKeys.push(kv[0])
 	})
 	
-	//console.log('keysByValues('+/*JSON.stringify(m)*/Object.keys(m).length+') -> ' + resultKeys.length)//JSON.stringify(resultKeys))
+	//console.log('keysByValues('+/*JSON.stringify(m)*/Object.keys(m).length+') -> ' + JSON.stringify(resultKeys))
 	//console.log(new Error().stack)
 	
 	return resultKeys

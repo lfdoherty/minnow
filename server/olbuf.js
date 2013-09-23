@@ -125,7 +125,7 @@ exports.make = function(){
 	
 	var handle = {
 		write: function(id, edits){
-			_.assertInt(id)
+			_.assertString(id)
 			_.assertArray(edits)
 			
 			var offset = w.getCurrentOffset()
@@ -143,7 +143,7 @@ exports.make = function(){
 			//if(Math.random() < .01) console.log('olbuf: ' + w.getCurrentOffset())
 		},
 		append: function(id, edits){
-			_.assertInt(id)
+			_.assertString(id)
 			_.assertArray(edits)
 			
 			if(destroyed[id]){

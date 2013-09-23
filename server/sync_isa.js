@@ -25,6 +25,7 @@ function make(s, staticBindings, rel, recurse){
 		function staticNameFunc(bindings){
 			var id = expr(bindings)
 		
+			//console.log('expr: ' + expr)
 			if(id === undefined){
 				//console.log('isa undefined -> false')		
 				return

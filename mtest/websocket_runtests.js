@@ -70,7 +70,8 @@ require('./runtests_abstract').run(
 				oldMakeClient(config.port, function(c){
 					//console.log('setting up mh service: ' + matterhornConfig.port)
 					//name, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, syncHandleCreationListener
-					c.setupService('testapp', local, secureLocal, authenticate, authenticateByToken, serviceSecuritySettings);
+					c.setupService('testapp', '', local, secureLocal, authenticate, authenticateByToken, serviceSecuritySettings, {});
+					//name, urlPrefix, local, secureLocal, identifier, authenticateByToken, viewSecuritySettings, listeners){
 					doneCb()							
 					setTimeout(function(){
 						cb({

@@ -7,19 +7,18 @@ var analytics = require('./analytics')
 
 var snapshotSerialization = require('./snapshot_serialization')
 var pathmerger = require('./pathmerger')
+var pu = require('./../http/js/paramutil')
 
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
 var editNames = editFp.names
-
-var innerify = require('./innerId').innerify
 
 var bw = require("buffered-writer");
 
 var random = require('seedrandom')
 var QuerySyncId = random.uid()
 
-exports.viewIdStr = viewIdStr
+
 
 var vcModule = require('./viewfacade')
 
@@ -196,7 +195,7 @@ function makeQueryHandle(syncId, viewCache){
 					gotViewObjectIds.push(v.id)
 				})
 				diff.addedObjects.forEach(function(v){
-					_.assertInt(v.id)
+					_.assertString(v.id)
 					//if(gotObjectIds.indexOf(v.id) !== -1) _.errout('TODO FIXME: ' + v.id)
 					gotObjectIds.push(v.id)
 				})
@@ -233,7 +232,7 @@ function makeQueryHandle(syncId, viewCache){
 			//_.errout('TODO DO NOT DO THIS')
 			//_.errout('TODO: ' + id)
 			
-			_.assertInt(id)
+			_.assertString(id)
 			if(alreadyGot[id]){
 				
 				//cb()
@@ -242,7 +241,7 @@ function makeQueryHandle(syncId, viewCache){
 				//console.log('adding object: ' + id)
 				//alreadyGot[id] = true
 				//gotIds.push(id)
-				_.assertInt(id)
+				_.assertString(id)
 				addedObjects.push(id)
 				//cb()
 			}
@@ -250,7 +249,7 @@ function makeQueryHandle(syncId, viewCache){
 		},
 		add: function(id, lastEditId, changesCb, inclusionsCb, doneCb){
 		
-			console.log(syncId + ' adding: ' + id + ' at ' + lastEditId)
+			//console.log(syncId + ' adding: ' + id + ' at ' + lastEditId)
 			
 			if(alreadyGot[id]){
 				doneCb();
@@ -265,120 +264,6 @@ function makeQueryHandle(syncId, viewCache){
 }
 
 var log = require('quicklog').make('minnow/new_view_sequencer')
-
-function safeSplit(str, delim){
-	var depth = 0
-	var parts = []
-	var cur = ''
-	var inQuotes = false
-	for(var i=0;i<str.length;++i){
-		var c = str[i]
-		if(c === '[') ++depth
-		else if(c === ']') --depth
-		else if(c === '"') inQuotes = !inQuotes
-		else if(c === delim && depth === 0 && !inQuotes){
-			parts.push(cur)
-			cur = ''
-			continue
-		}
-		cur += c			
-	}
-	if(cur.length > 0){
-		parts.push(cur)
-	}
-	return parts
-}
-
-function parseComplexId(ps){
-	var nci = ps.indexOf('_')
-	var a = ps.substr(0,nci)
-	var b = ps.substr(nci+1)
-	var ia = parseInt(a)
-	var ib = parseInt(b)
-	if(isNaN(ia)) _.errout('failed to parse id: ' + a + ' ' + ps)
-	if(isNaN(ib)) _.errout('failed to parse id: ' + b + ' ' + ps)
-	return innerify(ia,ib)
-}
-
-exports.parseInnerId = parseComplexId
-
-function parsePart(ps){
-	if(ps.indexOf('[') === 0){
-		return JSON.parse(ps)
-	}else if(ps === 'undefined'){
-		return undefined
-	}else if(parseInt(ps)+'' === ps){
-		return parseInt(ps)
-	}else if(ps.length === 22 && ps.indexOf('"') === -1){
-		return random.uuidStringToBuffer(ps)
-	}else if(ps.indexOf('_') !== -1 && ps.indexOf('"') === -1){
-		return parseComplexId(ps)
-	}else{
-		//console.log('ps: ' + ps)
-		if(ps.indexOf('"') !== 0) _.errout('invalid: ' + ps)
-		_.assert(ps.indexOf('"') === 0)
-		return ps.substring(1,ps.length-1)
-	}
-}
-
-function parseParams(paramsStr){
-	_.assertEqual(paramsStr.substr(0,1), '[')
-	paramsStr = paramsStr.substr(1, paramsStr.length-2)
-	var parts = safeSplit(paramsStr, ',')
-	var rest = []
-	parts.forEach(function(part){
-		rest.push(parsePart(part))
-	})
-	return rest
-}
-exports.parseParams = parseParams
-
-function parseViewId(id){
-	//console.log('view id: ' + id)
-	var ci = id.indexOf('[')
-	var typeCodeStr = id.substring(1, ci)
-	
-	var restStr = id.substring(ci+1,id.length-1)
-
-	var parts = safeSplit(restStr, ',')
-	var rest = []
-	parts.forEach(function(part){
-		rest.push(parsePart(part))
-	})
-	var res = {typeCode: parseInt(typeCodeStr), rest: rest}
-	
-	return res
-}
-
-exports.parseViewId = parseViewId
-
-function paramsStr(params){
-	var str = '['
-	for(var i=0;i<params.length;++i){
-		if(i>0) str += ','
-		var v = params[i]
-		if(_.isString(v)){
-			v = '"'+v+'"'
-		}
-		if(_.isArray(v)) _.errout('invalid array type?: ' + viewCode + ' ' + JSON.stringify(params))
-		if(v+'' === '[object Object]') _.errout('cannot parameterize: ' + JSON.stringify(v) + ' ' + v)
-		if((v+'').indexOf('{') !== -1) _.errout('cannot parameterize: ' + JSON.stringify(v) + ' ' + v)
-		str += v
-	}
-	str += ']'
-	return str
-}
-exports.paramsStr = paramsStr
-
-function viewIdStr(viewCode,params){
-	_.assertLength(arguments, 2)
-
-	var str = ':'+viewCode+paramsStr(params)
-
-	
-	
-	return str
-}
 
 var syncView = require('./sync_view')
 
@@ -404,7 +289,7 @@ exports.make = function(schema, ol){
 			var bindings = {}
 			_.assertObject(parsedViewId)
 
-			//console.log(JSON.stringify([parsedViewId, viewSchema.params]))
+			//console.log('making view bindings: ' + JSON.stringify([parsedViewId, viewSchema.params]))
 			//_.assertEqual(parsedViewId.rest.length, viewSchema.params.length)
 			
 			for(var i=0;i<viewSchema.params.length;++i){
@@ -450,7 +335,9 @@ exports.make = function(schema, ol){
 	})
 	
 	function getViewState(viewId){
-		var id = parseViewId(viewId)
+		_.assert(viewId.indexOf('[') !== -1)
+		var id = pu.parseViewId(viewId, schema)
+		//console.log('parsed viewId: ' + JSON.stringify(id))
 		return viewStateFuncs[id.typeCode](id)
 		//_.errout('TODO: ' + JSON.stringify(id))
 	}
@@ -459,18 +346,18 @@ exports.make = function(schema, ol){
 	
 		var result = viewCache.snap(id, {})
 
-		var objectEditBuffers = []
-		var viewObjectEditBuffers = []
+		var objectEditBuffers = [].concat(result.objects)
+		var viewObjectEditBuffers = [].concat(result.viewObjects)
 		
 		
-		result.forEach(function(r){
+		/*result.forEach(function(r){
 			if(_.isString(r.id)){
 				viewObjectEditBuffers.push(r)
 			}else{
 				//_.assertBuffer(r.edits)
 				objectEditBuffers.push(r)
 			}
-		})
+		})*/
 		
 		//console.log(id + ' ' + lastEditId + ' ' + endEditId + ' ' + JSON.stringify(result).slice(0,1000))
 		//console.log('snapshot ' + id + ' ' + lastEditId + ' ' + endEditId + ' ' + objectEditBuffers.length, viewObjectEditBuffers.length)
@@ -632,7 +519,7 @@ exports.make = function(schema, ol){
 				var edits = []
 				var snapshots = []
 				
-				//console.log('adding view ' + id + ' ' + lastEditId + ' ' + endEditId)
+				console.log('adding view ' + id + ' ' + lastEditId + ' ' + endEditId)
 				
 				queryHandle.add(id, lastEditId, function(changedId, changes){
 					//console.log('appending edits: ' + JSON.stringify(changes))
@@ -700,6 +587,7 @@ exports.make = function(schema, ol){
 				},
 				subscribeToObject: function(id){
 					//_.errout('TODO push subscribe task, etc')					
+					_.assertString(id)
 					addObjectTasks.push(id)
 				},
 				afterNextUpdate: function(cb){

@@ -14,9 +14,9 @@ function makeKeyParser(kt){
 			console.log('parsing key: ' + key)
 			var ci = key.indexOf(':')
 			if(ci === -1){
-				return parseInt(key);
+				return key//parseInt(key);
 			}else{
-				return {top: parseInt(key.substr(0,ci)), inner: parseInt(key.substr(ci+1))}
+				return {top: key.substr(0,ci), inner: key.substr(ci+1)}
 			}
 		}
 	}else if(kt.type === 'primitive'){

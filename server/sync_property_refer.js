@@ -15,7 +15,7 @@ function makePropertyRefer(p){
 						//_.assertInt(state[i])
 						var id = state[i]
 						if(id.inner) id = id.top
-						_.assertInt(id)
+						_.assertString(id)
 						res.objectIds.push(id)
 					}
 					//res.objectIds = res.objectIds.concat(res)
@@ -48,11 +48,11 @@ function makePropertyRefer(p){
 						//console.log('state: ' + JSON.stringify(state))
 						for(var i=0;i<keys.length;++i){
 							var k = keys[i]
-							k = parseInt(k)
-							_.assertInt(k)
+							k = k
+							//_.assertString(k)
 							res.objectIds.push(k)
 							var value = state[k]
-							_.assertInt(value)
+							_.assertString(value)
 							res.objectIds.push(value)
 						}
 					}
@@ -64,8 +64,8 @@ function makePropertyRefer(p){
 						//console.log('state: ' + JSON.stringify(state))
 						for(var i=0;i<keys.length;++i){
 							var k = keys[i]
-							k = parseInt(k)
-							_.assertInt(k)
+							//k = parseInt(k)
+							//_.assertInt(k)
 							res.objectIds.push(k)
 							var value = state[k]
 							res.viewIds.push(value)
@@ -82,8 +82,8 @@ function makePropertyRefer(p){
 						//console.log('state: ' + JSON.stringify(state))
 						for(var i=0;i<keys.length;++i){
 							var v = keys[i]
-							v = parseInt(v)
-							_.assertInt(v)
+							//v = parseInt(v)
+							_.assertString(v)
 							res.objectIds.push(v)
 						}
 					}
@@ -99,7 +99,7 @@ function makePropertyRefer(p){
 					//	_.errout('here')
 						for(var i=0;i<keys.length;++i){
 							var v = state[keys[i]]
-							_.assertInt(v)
+							_.assertString(v)
 							res.objectIds.push(v)
 						}
 					}
@@ -127,7 +127,7 @@ function makePropertyRefer(p){
 								var arr = state[keys[i]]
 								for(var j=0;j<arr.length;++j){
 									var value = arr[j]
-									_.assertInt(value)
+									_.assertString(value)
 									res.objectIds.push(value)
 								}
 							}
@@ -151,7 +151,7 @@ function makePropertyRefer(p){
 	}else if(p.type.type === 'object'){
 		return function(state, res){
 			if(state){	
-				_.assertInt(state)
+				_.assertString(state)
 				res.objectIds.push(state)
 			}
 		}

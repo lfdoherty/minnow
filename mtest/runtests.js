@@ -22,6 +22,7 @@ var agent = require('webkit-devtools-agent');
 	//throw e
 	console.log(e)
 }*/
+
 /*
 var count = 0
 var old = console.log

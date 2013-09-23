@@ -3,10 +3,14 @@
 var querystring = require('querystring');
 
 var _ = require('underscorem');
+var seedrandom = require('seedrandom')
 
 var log = require('quicklog').make('minnow/service')
 
 var newViewSequencer = require('./../server/new_view_sequencer')
+var pu = require('./js/paramutil')
+
+var b64 = require('./js/b64')
 
 var crypto = require('crypto')
 function computeHash(str){
@@ -31,11 +35,12 @@ function parseComplexId(ps){
 	return innerify(ia,ib)
 }*/
 
-var innerify = require('./../server/innerId').innerify
+var innerify = require('./js/innerId').innerify
 
 function parseParams(schema, params){
 	var ps = schema.params;
 	var result = [];
+	_.assertArray(params)
 	for(var i=0;i<ps.length;++i){
 		var p = ps[i];
 		var pv = params[i];
@@ -47,14 +52,24 @@ function parseParams(schema, params){
 			if(p.type.primitive === 'int'){
 				pv = parseInt(pv);
 			}else if(p.type.primitive === 'string'){
+			}else if(p.type.primitive === 'uuid'){
+				_.assertLength(pv, 22)
+				pv = seedrandom.uuidBase64ToString(pv)
+				//_.errout('TODO: ' + JSON.stringify(pv));
 			}else{
 				_.errout('TODO: ' + JSON.stringify(p));
 			}
 		}else if(p.type.type === 'object'){
-			if(pv.indexOf('_') !== -1){
-				pv = newViewSequencer.parseInnerId(pv)
+			if(pv.length > 22){//pv.indexOf('_') !== -1){
+				console.log('*converting pv: ' + pv)
+				//pv = newViewSequencer.parseInnerId(pv)
+				var a = seedrandom.uuidBase64ToString(pv.substr(0, 8))
+				var b = seedrandom.uuidBase64ToString(pv.substr(9))
+				pv = innerify(a,b)
 			}else{
-				pv = parseInt(pv);
+				console.log('converting pv: ' + pv)
+				pv = seedrandom.uuidBase64ToString(pv)//parseInt(pv);
+				console.log('converted pv: ' + pv)
 			}
 		}else{
 			_.errout('TODO: ' + JSON.stringify(p));
@@ -66,7 +81,7 @@ function parseParams(schema, params){
 
 function doParseParams(paramsStr, s){
 	if(paramsStr === '-') return []
-	//console.log('params: ' + paramsStr)
+	console.log(s.name + ' params: ' + paramsStr)
 	if(paramsStr === 'NaN' || paramsStr === '[object Object]') _.errout('corrupted paramsStr: "' + paramsStr+'"')
 	_.assertString(paramsStr)
 	var parsedParams;
@@ -141,18 +156,23 @@ function schemaHash(schema){
 }
 
 function computeSnapParamsKey(s, params){
-	var key = ''
+	
+	var key
 	if(s.isView){
 		key = '';
 		if(params.length === 0) key = '-'
 		for(var i=0;i<params.length;++i){
 			if(i > 0) key += ';';
-			key += querystring.escape(params[i]);
+			key += pu.paramStr(params[i], s.viewSchema.params[i])//querystring.escape(params[i]);
 		}
 	}else{
 		key = params+'';
 	}
+	
 	return key
+	/*var key = ''
+	return key*/
+	//return newViewSequencer.paramsStr(params, s.viewSchema.params)
 }
 function makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb){
 	return function(err, e){
@@ -220,7 +240,7 @@ exports.make = function(schema, cc){
 			var viewCode = s.code;
 			
 			//log('getting snapshots: ' + JSON.stringify(params))
-			var getMsg = {typeCode: viewCode, params: newViewSequencer.paramsStr(params)}
+			var getMsg = {typeCode: viewCode, params: pu.paramsStr(params, s.viewSchema.params)}
 			_.assert(getMsg.params != 'null')
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			cc.getSnapshots(getMsg, _.once(makeGetSnapshotsCallback(serverStateUid, s, viewCode, params, pathPrefix, cb)));
@@ -236,41 +256,41 @@ exports.make = function(schema, cc){
 
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			
-			var req = {typeCode: viewCode, params: newViewSequencer.paramsStr(params)}
+			var req = {typeCode: viewCode, params: pu.paramsStr(params, s.viewSchema.params)}
 			cc.getFullSnapshot(req, function(err, resp){
 				if(err) throw err
 				
-				cb(err, viewCode, resp.snapshot, resp.versionId)
+				cb(err, viewCode, b64.encodeBuffer(resp.snapshot), resp.versionId)
 			})
 		},
 		
 		//returns the javascript string content of the view file
-		getViewFile: function(viewCode, snapshotId, previousId, paramsStr, cb){
+		/*getViewFile: function(viewCode, snapshotId, previousId, paramsStr, cb){
 			_.assertLength(arguments, 5)
 
 			handle.getViewJson(viewCode, snapshotId, previousId, paramsStr, function(err, json){
 				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
 			})
-		},
-		getViewFileHistorical: function(viewCode, snapshotId, previousId, paramsStr, cb){
+		},*/
+		/*getViewFileHistorical: function(viewCode, snapshotId, previousId, paramsStr, cb){
 			_.assertLength(arguments, 5)
 
 			handle.getViewJsonHistorical(viewCode, snapshotId, previousId, paramsStr, function(err, json){
 				cb(err, 'gotSnapshot(' + JSON.stringify(json) + ');\n');
 			})
-		},
-		getViewJson: function(viewCode, snapshotId, previousId, paramsStr, cb){
+		},*/
+		getViewBuffer: function(viewCode, snapshotId, previousId, paramsStr, cb){
 			_.assertLength(arguments, 5)
 			var s = schema._byCode[viewCode];
 
 			var parsedParams = doParseParams(paramsStr, s)
 			
-			var snapReq = {typeCode: viewCode, params: newViewSequencer.paramsStr(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			var snapReq = {typeCode: viewCode, params: pu.paramsStr(parsedParams, s.viewSchema.params), latestVersionId: snapshotId, previousVersionId: previousId};
 			cc.getSnapshot(snapReq, function(err, response){
 				if(err){
 					cb(err)
 				}else{
-					response.snap.id = snapshotId;
+					//response.snap.id = snapshotId;
 					cb(undefined, response.snap)
 				}
 			});
@@ -282,7 +302,7 @@ exports.make = function(schema, cc){
 
 			var parsedParams = doParseParams(paramsStr, s)
 			
-			var snapReq = {isHistorical: true, typeCode: viewCode, params: newViewSequencer.paramsStr(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
+			var snapReq = {isHistorical: true, typeCode: viewCode, params: pu.paramsStr(parsedParams), latestVersionId: snapshotId, previousVersionId: previousId};
 			cc.getSnapshot(snapReq, function(err, response){
 				if(err){
 					cb(err)
@@ -295,7 +315,7 @@ exports.make = function(schema, cc){
 		
 		beginSync: function(viewCode, params, snapshotId, cb, readyCb){
 			_.assertFunction(readyCb);
-			var req = {typeCode: viewCode, params: newViewSequencer.paramsStr(params), latestSnapshotVersionId: snapshotId};
+			var req = {typeCode: viewCode, params: pu.paramsStr(params), latestSnapshotVersionId: snapshotId};
 			cc.beginSync(req, cb, readyCb);
 		},
 		

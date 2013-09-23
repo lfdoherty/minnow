@@ -5,7 +5,7 @@ var fp = require('./tcp_shared').editFp
 var editCodes = fp.codes
 var editNames = fp.names
 
-var innerify = require('./innerId').innerify
+var innerify = require('./../http/js/innerId').innerify
 
 /*
 
@@ -19,8 +19,8 @@ exports.make = function(){
 	var hasIndex = {}
 	
 	function addForeignId(id, foreignId){
-		_.assertInt(id)
-		_.assertInt(foreignId)
+		_.assertString(id)
+		_.assertString(foreignId)
 		
 		var has = hasIndex[id]
 		if(!has){

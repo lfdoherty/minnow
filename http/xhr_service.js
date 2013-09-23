@@ -12,7 +12,7 @@ require('matterhorn-standard');
 
 var serviceModule = require('./service')
 //var longpoll = require('./longpoll')
-
+var b64 = require('./js/b64')
 var matterhorn = require('matterhorn');
 
 function sendData(res, data){
@@ -80,7 +80,7 @@ exports.make = function(appName, prefix, schema, local, secureLocal, minnowClien
 	
 	function generateMeta(req, httpRes){
 		var viewName = req.params.viewName
-		var syncId = parseInt(req.params.syncId)
+		var syncId = req.params.syncId
 		var viewSchema = schema[viewName]
 		//console.log('url: ' + req.url)
 		var params = serviceModule.parseParams(req.params.params, viewSchema)
@@ -187,7 +187,7 @@ exports.make = function(appName, prefix, schema, local, secureLocal, minnowClien
 				var key = viewId+':'+paramStr+':'+snapshotId+':'+previousId;
 				//TODO cache zipped snapshots
 		
-				service.getViewJson(viewId, snapshotId, previousId, paramStr, function(err, json){
+				service.getViewBuffer(viewId, snapshotId, previousId, paramStr, function(err, buf){
 					if(err){
 						if(err.code === 'InvalidParamId'){
 							res.send(400, JSON.stringify(err))
@@ -197,13 +197,15 @@ exports.make = function(appName, prefix, schema, local, secureLocal, minnowClien
 						return
 					}
 
-					var jsStr = JSON.stringify(json)
+					//var jsStr = JSON.stringify(json)
+					
+					var bStr = b64.encodeBuffer(buf)
 					
 					//res.setHeader('Content-Encoding', 'gzip');
-					res.setHeader('Content-Length', Buffer.byteLength(jsStr));
-					res.setHeader('Content-Type', 'application/json');
+					res.setHeader('Content-Length', bStr.length)////Buffer.byteLength(jsStr));
+					res.setHeader('Content-Type', 'text/plain');
 					res.setHeader('Cache-Control', 'max-age=2592000');
-					res.send(jsStr);
+					res.send(bStr);
 					
 					//zlib.gzip(jsStr, function(err, data){
 					//	if(err) _.errout(err);

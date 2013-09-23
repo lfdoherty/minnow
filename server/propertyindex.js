@@ -5,7 +5,7 @@ var fp = require('./tcp_shared').editFp
 var editCodes = fp.codes
 var editNames = fp.names
 
-var innerify = require('./innerId').innerify
+var innerify = require('./../http/js/innerId').innerify
 
 function makeGetDefaultValue(schema, typeCode, propertyCode){
 	var defaultValue
@@ -184,6 +184,12 @@ exports.make = function(schema, ol){
 						c = {type: 'set', value: innerify(id, edit.id), editId: editId}
 					}else if(op === editCodes.replacedNew || op === editCodes.replaceExternalExisting || op === editCodes.replaceInternalExisting){
 						var oldC = {type: 'remove', value: edit.oldId, editId: editId}
+						for(var i=0;i<indexes.length;++i){
+							indexes[i](curId, oldC)
+						}
+						c = {type: 'add', value: edit.newId, editId: editId}
+					}else if(op === editCodes.replacedInternalNew){
+						var oldC = {type: 'remove', value: edit.id, editId: editId}
 						for(var i=0;i<indexes.length;++i){
 							indexes[i](curId, oldC)
 						}

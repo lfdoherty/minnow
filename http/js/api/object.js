@@ -7,6 +7,8 @@ var api = require('./../sync_api')
 var jsonutil = require('./../jsonutil')
 //var topObject = require('./topobject')
 
+var seedrandom = require('seedrandom')
+
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
 var editNames = lookup.names
@@ -16,12 +18,13 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	
 	//_.assertDefined(edits)
 	
+	
 	_.assert(objId !== 0)
 	_.assertNot(objId !== -1 && parent.isView())
 	//_.assertObject(typeSchema)
 
-	if(typeSchema && !typeSchema.isView){
-		_.assertInt(objId);
+	if(objId !== -1){
+		_.assertString(objId);
 	}
 	
 	this.ruid = Math.random()
@@ -33,6 +36,8 @@ function ObjectHandle(typeSchema, edits, objId, part, parent, isReadonlyIfEmpty)
 	this.typeSchema = typeSchema;
 	this.obj = {};
 	this.parent = parent;
+
+	this._isView = this.typeSchema && this.typeSchema.isView
 	
 	this.objectId = objId;
 	
@@ -106,13 +111,13 @@ function emptyReadonlyObjectProperty(){
 }
 
 ObjectHandle.prototype.isInner = function(){return true;}
-
+/*
 ObjectHandle.prototype.reify = function(id){
 	_.assertInt(id)
 	//this.log('reified: ' + this.objectId + ' -> ' + id)
 	_.assert(this.objectId < 0)
 	this.objectId = id
-}
+}*/
 ObjectHandle.prototype.isDestroyed = function(){return false}
 
 
@@ -187,7 +192,7 @@ ObjectHandle.prototype._internalId = function(){
 ObjectHandle.prototype.id = function(){
 	_.assertPrimitive(this.objectId);
 	_.assertDefined(this.objectId);
-	return this.parent.getTopId() + '_' + this.objectId;
+	return this.parent.getTopId() + '_' + seedrandom.uuidStringToBase64(this.objectId);
 }
 ObjectHandle.prototype.getParent = function(){
 	return this.parent
@@ -330,14 +335,14 @@ ObjectHandle.prototype.setPropertyToNew = function(propertyName, typeName, json)
 	this.adjustCurrentProperty(pt.code)
 
 	//console.log('setting to new: ' + this.parent.prepared)
-	this.persistEdit(editCodes.setToNew, {typeCode: type.code})
+	var id = seedrandom.uid()//this.makeTemporaryId();
+	this.persistEdit(editCodes.wasSetToNew, {typeCode: type.code, id: id})
 
-	var temporary = this.makeTemporaryId();
-	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, this.makeTemporaryId.bind(this), temporary);
+	var edits = jsonutil.convertJsonToEdits(this.getFullSchema(), type.name, json, id);
 
 	if(edits.length > 0){
 		//this.adjustPath(temporary)
-		this.saveEdit(editCodes.selectObject, {id: temporary})
+		this.saveEdit(editCodes.selectObject, {id: id})
 		for(var i=0;i<edits.length;++i){
 			var e = edits[i]
 			this.persistEdit(e.op, e.edit)
@@ -349,11 +354,11 @@ ObjectHandle.prototype.setPropertyToNew = function(propertyName, typeName, json)
 
 	//						typeSchema, edits, objId, part, parent, isReadonlyIfEmpty){
 	
-	var n = new ObjectHandle(type, edits, temporary, [pt.code], this);
+	var n = new ObjectHandle(type, edits, id, [pt.code], this);
 	if(this.objectApiCache === undefined) this.objectApiCache = {}
-	this.objectApiCache[temporary] = n;
+	this.objectApiCache[id] = n;
 	
-	this.saveTemporaryForLookup(temporary, n, this)
+	//this.saveTemporaryForLookup(temporary, n, this)
 	
 	n.prepare()
 
@@ -416,7 +421,8 @@ ObjectHandle.prototype.setProperty = function(propertyName, newValue){
 		this[propertyName] = n
 		
 		var e = {id: n._internalId(), typeCode: newValue.typeSchema.code}
-		_.assertInt(e.id)
+		_.assertString(e.id)
+		_.assertLength(e.id, 8)
 		if(e.id === -1) _.errout('cannot set object property with a undefined object property - new value is empty')
 		if(e.id < 0) _.assert(e.id < -1)
 		

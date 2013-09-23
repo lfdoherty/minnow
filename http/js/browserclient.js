@@ -4,8 +4,11 @@
 
 var syncApi = require('./sync_api')
 var update = require('./minnow_update_websocket')
+var b64 = require('./b64')
 
 var page = require('fpage')
+
+var lookup = require('./lookup')
 
 var schema = require(':schema.js')
 
@@ -86,6 +89,8 @@ global.gotSnapshot = function(snap){
 
 if(page.params.minnowSnap){
 	//snaps.push(minnowSnap)
+	var buf = b64.decodeBuffer(page.params.minnowSnap)
+	page.params.minnowSnap = lookup.deserializeSnapshot(buf)//JSON.parse(page.params.minnowSnap)	
 	page.params.minnowSnap.id = page.params.lastId
 	global.gotSnapshot(page.params.minnowSnap)
 }

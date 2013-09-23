@@ -79,7 +79,7 @@ quote 44 nest
 	removed boolean 19 required
 	
 contact 50 nest
-	userId int 10
+	userId uuid 10
 	displayName string 116
 
 contactsByName(u user) 162

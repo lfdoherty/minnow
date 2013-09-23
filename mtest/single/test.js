@@ -7,7 +7,7 @@ exports.getSpecificView = function(config, done){
 			c.view('general', [], function(err, handle){
 				handle.make('entity', {name: 'test name'}, function(id){
 					//console.log('GOT ID')
-					if(typeof(id) !== 'number') throw new Error('id is not valid: ' + id)
+					if(typeof(id) !== 'string') throw new Error('id is not valid: ' + id)
 					
 					c.view('specific', [id], function(err, handle){
 						if(handle.subj.name.value() === 'test name'){

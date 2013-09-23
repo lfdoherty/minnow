@@ -20,6 +20,7 @@ var responsesSchema = keratin.parse(responsesSchemaStr, reservedTypeNames)
 
 var fparse = require('fparse')
 
+var lookup = require('./../http/js/lookup')
 var editFp = fparse.makeFromSchema(editSchema)
 
 var log = require('quicklog').make('minnow/tcp_shared')
@@ -32,9 +33,9 @@ exports.editFp = editFp
 exports.clientRequests = fparse.makeFromSchema(clientSchema)
 exports.serverResponses = fparse.makeFromSchema(responsesSchema)
 
-var lookup = require('./../http/js/lookup')
 
 Object.keys(lookup).forEach(function(key){
 	editFp[key] = lookup[key]
 })
+
 

@@ -1,15 +1,15 @@
 /**/
-
+/*
 make 1 //implicitly does a selectTopObject, as does makeViewObject
 	typeCode int 1
 	forget boolean 4
 	following int 5
-	
+*/	
 made 2//what gets broadcast when 'make' happens
-	id int 1
+	id uuid 1
 	typeCode int 2
 	following int 5
-
+/*
 makeMapped 3//what gets sent back to the make source syncId (for make and the various *New edits as well for internal ops.)
 	id int 1
 	temporary int 2
@@ -19,10 +19,10 @@ copy 155
 	typeCode int 2
 	forget boolean 4
 	following int 5
-
+*/
 copied 163
-	id int 1
-	sourceId int 4
+	id uuid 1
+	sourceId uuid 4
 	typeCode int 2
 	following int 5
 
@@ -32,14 +32,14 @@ madeViewObject 33
 	//mutatorKey string 3
 	
 selectSubObject 54//for selecting objects in collections for e.g. removal
-	id int 1
+	id uuid 1
 selectSubViewObject 55
 	id string 1
 
 setSyncId 50
 	syncId uuid 1
 selectObject 51
-	id int 1
+	id uuid 1
 selectViewObject 52
 	id string 1
 selectProperty 53
@@ -51,7 +51,7 @@ selectStringKey 65
 selectIntKey 66
 	key int 1
 selectObjectKey 118
-	key int 1
+	key uuid 1
 selectLongKey 67
 	key long 1
 selectBooleanKey 68
@@ -71,7 +71,7 @@ reset 58//equivalent to ascend <depth>, sets the pointer back to the root of the
 
 //switches the current top object, without disturbing the path of the object it left or the new one
 selectTopObject 64
-	id int 1
+	id uuid 1
 selectTopViewObject 71
 	id string 1
 
@@ -94,25 +94,25 @@ insertString 49
 	index int 2
 
 setObject 21 
-	id int 1
+	id uuid 1
 clearObject 73
 
 clearProperty 140
 
 setViewObject 107
 	id string 1
-	
+/*	
 setToNew 22
 	typeCode int 1
-	
+	*/
 wasSetToNew 32
-	id int 1
+	id uuid 1
 	//temporary int 2
 	typeCode int 3
 
 setToInner 44
-	top int 1
-	inner int 2
+	top uuid 1
+	inner uuid 2
 
 setData 23
 	data binary 1
@@ -151,65 +151,65 @@ setBooleanAt 145
 setRealAt 146
 	value real 1
 	index int 2
-	
+	/*
 addNew 11
 	typeCode int 1
 	following int 5
 unshiftNew 157
 	typeCode int 1
-	following int 5
+	following int 5*/
 unshiftedNew 158
-	id int 1
-	temporary int 2
+	id uuid 1
+	/*temporary int 2*/
 	typeCode int 3
 	following int 5
 	
 addedNew 96
-	id int 1
-	temporary int 2
+	id uuid 1
+	/*temporary int 2*/
 	typeCode int 3
 	following int 5
-
+/*
 addNewAt 147
 	typeCode int 1
 	index int 2
-	following int 5
+	following int 5*/
 addedNewAt 148
-	id int 1
-	temporary int 2
+	id uuid 1
+	/*temporary int 2*/
 	typeCode int 3
 	index int 4
 	following int 5
 
 addAfter 150
-	id int 1	
-
+	id uuid 1	
+/*
 addNewAfter 151
 	typeCode int 1
-	following int 5
+	following int 5*/
 
 addedNewAfter 152
 	typeCode int 1
-	id int 2
-	temporary int 3
+	id uuid 2
+	/*temporary int 3*/
 	following int 5
 
 moveToFront 160
 moveToBack 161
 moveToAfter 162
-	id int 1
+	id uuid 1
 
 addLocalInner 133
-	id int 1
+	id uuid 1
 addLocalInnerAfter 134
-	id int 1
+	id uuid 1
 //	following int 2
 addLocalInnerAt 135
-	id int 1
+	id uuid 1
 	index int 2
 	following int 3
 unshiftLocalInner 136
-	id int 1
+	id uuid 1
 
 
 removeAt 149
@@ -217,16 +217,16 @@ removeAt 149
 	many int 2
 
 addExisting 12
-	id int 1
+	id uuid 1
 addExistingInner 56
-	top int 1
-	inner int 2
+	top uuid 1
+	inner uuid 2
 	
 addExistingViewObject 35
 	id string 1
 
 unshiftExisting 156
-	id int 1
+	id uuid 1
 	
 syntheticEdit 98//for time-based updating
 madeSyncId 111
@@ -245,28 +245,31 @@ removeBoolean 84
 removeViewObject 109
 //	id string 1
 
-replaceExternalNew 16
-	id int 2 //id being replaced
+replacedExternalNew 16
+	id uuid 2 //id being replaced
 	typeCode int 3
 	following int 5
-replaceInternalNew 28 //the id being replaced is in the path
-	id int 2 //id being replaced
+	newId uuid 1
+replacedInternalNew 28 //the id being replaced is in the path
+	id uuid 2 //id being replaced
 	typeCode int 3
 	following int 5
+	newId uuid 1
+/*
 replacedNew 95
 	newId int 1
 	typeCode int 2
 	temporary int 3
 	oldId int 4
 	following int 5
-	
+	*/
 replaceExternalExisting 17
-	oldId int 1
-	newId int 2
+	oldId uuid 1
+	newId uuid 2
 	newType int 3
 replaceInternalExisting 29
-	oldId int 1
-	newId int 2
+	oldId uuid 1
+	newId uuid 2
 	newType int 3
 
 putInt 18
@@ -281,7 +284,7 @@ putReal 99
 	value real 1
 
 putAddExisting 100
-	id int 1
+	id uuid 1
 
 putAddInt 101
 	value int 1
@@ -310,16 +313,16 @@ putRemoveReal 129
 	
 del 31
 
-putNew 24
+/*putNew 24
 	typeCode int 1
-	following int 5
+	following int 5*/
 didPutNew 110
 	typeCode int 1
-	id int 2
+	id uuid 2
 	following int 5
 		
 putExisting 30
-	id int 2
+	id uuid 2
 putViewObject 112
 	id string 1
 	
@@ -330,6 +333,6 @@ destroy 108
 revert 40
 	version int 1
 */
-initializeUuid 159
-	uuid string 1
+//initializeUuid 159
+//	uuid string 1
 	

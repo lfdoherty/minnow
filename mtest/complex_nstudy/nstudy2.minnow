@@ -22,7 +22,7 @@ userData 5
 	sidebarsByForked sidebar:sidebar 8//key is original 'form' sidebar, value is the user's fork
 	
 userSession 19
-	user int 1
+	user uuid 1
 	syncId int 2
 	tabsOpen set:webpage 3
 	searchQuery string 4 optional
@@ -54,7 +54,7 @@ chat 7 nest
 	participantRoles int:role 48
 	
 chatComment 8 chatEntry
-	userId int 1
+	userId uuid 1
 	text string 211
 
 concept 23

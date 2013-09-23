@@ -464,7 +464,7 @@ function makeDiffFinder(type){
 					var key = bKeyStr
 					_.assertDefined(key)
 					if(type.key.type === 'object'){
-						key = parseInt(key)
+						key = key
 					}
 					_.assertDefined(key)
 					if(b[key] === undefined) _.errout('bad value - key set for value undefined') 
@@ -1012,7 +1012,7 @@ function makeStateInclusionsExtractor(type){
 			var has = {}
 			if(type.key.type === 'object'){
 				Object.keys(state).forEach(function(idStr){
-					var id = parseInt(idStr)
+					var id = idStr
 					_.assertDefined(id)
 					if(has[id]) return
 					ids.push(id)
@@ -1020,7 +1020,7 @@ function makeStateInclusionsExtractor(type){
 			}
 			if(type.value.type === 'object'){
 				Object.keys(state).forEach(function(keyStr){
-					var id = parseInt(state[keyStr])
+					var id = state[keyStr]
 					_.assertDefined(id)
 					if(has[id]) return
 					ids.push(id)

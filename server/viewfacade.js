@@ -152,7 +152,7 @@ exports.make = function(schema, objectState, query){
 	}
 	
 	function updateObject(id, diff, oldEditId){
-		_.assertInt(id)
+		_.assertString(id)
 		_.assertInt(oldEditId)
 		
 		if(diff.updated[id]){
@@ -199,7 +199,7 @@ exports.make = function(schema, objectState, query){
 		_.assertNot(diff.got[id])
 		diff.got[id] = true
 		diff.added[id] = true
-		_.assertInt(id)
+		_.assertString(id)
 		var edits = objectState.getObjectBinary(id)//objectState.getObjectEdits(id)
 		diff.addedObjects.push({id: id, edits: edits})
 		updateObjectReffed(id, diff, oldEditId)
@@ -250,7 +250,7 @@ exports.make = function(schema, objectState, query){
 		for(var j=0;j<referenced.objectIds.length;++j){
 			var reffedId = referenced.objectIds[j]
 			//console.log('reffedId: ' + reffedId)
-			_.assertInt(reffedId)
+			_.assertString(reffedId)
 			if(diff.got[reffedId]){
 				if(!diff.added[reffedId]){
 					//console.log('updating: ' + reffedId)
@@ -265,7 +265,7 @@ exports.make = function(schema, objectState, query){
 	function updateViewObject(id, diff, oldEditId, oldCache, newCache){
 		if(diff.updated[id] || diff.added[id]) return
 		
-		_.assert(_.isInt(id) || _.isInt(id.inner) || _.isString(id))
+		_.assert(_.isString(id) || _.isString(id.inner) || _.isString(id))
 		
 		if(id.substr(0,1) !== ':'){
 			console.log('ERROR: invalid view id: ' + id)
@@ -312,7 +312,7 @@ exports.make = function(schema, objectState, query){
 	}
 	
 	function includeObjectInSnap(id, got, res){
-		_.assertInt(id)
+		_.assertString(id)
 		if(got[id]) return
 		res.push({id: id, edits: objectState.getObjectBinary(id)})
 		//_.assertBuffer(res[res.length-1].edits)
@@ -321,7 +321,7 @@ exports.make = function(schema, objectState, query){
 		//console.log('including in snap: ' + id + ' ' + JSON.stringify(referenced))
 		for(var i=0;i<referenced.length;++i){
 			var reffId = referenced[i]
-			_.assertInt(reffId)
+			_.assertString(reffId)
 			includeObjectInSnap(reffId, got, res)
 		}
 	}
@@ -362,7 +362,7 @@ exports.make = function(schema, objectState, query){
 				updateViewObject(av.id, diff, av.lastEditId, oldCache, newCache)
 			})
 			addedObjects.forEach(function(id){
-				_.assertInt(id)
+				_.assertString(id)
 				if(!got[id]){
 					addObject(id, diff, oldEditId)
 				}
@@ -375,6 +375,7 @@ exports.make = function(schema, objectState, query){
 			return diff
 		},
 		snap: function(viewId, got){
+			_.assertString(viewId)
 			got = got || {}
 			if(got[viewId]) return []
 			got[viewId] = true
@@ -389,15 +390,17 @@ exports.make = function(schema, objectState, query){
 			var cur = getQuery(viewId)
 			var typeCode = getTypeCode(viewId)
 			var referenced = refers[typeCode](cur)
-			var res = [{id: viewId, edits: convertViewStateToEdits(typeCode, viewId, cur)}]
+			var res = {viewObjects: [{id: viewId, edits: convertViewStateToEdits(typeCode, viewId, cur)}], objects: []}
 			//console.log(JSON.stringify([referenced]))
 			for(var i=0;i<referenced.viewIds.length;++i){
 				var rvi = referenced.viewIds[i]
-				res = res.concat(handle.snap(rvi, got))
+				_.assertString(rvi)
+				var snapRes = handle.snap(rvi, got)
+				res.viewObjects = res.viewObjects.concat(snapRes.viewObjects)
 			}
 			for(var i=0;i<referenced.objectIds.length;++i){
 				var id = referenced.objectIds[i]
-				includeObjectInSnap(id, got, res)
+				includeObjectInSnap(id, got, res.objects)
 			}
 			//console.log('res: ' + JSON.stringify(res))
 			return res

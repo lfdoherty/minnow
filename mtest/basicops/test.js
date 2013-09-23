@@ -137,7 +137,7 @@ exports.idProperty = function(config, done){
 			
 				done.poll(function(){
 					//console.log(c.v.value())
-					if(c.v.value() == 1){
+					if(c.has('v')){//c.v.value() == 1){
 						done()
 						return true
 					}

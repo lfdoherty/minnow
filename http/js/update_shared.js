@@ -1,19 +1,29 @@
 
 var _ = require('underscorem')
+var seedrandom = require('seedrandom')
 
 var getJson = require('./bxhr').getJson
+var getString = require('./bxhr').getString
+var b64 = require('./b64')
+
+var lookup = require('./lookup')
+var fp = lookup.editFp
+
+var pu = require('./paramutil')
 
 exports.openView = openView
 exports.openViewWithSnapshots = openViewWithSnapshots
 
 function openView(syncId, api, schema, host, appName, viewName, params, sendFacade, readyCb){
-	//console.log('paramsStr: ' + paramsStr + ' ' + JSON.stringify(params))
+	console.log('paramsStr: ' + paramsStr + ' ' + JSON.stringify(params))
 	_.assertString(syncId)
-	_.assertLength(syncId, 22)
+	_.assertLength(syncId, 8)
 	//_.assertArray(params)
 
-	var typeCode = schema[viewName].code
-	var viewId = ':'+typeCode+JSON.stringify(params)//TODO use real param stringification
+	var viewSchema = schema[viewName]
+	var typeCode = viewSchema.code
+	var viewId = ':'+typeCode+pu.paramsStr(params, viewSchema.viewSchema.params)//JSON.stringify(params)//TODO use real param stringification
+	console.log('meta viewId: ' + viewId)
 	if(api.hasView(viewId)){
 		//api.getView(viewId)
 		readyCb(undefined, api.getView(viewId))
@@ -30,13 +40,12 @@ function openView(syncId, api, schema, host, appName, viewName, params, sendFaca
 		api.viewsBeingGotten[viewId] = [readyCb]
 	}
 	
-	var paramsStr = stringifyParams(params)
-	var metaUrl = host+'/mnw/meta/' + appName + '/' + syncId + '/' + viewName + '/' + paramsStr + '/'
+	var paramsStr = stringifyParams(params, schema[viewName].viewSchema.params)
+	var metaUrl = host+'/mnw/meta/' + appName + '/' + seedrandom.uuidStringToBase64(syncId) + '/' + viewName + '/' + paramsStr + '/'
 
 	getJson(metaUrl, function(json){
-	
 
-		var syncId = json.syncId
+		var syncId = seedrandom.uuidBase64ToString(json.syncId)
         var baseTypeCode = json.baseTypeCode
         var lastId = json.lastId
 
@@ -52,9 +61,18 @@ function openViewWithMeta(syncId, baseTypeCode, lastId, snapUrls, host, api, vie
 	var snaps = []
 	var remaining = snapUrls.length
 	snapUrls.forEach(function(url, index){
-		getJson(host+url, function(snapJson){
+		getString(host+url, function(str){
 			//console.log('got snap: ' + JSON.stringify(snapJson) + ' ' + remaining)
-			snaps[index] = snapJson
+			var decoded = b64.decodeBuffer(str)
+			//console.log('decoded: ' + decoded.length)// + ' ' + str)
+			//var snapJson = JSON.parse(decoded)
+			//throw new Error('TODO - read snap buffer')
+			
+			var snap = lookup.deserializeSnapshot(decoded)
+			
+			//console.log('snap: ' + JSON.stringify(snap))
+			
+			snaps[index] = snap//Json
 			--remaining
 			if(remaining === 0){
 				openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, viewId, sendFacade, cb)
@@ -93,7 +111,7 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, viewI
 		}
 	}
 	
-	console.log('sending setup message: ' + Date.now())
+	console.log('sending setup message: ' + Date.now() )
 	sendFacade.sendSetupMessage({
 		type: 'setup', 
 		viewName: viewName, 
@@ -120,12 +138,27 @@ function openViewWithSnapshots(baseTypeCode, lastId, snaps, api, viewName, viewI
 	}*/
 }
 
-function stringifyParams(params){
+function stringifyParams(params, paramTypes){
     if(params.length === 0) return '-'
 	var str = ''
+	console.log('stringifying params: ' + JSON.stringify(params))
 	for(var i=0;i<params.length;++i){
+		var p = params[i]
+		var t = paramTypes[i]
+		console.log(JSON.stringify(t))
 		if(i > 0) str += ';';
-		str += encodeURIComponent(params[i]);
+		if(t.type.primitive === 'uuid'){
+			str += seedrandom.uuidStringToBase64(p)
+		}else if(t.type.type === 'object'){
+			if(p.length === 8){
+				str += seedrandom.uuidStringToBase64(p)
+			}else{
+				_.assertLength(p, 22)
+				str += p
+			}
+		}else{
+			str += encodeURIComponent(p);
+		}
 	}
 	return str
 }

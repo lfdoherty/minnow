@@ -16,6 +16,7 @@ var pathmerger = require('./pathmerger')
 
 var seedrandom = require('seedrandom')
 
+var pu = require('./../http/js/paramutil')
 
 var editFp = require('./tcp_shared').editFp
 var editCodes = editFp.codes
@@ -111,7 +112,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 			return listener
 		}
 		function destroyListener(syncId){
-			delete listenerCbs[seedrandom.uuidBufferToString(syncId)]
+			delete listenerCbs[syncId]
 		}
 		
 		var ended = false
@@ -153,7 +154,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				_.assertString(e.syncId)
 				_.assertLength(e.syncId, 8)
 				
-				//console.log('syncId: ' + e.syncId)
+				console.log('syncId: ' + e.syncId)
 				//console.log(JSON.stringify(Object.keys(listenerCbs)))
 				var listenerCb = getListener(e.syncId)//listenerCbs[seedrandom.uuidBufferToString(e.syncId)]
 				_.assertFunction(listenerCb)
@@ -166,7 +167,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 					backHandle.seq.afterNextUpdate(cb)
 				}
 			},
-			persistEdit: function(op, state, edit, syncId, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
+			persistEdit: function(op, state, edit, syncId){//, computeTemporaryId, reifyCb){//(typeCode, id, path, op, edit, syncId, cb){
 				//_.assertLength(arguments, 7);
 				//_.assertInt(id);
 				//_.assertInt(id)
@@ -179,19 +180,19 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//console.log('persistEdit syncId: ' + syncId)
 				//_.assertFunction(cb)
 
-				if(op === editCodes.make || op === editCodes.copy){
-					var id = objectState.addEdit(op, state, edit, syncId, computeTemporaryId)
+				if(op === editCodes.made || op === editCodes.copied){
+					/*var id = */objectState.addEdit(op, state, edit, syncId)//, computeTemporaryId)
 
 					if(!edit.forget){
 						var backHandle = getListener(syncId)
 						if(backHandle){
-							backHandle.seq.subscribeToObject(id)
+							backHandle.seq.subscribeToObject(edit.id)
 						}
 					}
-					_.assertInt(id)
-					return id
+					_.assertString(edit.id)
+					return edit.id
 				}else{
-					objectState.addEdit(op, state, edit, syncId, computeTemporaryId, reifyCb);
+					objectState.addEdit(op, state, edit, syncId)//, computeTemporaryId, reifyCb);
 				}
 			},
 			updatePath: function(id, path, syncId){
@@ -471,7 +472,9 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				}
 
 				//listenerCbs[syncId] = listenerCbWrapper
-				//console.log('converting: ' + syncId)
+				console.log('converting: ' + syncId)
+				//if(syncId[0] === '"') throw new Error("temp check")
+				_.assertLength(syncId, 8)
 				listenerCbs[syncId] = blockChangesCb
 
 				//console.log('making sequencer')
@@ -487,7 +490,9 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				var typeCode = e.typeCode;
 				//var params = JSON.parse(e.params);
 				//console.log('params: ' + e.params)
-				var params = newViewSequencer.parseParams(e.params)
+				var viewSchema = schema._byCode[typeCode]
+				//console.log(JSON.stringify(viewSchema))
+				var params = pu.parseParams(e.params, viewSchema.viewSchema.params)
 				
 				_.assertInt(typeCode);
 
@@ -502,7 +507,9 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				_.assertLength(arguments, 2);
 				var typeCode = e.typeCode;
 				//var params = JSON.parse(e.params);
-				var params = newViewSequencer.parseParams(e.params)
+				var viewSchema = schema._byCode[typeCode]
+				var params = pu.parseParams(e.params, viewSchema.viewSchema.params)
+				//var params = newViewSequencer.parseParams(e.params)
 				//console.log(e.params + ' - > ' + JSON.stringify(params))
 				var snapshotIds = e.snapshotVersionIds;
 				_.assertArray(snapshotIds);
@@ -533,7 +540,7 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 
 				//console.log('parsing params ' + e.params)
 
-				var params = newViewSequencer.parseParams(e.params)
+				var params = pu.parseParams(e.params, schema._byCode[typeCode].viewSchema.params)
 				//var snapshotId = e.latestVersionId;
 				//var previousId = e.previousVersionId;
 
@@ -563,14 +570,16 @@ exports.make = function(schema, globalMacros, dataDir, config, loadedListeners, 
 				//var params = JSON.parse(e.params)
 
 				//console.log('parsing params ' + e.params)
-
-				var params = newViewSequencer.parseParams(e.params)
+				
+				var paramTypes = schema._byCode[typeCode].viewSchema.params
+				
+				var params = pu.parseParams(e.params, paramTypes)
 				var snapshotId = e.latestVersionId;
 				var previousId = e.previousVersionId;
 
 				//console.log('parsed params ' + e.params + ' -> ' + JSON.stringify(params))
 				
-				_.assert(params.length === schema._byCode[typeCode].viewSchema.params.length);
+				_.assert(params.length === paramTypes.length);
 				
 				//console.log('getting snapshot: ' + e.isHistorical)
 				//console.log(new Error().stack)

@@ -2,6 +2,7 @@
 
 var _ = require('underscorem')
 var u = require('./util')
+var seedrandom = require('seedrandom')
 
 var api = require('./../sync_api')
 
@@ -67,7 +68,7 @@ MapHandle.prototype.each = function(cb){
 		}else{
 			if(this.schema.type.key.type === 'object'){
 				Object.keys(this.obj).forEach(function(key){
-					key = parseInt(key)
+					//key = parseInt(key)
 					var value = local.obj[key];
 					var wrappedKey = local.getObjectApi(key);
 					wrappedKey.prepare()
@@ -91,7 +92,7 @@ MapHandle.prototype.each = function(cb){
 
 				for(var i=0;i<value.length;++i){
 					var id = value[i]
-					_.assertInt(id)
+					_.assertString(id)
 					var a = local.getObjectApi(id);
 					if(a === undefined) _.errout('map object value not found: ' + id)
 					a.prepare()
@@ -106,7 +107,7 @@ MapHandle.prototype.each = function(cb){
 			Object.keys(this.obj).forEach(function(key){
 				var idOrValue = local.obj[key];
 				
-				var k = local.getObjectApi(parseInt(key));
+				var k = local.getObjectApi(key);
 				k.prepare()
 
 				_.assertDefined(idOrValue)
@@ -201,7 +202,7 @@ MapHandle.prototype.put = function(newKeyObj, newValue){
 	
 	if(this.schema.type.value.type === 'object'){
 		//_.errout('cannot put - values are not primitive (TODO support putting objects)');
-		_.assertInt(newValue.objectId)
+		_.assertString(newValue.objectId)
 		
 		var e = {id: newValue.objectId};
 		this.persistEdit(editCodes.putExisting, e)
@@ -233,11 +234,12 @@ MapHandle.prototype.putNew = function(newKey, newTypeName, json){
 	var type = u.getOnlyPossibleType(this, newTypeName);
 	
 	this.adjustPathLocal(newKey)
-	var temporary = this.makeTemporaryId()
-	var e = {typeCode: type.code, temporary: temporary};
-	this.persistEdit(editCodes.putNew, e)
+	//var temporary = this.makeTemporaryId()
+	var id = seedrandom.uid()
+	var e = {typeCode: type.code, id: id};
+	this.persistEdit(editCodes.didPutNew, e)
 
-	var n = this._makeAndSaveNew(json, type, temporary)
+	var n = this._makeAndSaveNew(json, type, id)
 	this.obj[newKey] = n
 	
 	//n.prepare()
@@ -380,7 +382,7 @@ MapHandle.prototype.toJson = function(){
 		if(this.schema.type.value.members.type === 'primitive'){
 			this.each(function(key, value){
 				if(key.id){
-					key = key.id()
+					key = key._internalId()//id()
 				}
 				if(result[key] === undefined) result[key] = []
 				result[key].push(value);
@@ -388,7 +390,7 @@ MapHandle.prototype.toJson = function(){
 		}else{
 			this.each(function(key, value){
 				if(key.id){
-					key = key.id()
+					key = key._internalId()
 				}
 				if(result[key] === undefined) result[key] = []
 				result[key].push(value.toJson());
@@ -397,7 +399,7 @@ MapHandle.prototype.toJson = function(){
 	}else{
 		this.each(function(key, value){
 			if(key.id){
-				key = key.id()
+				key = key._internalId()
 			}
 			//console.log(key + '->'+value)
 			result[key] = value.toJson();
@@ -491,7 +493,7 @@ MapHandle.prototype.changeListener = function(subObj, key, op, edit, syncId, edi
 			objHandle.reify(id)
 			return
 		}else{
-			_.assertInt(id)
+			_.assertString(id)
 
 			var res = this.wrapObject(id, edit.typeCode, [id], this)
 			var old = this.obj[key]

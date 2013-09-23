@@ -5,6 +5,9 @@ var log = require('quicklog').make('minnow/websocket')
 
 var WebSocketServer = require('ws').Server
 
+var b64 = require('./js/b64')
+var arraystring = require('./js/arraystring')
+
 function stub(){}
 
 exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secureLocal){
@@ -34,6 +37,7 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 				var syncId
 				
 				ws.on('error', function(err){
+					console.log('ws got err: ')
 					console.log(err)
 					close()
 				})
@@ -49,6 +53,13 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 				var authBuffer = []
 
 				ws.on('message', function(data,flags){
+					//var old = data
+					data = b64.decode(data)//arraystring.bufferToString(data)
+					/*for(var i=0;i<data.length;++i){
+						var v = data[i]
+						console.log(i + ': ' + v)
+					}
+					console.log('data: (' + data + ') ' + data.length)*/
 					if(userToken === undefined){
 						var setupMsg = JSON.parse(data)
 						console.log('got setup msg: ' + JSON.stringify(setupMsg))
@@ -66,14 +77,17 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 								if(closed) return
 								
 								syncId = theSyncId
-								_.assertBuffer(theSyncId)
+								_.assertString(theSyncId)
+								_.assertLength(theSyncId, 8)
 
 								senders[syncId] = send
 
 								if(listeners.websocketFromUrl) listeners.websocketFromUrl(syncId, setupMsg.url)
 
 								try{
-									ws.send(JSON.stringify([{syncId: syncId}]))
+									var encoded = b64.encode(JSON.stringify([{syncId: syncId}]))
+									//console.log('encoded: ' + encoded + '|')
+									ws.send(encoded)
 									authBuffer.forEach(send)
 								}catch(e){
 									console.log('send error: ' + e)
@@ -86,7 +100,8 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 							})
 						})
 					}else{
-						if(data === 'heartbeat') return
+						if(data === '"heartbeat"') return
+						//console.log('msg data: (' + data + ')')
 						var msg = JSON.parse(data)
 						//console.log('data: ' + data)
 						receive(msg)
@@ -94,10 +109,10 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 				})
 
 				function securityFailureCb(viewName){
-					ws.send(JSON.stringify([{type: 'security error', msg: 'tried to access non-accessible view: ' + viewName}]))
+					ws.send(b64.encode(JSON.stringify([{type: 'security error', msg: 'tried to access non-accessible view: ' + viewName}])))
 				}
 				function deadSyncIdCb(){
-					ws.send(JSON.stringify([{type: 'error', msg: 'sync id is dead or non-existent'}]))
+					ws.send(b64.encode(JSON.stringify([{type: 'error', msg: 'sync id is dead or non-existent'}])))
 				}
 				function receive(msg){
 					if(userToken === undefined){
@@ -108,13 +123,14 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 				}	
 
 				function send(msgs){
+					//console.log('sending: ' + JSON.stringify(msgs))
 					if(closed){
 						console.log('WARNING: tried to send to closed websocket: ' + syncId)
 						console.log(new Error().stack)
 						return
 					}
 					try{
-						ws.send(JSON.stringify(msgs))
+						ws.send(b64.encode(JSON.stringify(msgs)))
 					}catch(e){
 						log.warn(e)
 					}

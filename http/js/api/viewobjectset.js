@@ -124,7 +124,7 @@ ViewObjectSetHandle.prototype.changeListener = function(subObj, key, op, edit, s
 		//_.assertDefined(subObj)//?
 		//_.errout('subObj: ' + subObj)
 		//console.log('R: ' + (op === editCodes.removeViewObject))
-		if(op === editCodes.remove) _.assertInt(subObj)
+		if(op === editCodes.remove) _.assertString(subObj)
 		if(op === editCodes.removeViewObject) _.assertString(subObj)
 		
 		var index;

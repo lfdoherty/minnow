@@ -3,7 +3,8 @@
 var _ = require('underscorem')
 
 var variables = require('./variables')
-var newViewSequencer = require('./new_view_sequencer')
+//var newViewSequencer = require('./new_view_sequencer')
+var pu = require('./../http/js/paramutil')
 
 var log = require('quicklog').make('minnow/viewstate')
 
@@ -45,6 +46,10 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 		for(var i=0;i<ps.length;++i){
 			var t = ps[i]
 			if(t.type.type === 'object'){
+				if(!_.isString(params[i]) && !_.isObject(params[i]) && isNaN(params[i])){
+					console.log('failed to parse: ' + viewSchema.name + ' ' + JSON.stringify(params))
+					throw new Error('object id is NaN in param ' + i)
+				}
 				/*if(!objectState.isTopLevelObject(params[i])){
 					var e = new Error('parameters include an invalid object id') 
 					e.code = 'InvalidParamId'
@@ -98,13 +103,18 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 			var cdl = _.latch(snapshotIds.length, function(){
 				cb({snapshots: list});
 			});
+			
+			var viewSchema = schema._byCode[typeCode]
+			
 			_.each(snapshotIds, function(snId, index){
 				_.assertInt(snId);
 				var prevSnId = index > 0 ? snapshotIds[index-1] : -1;
 				if(snId === -1) snId = curEditId-1
 				_.assert(snId === -1 || prevSnId <= snId)
+				
+				//console.log(JSON.stringify(viewSchema))
 
-				var viewId = newViewSequencer.viewIdStr(typeCode, params)//,'')//TODO mutatorKey?
+				var viewId = pu.viewIdStr(typeCode, params, viewSchema)//,'')//TODO mutatorKey?
 				viewSequencer.makeSnapshot(viewId, prevSnId, snId, isHistorical, _.assureOnce(function(snap){
 					//console.log('got snap')
 					_.assertBuffer(snap)
@@ -132,7 +142,9 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 				return
 			}
 			
-			var viewId = newViewSequencer.viewIdStr(typeCode, params)//,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
+			var viewSchema = schema._byCode[typeCode]
+			
+			var viewId = pu.viewIdStr(typeCode, params, viewSchema)//,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
 			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
 				//console.log('got snap')
 				_.assertBuffer(snap)
