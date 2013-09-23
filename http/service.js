@@ -256,7 +256,13 @@ exports.make = function(schema, cc){
 
 			var pathPrefix = serverStateUid + '/' + viewCode + '/'
 			
-			var req = {typeCode: viewCode, params: pu.paramsStr(params, s.viewSchema.params)}
+			try{
+				var req = {typeCode: viewCode, params: pu.paramsStr(params, s.viewSchema.params)}
+			}catch(e){
+				console.log('ERROR: failed to stringify params: ' + s.viewSchema.name)
+				cb(e)
+				return
+			}
 			cc.getFullSnapshot(req, function(err, resp){
 				if(err) throw err
 				

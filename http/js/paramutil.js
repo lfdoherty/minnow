@@ -187,7 +187,7 @@ function paramStr(v, pt){
 			console.log('error converting: ' + v)
 		}
 	}else if(pt.type.primitive === 'string'){
-		if(v[0] === '"') throw new Error('here: ' + v)
+		if(!v || v[0] === '"') throw new Error('here: ' + v)
 		v = '"'+v+'"'
 	}
 	if(_.isArray(v)) _.errout('invalid array type?: ' + viewCode + ' ' + JSON.stringify(params))
