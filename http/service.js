@@ -264,7 +264,10 @@ exports.make = function(schema, cc){
 				return
 			}
 			cc.getFullSnapshot(req, function(err, resp){
-				if(err) throw err
+				if(err){
+					cb(err)
+					return
+				}
 				
 				cb(err, viewCode, b64.encodeBuffer(resp.snapshot), resp.versionId)
 			})

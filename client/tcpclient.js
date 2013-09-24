@@ -327,6 +327,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 				return e.code + ' - ' + e.err;
 			}
 			//err.code = e.code
+			console.log('requestError cb: ' + cb)
 			cb(err)
 		}
 	};
@@ -660,6 +661,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			//console.log(e.params + ' ' + new Error().stack)
 			applyRequestId(e, function(err, res){
 				if(err){
+					console.log('cb: ' + cb)
 					cb(err)
 				}else{
 					//res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)

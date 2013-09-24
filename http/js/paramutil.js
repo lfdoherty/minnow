@@ -145,7 +145,7 @@ function parseViewId(id, schema){
 	
 	var res = {typeCode: parseInt(typeCodeStr), rest: rest}
 	
-	//console.log('parsed viewId: ' + JSON.stringify(res))
+	console.log('parsed viewId: ' + JSON.stringify(res))
 	return res
 }
 

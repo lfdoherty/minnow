@@ -708,7 +708,9 @@ function makeClientFunc(s, appSchema, addConnection, removeConnection, getTempor
 			getFullSnapshot: function(e){
 				s.getFullSnapshot(e, function(err, snapBuffer, versionId){
 					if(err){
-						_.errout('TODO: ' + err)
+						conn.w.requestError({err: ''+err, requestId: e.requestId, code: err.code||'UNKNOWN'})
+						//_.errout('TODO: ' + err)
+						return
 					}
 					
 					var res = {versionId: versionId, snapshot: snapBuffer}

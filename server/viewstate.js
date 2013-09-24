@@ -144,12 +144,16 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 			
 			var viewSchema = schema._byCode[typeCode]
 			
-			var viewId = pu.viewIdStr(typeCode, params, viewSchema)//,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
-			viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
-				//console.log('got snap')
-				_.assertBuffer(snap)
-				cb(snap)
-			}));
+			try{
+				var viewId = pu.viewIdStr(typeCode, params, viewSchema)//,'')//TODO mutatorKey?//typeCode+':'+JSON.stringify(params)
+				viewSequencer.makeSnapshot(viewId, previousSnapshotId, snapshotId, isHistorical, _.assureOnce(function(snap){
+					//console.log('got snap')
+					_.assertBuffer(snap)
+					cb(snap)
+				}));
+			}catch(e){
+				errCb(e)
+			}
 		}
 	}
 	return handle;

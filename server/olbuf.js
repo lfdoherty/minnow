@@ -190,8 +190,14 @@ exports.make = function(){
 			deserializeFramePartially(handle.getBinary(id), filter, eachCb)
 		},
 		getBinary: function(id){
+			_.assertString(id)
+			_.assertLength(id, 8)
+			
 			var offset = index[id]
-			if(offset === undefined) throw new Error('object does not exist: ' + id)
+			if(offset === undefined){
+				console.log('stack: ' + new Error().stack)
+				throw new Error('object does not exist: ' + id)
+			}
 			_.assert(offset !== -1)
 			//console.log('getting ' + id + ' ' + offset)
 			_.assertInt(offset)

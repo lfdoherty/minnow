@@ -260,10 +260,10 @@ function makeClient(host, port, clientCb){
 		return doCopy(cc.getDefaultSyncHandle(), obj, json, forget, cb, id)
 	}
 
-	wrapper.forgetLastTemporary = function(){
+	/*wrapper.forgetLastTemporary = function(){
 		//_.errout('TODO');
 		cc.getDefaultSyncHandle().forgetLastTemporary(listeningSyncId)
-	}
+	}*/
 	
 	var rrr = Math.random()
 	
@@ -446,6 +446,7 @@ function makeClient(host, port, clientCb){
 			getView(dbSchema, cc, st, type, params, syncId, api, sc.beginView, /*historicalKey,*/ function(err){
 				if(err){
 					if(cb.length === 1){
+						console.log('cb has no error handling, throwing: ' + cb)
 						throw err
 					}
 					//console.log('getView error in client: ' + err)
