@@ -464,7 +464,15 @@ function makeClient(host, port, clientCb){
 					cb(undefined, api.getView(viewId, historicalKey))
 				}else{*/
 				try{
-					cb(undefined, api.getView(viewId))//, historicalKey))
+					var view = api.getView(viewId)
+				}catch(e){
+					console.log('ERROR during api.getView')
+					console.log(e.stack)
+					return
+				}
+				
+				try{
+					cb(undefined, view)//, historicalKey))
 				}catch(e){
 					console.log('ERROR during client callback')
 					console.log(e.stack)
