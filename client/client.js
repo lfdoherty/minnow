@@ -463,7 +463,12 @@ function makeClient(host, port, clientCb){
 				/*if(historicalKey){
 					cb(undefined, api.getView(viewId, historicalKey))
 				}else{*/
+				try{
 					cb(undefined, api.getView(viewId))//, historicalKey))
+				}catch(e){
+					console.log('ERROR during client callback')
+					console.log(e.stack)
+				}
 				//}
 				//}
 			})
