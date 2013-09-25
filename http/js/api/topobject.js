@@ -1757,7 +1757,10 @@ TopObjectHandle.prototype.versionsSelf = function(){
 	var copiedIndex
 	for(var i=0;i<this.edits.length;++i){
 		var e = this.edits[i]
-		if(e.op === editCodes.copied) copiedIndex = i
+		if(e.op === editCodes.copied){
+			copiedIndex = i
+			break
+		}
 	}
 	
 	if(copiedIndex !== undefined){

@@ -6,6 +6,8 @@ var _ = require('underscorem')
 var lookup = require('./../lookup')
 var editCodes = lookup.codes
 
+var random = require('seedrandom')
+
 function UuidHandle(typeSchema, obj, part, parent){
 
 	this.part = part;
@@ -84,7 +86,7 @@ UuidHandle.prototype.set = function(uuid){
 	this.emit(e, 'set', uuid)
 }
 UuidHandle.prototype.value = function(){
-	return this.obj
+	return random.uuidStringToBase64(this.obj)
 }
 
 UuidHandle.prototype.toJson = function(){
