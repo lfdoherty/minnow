@@ -1746,6 +1746,70 @@ TopObjectHandle.prototype.isCopyAncestor = function(obj){
 	return false
 }
 
+TopObjectHandle.prototype._getHasBeenEdited = function(obj){
+	return obj.versionsSelf().length > 1
+}
+
+var otherUpdateOps = [editCodes.selectProperty,editCodes.selectObject,editCodes.clearObject,
+	editCodes.selectSubObject,editCodes.selectSubViewObject,editCodes.made,editCodes.copied]
+
+var isOtherUpdateOp = {}
+otherUpdateOps.forEach(function(op){isOtherUpdateOp[op] = true;})
+
+function isUpdateOp(op){
+	if(lookup.isKeySelectCode[op]) return true
+	else return isOtherUpdateOp[op]
+}
+
+TopObjectHandle.prototype.hasBeenEdited = function(){
+
+	var edits = this.edits.concat(this.localEdits||[])
+
+	var madeIndex
+	var copiedIndex
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		if(e.op === editCodes.copied){
+			copiedIndex = i
+			break
+		}
+	}
+	
+	if(copiedIndex !== undefined){
+		madeIndex = copiedIndex
+	}else if(this.edits.length > 1 && this.edits[1].op === editCodes.copied){
+		madeIndex = 1
+		
+	}else if(this.edits.length > 0 && this.edits[0].op === editCodes.copied){
+		madeIndex = 0
+	}else{	
+		madeIndex = getMadeIndex(edits, this)
+	}
+	
+	var skip = 0
+	for(var i=0;i<this.edits.length;++i){
+		var e = this.edits[i]
+		if(e.op === editCodes.setSyncId) continue
+		var did = isUpdateOp(e.op)
+		if(skip > 0){
+			--skip
+			continue
+		}
+		if(e.op === editCodes.made){
+			if(skip === 0){
+				skip = e.edit.following
+			}
+		}else if(e.op === editCodes.copied){
+			skip = e.edit.following - i
+		}
+		if(!did && i > madeIndex){
+			if(e.op === editCodes.setSyncId || e.op === editCodes.initializeUuid) continue
+			if(e.fromCopy) continue
+			return true
+		}
+	}
+}
+
 TopObjectHandle.prototype.versionsSelf = function(){
 	var fakeObject = {}
 

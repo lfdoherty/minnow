@@ -63,6 +63,8 @@ function makeRefer(objSchema){
 		}
 		//_.errout('TODO: ' + JSON.stringify(a))
 		//console.log(propertyRefer.length + ' ' + JSON.stringify(a))
+		
+		
 		for(var i=0;i<propertyRefer.length;++i){
 			var pr = propertyRefer[i]
 			_.assertInt(pr.code)
@@ -70,6 +72,9 @@ function makeRefer(objSchema){
 			pr(a[pr.code], res)
 			
 		}
+
+		//console.log(JSON.stringify(a) + ' -> ' + JSON.stringify(res))
+
 		return res
 	}
 	Object.keys(objSchema.properties).forEach(function(propertyName){
@@ -313,7 +318,10 @@ exports.make = function(schema, objectState, query){
 	
 	function includeObjectInSnap(id, got, res){
 		_.assertString(id)
-		if(got[id]) return
+		if(got[id]){
+			//console.log('already got: ' + id)
+			return
+		}
 		res.push({id: id, edits: objectState.getObjectBinary(id)})
 		//_.assertBuffer(res[res.length-1].edits)
 		got[id] = true
@@ -374,7 +382,8 @@ exports.make = function(schema, objectState, query){
 			
 			return diff
 		},
-		snap: function(viewId, got){
+		snap: function(viewId, got, res){
+			_.assertObject(res)
 			_.assertString(viewId)
 			got = got || {}
 			if(got[viewId]) return []
@@ -390,20 +399,29 @@ exports.make = function(schema, objectState, query){
 			var cur = getQuery(viewId)
 			var typeCode = getTypeCode(viewId)
 			var referenced = refers[typeCode](cur)
-			var res = {viewObjects: [{id: viewId, edits: convertViewStateToEdits(typeCode, viewId, cur)}], objects: []}
+			//var res = {viewObjects: [{id: viewId, edits: convertViewStateToEdits(typeCode, viewId, cur)}], objects: []}
+			res.viewObjects.push({id: viewId, edits: convertViewStateToEdits(typeCode, viewId, cur)})
 			//console.log(JSON.stringify([referenced]))
 			for(var i=0;i<referenced.viewIds.length;++i){
 				var rvi = referenced.viewIds[i]
 				_.assertString(rvi)
-				var snapRes = handle.snap(rvi, got)
-				res.viewObjects = res.viewObjects.concat(snapRes.viewObjects)
+				//var nestedGot = JSON.parse(JSON.stringify(got))
+				/*var snapRes =*/ handle.snap(rvi, got, res)
+				//res.viewObjects = res.viewObjects.concat(snapRes.viewObjects)
+				/*for(var j=0;j<snapRes.objects.length;++j){
+					var obj = snapRes.objects[j]
+					includeObjectInSnap(obj.id, got, res.objects)
+					console.log('-> ' + obj.id)
+				}*/
+				//res.objects = res.objects.concat(snapR
 			}
+			//console.log('doing includes for : ' + viewId + ' ' + res.viewObjects.length)
 			for(var i=0;i<referenced.objectIds.length;++i){
 				var id = referenced.objectIds[i]
 				includeObjectInSnap(id, got, res.objects)
 			}
 			//console.log('res: ' + JSON.stringify(res))
-			return res
+			//return res
 		}
 	}
 	

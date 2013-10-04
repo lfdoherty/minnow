@@ -283,6 +283,9 @@ putBoolean 87
 putReal 99
 	value real 1
 
+putUuid 3
+	value uuid 1
+
 putAddExisting 100
 	id uuid 1
 

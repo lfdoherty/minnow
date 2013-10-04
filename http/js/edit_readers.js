@@ -6,6 +6,11 @@ readers.made = function(r){
 	e.following = r.readInt()
 	return e;
 }
+readers.putUuid = function(r){
+	var e = {}
+	e.value = r.readUuid()
+	return e;
+}
 readers.addInt = function(r){
 	var e = {}
 	e.value = r.readInt()

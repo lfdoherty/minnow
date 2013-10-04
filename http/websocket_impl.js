@@ -27,6 +27,7 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 		exposeBeginSync: function(cb, endCb){
 
 			wss = new WebSocketServer({server: local.getSecureServer(), path: urlPrefix+'/ws/'})
+			console.log('wss listening: ' + urlPrefix + '/ws/')
 			
 			wss.on('error', function(err){
 				console.log('ERROR: ' + err)

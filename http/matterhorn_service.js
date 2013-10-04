@@ -47,6 +47,8 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 	_.assertLength(arguments, 9)
 	_.assertString(appName)
 	_.assertFunction(authenticator)
+
+	_.assertString(secureLocal.host)
 	
 	var service = require('./service').make(minnowClient.schema, minnowClient.internalClient);
 	
@@ -170,20 +172,13 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 			viewSchema.viewSchema.params.forEach(function(p, index){
 				if(p.type.type === 'object'){
 					var id = params[index]
-					//if(_.isString(id) && i){
-					//	newParams[index] = pu.parseInnerId(id)//pu.parseId(id)
-					//}else{
-						newParams[index] = id
-					//}
+					newParams[index] = id
 				}else{
 					//console.log(JSON.stringify(p.type))
 					newParams[index] = params[index]
 				}
 			})
-			//_.errout('TODO')
 			params = newParams
-
-			//if(params.length === 4 && _.isString(params[3]) && params[3] === '54_39') _.errout('FIXME: ' + JSON.stringify(params))
 			
 			service.getViewState(viewName, params, function(err, baseTypeCode, snap, lastSeenVersionId){
 			
@@ -202,7 +197,53 @@ exports.make = function(prefix, appName, schema, local, secureLocal, minnowClien
 				vars.applicationName = appName
 				vars.UrlPrefix = secureLocal.host
 				vars.minnowSnap = snap//JSON.parse(snap)
+				_.assertString(secureLocal.host)
 				vars.WebsocketUrl = ''+secureLocal.host+'/ws/'
+			
+				cb(vars, [])//[schemaUrl])
+			})
+		},
+		getSnapState: function(viewName, params, vars, res, cb){
+			_.assertLength(arguments, 5);
+
+			var viewSchema = minnowClient.schema[viewName]
+			if(viewSchema === undefined) _.errout('no view in schema named: ' + viewName)
+			var viewCode = viewSchema.code
+
+			//TODO convert inner id strings to innerify objects
+			//console.log('params: ' + JSON.stringify(params))
+			var newParams = []
+			viewSchema.viewSchema.params.forEach(function(p, index){
+				if(p.type.type === 'object'){
+					var id = params[index]
+					newParams[index] = id
+				}else{
+					//console.log(JSON.stringify(p.type))
+					newParams[index] = params[index]
+				}
+			})
+			params = newParams
+			
+			service.getViewState(viewName, params, function(err, baseTypeCode, snap, lastSeenVersionId){
+			
+				if(err){
+					console.log('view files error: ' + JSON.stringify(err))
+					res.send(500)
+					return
+				}
+				
+				var result = [];
+			
+				vars.snapshotIds = [lastSeenVersionId]
+				vars.lastId = lastSeenVersionId;
+				vars.baseTypeCode = viewCode;
+				vars.baseId = pu.viewIdStr(baseTypeCode,params,viewSchema)
+				vars.applicationName = appName
+				vars.UrlPrefix = secureLocal.host
+				vars.minnowSnap = snap//JSON.parse(snap)
+				_.assertString(secureLocal.host)
+				//vars.WebsocketUrl = ''+secureLocal.host+'/ws/'
+				vars.isSnap = true
 			
 				cb(vars, [])//[schemaUrl])
 			})

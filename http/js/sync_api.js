@@ -282,6 +282,15 @@ function versionsSelf(){
 	return versions
 }
 
+function hasBeenEdited(){
+	var versions = this.parent._getHasBeenEdited(this)
+	return versions
+}
+function _getHasBeenEdited(obj){
+	return this.parent._getHasBeenEdited(obj)
+}
+
+
 function _getVersions(source){
 	return this.parent._getVersions(source)
 }
@@ -394,6 +403,8 @@ function addCommonFunctions(classPrototype){
 	if(classPrototype.adjustTopObjectToOwn === undefined) classPrototype.adjustTopObjectToOwn = adjustTopObjectToOwn
 
 	if(classPrototype.getInnerObject === undefined) classPrototype.getInnerObject = getInnerObject
+	if(classPrototype.hasBeenEdited === undefined) classPrototype.hasBeenEdited = hasBeenEdited
+	if(classPrototype._getHasBeenEdited === undefined) classPrototype._getHasBeenEdited = _getHasBeenEdited
 	
 	//if(classPrototype.listenForReification === undefined) classPrototype.listenForReification = listenForReification
 
@@ -1205,6 +1216,7 @@ SyncApi.prototype.getAllObjects = function getObjectApi(idOrViewKey){
 
 SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, historicalKey){
 
+
 	//console.log('getting object ' + idOrViewKey + ' ' + historicalKey)
 	
 	//var n
@@ -1279,7 +1291,12 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, historic
 	}
 	var obj = this.snap.objects[idOrViewKey];
 
+
 	if(obj === undefined){
+
+		if(idOrViewKey.length === 22 && idOrViewKey[0] !== ':'){
+			_.errout('id is wrong length: ' + idOrViewKey)
+		}
 
 		var snapStr = JSON.stringify(this.snap)
 		console.log('snap: ' + snapStr.substr(0,5000) + '...\n\n...' + snapStr.substr(snapStr.length-5000))
@@ -1289,6 +1306,11 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, historic
 		return
 	}
 
+	var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
+	var t = this.schema._byCode[typeCode];
+	if(t === undefined) _.errout('cannot find object type: ' + typeCode);
+	var isView = !!t.isView
+
 	//console.log(idOrViewKey+': ' + JSON.stringify(obj).slice(0,500))
 	_.assert(obj.length > 0)
 	
@@ -1296,11 +1318,7 @@ SyncApi.prototype.getObjectApi = function getObjectApi(idOrViewKey){//, historic
 		return
 	}
 	//console.log(JSON.stringify(obj))
-	var typeCode = (obj[0].op === editCodes.madeViewObject ? obj[0].edit.typeCode : obj[1].edit.typeCode)//first edit is a made op
-	var t = this.schema._byCode[typeCode];
 
-	if(t === undefined) _.errout('cannot find object type: ' + typeCode);
-	var isView = !!t.isView
 
 	n = new TopObjectHandle(this.schema, t, obj, this, idOrViewKey, isView);
 	this.objectApiCache[idOrViewKey] = n;

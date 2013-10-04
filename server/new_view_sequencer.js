@@ -344,7 +344,8 @@ exports.make = function(schema, ol){
 	
 	function getSnapshotInner(id, lastEditId, endEditId, readyCb){
 	
-		var result = viewCache.snap(id, {})
+		var result = {objects: [], viewObjects: []}
+		/*var result =*/ viewCache.snap(id, {}, result)
 
 		var objectEditBuffers = [].concat(result.objects)
 		var viewObjectEditBuffers = [].concat(result.viewObjects)

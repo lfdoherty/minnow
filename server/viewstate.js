@@ -48,7 +48,11 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 			if(t.type.type === 'object'){
 				if(!_.isString(params[i]) && !_.isObject(params[i]) && isNaN(params[i])){
 					console.log('failed to parse: ' + viewSchema.name + ' ' + JSON.stringify(params))
-					throw new Error('object id is NaN in param ' + i)
+					//throw new Error('object id is NaN in param ' + i)
+					var e = new Error('object id is NaN in param ' + i)
+					e.code = 'InvalidParamType'
+					errCb(e)
+					return false
 				}
 				/*if(!objectState.isTopLevelObject(params[i])){
 					var e = new Error('parameters include an invalid object id') 
@@ -125,7 +129,7 @@ exports.make = function(schema, globalMacros, objectState, viewSequencer){
 		},
 		getFullSnapshot: function(typeCode, params, cb, errCb){
 			var endEditId = objectState.getCurrentEditId()-1
-			handle.getSnapshotState(typeCode, params, -1, endEditId, false, function(res){
+			handle.getSnapshotState(typeCode, params, endEditId, -1, false, function(res){
 				cb(res, endEditId)
 			}, errCb)
 		},

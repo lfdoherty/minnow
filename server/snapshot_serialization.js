@@ -54,14 +54,14 @@ function serializeSnapshot(startEditId, endEditId, objectEditBuffers, viewObject
 		var eb = objectEditBuffers[i]
 		//if(eb.edits.length > 4){
 			realObjBufs.push(eb)
-		/*	console.log('pushing: ' + eb.id + ' ' + eb.edits.length)
-		}else{
+			//console.log('pushing: ' + eb.id + ' ' + eb.edits.length)
+		/*}else{
 			console.log('discarding: ' + eb.id + ' ' + eb.edits.length)//TODO eliminate the need for this upstream
 		}*/
 	}
 	
 	w.putInt(realObjBufs.length)
-	//console.log('put objs count: ' + realObjBufs.length)
+	//console.log(startEditId + ', ' + endEditId+' put objs count: ' + realObjBufs.length)
 
 	for(var i=0;i<realObjBufs.length;++i){
 		var e = realObjBufs[i]
@@ -88,6 +88,8 @@ function serializeSnapshot(startEditId, endEditId, objectEditBuffers, viewObject
 function serializeViewObjects(w, codes, writersByCode, viewObjectEditBuffers){
 	//var viewIds = Object.keys(viewObjectEditBuffers)
 	w.putInt(viewObjectEditBuffers.length)
+
+	//console.log('viewObjectEditBuffers: ' + viewObjectEditBuffers.length)
 
 	for(var i=0;i<viewObjectEditBuffers.length;++i){
 		var e = viewObjectEditBuffers[i]

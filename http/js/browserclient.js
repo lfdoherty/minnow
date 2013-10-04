@@ -9,8 +9,10 @@ var b64 = require('./b64')
 var page = require('fpage')
 
 var lookup = require('./lookup')
-
+var shared = require('./update_shared')
 var schema = require(':schema.js')
+
+var _ = require('underscorem')
 
 //console.log('schema: ' + JSON.stringify(schema))
 
@@ -88,20 +90,11 @@ global.gotSnapshot = function(snap){
 }
 
 if(page.params.minnowSnap){
-	//snaps.push(minnowSnap)
 	var buf = b64.decodeBuffer(page.params.minnowSnap)
 	page.params.minnowSnap = lookup.deserializeSnapshot(buf)//JSON.parse(page.params.minnowSnap)	
 	page.params.minnowSnap.id = page.params.lastId
 	global.gotSnapshot(page.params.minnowSnap)
 }
-
-
-/*
-global.gotSchema = function(s){
-
-	schema = s;
-*/
-//}
 
 function tryLoad(){
 	//console.log((snapsRemaining.length === 0)+ ' '+ (schema !== undefined))
@@ -149,9 +142,74 @@ var waitingFunc
 
 var host = page.params.WebsocketUrl//window.location.protocol + '//' + window.location.host + page.params.UrlPrefix+'/ws/'// + ':' + minnowSocketPort
 //console.log('opening websocket... ' + Date.now())
+
+function log(msg){
+	console.log(msg)
+}
+log.info = function(msg){
+	console.log(msg)
+}
+log.warn = function(msg){
+	console.log(msg)
+}
+log.err = function(msg){
+	console.log(msg)
+}
+
 var hasStarted = false
 function start(){
 	hasStarted = true
+	
+	if(page.params.isSnap){
+
+		snapshot = mergeSnapshots(snaps);
+	
+		console.log('version loaded: ' + snapshot.version);
+		
+		var sendFacade = {
+			sendSetupMessage: function(e, cb){
+				_.errout('CANNOT COPY FROM SNAP')
+			},
+			persistEdit: function(op, edit){
+				_.errout('CANNOT COPY FROM SNAP')
+			},
+			make: function(type, json, forget, cb, id){
+				_.errout('CANNOT COPY FROM SNAP')
+			},
+			copy: function(obj, json, forget, cb, id){
+				_.errout('CANNOT COPY FROM SNAP')
+			},
+			addEditListener: function(listener){
+				_.errout('SNAP')
+			}
+		};
+		
+		var viewName = schema._byCode[page.params.baseTypeCode].name
+	
+		var theApi = syncApi.make(schema, sendFacade, log);
+		theApi.setEditingId(-1);
+			
+		for(var i=0;i<snaps.length;++i){
+			theApi.addSnapshot(snaps[i])
+		}
+		var lastSnapshotVersion = snaps[snaps.length-1].endVersion
+		
+		var viewId = page.params.baseId
+
+		_.assertString(viewId)
+
+		api = theApi.getView(viewId)
+		if(domWasReady){		
+			var view = api
+			listeners.forEach(function(listener){
+				cb(undefined, view)
+			})
+			listeners = undefined
+		}
+
+		return
+	}
+	
 	update.openSocket(page.params.applicationName, host, function(fullFuncParam){
 			//console.log('socket opened: ' + Date.now())
 			fullFunc = fullFuncParam
@@ -174,7 +232,7 @@ function loadMinnowView(){
 	
 	snapshot = mergeSnapshots(snaps);
 	
-	//console.log('version loaded: ' + snapshot.version);
+	console.log('version loaded: ' + snapshot.version);
 	//console.log(page.params.baseTypeCode + ' ' + (JSON.stringify(Object.keys(schema._byCode))))
 
 	var viewName = schema._byCode[page.params.baseTypeCode].name
