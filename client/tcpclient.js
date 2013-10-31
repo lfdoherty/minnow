@@ -600,7 +600,7 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			close: function(){
 				//_.errout('TODO close sync handle')
 				console.log('closing sync handle: ' + syncId)
-				console.log(new Error().stack)
+				//console.log(new Error().stack)
 				delete syncListenersBySyncId[syncId]
 				closed[syncId] = true
 				w.endSync({syncId: syncId})

@@ -259,7 +259,7 @@ exports.make = function(schema, cc){
 			try{
 				var req = {typeCode: viewCode, params: pu.paramsStr(params, s.viewSchema.params)}
 			}catch(e){
-				console.log('ERROR: failed to stringify params: ' + s.viewSchema.name)
+				console.log('ERROR: failed to stringify params: ' + s.viewSchema.name + ' ' + require('util').inspect(params) + ' ' + e.stack)
 				cb(e)
 				return
 			}
