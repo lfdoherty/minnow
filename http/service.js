@@ -61,15 +61,15 @@ function parseParams(schema, params){
 			}
 		}else if(p.type.type === 'object'){
 			if(pv.length > 22){//pv.indexOf('_') !== -1){
-				console.log('*converting pv: ' + pv)
+				//console.log('*converting pv: ' + pv)
 				//pv = newViewSequencer.parseInnerId(pv)
 				var a = seedrandom.uuidBase64ToString(pv.substr(0, 8))
 				var b = seedrandom.uuidBase64ToString(pv.substr(9))
 				pv = innerify(a,b)
 			}else{
-				console.log('converting pv: ' + pv)
+				//console.log('converting pv: ' + pv)
 				pv = seedrandom.uuidBase64ToString(pv)//parseInt(pv);
-				console.log('converted pv: ' + pv)
+				//console.log('converted pv: ' + pv)
 			}
 		}else{
 			_.errout('TODO: ' + JSON.stringify(p));

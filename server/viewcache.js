@@ -19,7 +19,7 @@ exports.make = function(objectState){
 			cacheLists.shift()
 			for(var i=0;i<next.list.length;++i){
 				var key = next.list[i]
-				console.log('cleaned up: ' + key)
+				//console.log('cleaned up: ' + key)
 				cache[key] = undefined
 				++dirtyCount
 			}
