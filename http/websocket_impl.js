@@ -62,7 +62,13 @@ exports.make = function(authenticateByToken, local, urlPrefix, listeners){//secu
 					}
 					console.log('data: (' + data + ') ' + data.length)*/
 					if(userToken === undefined){
-						var setupMsg = JSON.parse(data)
+						try{
+							var setupMsg = JSON.parse(data)
+						}catch(e){
+							console.log('ERROR PARSING SETUP MESSAGE, closing socket: ' + e.stack)
+							ws.close()
+							return
+						}
 						console.log('got setup msg: ' + JSON.stringify(setupMsg))
 						authenticateByToken(setupMsg.token, function(err, t){
 							if(err){
