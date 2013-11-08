@@ -675,12 +675,16 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 		getAllCurrentSnapshots: function(e, cb){
 			_.assertFunction(cb)
 			applyRequestId(e, function(err, res){
-				if(err){
-					cb(err)
-					return
+				try{
+					if(err){
+						cb(err)
+						return
+					}
+					res.snapshots = deserializeAllSnapshots(res.snapshots)
+					cb(undefined, res)
+				}catch(e){
+					console.log('ERROR in getAllCurrentSnapshots cb: ' + e.stack + ' ' + e)
 				}
-				res.snapshots = deserializeAllSnapshots(res.snapshots)
-				cb(undefined, res)
 			});
 			w.getAllCurrentSnapshots(e);
 		},
@@ -697,15 +701,19 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			}
 			e.snapshotVersionIds = svb
 			applyRequestId(e, function(err, res){
-				if(err){
-					cb(err)
-					return
-				}
-				//console.log('getAllSnapshots: ' + e.isHistorical)
+				try{
+					if(err){
+						cb(err)
+						return
+					}
+					//console.log('getAllSnapshots: ' + e.isHistorical)
 
-				res.snapshots = deserializeAllSnapshots(res.snapshots)
-				//log('deserialized: ' + JSON.stringify(res).slice(0,500))
-				cb(undefined, res)
+					res.snapshots = deserializeAllSnapshots(res.snapshots)
+					//log('deserialized: ' + JSON.stringify(res).slice(0,500))
+					cb(undefined, res)
+				}catch(e){
+					console.log('ERROR in getAllSnapshots cb: ' + e.stack + ' ' + e)
+				}
 			});
 			w.getAllSnapshots(e);
 		},
