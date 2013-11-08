@@ -650,8 +650,12 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			_.assertFunction(cb)
 			//console.log(e.params + ' ' + new Error().stack)
 			applyRequestId(e, function(res){
-				res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
-				cb(undefined, res)
+				try{
+					res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
+					cb(undefined, res)
+				}catch(e){
+					console.log('ERROR in getSnapshots cb: ' + e.stack + ' ' + e)
+				}	
 			});
 			w.getSnapshots(e);
 			//log('tcpclient: getSnapshots: ' + JSON.stringify(e))
@@ -660,13 +664,17 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 			_.assertFunction(cb)
 			//console.log(e.params + ' ' + new Error().stack)
 			applyRequestId(e, function(err, res){
-				if(err){
-					console.log('cb: ' + cb)
-					cb(err)
-				}else{
-					//res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
-					//res.snapshot = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snapshot)
-					cb(undefined, res)
+				try{
+					if(err){
+						console.log('cb: ' + cb)
+						cb(err)
+					}else{
+						//res.snapshotVersionIds = deserializeSnapshotVersionIds(res.snapshotVersionIds)
+						//res.snapshot = deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snapshot)
+						cb(undefined, res)
+					}
+				}catch(e){
+					console.log('ERROR in getFullSnapshot cb: ' + e.stack + ' ' + e)
 				}
 			});
 			w.getFullSnapshot(e);
@@ -724,12 +732,16 @@ function make(host, port, defaultBlockListener,/*defaultChangeListener, defaultO
 				_.errout('should be inner')
 			}*/
 			applyRequestId(e, function(err, res){
-				if(err){
-					cb(err)
-					return
+				try{
+					if(err){
+						cb(err)
+						return
+					}
+					res.snap = res.snap//deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snap)
+					cb(undefined, res)
+				}catch(e){
+					console.log('ERROR in getSnapshot cb: ' + e.stack + ' ' + e)
 				}
-				res.snap = res.snap//deserializeSnapshot(fp.readers, fp.readersByCode, fp.names, res.snap)
-				cb(undefined, res)
 			});
 			w.getSnapshot(e);
 			//log('tcpclient: getSnapshots')
